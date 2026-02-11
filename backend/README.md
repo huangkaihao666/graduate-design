@@ -28,12 +28,46 @@
 
 ## 🖥️ 环境要求
 
-| 软件        | 最低版本 | 推荐版本             |
-| ----------- | -------- | -------------------- |
-| **Node.js** | 18.0     | 20.x LTS 或 22.x LTS |
-| **pnpm**    | 8.0      | 10.29.3 或更新       |
+| 软件           | 最低版本 | 推荐版本             | 说明                                                |
+| -------------- | -------- | -------------------- | --------------------------------------------------- |
+| **Node.js**    | 18.0     | 20.x LTS 或 22.x LTS | NestJS 11 运行时环境                                |
+| **pnpm**       | 8.0      | 10.29.3 或更新       | Monorepo 包管理工具（必需，不支持 npm 和 yarn）     |
+| **NestJS CLI** | 11.0     | 11.0 或更新          | NestJS 命令行工具（可选，用于快速生成模块和控制器） |
+| **MySQL**      | 8.0      | 8.0 或 5.7           | 数据库服务（需单独安装或使用 Docker）               |
+| **TypeScript** | 5.7      | 5.7 或更新           | 类型检查（包含在项目依赖中）                        |
 
 ## 🚀 快速开始
+
+### 前置准备
+
+#### 安装 NestJS CLI（可选但推荐）
+
+```bash
+# 全局安装 NestJS CLI（用于快速生成代码）
+npm install -g @nestjs/cli
+
+# 验证安装
+nest --version
+```
+
+#### 启动 MySQL 数据库
+
+**方案 1：使用 Docker（推荐）**
+
+```bash
+# 运行 MySQL 容器
+docker run --name mysql-dev \
+  -e MYSQL_ROOT_PASSWORD=password \
+  -e MYSQL_DATABASE=project_db \
+  -p 3306:3306 \
+  -d mysql:8.0
+```
+
+**方案 2：本地安装 MySQL**
+
+- 下载并安装 [MySQL 8.0](https://dev.mysql.com/downloads/mysql/)
+- 启动 MySQL 服务
+- 创建数据库：`CREATE DATABASE project_db;`
 
 ### 1. 安装依赖
 
@@ -50,30 +84,73 @@ cd backend
 pnpm install
 ```
 
+> **注意**：如果看到 peer dependency 警告可以忽略，不影响项目运行。
+
 ### 2. 配置环境变量
 
-复制 `.env.example` 为 `.env` 并修改配置：
+复制 `.env.example` 为 `.env` 并修改数据库连接配置：
 
 ```bash
 cp .env.example .env
 ```
 
-### 3. 启动开发服务器
+编辑 `.env` 文件，确保数据库 URL 正确：
+
+```bash
+# .env 文件示例
+PORT=3000
+NODE_ENV=development
+CORS_ORIGIN=http://localhost:5173
+
+# MySQL 数据库连接（使用 Prisma）
+DATABASE_URL="mysql://root:password@localhost:3306/project_db"
+```
+
+> **重要**：确保 MySQL 服务已启动，且数据库存在。
+
+### 3. 初始化数据库（Prisma 迁移）
+
+首次运行时需要应用数据库迁移：
+
+```bash
+# 进入后端目录
+cd backend
+
+# 生成 Prisma Client（如果还未生成）
+pnpm prisma:generate
+
+# 创建并应用数据库迁移
+pnpm prisma:migrate
+```
+
+系统会提示输入迁移名称，例如 `init`。完成后，数据库表会自动创建。
+
+### 4. 启动开发服务器
 
 ```bash
 # 从根目录
 pnpm backend:dev
 
-# 从后端目录
+# 或从后端目录
 cd backend
 pnpm start:dev
 ```
 
+预期输出：
+
+```
+[Nest] 12345  - 02/12/2024, 3:00:00 PM     LOG [NestFactory] Starting Nest application...
+[Nest] 12345  - 02/12/2024, 3:00:01 PM     LOG [InstanceLoader] AppModule dependencies initialized
+[Nest] 12345  - 02/12/2024, 3:00:01 PM     LOG [RoutesResolver] AppController {/api/v1}:
+[Nest] 12345  - 02/12/2024, 3:00:01 PM     LOG [RouterExplorer] Mapped {/, GET} route
+[Nest] 12345  - 02/12/2024, 3:00:01 PM     LOG [NestApplication] Nest application successfully started
+```
+
 服务器会在 `http://localhost:3000/api/v1` 启动。
 
-### 4. 验证服务
+### 5. 验证服务
 
-访问健康检查端点：
+#### 5.1 健康检查
 
 ```bash
 curl http://localhost:3000/api/v1/health
@@ -90,6 +167,90 @@ curl http://localhost:3000/api/v1/health
     "timestamp": "2024-02-12T02:30:00.000Z"
   }
 }
+```
+
+#### 5.2 测试用户 API
+
+创建用户：
+
+```bash
+curl -X POST http://localhost:3000/api/v1/users \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "张三",
+    "email": "zhangsan@example.com",
+    "password": "password123"
+  }'
+```
+
+查看所有用户：
+
+```bash
+curl http://localhost:3000/api/v1/users
+```
+
+### 🔧 常见问题排查
+
+#### 问题 1：Cannot find module '@prisma/client'
+
+**原因**：Prisma Client 未生成
+
+**解决方案**：
+
+```bash
+cd backend
+pnpm prisma:generate
+```
+
+#### 问题 2：connect ECONNREFUSED 127.0.0.1:3306
+
+**原因**：MySQL 数据库未启动或连接配置错误
+
+**解决方案**：
+
+1. 检查 `.env` 中的 `DATABASE_URL` 是否正确
+2. 确保 MySQL 服务已启动
+3. 验证数据库用户名和密码是否正确
+4. 如使用 Docker，检查容器是否运行：`docker ps`
+
+#### 问题 3：Cannot find module 'nest'
+
+**原因**：NestJS 依赖未正确安装
+
+**解决方案**：
+
+```bash
+cd backend
+pnpm install
+pnpm run build
+```
+
+#### 问题 4：CORS 错误 - Access-Control-Allow-Origin
+
+**原因**：前端请求源未配置在 CORS_ORIGIN
+
+**解决方案**：
+编辑 `.env`，更新 `CORS_ORIGIN` 为正确的前端地址：
+
+```bash
+CORS_ORIGIN=http://localhost:5173
+```
+
+#### 问题 5：构建时出现 TypeScript 错误
+
+**原因**：TypeScript 类型检查失败
+
+**解决方案**：
+
+```bash
+# 运行类型检查
+pnpm type-check
+
+# 运行 ESLint 检查
+pnpm lint
+
+# 尝试自动修复
+pnpm lint --fix
 ```
 
 ## 📁 项目结构
