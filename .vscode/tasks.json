@@ -59,6 +59,20 @@
       "args": ["run", "type-check"],
       "cwd": "${workspaceFolder}/frontend",
       "problemMatcher": ["$tsc"]
+    },
+    {
+      "label": "style-check",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "style-check"],
+      "cwd": "${workspaceFolder}/frontend"
+    },
+    {
+      "label": "style-fix",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "style-fix"],
+      "cwd": "${workspaceFolder}/frontend"
     }
   ]
 }

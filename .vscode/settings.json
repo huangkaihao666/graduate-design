@@ -101,6 +101,19 @@
   // ============ TypeScript 设置 ============
   "typescript.tsdk": "node_modules/typescript/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true,
-  "typescript.updateImportsOnFileMove.enabled": "always"
+  "typescript.updateImportsOnFileMove.enabled": "always",
+
+  // ============ Stylelint 设置 ============
+  "stylelint.enable": true,
+  "stylelint.validate": [
+    "css",
+    "scss",
+    "less",
+    "vue"
+  ],
+  "stylelint.format.enable": true,
+  "css.lint.compatible": false,
+  "scss.lint.compatible": false,
+  "less.lint.compatible": false
 }
 

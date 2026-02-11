@@ -1,0 +1,15 @@
+{
+  "customSyntax": "postcss-less",
+  "rules": {
+    "at-rule-no-unknown": [
+      true,
+      {
+        "ignoreAtRules": [
+          "mixin",
+          "extend",
+          "include"
+        ]
+      }
+    ]
+  }
+}
