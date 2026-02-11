@@ -3,6 +3,7 @@ import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
 // 视图组件
 import Home from '../views/Home.vue'
 import About from '../views/About.vue'
+import ApiDemo from '../views/ApiDemo.vue'
 import NotFound from '../views/NotFound.vue'
 
 // 路由配置
@@ -23,6 +24,15 @@ const routes: RouteRecordRaw[] = [
     meta: {
       title: '关于',
       description: '关于项目',
+    },
+  },
+  {
+    path: '/api-demo',
+    name: 'ApiDemo',
+    component: ApiDemo,
+    meta: {
+      title: 'API 演示',
+      description: 'HTTP 请求和拦截器演示',
     },
   },
   // 捕获所有未匹配的路由，必须放在最后

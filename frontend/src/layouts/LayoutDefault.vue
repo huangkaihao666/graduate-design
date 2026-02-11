@@ -30,6 +30,7 @@ const handleMenuClick = (key: string) => {
           @click="(e) => handleMenuClick(e.key as string)"
         >
           <Menu.Item key="/">首页</Menu.Item>
+          <Menu.Item key="/api-demo">API 演示</Menu.Item>
           <Menu.Item key="/about">关于</Menu.Item>
         </Menu>
       </div>
