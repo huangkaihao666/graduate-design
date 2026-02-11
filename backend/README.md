@@ -347,31 +347,184 @@ export class UsersController {
 
 ## 📦 集成指南
 
-### 即将集成的功能
+### 已集成的功能
+
+#### ✅ Prisma ORM + MySQL 数据库
+
+**项目已集成 Prisma ORM 用于数据库操作**
+
+##### 数据库配置
+
+更新 `.env` 文件：
+
+```bash
+# 数据库 URL 配置
+# 格式: mysql://username:password@host:port/database
+DATABASE_URL="mysql://root:password@localhost:3306/project_db"
+```
+
+##### 数据库模型定义
+
+数据模型定义在 `prisma/schema.prisma`：
+
+```prisma
+// 用户模型
+model User {
+  id        Int     @id @default(autoincrement()) @db.UnsignedInt
+  email     String  @unique @db.VarChar(255)
+  name      String  @db.VarChar(100)
+  password  String  @db.VarChar(255)
+  isActive  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  posts     Post[]
+
+  @@map("users")
+  @@index([email])
+}
+
+// 文章模型
+model Post {
+  id        Int     @id @default(autoincrement()) @db.UnsignedInt
+  title     String  @db.VarChar(255)
+  content   String  @db.LongText
+  published Boolean @default(false)
+
+  authorId  Int     @db.UnsignedInt
+  author    User    @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("posts")
+  @@index([authorId])
+}
+```
+
+##### 数据库迁移命令
+
+```bash
+# 创建新的迁移（基于 schema.prisma 变更）
+pnpm prisma:migrate
+
+# 生成 Prisma Client
+pnpm prisma:generate
+
+# 使用 Prisma Studio 可视化管理数据
+pnpm prisma:studio
+
+# 重置数据库（清空所有数据并重新迁移）
+pnpm prisma:reset
+
+# 生产环境迁移部署
+pnpm prisma:migrate:prod
+```
+
+##### 在服务中使用 Prisma
+
+```typescript
+// 在模块中导入 PrismaModule
+import { Module } from '@nestjs/common';
+import { PrismaModule } from './prisma/prisma.module';
+
+@Module({
+  imports: [PrismaModule],
+})
+export class AppModule {}
+
+// 在服务中注入 PrismaService
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from './prisma/prisma.service';
+
+@Injectable()
+export class UsersService {
+  constructor(private prisma: PrismaService) {}
+
+  async findAll() {
+    return this.prisma.user.findMany();
+  }
+
+  async findOne(id: number) {
+    return this.prisma.user.findUnique({
+      where: { id },
+    });
+  }
+
+  async create(data: any) {
+    return this.prisma.user.create({
+      data,
+    });
+  }
+
+  async update(id: number, data: any) {
+    return this.prisma.user.update({
+      where: { id },
+      data,
+    });
+  }
+
+  async delete(id: number) {
+    return this.prisma.user.delete({
+      where: { id },
+    });
+  }
+}
+```
+
+##### API 端点示例
+
+Users 模块已实现基本 CRUD 操作：
+
+```bash
+# 获取所有用户
+GET /api/v1/users
+
+# 获取特定用户
+GET /api/v1/users/:id
+
+# 创建新用户
+POST /api/v1/users
+Content-Type: application/json
+
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "securepassword"
+}
+
+# 更新用户
+PUT /api/v1/users/:id
+Content-Type: application/json
+
+{
+  "name": "Jane Doe",
+  "email": "jane@example.com"
+}
+
+# 删除用户
+DELETE /api/v1/users/:id
+```
+
+### 待集成的功能
 
 以下功能已在规划中，可按需集成：
 
-#### 1. Prisma ORM + MySQL 数据库
-
-```bash
-pnpm add @prisma/client
-pnpm add -D prisma
-```
-
-#### 2. Swagger API 文档
+#### Swagger API 文档
 
 ```bash
 pnpm add @nestjs/swagger swagger-ui-express
 ```
 
-#### 3. Passport + JWT 认证
+#### Passport + JWT 认证
 
 ```bash
 pnpm add @nestjs/passport @nestjs/jwt passport passport-jwt
 pnpm add -D @types/passport-jwt
 ```
 
-#### 4. Redis 缓存
+#### Redis 缓存
 
 ```bash
 pnpm add redis @nestjs/cache-manager cache-manager
