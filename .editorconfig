@@ -1,0 +1,63 @@
+# EditorConfig 是一个跨编辑器配置标准
+# 参考文档: https://editorconfig.org
+
+# 标记这是项目的根目录
+root = true
+
+# 所有文件
+[*]
+indent_style = space
+indent_size = 2
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+# Vue 单文件组件
+[*.vue]
+indent_style = space
+indent_size = 2
+
+# TypeScript
+[*.{ts,tsx}]
+indent_style = space
+indent_size = 2
+
+# JavaScript
+[*.{js,jsx,mjs,cjs}]
+indent_style = space
+indent_size = 2
+
+# JSON
+[*.{json,jsonc}]
+indent_style = space
+indent_size = 2
+
+# CSS/SCSS
+[*.{css,scss,less}]
+indent_style = space
+indent_size = 2
+
+# HTML
+[*.html]
+indent_style = space
+indent_size = 2
+
+# Markdown
+[*.md]
+trim_trailing_whitespace = false
+
+# Markdown 代码块中不处理
+[*.md.json]
+indent_style = space
+indent_size = 2
+
+# YAML
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+
+# Lock 文件不修改
+[*-lock.{json,yaml,yml}]
+insert_final_newline = false
+trim_trailing_whitespace = false

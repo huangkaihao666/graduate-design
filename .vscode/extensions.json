@@ -4,6 +4,11 @@
     "dbaeumer.vscode-eslint",
     "Vue.volar",
     "Vue.vscode-typescript-vue-plugin",
-    "ms-vscode.vscode-typescript-next"
+    "ms-vscode.vscode-typescript-next",
+    "EditorConfig.EditorConfig",
+    "GitHub.github-vscode-theme",
+    "ms-vscode-remote.remote-containers",
+    "ms-vscode-remote.remote-wsl",
+    "eamodio.gitlens"
   ]
 }
