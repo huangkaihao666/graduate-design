@@ -14,18 +14,29 @@ export const useAuthStore = defineStore('auth', () => {
 
   // 从本地存储恢复 token
   const initializeAuth = () => {
-    const storedAccessToken = localStorage.getItem('accessToken');
-    const storedRefreshToken = localStorage.getItem('refreshToken');
-    const storedUser = localStorage.getItem('user');
+    try {
+      const storedAccessToken = localStorage.getItem('accessToken');
+      const storedRefreshToken = localStorage.getItem('refreshToken');
+      const storedUser = localStorage.getItem('user');
 
-    if (storedAccessToken) {
-      accessToken.value = storedAccessToken;
-    }
-    if (storedRefreshToken) {
-      refreshToken.value = storedRefreshToken;
-    }
-    if (storedUser) {
-      user.value = JSON.parse(storedUser);
+      if (storedAccessToken) {
+        accessToken.value = storedAccessToken;
+      }
+      if (storedRefreshToken) {
+        refreshToken.value = storedRefreshToken;
+      }
+      if (storedUser) {
+        try {
+          user.value = JSON.parse(storedUser);
+        } catch (e) {
+          // 如果 JSON 解析失败，清除该数据
+          localStorage.removeItem('user');
+          user.value = null;
+        }
+      }
+    } catch (e) {
+      // 忽略 localStorage 访问错误
+      console.warn('Failed to initialize auth from localStorage:', e);
     }
   };
 
