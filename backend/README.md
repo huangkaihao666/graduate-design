@@ -1,98 +1,404 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# 🚀 后端 API 服务
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+> 基于 NestJS + TypeScript 的现代化 REST API 服务
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## 📋 目录
 
-## Description
+- [项目介绍](#-项目介绍)
+- [环境要求](#-环境要求)
+- [快速开始](#-快速开始)
+- [项目结构](#-项目结构)
+- [可用命令](#-可用命令)
+- [API 端点](#-api-端点)
+- [配置说明](#-配置说明)
+- [开发指南](#-开发指南)
+- [集成指南](#-集成指南)
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## 📖 项目介绍
 
-## Project setup
+这是一个使用 **NestJS 11** + **TypeScript** 构建的现代化 REST API 后端服务。项目包含以下特性：
 
-```bash
-$ pnpm install
-```
+- ✅ 全局异常处理（HttpExceptionFilter）
+- ✅ 统一响应转换（TransformInterceptor）
+- ✅ 数据验证和转换（ValidationPipe）
+- ✅ CORS 跨域支持
+- ✅ 健康检查端点
+- ✅ 模块化架构设计
+- ✅ TypeScript 类型安全
 
-## Compile and run the project
+## 🖥️ 环境要求
 
-```bash
-# development
-$ pnpm run start
+| 软件        | 最低版本 | 推荐版本             |
+| ----------- | -------- | -------------------- |
+| **Node.js** | 18.0     | 20.x LTS 或 22.x LTS |
+| **pnpm**    | 8.0      | 10.29.3 或更新       |
 
-# watch mode
-$ pnpm run start:dev
+## 🚀 快速开始
 
-# production mode
-$ pnpm run start:prod
-```
+### 1. 安装依赖
 
-## Run tests
+从项目根目录运行：
 
 ```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+pnpm install
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+或在后端目录运行：
 
 ```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+cd backend
+pnpm install
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### 2. 配置环境变量
 
-## Resources
+复制 `.env.example` 为 `.env` 并修改配置：
 
-Check out a few resources that may come in handy when working with NestJS:
+```bash
+cp .env.example .env
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+### 3. 启动开发服务器
 
-## Support
+```bash
+# 从根目录
+pnpm backend:dev
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+# 从后端目录
+cd backend
+pnpm start:dev
+```
 
-## Stay in touch
+服务器会在 `http://localhost:3000/api/v1` 启动。
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+### 4. 验证服务
 
-## License
+访问健康检查端点：
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+```bash
+curl http://localhost:3000/api/v1/health
+```
+
+预期响应：
+
+```json
+{
+  "statusCode": 200,
+  "message": "Request successful",
+  "data": {
+    "status": "ok",
+    "timestamp": "2024-02-12T02:30:00.000Z"
+  }
+}
+```
+
+## 📁 项目结构
+
+```
+backend/
+├── src/
+│   ├── common/                    # 公共模块
+│   │   ├── decorators/            # 自定义装饰器
+│   │   ├── filters/               # HTTP 异常过滤器
+│   │   ├── interceptors/          # 响应转换拦截器
+│   │   └── pipes/                 # 数据验证管道
+│   ├── modules/                   # 业务模块
+│   │   └── health/                # 健康检查模块
+│   ├── config/                    # 配置文件
+│   ├── types/                     # TypeScript 类型定义
+│   ├── utils/                     # 工具函数
+│   ├── app.controller.ts          # 根控制器
+│   ├── app.module.ts              # 根模块
+│   ├── app.service.ts             # 根服务
+│   └── main.ts                    # 应用入口
+├── test/                          # 测试文件
+├── dist/                          # 编译输出
+├── package.json                   # 项目依赖
+├── tsconfig.json                  # TypeScript 配置
+├── eslint.config.mjs              # ESLint 配置
+├── .env                           # 环境变量（本地）
+├── .env.example                   # 环境变量示例
+└── README.md                      # 本文件
+```
+
+## 📝 可用命令
+
+### 开发相关
+
+```bash
+# 启动开发服务器（热重载）
+pnpm start:dev
+
+# 启动生产模式
+pnpm start
+
+# 构建项目
+pnpm build
+
+# 调试模式启动
+pnpm start:debug
+```
+
+### 代码质量
+
+```bash
+# ESLint 代码检查
+pnpm lint
+
+# ESLint 自动修复
+pnpm lint --fix
+
+# 代码格式化
+pnpm format
+
+# 检查格式（不修改）
+pnpm format:check
+```
+
+### 测试相关
+
+```bash
+# 单元测试
+pnpm test
+
+# 监听模式测试
+pnpm test:watch
+
+# 测试覆盖率
+pnpm test:cov
+
+# 端对端测试
+pnpm test:e2e
+
+# 调试测试
+pnpm test:debug
+```
+
+## 🔌 API 端点
+
+### 根端点
+
+```bash
+GET /api/v1
+```
+
+返回 API 基本信息。
+
+**响应示例**：
+
+```json
+{
+  "statusCode": 200,
+  "message": "Request successful",
+  "data": {
+    "name": "Project API",
+    "version": "1.0.0",
+    "description": "RESTful API",
+    "status": "running"
+  }
+}
+```
+
+### 健康检查
+
+```bash
+GET /api/v1/health
+```
+
+检查服务健康状态。
+
+**响应示例**：
+
+```json
+{
+  "statusCode": 200,
+  "message": "Request successful",
+  "data": {
+    "status": "ok",
+    "timestamp": "2024-02-12T02:30:00.000Z"
+  }
+}
+```
+
+## ⚙️ 配置说明
+
+### 环境变量 (.env)
+
+```bash
+# 服务器配置
+PORT=3000                              # 服务监听端口
+NODE_ENV=development                   # 运行环境 (development/production)
+
+# CORS 配置
+CORS_ORIGIN=http://localhost:5173      # 允许的跨域来源
+```
+
+### 全局配置
+
+所有全局配置定义在 `src/config/index.ts`：
+
+```typescript
+export const appConfig = {
+  port: parseInt(process.env.PORT || '3000', 10),
+  nodeEnv: process.env.NODE_ENV || 'development',
+  isDevelopment: process.env.NODE_ENV === 'development',
+  isProduction: process.env.NODE_ENV === 'production',
+};
+```
+
+## 🛠️ 开发指南
+
+### 创建新模块
+
+使用 NestJS CLI 快速创建模块：
+
+```bash
+# 进入后端目录
+cd backend
+
+# 创建模块（会自动创建控制器、服务等）
+npx nest generate module modules/users
+npx nest generate controller modules/users
+npx nest generate service modules/users
+```
+
+生成的结构：
+
+```
+modules/
+└── users/
+    ├── users.module.ts
+    ├── users.controller.ts
+    ├── users.service.ts
+    ├── dto/
+    │   ├── create-user.dto.ts
+    │   └── update-user.dto.ts
+    └── users.controller.spec.ts
+```
+
+### 创建 DTO (数据传输对象)
+
+```typescript
+// users/dto/create-user.dto.ts
+import { IsEmail, IsString, IsNotEmpty } from 'class-validator';
+
+export class CreateUserDto {
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @IsEmail()
+  @IsNotEmpty()
+  email: string;
+
+  @IsString()
+  @IsNotEmpty()
+  password: string;
+}
+```
+
+### 创建服务
+
+```typescript
+// users/users.service.ts
+import { Injectable } from '@nestjs/common';
+import { CreateUserDto } from './dto/create-user.dto';
+
+@Injectable()
+export class UsersService {
+  async create(createUserDto: CreateUserDto) {
+    // 实现创建用户逻辑
+    return {
+      id: 1,
+      ...createUserDto,
+    };
+  }
+
+  async findAll() {
+    // 实现查询所有用户逻辑
+    return [];
+  }
+}
+```
+
+### 创建控制器
+
+```typescript
+// users/users.controller.ts
+import { Controller, Post, Get, Body } from '@nestjs/common';
+import { UsersService } from './users.service';
+import { CreateUserDto } from './dto/create-user.dto';
+
+@Controller('users')
+export class UsersController {
+  constructor(private readonly usersService: UsersService) {}
+
+  @Post()
+  create(@Body() createUserDto: CreateUserDto) {
+    return this.usersService.create(createUserDto);
+  }
+
+  @Get()
+  findAll() {
+    return this.usersService.findAll();
+  }
+}
+```
+
+## 📦 集成指南
+
+### 即将集成的功能
+
+以下功能已在规划中，可按需集成：
+
+#### 1. Prisma ORM + MySQL 数据库
+
+```bash
+pnpm add @prisma/client
+pnpm add -D prisma
+```
+
+#### 2. Swagger API 文档
+
+```bash
+pnpm add @nestjs/swagger swagger-ui-express
+```
+
+#### 3. Passport + JWT 认证
+
+```bash
+pnpm add @nestjs/passport @nestjs/jwt passport passport-jwt
+pnpm add -D @types/passport-jwt
+```
+
+#### 4. Redis 缓存
+
+```bash
+pnpm add redis @nestjs/cache-manager cache-manager
+```
+
+## 🤝 代码规范
+
+本项目遵循以下规范：
+
+- **代码检查**: ESLint（参考根目录配置）
+- **代码格式化**: Prettier
+- **提交规范**: Conventional Commits（参考 Husky & Lint-staged 指南）
+
+提交前请确保通过所有检查：
+
+```bash
+pnpm lint
+pnpm format
+```
+
+## 📚 相关文档
+
+- [NestJS 官方文档](https://docs.nestjs.com)
+- [TypeScript 文档](https://www.typescriptlang.org/docs/)
+- [项目根目录 README](../README.md)
+- [Husky & Lint-staged 使用指南](../HUSKY_LINT_STAGED_GUIDE.md)
+
+## 📄 许可证
+
+[MIT](../LICENSE) © 2024
