@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { useAppStore } from './store/app'
+import { useAppStore } from './store/app';
 
-const appStore = useAppStore()
+const appStore = useAppStore();
 </script>
 
 <template>
@@ -19,8 +19,9 @@ const appStore = useAppStore()
 
 body,
 html {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu',
-    'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell',
+    'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

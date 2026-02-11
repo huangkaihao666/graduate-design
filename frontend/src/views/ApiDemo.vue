@@ -1,122 +1,133 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { Button, Card, Space, Divider, Alert, Spin, Tag, Input, Form, FormItem } from 'ant-design-vue'
-import { api } from '../api'
-import { useAppStore } from '../store/app'
+import { ref, onMounted } from 'vue';
+import {
+  Button,
+  Card,
+  Space,
+  Divider,
+  Alert,
+  Spin,
+  Tag,
+  Input,
+  Form,
+  FormItem,
+} from 'ant-design-vue';
+import { api } from '../api';
+import { useAppStore } from '../store/app';
 
-const appStore = useAppStore()
+const appStore = useAppStore();
 
 // 状态
-const loading = ref(false)
-const responseData = ref<any>(null)
-const requestLog = ref<string>('')
-const testUrl = ref('http://localhost:3000/api/health')
-const testMethod = ref<'get' | 'post' | 'put' | 'delete'>('get')
-const testData = ref('{}')
+const loading = ref(false);
+const responseData = ref<any>(null);
+const requestLog = ref<string>('');
+const testUrl = ref('http://localhost:3000/api/health');
+const testMethod = ref<'get' | 'post' | 'put' | 'delete'>('get');
+const testData = ref('{}');
 
 // 添加日志
 const addLog = (message: string) => {
-  const timestamp = new Date().toLocaleTimeString()
-  requestLog.value += `[${timestamp}] ${message}\n`
-}
+  const timestamp = new Date().toLocaleTimeString();
+  requestLog.value += `[${timestamp}] ${message}\n`;
+};
 
 // 测试 GET 请求
 const testGetRequest = async () => {
-  loading.value = true
-  requestLog.value = ''
+  loading.value = true;
+  requestLog.value = '';
   try {
-    addLog('发起 GET 请求到 /api/health...')
-    const response = await api.http.get('/health')
-    responseData.value = response
-    addLog('✅ 请求成功')
-    console.log('GET Response:', response)
+    addLog('发起 GET 请求到 /api/health...');
+    const response = await api.http.get('/health');
+    responseData.value = response;
+    addLog('✅ 请求成功');
+    console.log('GET Response:', response);
   } catch (error) {
-    addLog(`❌ 请求失败: ${error instanceof Error ? error.message : '未知错误'}`)
-    console.error('GET Error:', error)
+    addLog(`❌ 请求失败: ${error instanceof Error ? error.message : '未知错误'}`);
+    console.error('GET Error:', error);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 // 测试 POST 请求
 const testPostRequest = async () => {
-  loading.value = true
-  requestLog.value = ''
+  loading.value = true;
+  requestLog.value = '';
   try {
-    addLog('发起 POST 请求到 /auth/login...')
-    addLog('发送数据: { username: "test", password: "123456" }')
+    addLog('发起 POST 请求到 /auth/login...');
+    addLog('发送数据: { username: "test", password: "123456" }');
     const response = await api.user.login({
       username: 'test',
       password: '123456',
-    })
-    responseData.value = response
-    addLog('✅ 请求成功')
-    console.log('POST Response:', response)
+    });
+    responseData.value = response;
+    addLog('✅ 请求成功');
+    console.log('POST Response:', response);
   } catch (error) {
-    addLog(`❌ 请求失败: ${error instanceof Error ? error.message : '未知错误'}`)
-    console.error('POST Error:', error)
+    addLog(`❌ 请求失败: ${error instanceof Error ? error.message : '未知错误'}`);
+    console.error('POST Error:', error);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 // 测试自定义请求
 const testCustomRequest = async () => {
-  loading.value = true
-  requestLog.value = ''
+  loading.value = true;
+  requestLog.value = '';
   try {
-    addLog(`发起 ${testMethod.value.toUpperCase()} 请求到 ${testUrl.value}...`)
-    let response
+    addLog(`发起 ${testMethod.value.toUpperCase()} 请求到 ${testUrl.value}...`);
+    let response;
     try {
-      const data = testData.value ? JSON.parse(testData.value) : undefined
+      const data = testData.value ? JSON.parse(testData.value) : undefined;
       if (testMethod.value === 'get') {
-        response = await api.http.get(testUrl.value, { showNotification: false })
+        response = await api.http.get(testUrl.value, { showNotification: false });
       } else if (testMethod.value === 'post') {
-        response = await api.http.post(testUrl.value, data, { showNotification: false })
+        response = await api.http.post(testUrl.value, data, { showNotification: false });
       } else if (testMethod.value === 'put') {
-        response = await api.http.put(testUrl.value, data, { showNotification: false })
+        response = await api.http.put(testUrl.value, data, { showNotification: false });
       } else if (testMethod.value === 'delete') {
-        response = await api.http.delete(testUrl.value, { showNotification: false })
+        response = await api.http.delete(testUrl.value, { showNotification: false });
       }
     } catch (err) {
-      addLog(`⚠️ 请求返回错误，但继续处理响应...`)
+      addLog(`⚠️ 请求返回错误，但继续处理响应...`);
     }
-    responseData.value = response
-    addLog('✅ 请求完成')
+    responseData.value = response;
+    addLog('✅ 请求完成');
   } catch (error) {
-    addLog(`❌ 请求失败: ${error instanceof Error ? error.message : '未知错误'}`)
+    addLog(`❌ 请求失败: ${error instanceof Error ? error.message : '未知错误'}`);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 // 设置认证令牌
 const setToken = () => {
-  const token = 'test-token-' + Date.now()
-  api.http.setToken(token)
-  addLog(`✅ 认证令牌已设置: ${token}`)
-  appStore.showNotification('认证令牌已设置', 'success')
-}
+  const token = 'test-token-' + Date.now();
+  api.http.setToken(token);
+  addLog(`✅ 认证令牌已设置: ${token}`);
+  appStore.showNotification('认证令牌已设置', 'success');
+};
 
 // 清除认证令牌
 const clearToken = () => {
-  api.http.clearToken()
-  addLog('✅ 认证令牌已清除')
-  appStore.showNotification('认证令牌已清除', 'success')
-}
+  api.http.clearToken();
+  addLog('✅ 认证令牌已清除');
+  appStore.showNotification('认证令牌已清除', 'success');
+};
 
 // 格式化 JSON
 const formatJson = (obj: any) => {
-  if (!obj) return ''
-  return JSON.stringify(obj, null, 2)
-}
+  if (!obj) return '';
+  return JSON.stringify(obj, null, 2);
+};
 
 onMounted(() => {
-  addLog('API 演示页面已加载')
-  addLog('环境配置:')
-  addLog(`API Base URL: ${import.meta.env.VITE_API_BASE_URL}`)
-  addLog(`Debug Mode: ${import.meta.env.VITE_DEBUG}`)
-})
+  addLog('API 演示页面已加载');
+  addLog('环境配置:');
+  addLog(`API Base URL: ${import.meta.env.VITE_API_BASE_URL}`);
+  addLog(`Debug Mode: ${import.meta.env.VITE_DEBUG}`);
+});
 </script>
 
 <template>
@@ -141,10 +152,10 @@ onMounted(() => {
           <div>
             <h3>基础请求测试</h3>
             <Space style="margin-bottom: 1rem">
-              <Button type="primary" @click="testGetRequest" :loading="loading">
+              <Button type="primary" :loading="loading" @click="testGetRequest">
                 测试 GET 请求
               </Button>
-              <Button type="primary" @click="testPostRequest" :loading="loading">
+              <Button type="primary" :loading="loading" @click="testPostRequest">
                 测试 POST 请求（模拟登录）
               </Button>
             </Space>
@@ -185,7 +196,7 @@ onMounted(() => {
                 />
               </FormItem>
               <FormItem>
-                <Button type="primary" @click="testCustomRequest" :loading="loading">
+                <Button type="primary" :loading="loading" @click="testCustomRequest">
                   发送请求
                 </Button>
               </FormItem>
@@ -198,7 +209,7 @@ onMounted(() => {
             <h3>认证令牌管理</h3>
             <Space style="margin-bottom: 1rem">
               <Button @click="setToken">设置认证令牌</Button>
-              <Button @click="clearToken" danger>清除认证令牌</Button>
+              <Button danger @click="clearToken">清除认证令牌</Button>
             </Space>
           </div>
         </Space>

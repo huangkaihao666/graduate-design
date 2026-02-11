@@ -1,34 +1,31 @@
 <script setup lang="ts">
-import { Button, Card, Space, Divider, Select, Collapse } from 'ant-design-vue'
-import { useUserStore } from '../store/user'
-import { useAppStore } from '../store/app'
+import { Button, Card, Space, Divider, Select, Collapse } from 'ant-design-vue';
+import { useUserStore } from '../store/user';
+import { useAppStore } from '../store/app';
 
 // 使用 stores
-const userStore = useUserStore()
-const appStore = useAppStore()
+const userStore = useUserStore();
+const appStore = useAppStore();
 
 const handleLogin = () => {
-  userStore.login('demo-user', 'password')
-  appStore.showNotification('登录成功！', 'success')
-}
+  userStore.login('demo-user', 'password');
+  appStore.showNotification('登录成功！', 'success');
+};
 
 const handleLogout = () => {
-  userStore.logout()
-  appStore.showNotification('已登出', 'info')
-}
+  userStore.logout();
+  appStore.showNotification('已登出', 'info');
+};
 
 const handleToggleTheme = () => {
-  appStore.toggleTheme()
-  appStore.showNotification(
-    `切换到${appStore.isDarkMode ? '暗' : '亮'}色主题`,
-    'success'
-  )
-}
+  appStore.toggleTheme();
+  appStore.showNotification(`切换到${appStore.isDarkMode ? '暗' : '亮'}色主题`, 'success');
+};
 
 const themeOptions = [
   { label: '亮色', value: 'light' },
   { label: '暗色', value: 'dark' },
-]
+];
 </script>
 
 <template>
@@ -58,7 +55,9 @@ const themeOptions = [
                 { content: 'Ant Design Vue 4.x' },
                 { content: 'Pinia 状态管理' },
                 { content: 'Vue Router 4.x' },
-              ].map(item => item.content).join(', '),
+              ]
+                .map((item) => item.content)
+                .join(', '),
             },
           ]"
           accordion
@@ -77,23 +76,19 @@ const themeOptions = [
             <p><strong>用户名：</strong> {{ userStore.userFullName }}</p>
             <p><strong>邮箱：</strong> {{ userStore.user?.email }}</p>
             <p><strong>角色：</strong> {{ userStore.user?.role }}</p>
-            <p v-if="userStore.hasAdminRole" style="color: #1890ff">
-              ⭐ 管理员权限
-            </p>
+            <p v-if="userStore.hasAdminRole" style="color: #1890ff">⭐ 管理员权限</p>
           </div>
 
           <Space style="margin-top: 1rem">
             <Button
               v-if="!userStore.isLoggedIn"
               type="primary"
-              @click="handleLogin"
               :loading="userStore.loading"
+              @click="handleLogin"
             >
               登录
             </Button>
-            <Button v-else type="primary" danger @click="handleLogout">
-              登出
-            </Button>
+            <Button v-else type="primary" danger @click="handleLogout"> 登出 </Button>
           </Space>
         </div>
 
@@ -104,12 +99,8 @@ const themeOptions = [
           <h3>🎨 应用配置</h3>
           <div style="margin: 1rem 0">
             <p><strong>主题：</strong></p>
-            <Select
-              v-model:value="appStore.theme"
-              :options="themeOptions"
-              style="width: 120px"
-            />
-            <Button type="primary" @click="handleToggleTheme" style="margin-left: 0.5rem">
+            <Select v-model:value="appStore.theme" :options="themeOptions" style="width: 120px" />
+            <Button type="primary" style="margin-left: 0.5rem" @click="handleToggleTheme">
               切换主题
             </Button>
           </div>

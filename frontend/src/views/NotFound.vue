@@ -1,26 +1,19 @@
 <script setup lang="ts">
-import { Button, Result } from 'ant-design-vue'
-import { useRouter } from 'vue-router'
+import { Button, Result } from 'ant-design-vue';
+import { useRouter } from 'vue-router';
 
-const router = useRouter()
+const router = useRouter();
 
 const handleGoHome = () => {
-  router.push('/')
-}
+  router.push('/');
+};
 </script>
 
 <template>
   <div class="not-found">
-    <Result
-      status="404"
-      title="404"
-      sub-title="抱歉，您访问的页面不存在"
-      style="margin-top: 5rem"
-    >
+    <Result status="404" title="404" sub-title="抱歉，您访问的页面不存在" style="margin-top: 5rem">
       <template #extra>
-        <Button type="primary" @click="handleGoHome">
-          返回首页
-        </Button>
+        <Button type="primary" @click="handleGoHome"> 返回首页 </Button>
       </template>
     </Result>
   </div>

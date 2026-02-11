@@ -1,10 +1,10 @@
-import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
+import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router';
 
 // 视图组件
-import Home from '../views/Home.vue'
-import About from '../views/About.vue'
-import ApiDemo from '../views/ApiDemo.vue'
-import NotFound from '../views/NotFound.vue'
+import Home from '../views/Home.vue';
+import About from '../views/About.vue';
+import ApiDemo from '../views/ApiDemo.vue';
+import NotFound from '../views/NotFound.vue';
 
 // 路由配置
 const routes: RouteRecordRaw[] = [
@@ -44,19 +44,19 @@ const routes: RouteRecordRaw[] = [
       title: '404 - 页面不存在',
     },
   },
-]
+];
 
 // 创建路由实例
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
-})
+});
 
 // 路由守卫
 router.beforeEach((to, _from, next) => {
   // 更新页面标题
-  const title = (to.meta?.title as string) ? `${to.meta.title} - Vue3 App` : 'Vue3 App'
-  document.title = title
+  const title = (to.meta?.title as string) ? `${to.meta.title} - Vue3 App` : 'Vue3 App';
+  document.title = title;
 
   // 可以在这里添加权限检查等逻辑
   if (to.meta?.requiresAuth) {
@@ -68,13 +68,13 @@ router.beforeEach((to, _from, next) => {
     // }
   }
 
-  next()
-})
+  next();
+});
 
 // 路由加载后
 router.afterEach((to) => {
   // 可以在这里添加页面加载完成后的逻辑
-  console.log(`Navigated to ${to.path}`)
-})
+  console.log(`Navigated to ${to.path}`);
+});
 
-export default router
+export default router;

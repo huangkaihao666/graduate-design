@@ -9,14 +9,14 @@ export function debounce<T extends (...args: any[]) => any>(
   func: T,
   delay: number
 ): (...args: Parameters<T>) => void {
-  let timeoutId: ReturnType<typeof setTimeout> | null = null
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
   return function (...args: Parameters<T>) {
-    if (timeoutId) clearTimeout(timeoutId)
+    if (timeoutId) clearTimeout(timeoutId);
     timeoutId = setTimeout(() => {
-      func(...args)
-    }, delay)
-  }
+      func(...args);
+    }, delay);
+  };
 }
 
 /**
@@ -26,15 +26,15 @@ export function throttle<T extends (...args: any[]) => any>(
   func: T,
   delay: number
 ): (...args: Parameters<T>) => void {
-  let lastCall = 0
+  let lastCall = 0;
 
   return function (...args: Parameters<T>) {
-    const now = Date.now()
+    const now = Date.now();
     if (now - lastCall >= delay) {
-      lastCall = now
-      func(...args)
+      lastCall = now;
+      func(...args);
     }
-  }
+  };
 }
 
 /**
@@ -42,26 +42,26 @@ export function throttle<T extends (...args: any[]) => any>(
  */
 export function deepClone<T>(obj: T): T {
   if (obj === null || typeof obj !== 'object') {
-    return obj
+    return obj;
   }
 
   if (obj instanceof Date) {
-    return new Date(obj.getTime()) as unknown as T
+    return new Date(obj.getTime()) as unknown as T;
   }
 
   if (obj instanceof Array) {
-    return obj.map((item) => deepClone(item)) as unknown as T
+    return obj.map((item) => deepClone(item)) as unknown as T;
   }
 
   if (obj instanceof Object) {
-    const clonedObj: any = {}
+    const clonedObj: any = {};
     for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
-        clonedObj[key] = deepClone(obj[key])
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        clonedObj[key] = deepClone(obj[key]);
       }
     }
-    return clonedObj
+    return clonedObj;
   }
 
-  return obj
+  return obj;
 }

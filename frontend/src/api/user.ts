@@ -1,33 +1,33 @@
-import http from '../utils/http'
+import http from '../utils/http';
 
 export interface LoginRequest {
-  username: string
-  password: string
+  username: string;
+  password: string;
 }
 
 export interface LoginResponse {
-  token: string
+  token: string;
   user: {
-    id: number
-    username: string
-    email: string
-    role: string
-  }
+    id: number;
+    username: string;
+    email: string;
+    role: string;
+  };
 }
 
 export interface UserInfo {
-  id: number
-  username: string
-  email: string
-  avatar?: string
-  role: string
-  createdAt?: string
+  id: number;
+  username: string;
+  email: string;
+  avatar?: string;
+  role: string;
+  createdAt?: string;
 }
 
 export interface UpdateProfileRequest {
-  email?: string
-  avatar?: string
-  [key: string]: any
+  email?: string;
+  avatar?: string;
+  [key: string]: any;
 }
 
 /**
@@ -38,28 +38,28 @@ export const userApi = {
    * 登录
    */
   login(payload: LoginRequest) {
-    return http.post<LoginResponse>('/auth/login', payload)
+    return http.post<LoginResponse>('/auth/login', payload);
   },
 
   /**
    * 登出
    */
   logout() {
-    return http.post<void>('/auth/logout', {})
+    return http.post<void>('/auth/logout', {});
   },
 
   /**
    * 获取当前用户信息
    */
   getCurrentUser() {
-    return http.get<UserInfo>('/users/current')
+    return http.get<UserInfo>('/users/current');
   },
 
   /**
    * 更新用户信息
    */
   updateProfile(data: UpdateProfileRequest) {
-    return http.put<UserInfo>('/users/profile', data)
+    return http.put<UserInfo>('/users/profile', data);
   },
 
   /**
@@ -69,22 +69,22 @@ export const userApi = {
     return http.post<void>('/auth/change-password', {
       oldPassword,
       newPassword,
-    })
+    });
   },
 
   /**
    * 注册新用户
    */
   register(payload: { username: string; email: string; password: string }) {
-    return http.post<LoginResponse>('/auth/register', payload)
+    return http.post<LoginResponse>('/auth/register', payload);
   },
 
   /**
    * 刷新令牌
    */
   refreshToken() {
-    return http.post<{ token: string }>('/auth/refresh-token', {})
+    return http.post<{ token: string }>('/auth/refresh-token', {});
   },
-}
+};
 
-export default userApi
+export default userApi;

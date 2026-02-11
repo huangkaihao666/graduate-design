@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Card, Divider } from 'ant-design-vue'
+import { Card, Divider } from 'ant-design-vue';
 </script>
 
 <template>
@@ -13,7 +13,8 @@ import { Card, Divider } from 'ant-design-vue'
         <div class="section">
           <h3>项目简介</h3>
           <p>
-            这是一个现代化的 Vue 3 + TypeScript 前端开发模板项目，集成了最新的前端技术栈，为毕业设计和企业项目提供可靠的基础架构。
+            这是一个现代化的 Vue 3 + TypeScript
+            前端开发模板项目，集成了最新的前端技术栈，为毕业设计和企业项目提供可靠的基础架构。
           </p>
         </div>
 
@@ -51,7 +52,14 @@ import { Card, Divider } from 'ant-design-vue'
 
         <div class="section">
           <h3>快速开始</h3>
-          <div style="background: #f5f5f5; padding: 1rem; border-radius: 4px; font-family: 'Courier New'">
+          <div
+            style="
+              background: #f5f5f5;
+              padding: 1rem;
+              border-radius: 4px;
+              font-family: 'Courier New';
+            "
+          >
             <p style="margin: 0.5rem 0"># 安装依赖</p>
             <p style="margin: 0.5rem 0">pnpm install</p>
             <p style="margin: 1rem 0 0.5rem 0"># 开发模式</p>
@@ -65,16 +73,24 @@ import { Card, Divider } from 'ant-design-vue'
 
         <div class="section">
           <h3>目录结构</h3>
-          <div style="background: #f5f5f5; padding: 1rem; border-radius: 4px; font-family: 'Courier New'; font-size: 0.9rem">
+          <div
+            style="
+              background: #f5f5f5;
+              padding: 1rem;
+              border-radius: 4px;
+              font-family: 'Courier New';
+              font-size: 0.9rem;
+            "
+          >
             <p style="margin: 0.25rem 0">src/</p>
-            <p style="margin: 0.25rem 0; margin-left: 2rem">├── components/    # 可复用组件</p>
-            <p style="margin: 0.25rem 0; margin-left: 2rem">├── router/        # 路由配置</p>
-            <p style="margin: 0.25rem 0; margin-left: 2rem">├── store/         # Pinia 状态管理</p>
-            <p style="margin: 0.25rem 0; margin-left: 2rem">├── views/         # 页面组件</p>
-            <p style="margin: 0.25rem 0; margin-left: 2rem">├── api/           # API 请求</p>
-            <p style="margin: 0.25rem 0; margin-left: 2rem">├── utils/         # 工具函数</p>
-            <p style="margin: 0.25rem 0; margin-left: 2rem">├── types/         # TypeScript 类型</p>
-            <p style="margin: 0.25rem 0; margin-left: 2rem">└── main.ts        # 应用入口</p>
+            <p style="margin: 0.25rem 0; margin-left: 2rem">├── components/ # 可复用组件</p>
+            <p style="margin: 0.25rem 0; margin-left: 2rem">├── router/ # 路由配置</p>
+            <p style="margin: 0.25rem 0; margin-left: 2rem">├── store/ # Pinia 状态管理</p>
+            <p style="margin: 0.25rem 0; margin-left: 2rem">├── views/ # 页面组件</p>
+            <p style="margin: 0.25rem 0; margin-left: 2rem">├── api/ # API 请求</p>
+            <p style="margin: 0.25rem 0; margin-left: 2rem">├── utils/ # 工具函数</p>
+            <p style="margin: 0.25rem 0; margin-left: 2rem">├── types/ # TypeScript 类型</p>
+            <p style="margin: 0.25rem 0; margin-left: 2rem">└── main.ts # 应用入口</p>
           </div>
         </div>
       </Card>

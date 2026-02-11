@@ -1,28 +1,28 @@
 <script setup lang="ts">
-import { Layout, Menu } from 'ant-design-vue'
-import { useRouter, useRoute } from 'vue-router'
-import { computed } from 'vue'
+import { Layout, Menu } from 'ant-design-vue';
+import { useRouter, useRoute } from 'vue-router';
+import { computed } from 'vue';
 
-const router = useRouter()
-const route = useRoute()
+const router = useRouter();
+const route = useRoute();
 
 // 当前选中的菜单项
-const selectedKeys = computed(() => [route.path])
+const selectedKeys = computed(() => [route.path]);
 
 // 处理菜单点击
 const handleMenuClick = (key: string) => {
-  router.push(key)
-}
+  router.push(key);
+};
 </script>
 
 <template>
   <Layout style="min-height: 100vh">
     <!-- 顶部导航栏 -->
-    <Layout.Header style="background: #fff; padding: 0 50px; box-shadow: 0 2px 8px rgba(0,0,0,0.1)">
+    <Layout.Header
+      style="background: #fff; padding: 0 50px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1)"
+    >
       <div style="display: flex; justify-content: space-between; align-items: center; height: 100%">
-        <div style="font-size: 20px; font-weight: bold; color: #1890ff">
-          🚀 Vue3 App
-        </div>
+        <div style="font-size: 20px; font-weight: bold; color: #1890ff">🚀 Vue3 App</div>
         <Menu
           mode="horizontal"
           :selected-keys="selectedKeys"

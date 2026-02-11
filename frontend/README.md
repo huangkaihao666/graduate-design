@@ -24,11 +24,11 @@
 
 ### 必需环境
 
-| 软件 | 版本要求 | 说明 |
-|------|--------|------|
-| **Node.js** | >= 18.0.0 | JavaScript 运行时环境 |
-| **pnpm** | >= 8.0.0 | 高效的包管理器（**必须**，项目使用 pnpm 而非 npm/yarn） |
-| **npm** | >= 10.0.0 | 用于全局安装 pnpm（如未安装） |
+| 软件        | 版本要求  | 说明                                                    |
+| ----------- | --------- | ------------------------------------------------------- |
+| **Node.js** | >= 18.0.0 | JavaScript 运行时环境                                   |
+| **pnpm**    | >= 8.0.0  | 高效的包管理器（**必须**，项目使用 pnpm 而非 npm/yarn） |
+| **npm**     | >= 10.0.0 | 用于全局安装 pnpm（如未安装）                           |
 
 ### 推荐版本（最优体验）
 
@@ -74,6 +74,7 @@ pnpm install
 ```
 
 > 首次安装可能需要 1-2 分钟，之后的安装会显著加快。如遇到问题，尝试：
+>
 > ```bash
 > pnpm store prune  # 清理过期缓存
 > pnpm install      # 重新安装
@@ -234,26 +235,26 @@ pnpm store prune
 
 ```typescript
 // ❌ 不推荐：相对路径
-import Button from '../../../components/Button.vue'
+import Button from '../../../components/Button.vue';
 
 // ✅ 推荐：使用别名
-import Button from '@/components/Button.vue'
+import Button from '@/components/Button.vue';
 ```
 
 ### 可用别名
 
-| 别名 | 路径 |
-|-----|------|
-| `@/` | `src/` |
-| `@/api/*` | `src/api/*` |
+| 别名             | 路径               |
+| ---------------- | ------------------ |
+| `@/`             | `src/`             |
+| `@/api/*`        | `src/api/*`        |
 | `@/components/*` | `src/components/*` |
-| `@/hooks/*` | `src/hooks/*` |
-| `@/router/*` | `src/router/*` |
-| `@/store/*` | `src/store/*` |
-| `@/views/*` | `src/views/*` |
-| `@/utils/*` | `src/utils/*` |
-| `@/types/*` | `src/types/*` |
-| `@/assets/*` | `src/assets/*` |
+| `@/hooks/*`      | `src/hooks/*`      |
+| `@/router/*`     | `src/router/*`     |
+| `@/store/*`      | `src/store/*`      |
+| `@/views/*`      | `src/views/*`      |
+| `@/utils/*`      | `src/utils/*`      |
+| `@/types/*`      | `src/types/*`      |
+| `@/assets/*`     | `src/assets/*`     |
 
 ## 🔧 开发指南
 
@@ -262,19 +263,19 @@ import Button from '@/components/Button.vue'
 ```vue
 <!-- src/components/MyComponent.vue -->
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref } from 'vue';
 
 interface Props {
-  title?: string
-  disabled?: boolean
+  title?: string;
+  disabled?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   title: '默认标题',
   disabled: false,
-})
+});
 
-const count = ref(0)
+const count = ref(0);
 </script>
 
 <template>
@@ -295,26 +296,26 @@ div {
 
 ```typescript
 // src/hooks/useFetch.ts
-import { ref } from 'vue'
+import { ref } from 'vue';
 
 export function useFetch(url: string) {
-  const data = ref(null)
-  const loading = ref(false)
-  const error = ref(null)
+  const data = ref(null);
+  const loading = ref(false);
+  const error = ref(null);
 
   const fetch = async () => {
-    loading.value = true
+    loading.value = true;
     try {
-      const response = await fetch(url)
-      data.value = await response.json()
+      const response = await fetch(url);
+      data.value = await response.json();
     } catch (err) {
-      error.value = err
+      error.value = err;
     } finally {
-      loading.value = false
+      loading.value = false;
     }
-  }
+  };
 
-  return { data, loading, error, fetch }
+  return { data, loading, error, fetch };
 }
 ```
 
@@ -322,23 +323,21 @@ export function useFetch(url: string) {
 
 ```vue
 <script setup lang="ts">
-import { Button, Card, Space, message } from 'ant-design-vue'
-import { ref } from 'vue'
+import { Button, Card, Space, message } from 'ant-design-vue';
+import { ref } from 'vue';
 
-const count = ref(0)
+const count = ref(0);
 
 const handleClick = () => {
-  count.value++
-  message.success(`已点击 ${count.value} 次！`)
-}
+  count.value++;
+  message.success(`已点击 ${count.value} 次！`);
+};
 </script>
 
 <template>
   <Card title="示例">
     <Space>
-      <Button type="primary" @click="handleClick">
-        点击我
-      </Button>
+      <Button type="primary" @click="handleClick"> 点击我 </Button>
       <span>{{ count }}</span>
     </Space>
   </Card>
@@ -369,8 +368,8 @@ cp .env.example .env.local
 
 ```typescript
 // 访问环境变量
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
-const appName = import.meta.env.VITE_APP_NAME
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+const appName = import.meta.env.VITE_APP_NAME;
 ```
 
 > **注意**：环境变量名称必须以 `VITE_` 开头才能在浏览器中访问
@@ -380,6 +379,7 @@ const appName = import.meta.env.VITE_APP_NAME
 ### Q1: 运行 `pnpm dev` 时报错 "模块找不到"
 
 **解决方案**：
+
 ```bash
 # 清理缓存并重新安装
 pnpm store prune
@@ -391,6 +391,7 @@ pnpm dev
 ### Q2: 构建时出现 "terser not found" 错误
 
 **解决方案**：
+
 ```bash
 # 确保已安装 terser
 pnpm add -D terser
@@ -402,6 +403,7 @@ pnpm build
 ### Q3: TypeScript 类型检查失败
 
 **解决方案**：
+
 ```bash
 # 运行类型检查查看详细错误
 pnpm type-check
@@ -413,6 +415,7 @@ pnpm type-check
 ### Q4: Node.js 版本不符合要求
 
 **解决方案**：
+
 ```bash
 # 使用 nvm 管理 Node.js 版本
 # macOS/Linux
@@ -428,6 +431,7 @@ nvm use 20
 ### Q5: pnpm 命令未找到
 
 **解决方案**：
+
 ```bash
 # 全局安装 pnpm
 npm install -g pnpm
@@ -442,6 +446,7 @@ npm config get prefix
 ### Q6: 开发服务器无法访问
 
 **解决方案**：
+
 - 检查 5173 端口是否被占用
 - 在 `vite.config.ts` 中修改端口号
 - 确保防火墙未阻止该端口
@@ -482,12 +487,12 @@ git commit -m "docs: add pnpm-lock.yaml"
 
 ## 📊 项目体积
 
-| 指标 | 大小 |
-|-----|------|
-| node_modules | ~500MB |
+| 指标            | 大小          |
+| --------------- | ------------- |
+| node_modules    | ~500MB        |
 | dist (生产构建) | ~130KB (gzip) |
-| 初始加载 JS | ~408KB |
-| 初始加载 CSS | ~0.43KB |
+| 初始加载 JS     | ~408KB        |
+| 初始加载 CSS    | ~0.43KB       |
 
 ## 🚀 下一步
 
