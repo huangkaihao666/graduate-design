@@ -1,0 +1,48 @@
+// Prisma Schema 文件
+// 文档: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// ============ 数据模型示例 ============
+
+/// 用户模型
+model User {
+  id        Int     @id @default(autoincrement()) @db.UnsignedInt
+  email     String  @unique @db.VarChar(255)
+  name      String  @db.VarChar(100)
+  password  String  @db.VarChar(255)
+  isActive  Boolean @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 关系
+  posts     Post[]
+
+  @@map("users")
+  @@index([email])
+}
+
+/// 文章模型
+model Post {
+  id        Int     @id @default(autoincrement()) @db.UnsignedInt
+  title     String  @db.VarChar(255)
+  content   String  @db.LongText
+  published Boolean @default(false)
+  
+  authorId  Int     @db.UnsignedInt
+  author    User    @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("posts")
+  @@index([authorId])
+}
