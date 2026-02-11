@@ -20,11 +20,11 @@
 
 ## 🖥️ 环境要求
 
-| 软件 | 最低版本 | 推荐版本 |
-|------|--------|--------|
-| **Node.js** | 18.0 | 20.x LTS 或 22.x LTS |
-| **pnpm** | 8.0 | 10.29.3 或更新 |
-| **npm** | 10.0 | 10.0 或更新（仅用于安装 pnpm）|
+| 软件        | 最低版本 | 推荐版本                       |
+| ----------- | -------- | ------------------------------ |
+| **Node.js** | 18.0     | 20.x LTS 或 22.x LTS           |
+| **pnpm**    | 8.0      | 10.29.3 或更新                 |
+| **npm**     | 10.0     | 10.0 或更新（仅用于安装 pnpm） |
 
 > **注意**: 本项目使用 pnpm 作为包管理器，**不支持 npm 或 yarn**
 
@@ -61,13 +61,13 @@ pnpm frontend:dev
 
 前端项目默认运行在 `http://localhost:5173`
 
-### 5. 启动后端开发服务器（待实现）
+### 5. 启动后端开发服务器
 
 ```bash
 pnpm backend:dev
 ```
 
-后端服务默认运行在 `http://localhost:3000`
+后端服务默认运行在 `http://localhost:3000/api/v1`
 
 ## 📁 项目结构
 
@@ -94,14 +94,32 @@ project-monorepo-template/
 │   ├── .env.example
 │   └── README.md
 │
-├── backend/                     # 后端项目 (NestJS)（待实现）
+├── backend/                     # 后端项目 (NestJS + TypeScript)
 │   ├── src/
+│   │   ├── common/              # 公共模块（过滤器、拦截器、验证）
+│   │   ├── modules/             # 业务模块
+│   │   ├── config/              # 配置文件
+│   │   ├── types/               # TypeScript 类型定义
+│   │   ├── utils/               # 工具函数
+│   │   ├── app.controller.ts    # 根控制器
+│   │   ├── app.module.ts        # 根模块
+│   │   ├── app.service.ts       # 根服务
+│   │   └── main.ts              # 入口文件
+│   ├── test/                    # 测试文件
 │   ├── package.json
+│   ├── .env                     # 环境变量配置
+│   ├── .env.example             # 环境变量示例
 │   └── README.md
 │
+├── .husky/                     # Husky Git hooks
+├── commitlint.config.js        # Commitlint 配置
+├── eslint.config.js            # 根目录 ESLint 配置
+├── .lintstagedrc.json          # Lint-staged 配置
+├── .prettierignore             # Prettier 忽略配置
 ├── package.json                # Monorepo 根配置
 ├── pnpm-workspace.yaml         # 工作区配置
 ├── pnpm-lock.yaml              # 依赖锁定文件
+├── HUSKY_LINT_STAGED_GUIDE.md  # Husky 和 Lint-staged 使用指南
 └── README.md                   # 本文件
 ```
 
@@ -117,14 +135,15 @@ project-monorepo-template/
 - **状态管理**: Pinia（待添加）
 - **HTTP 请求**: Axios（待添加）
 
-### 后端 (Backend - 待实现)
+### 后端 (Backend)
 
-- **框架**: NestJS + TypeScript
-- **ORM**: TypeORM / Prisma
-- **数据库**: MySQL 8.0
-- **缓存**: Redis
-- **鉴权**: Passport + JWT
-- **文档**: Swagger
+- **框架**: NestJS 11 + TypeScript
+- **ORM**: Prisma（待集成）
+- **数据库**: MySQL 8.0（待集成）
+- **缓存**: Redis（待集成）
+- **鉴权**: Passport + JWT（待集成）
+- **文档**: Swagger（待集成）
+- **验证**: class-validator + class-transformer
 
 ## 📝 可用命令
 
@@ -143,29 +162,82 @@ pnpm frontend:preview
 # 前端类型检查
 pnpm frontend:type-check
 
-# 后端开发（待实现）
+# 后端开发
 pnpm backend:dev
 
-# 后端构建（待实现）
+# 后端启动（生产）
+pnpm backend:start
+
+# 后端构建
 pnpm backend:build
+
+# 后端 ESLint 检查
+pnpm backend:lint
+
+# 后端代码格式化
+pnpm backend:format
+
+# 同时启动前端和后端开发服务器
+pnpm dev
+
+# 构建前端和后端
+pnpm build
 
 # 安装所有依赖
 pnpm install-all
 ```
 
-### 从各子包目录运行
+### 前端专用命令
 
 ```bash
 # 进入前端目录
 cd frontend
 
-# 前端专用命令
+# 前端开发
 pnpm dev
+
+# 前端构建
 pnpm build
+
+# 前端预览
 pnpm preview
+
+# 前端类型检查
 pnpm type-check
+
+# 前端 ESLint 检查
 pnpm lint
+
+# 前端代码格式化
 pnpm format
+```
+
+### 后端专用命令
+
+```bash
+# 进入后端目录
+cd backend
+
+# 后端开发（热重载）
+pnpm start:dev
+
+# 后端启动（生产）
+pnpm start
+
+# 后端构建
+pnpm build
+
+# 后端 ESLint 检查
+pnpm lint
+
+# 后端代码格式化
+pnpm format
+
+# 后端单元测试
+pnpm test
+
+# 后端端对端测试
+pnpm test:e2e
 ```
 
 ## 🏗️ Monorepo 工作区
@@ -175,7 +247,8 @@ pnpm format
 ```yaml
 # pnpm-workspace.yaml
 packages:
-  - 'frontend'
+  - "frontend"
+  - "backend"
 ```
 
 ### 在工作区中添加新包
@@ -207,22 +280,32 @@ pnpm -r --if-present lint
 
 ## 🔧 开发指南
 
+### 提交代码规范
+
+本项目使用 Husky + Lint-staged + Commitlint 来确保代码质量和提交规范。详见 [Husky & Lint-staged 使用指南](./HUSKY_LINT_STAGED_GUIDE.md)
+
+**快速要点**:
+
+- 提交前自动执行代码检查和格式化
+- 提交信息必须遵循 Conventional Commits 格式
+- 格式: `<type>(<scope>): <subject>` (例如: `feat(auth): 添加登录功能`)
+
 ### 创建新的前端组件
 
 ```vue
 <!-- frontend/src/components/MyComponent.vue -->
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref } from "vue";
 
 interface Props {
-  title?: string
+  title?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  title: '默认标题',
-})
+  title: "默认标题",
+});
 
-const count = ref(0)
+const count = ref(0);
 </script>
 
 <template>
@@ -243,26 +326,26 @@ div {
 
 ```typescript
 // frontend/src/hooks/useFetch.ts
-import { ref } from 'vue'
+import { ref } from "vue";
 
 export function useFetch(url: string) {
-  const data = ref(null)
-  const loading = ref(false)
-  const error = ref(null)
+  const data = ref(null);
+  const loading = ref(false);
+  const error = ref(null);
 
   const fetch = async () => {
-    loading.value = true
+    loading.value = true;
     try {
-      const response = await fetch(url)
-      data.value = await response.json()
+      const response = await fetch(url);
+      data.value = await response.json();
     } catch (err) {
-      error.value = err
+      error.value = err;
     } finally {
-      loading.value = false
+      loading.value = false;
     }
-  }
+  };
 
-  return { data, loading, error, fetch }
+  return { data, loading, error, fetch };
 }
 ```
 
@@ -270,23 +353,21 @@ export function useFetch(url: string) {
 
 ```vue
 <script setup lang="ts">
-import { Button, Card, Space, message } from 'ant-design-vue'
-import { ref } from 'vue'
+import { Button, Card, Space, message } from "ant-design-vue";
+import { ref } from "vue";
 
-const count = ref(0)
+const count = ref(0);
 
 const handleClick = () => {
-  count.value++
-  message.success('点击成功！')
-}
+  count.value++;
+  message.success("点击成功！");
+};
 </script>
 
 <template>
   <Card title="示例">
     <Space>
-      <Button type="primary" @click="handleClick">
-        点击我
-      </Button>
+      <Button type="primary" @click="handleClick"> 点击我 </Button>
       <span>{{ count }}</span>
     </Space>
   </Card>
@@ -295,32 +376,63 @@ const handleClick = () => {
 
 ## 🌍 环境变量
 
-### 前端环境变量
+### 前端环境变量 (`frontend/.env*`)
 
 - `.env.example` - 示例文件（参考用）
 - `.env.development` - 开发环境
 - `.env.production` - 生产环境
 
-### 在代码中使用
+**在代码中使用**：
 
 ```typescript
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 ```
 
-> **注意**: 环境变量名称必须以 `VITE_` 开头
+> **注意**: 前端环境变量名称必须以 `VITE_` 开头
+
+### 后端环境变量 (`backend/.env`)
+
+- `.env` - 本地开发环境
+- `.env.example` - 示例文件（参考用）
+
+**支持的变量**：
+
+```bash
+PORT=3000                    # 服务器端口
+NODE_ENV=development        # 运行环境
+CORS_ORIGIN=http://localhost:5173  # CORS 跨域来源
+```
 
 ## 📚 项目状态
 
-- [x] Vue 3 + TypeScript 前端基础框架
+### 前端
+
+- [x] Vue 3 + TypeScript 基础框架
 - [x] Ant Design Vue 4.x 集成
-- [x] pnpm Monorepo 工作区配置
-- [x] 路径别名配置
-- [x] 完整文档
-- [ ] 后端 NestJS 项目
-- [ ] 前端 ESLint & Prettier
-- [ ] Vue Router 路由
-- [ ] Pinia 状态管理
-- [ ] Axios API 封装
+- [x] Vite 构建工具
+- [x] Vue Router 4 路由
+- [x] Pinia 状态管理
+- [x] Axios HTTP 客户端
+- [x] ESLint + Prettier 代码规范
+
+### 后端
+
+- [x] NestJS 11 + TypeScript 基础框架
+- [x] 全局异常处理和响应转换
+- [x] 数据验证（ValidationPipe）
+- [x] CORS 配置
+- [x] Health Check 端点
+- [ ] Prisma ORM + MySQL 数据库
+- [ ] Swagger API 文档
+- [ ] Passport + JWT 认证
+
+### 工程化
+
+- [x] pnpm Monorepo 工作区
+- [x] Husky Git Hooks
+- [x] Lint-staged 代码检查
+- [x] Commitlint 提交规范
+- [x] 共享 ESLint 配置
 
 ## 🤝 贡献指南
 
