@@ -138,8 +138,8 @@ project-monorepo-template/
 ### 后端 (Backend)
 
 - **框架**: NestJS 11 + TypeScript
-- **ORM**: Prisma（待集成）
-- **数据库**: MySQL 8.0（待集成）
+- **ORM**: ✅ Prisma 7.x（已集成）
+- **数据库**: MySQL 8.0（支持 Prisma）
 - **缓存**: Redis（待集成）
 - **鉴权**: Passport + JWT（待集成）
 - **文档**: Swagger（待集成）
@@ -238,6 +238,21 @@ pnpm test
 
 # 后端端对端测试
 pnpm test:e2e
+
+# Prisma 数据库迁移
+pnpm prisma:migrate       # 创建新迁移
+
+# 生成 Prisma Client
+pnpm prisma:generate
+
+# Prisma Studio（可视化数据管理）
+pnpm prisma:studio
+
+# 重置数据库
+pnpm prisma:reset
+
+# 生产环境迁移部署
+pnpm prisma:migrate:prod
 ```
 
 ## 🏗️ Monorepo 工作区
@@ -398,10 +413,15 @@ const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 **支持的变量**：
 
 ```bash
-PORT=3000                    # 服务器端口
-NODE_ENV=development        # 运行环境
-CORS_ORIGIN=http://localhost:5173  # CORS 跨域来源
+PORT=3000                                    # 服务器端口
+NODE_ENV=development                        # 运行环境
+CORS_ORIGIN=http://localhost:5173          # CORS 跨域来源
+
+# 数据库配置（Prisma MySQL）
+DATABASE_URL=mysql://root:password@localhost:3306/project_db
 ```
+
+> **数据库 URL 格式**: `mysql://username:password@host:port/database`
 
 ## 📚 项目状态
 
@@ -422,9 +442,11 @@ CORS_ORIGIN=http://localhost:5173  # CORS 跨域来源
 - [x] 数据验证（ValidationPipe）
 - [x] CORS 配置
 - [x] Health Check 端点
-- [ ] Prisma ORM + MySQL 数据库
+- [x] ✅ Prisma ORM 7.x + MySQL 数据库
+- [x] ✅ Users CRUD 操作示例
 - [ ] Swagger API 文档
 - [ ] Passport + JWT 认证
+- [ ] Redis 缓存
 
 ### 工程化
 
