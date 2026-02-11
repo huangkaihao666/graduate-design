@@ -94,7 +94,13 @@ pnpm install
 cp .env.example .env
 ```
 
-编辑 `.env` 文件，确保数据库 URL 正确：
+编辑 `.env` 文件，确保数据库 URL 正确。数据库 URL 格式为：
+
+```
+mysql://[username]:[password]@[host]:[port]/[database]
+```
+
+**示例配置**：
 
 ```bash
 # .env 文件示例
@@ -103,10 +109,53 @@ NODE_ENV=development
 CORS_ORIGIN=http://localhost:5173
 
 # MySQL 数据库连接（使用 Prisma）
+# 格式: mysql://username:password@host:port/database
 DATABASE_URL="mysql://root:password@localhost:3306/project_db"
 ```
 
-> **重要**：确保 MySQL 服务已启动，且数据库存在。
+#### 🔧 本地数据库配置步骤
+
+**第一步：创建数据库用户和数据库**
+
+使用 root 用户登录 MySQL：
+
+```bash
+# 连接到 MySQL
+mysql -u root -p
+
+# 进入 MySQL 后执行以下命令：
+# 1. 创建数据库
+CREATE DATABASE graduate-design;
+
+# 2. 创建数据库用户（如果已有用户，跳过此步）
+CREATE USER 'your_username'@'localhost' IDENTIFIED BY 'your_password';
+
+# 3. 为用户授予权限（包括创建影子数据库的权限）
+GRANT ALL PRIVILEGES ON `graduate-design`.* TO 'your_username'@'localhost';
+GRANT ALL PRIVILEGES ON *.* TO 'your_username'@'localhost' WITH GRANT OPTION;
+
+# 4. 刷新权限
+FLUSH PRIVILEGES;
+
+# 5. 验证用户和数据库
+SHOW DATABASES;
+SHOW GRANTS FOR 'your_username'@'localhost';
+```
+
+**第二步：更新 .env 配置**
+
+根据你的 MySQL 用户信息更新 DATABASE_URL：
+
+```bash
+# 替换以下内容：
+# - your_username: 你的 MySQL 用户名
+# - your_password: 你的 MySQL 密码
+# - graduate-design: 你的数据库名
+
+DATABASE_URL="mysql://your_username:your_password@localhost:3306/graduate-design"
+```
+
+> **重要**：确保 MySQL 服务已启动，且具有创建影子数据库的权限（Prisma 迁移需要）。
 
 ### 3. 初始化数据库（Prisma 迁移）
 
@@ -212,6 +261,40 @@ pnpm prisma:generate
 2. 确保 MySQL 服务已启动
 3. 验证数据库用户名和密码是否正确
 4. 如使用 Docker，检查容器是否运行：`docker ps`
+
+#### 问题 2.5：Error P1013 或 P1010 - 权限错误
+
+**原因**：数据库用户权限不足，无法创建影子数据库或迁移表
+
+**症状**：
+
+```
+Error: P1013 - datasource.url is invalid
+Error: P1010 - User was denied access on database `prisma_migrate_shadow_db_*`
+```
+
+**解决方案**：
+
+使用 root 用户授予权限：
+
+```bash
+# 连接到 MySQL
+mysql -u root -p
+
+# 执行以下命令（替换 your_username）
+GRANT ALL PRIVILEGES ON *.* TO 'your_username'@'localhost' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+
+# 验证
+SHOW GRANTS FOR 'your_username'@'localhost';
+```
+
+然后重新运行迁移：
+
+```bash
+cd backend
+pnpm prisma migrate dev --name init
+```
 
 #### 问题 3：Cannot find module 'nest'
 
