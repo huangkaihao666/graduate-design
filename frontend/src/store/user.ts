@@ -32,7 +32,7 @@ export const useUserStore = defineStore('user', () => {
     error.value = null
   }
 
-  const login = async (username: string, password: string) => {
+  const login = async (username: string, _password: string) => {
     loading.value = true
     error.value = null
     try {
