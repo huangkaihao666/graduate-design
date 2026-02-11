@@ -340,5 +340,3 @@ const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
 
 - [前端项目 README](./frontend/README.md) - 前端项目详细文档
 - [前端项目结构](./frontend/PROJECT_STRUCTURE.txt) - 前端项目结构说明
-
-**最后更新**: 2024-02-12

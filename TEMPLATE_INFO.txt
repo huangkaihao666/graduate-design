@@ -117,6 +117,5 @@ project-monorepo-template/
   - 享受 pnpm Monorepo 的便利
 
 ---
-创建时间: 2024-02-12
 模板版本: 1.0.0
 状态: 可生产使用 ✅

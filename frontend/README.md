@@ -514,8 +514,6 @@ git commit -m "docs: add pnpm-lock.yaml"
 
 ---
 
-**最后更新**: 2024-02-12
-
 **维护者**: [Your Name]
 
 **问题反馈**: [Issues](./issues)
