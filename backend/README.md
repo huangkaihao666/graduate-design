@@ -56,8 +56,10 @@ cd backend
 # 4️⃣ 配置数据库（见下面详细步骤）
 # 需要创建 MySQL 数据库和用户
 
-# 5️⃣ 配置环境变量
-# 编辑 .env.example，更新 DATABASE_URL 为你的数据库信息（见下面详细说明）
+# 5️⃣ 配置环境变量（如需修改）
+# 项目已包含 .env 文件，默认配置可直接使用
+# 如需修改数据库连接，编辑 .env 文件中的 DATABASE_URL
+# 详见下面第 3 步的说明
 
 # 6️⃣ 应用数据库迁移
 pnpm prisma migrate deploy
@@ -132,25 +134,28 @@ EXIT;
 
 **记住你创建的用户名和密码，下一步需要用到！**
 
-#### 第 3 步：配置环境变量
+#### 第 3 步：配置环境变量（可选）
 
-进入后端目录，编辑 `.env.example` 文件中的 `DATABASE_URL`：
+项目已包含 `.env` 文件，**默认已配置为本地开发环境**，可直接使用无需修改。
+
+如果你使用的 MySQL 用户名和密码不同，则需要编辑 `.env` 文件：
 
 ```bash
 # 进入后端目录（如果还没进入）
 cd backend
 
-# 编辑 .env.example 文件
-# 找到 DATABASE_URL 这一行，按照下面的格式修改：
+# 编辑 .env 文件（使用你喜欢的编辑器）
+# 找到 DATABASE_URL 这一行，修改为你的数据库信息
 ```
 
-**在 `.env.example` 中找到这一行：**
+**.env 文件内容：**
 
 ```bash
+# 当前配置
 DATABASE_URL="mysql://huangkaihao:hkh618618@localhost:3306/graduate-design"
 ```
 
-**替换为你自己的数据库信息：**
+**如需修改，替换为你自己的数据库信息：**
 
 ```bash
 # 替换 your_username 和 your_password 为你刚才创建的用户和密码
@@ -163,7 +168,7 @@ DATABASE_URL="mysql://your_username:your_password@localhost:3306/graduate-design
 DATABASE_URL="mysql://dev:dev123@localhost:3306/graduate-design"
 ```
 
-> **注意**：`.env.example` 已提交到 Git，直接编辑使用即可。不需要复制或创建 `.env` 文件。
+> **注意**：`.env` 已提交到 Git，团队共享同一套开发配置。如需个人特殊配置，可创建 `.env.local` 文件（Git 会忽略此文件）。
 
 #### 第 4 步：应用数据库迁移
 
