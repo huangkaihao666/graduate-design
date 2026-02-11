@@ -1,0 +1,33 @@
+{
+  "name": "project-monorepo-template",
+  "version": "1.0.0",
+  "description": "Vue 3 + NestJS + MySQL 的 Monorepo 项目模板",
+  "private": true,
+  "keywords": [
+    "monorepo",
+    "Vue 3",
+    "NestJS",
+    "TypeScript",
+    "pnpm",
+    "template"
+  ],
+  "author": "Your Team",
+  "license": "MIT",
+  "scripts": {
+    "frontend:dev": "pnpm --filter frontend dev",
+    "frontend:build": "pnpm --filter frontend build",
+    "frontend:preview": "pnpm --filter frontend preview",
+    "frontend:type-check": "pnpm --filter frontend type-check",
+    "backend:dev": "pnpm --filter backend start:dev",
+    "backend:build": "pnpm --filter backend build",
+    "dev": "pnpm -r dev",
+    "build": "pnpm -r build",
+    "install-all": "pnpm install"
+  },
+  "pnpm": {
+    "overrides": {},
+    "peerDependencyRules": {
+      "ignoreMissing": []
+    }
+  }
+}
