@@ -38,7 +38,189 @@
 
 ## 🚀 快速开始
 
-### 前置准备
+### ⚡ 快速检查表（新人必读）
+
+如果你是第一次拉取这个项目，按照以下步骤操作就能跑起来：
+
+```bash
+# 1️⃣ 克隆项目
+git clone <项目地址>
+cd graduate-design
+
+# 2️⃣ 安装所有依赖
+pnpm install
+
+# 3️⃣ 进入后端目录
+cd backend
+
+# 4️⃣ 配置数据库（见下面详细步骤）
+# 需要创建 MySQL 数据库和用户
+
+# 5️⃣ 配置环境变量
+cp .env.example .env
+# 编辑 .env，更新 DATABASE_URL（见下面详细说明）
+
+# 6️⃣ 应用数据库迁移
+pnpm prisma migrate deploy
+
+# 7️⃣ 启动项目
+pnpm start:dev
+```
+
+✅ 完成后访问：`http://localhost:3000/api/v1/health`
+
+---
+
+### 新人完整配置指南
+
+#### 第 1 步：启动 MySQL 数据库
+
+> ⚠️ **重要**：在执行后续步骤前，必须确保 MySQL 已启动且可访问
+
+**方案 A：使用 Docker（推荐，最简单）**
+
+```bash
+# 如果还未安装 Docker，请先安装：https://www.docker.com/
+
+# 运行 MySQL 容器
+docker run --name mysql-grad \
+  -e MYSQL_ROOT_PASSWORD=root123 \
+  -p 3306:3306 \
+  -d mysql:8.0
+
+# 验证容器运行
+docker ps | grep mysql-grad
+```
+
+**方案 B：本地安装 MySQL**
+
+- 下载安装：https://dev.mysql.com/downloads/mysql/
+- 启动 MySQL 服务
+- 记住 root 用户的密码
+
+#### 第 2 步：创建数据库和用户
+
+打开终端，连接到 MySQL：
+
+```bash
+# 使用 root 用户连接
+mysql -u root -p
+# 输入 root 密码（如使用 Docker，密码是 root123）
+```
+
+在 MySQL 命令行中执行以下命令：
+
+```sql
+-- 1. 创建数据库
+CREATE DATABASE IF NOT EXISTS `graduate-design`;
+
+-- 2. 创建新用户（替换 your_username 和 your_password）
+CREATE USER 'your_username'@'localhost' IDENTIFIED BY 'your_password';
+
+-- 3. 授予权限（必须包括 WITH GRANT OPTION，Prisma 迁移需要）
+GRANT ALL PRIVILEGES ON `graduate-design`.* TO 'your_username'@'localhost';
+GRANT ALL PRIVILEGES ON *.* TO 'your_username'@'localhost' WITH GRANT OPTION;
+
+-- 4. 刷新权限
+FLUSH PRIVILEGES;
+
+-- 5. 验证（应该能看到 graduate-design 数据库）
+SHOW DATABASES;
+
+-- 6. 退出 MySQL
+EXIT;
+```
+
+**记住你创建的用户名和密码，下一步需要用到！**
+
+#### 第 3 步：配置环境变量
+
+```bash
+# 进入后端目录（如果还没进入）
+cd backend
+
+# 复制示例环境文件
+cp .env.example .env
+```
+
+编辑 `.env` 文件，找到 `DATABASE_URL` 这一行，按照下面的格式修改：
+
+```bash
+# 替换 your_username 和 your_password 为你刚才创建的用户和密码
+DATABASE_URL="mysql://your_username:your_password@localhost:3306/graduate-design"
+```
+
+**示例**（如果你创建了用户 `dev` 密码 `dev123`）：
+
+```bash
+DATABASE_URL="mysql://dev:dev123@localhost:3306/graduate-design"
+```
+
+#### 第 4 步：应用数据库迁移
+
+这一步会根据 `prisma/schema.prisma` 中定义的数据模型自动创建数据库表：
+
+```bash
+# 在后端目录中运行
+pnpm prisma migrate deploy
+
+# 或者使用更详细的命令（两个命令效果相同）
+pnpm prisma migrate dev
+```
+
+**预期输出**（看到这样说明成功）：
+
+```
+Prisma schema loaded
+Datasource "db": MySQL database "graduate-design" at "localhost:3306"
+Database schema is up to date!
+```
+
+#### 第 5 步：启动后端服务
+
+```bash
+# 在后端目录中运行
+pnpm start:dev
+```
+
+**预期输出**：
+
+```
+[Nest] 12345  - 02/12/2024, 3:00:00 PM     LOG [NestFactory] Starting Nest application...
+[Nest] 12345  - 02/12/2024, 3:00:01 PM     LOG [InstanceLoader] AppModule dependencies initialized
+[Nest] 12345  - 02/12/2024, 3:00:01 PM     LOG [NestApplication] Nest application successfully started
+```
+
+#### 第 6 步：验证服务
+
+打开新的终端窗口，运行：
+
+```bash
+# 测试健康检查端点
+curl http://localhost:3000/api/v1/health
+
+# 或在浏览器中访问
+http://localhost:3000/api/v1/health
+```
+
+预期返回：
+
+```json
+{
+  "statusCode": 200,
+  "message": "Request successful",
+  "data": {
+    "status": "ok",
+    "timestamp": "2024-02-12T03:00:00.000Z"
+  }
+}
+```
+
+✅ **恭喜！项目已成功运行！**
+
+---
+
+### 前置准备（可选的额外工具）
 
 #### 安装 NestJS CLI（可选但推荐）
 
@@ -49,25 +231,6 @@ npm install -g @nestjs/cli
 # 验证安装
 nest --version
 ```
-
-#### 启动 MySQL 数据库
-
-**方案 1：使用 Docker（推荐）**
-
-```bash
-# 运行 MySQL 容器
-docker run --name mysql-dev \
-  -e MYSQL_ROOT_PASSWORD=password \
-  -e MYSQL_DATABASE=project_db \
-  -p 3306:3306 \
-  -d mysql:8.0
-```
-
-**方案 2：本地安装 MySQL**
-
-- 下载并安装 [MySQL 8.0](https://dev.mysql.com/downloads/mysql/)
-- 启动 MySQL 服务
-- 创建数据库：`CREATE DATABASE project_db;`
 
 ### 1. 安装依赖
 
