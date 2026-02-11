@@ -21,5 +21,11 @@
     "noImplicitAny": false,
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false
+  },
+  "watchOptions": {
+    "watchFile": "usefsevents",
+    "watchDirectory": "usefsevents",
+    "fallbackPolling": "dynamicpriority",
+    "excludeDirectories": ["node_modules", "dist", ".git", ".next"]
   }
 }

@@ -26,10 +26,7 @@ async function bootstrap() {
   // Global interceptors
   app.useGlobalInterceptors(new TransformInterceptor());
 
-  // Set global prefix
-  app.setGlobalPrefix('api/v1');
-
-  // Swagger API 文档配置
+  // Swagger API 文档配置（在设置全局前缀之前）
   const config = new DocumentBuilder()
     .setTitle('毕业设计项目 API')
     .setDescription('RESTful API 接口文档')
@@ -38,16 +35,10 @@ async function bootstrap() {
     .addTag('Users', '用户管理')
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document, {
-    swaggerOptions: {
-      urls: [
-        {
-          url: '/api/v1/api-json',
-          name: 'v1.0.0',
-        },
-      ],
-    },
-  });
+  SwaggerModule.setup('api/docs', app, document);
+
+  // Set global prefix（在 Swagger 之后）
+  app.setGlobalPrefix('api/v1');
 
   await app.listen(appConfig.port);
   console.log(
