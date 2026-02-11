@@ -23,8 +23,11 @@
     "frontend:type-check": "pnpm --filter frontend type-check",
     "backend:dev": "pnpm --filter backend start:dev",
     "backend:build": "pnpm --filter backend build",
-    "dev": "pnpm -r dev",
-    "build": "pnpm -r build",
+    "backend:start": "pnpm --filter backend start",
+    "backend:lint": "pnpm --filter backend lint",
+    "backend:format": "pnpm --filter backend format",
+    "dev": "pnpm frontend:dev & pnpm backend:dev",
+    "build": "pnpm frontend:build && pnpm backend:build",
     "install-all": "pnpm install"
   },
   "pnpm": {
