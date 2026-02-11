@@ -2,6 +2,7 @@
   "name": "project-monorepo-template",
   "version": "1.0.0",
   "description": "Vue 3 + NestJS + MySQL 的 Monorepo 项目模板",
+  "type": "module",
   "private": true,
   "keywords": [
     "monorepo",
@@ -15,6 +16,7 @@
   "license": "MIT",
   "scripts": {
     "prepare": "husky install",
+    "commitlint": "commitlint --from HEAD~1",
     "frontend:dev": "pnpm --filter frontend dev",
     "frontend:build": "pnpm --filter frontend build",
     "frontend:preview": "pnpm --filter frontend preview",
@@ -32,6 +34,8 @@
     }
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.4.1",
+    "@commitlint/config-conventional": "^20.4.1",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7"
   }

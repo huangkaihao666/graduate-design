@@ -1,0 +1,9 @@
+node_modules/
+dist/
+build/
+.git/
+.husky/
+*.log
+pnpm-lock.yaml
+eslint.config.js
+commitlint.config.js

@@ -1,6 +1,7 @@
 {
-  "*.{js,jsx,mjs,cjs,ts,tsx}": ["eslint --fix", "prettier --write"],
-  "*.vue": ["eslint --fix", "prettier --write"],
-  "*.{css,scss,less}": ["stylelint --fix", "prettier --write"],
+  "frontend/**/*.{js,jsx,mjs,cjs,ts,tsx}": ["eslint --fix", "prettier --write"],
+  "backend/**/*.{js,jsx,mjs,cjs,ts,tsx}": ["eslint --fix", "prettier --write"],
+  "frontend/**/*.vue": ["eslint --fix", "prettier --write"],
+  "frontend/**/*.{css,scss,less}": ["stylelint --fix", "prettier --write"],
   "*.{json,md}": ["prettier --write"]
 }
