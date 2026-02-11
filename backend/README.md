@@ -232,6 +232,30 @@ http://localhost:3000/api/v1/health
 
 ✅ **恭喜！项目已成功运行！**
 
+#### 第 7 步：查看 Swagger API 文档（可选）
+
+启动项目后，可以通过 Swagger UI 查看和测试所有 API 端点：
+
+在浏览器中访问：
+
+```
+http://localhost:3000/api/docs
+```
+
+Swagger 文档会显示：
+
+- 📝 所有 API 端点的详细说明
+- 🧪 在线测试 API 的能力
+- 📋 请求和响应的示例
+- ✅ 参数验证规则
+
+**特性**：
+
+- 自动生成，无需手动维护
+- 支持在线调试接口
+- 展示完整的数据模型
+- 实时跟踪代码更新
+
 ---
 
 ### 前置准备（可选的额外工具）
@@ -595,6 +619,32 @@ pnpm test:e2e
 pnpm test:debug
 ```
 
+## 📚 API 文档
+
+### Swagger UI（推荐）
+
+启动项目后，访问 Swagger 文档：
+
+```
+http://localhost:3000/api/docs
+```
+
+Swagger 提供了：
+
+- ✅ 完整的 API 端点列表和说明
+- ✅ 参数和响应的详细描述
+- ✅ 在线测试 API 的能力
+- ✅ 自动化文档更新（无需手动维护）
+
+**特点**：
+
+- 📝 自动从代码注解生成
+- 🧪 支持直接发送请求测试
+- 📋 展示请求/响应示例
+- ✅ 包含参数校验规则
+
+---
+
 ## 🔌 API 端点
 
 ### 根端点
@@ -928,15 +978,30 @@ Content-Type: application/json
 DELETE /api/v1/users/:id
 ```
 
-### 待集成的功能
-
-以下功能已在规划中，可按需集成：
+### ✅ 已集成的功能（续）
 
 #### Swagger API 文档
 
-```bash
-pnpm add @nestjs/swagger swagger-ui-express
-```
+**项目已集成 Swagger，自动生成 API 文档**
+
+访问地址：`http://localhost:3000/api/docs`
+
+**特性**：
+
+- ✅ 自动从代码注解生成 API 文档
+- ✅ 支持在线测试 API 端点
+- ✅ 展示请求/响应的完整示例
+- ✅ 包含参数校验规则说明
+- ✅ 实时跟踪代码更新（无需手动维护）
+
+**已注解的模块**：
+
+- Users CRUD 接口（GET、POST、PUT、DELETE）
+- 完整的参数描述和响应示例
+
+### 待集成的功能
+
+以下功能已在规划中，可按需集成：
 
 #### Passport + JWT 认证
 
