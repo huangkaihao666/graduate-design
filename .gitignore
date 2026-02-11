@@ -13,7 +13,7 @@ build/
 .env.*.local
 
 # IDE
-.vscode/
+# .vscode/ 目录包含团队共享的开发配置，应该提交到 git
 .idea/
 *.suo
 *.ntvs*
