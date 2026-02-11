@@ -1,7 +1,7 @@
 # Dependencies
 node_modules/
 .pnpm/
-pnpm-lock.yaml
+# pnpm-lock.yaml 应该提交到 git，以确保团队成员使用相同的依赖版本
 
 # Build output
 dist/
