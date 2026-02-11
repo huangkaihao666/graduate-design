@@ -84,6 +84,7 @@ export default [
       globals: {
         console: 'readonly',
         process: 'readonly',
+        require: 'readonly',
         localStorage: 'readonly',
         sessionStorage: 'readonly',
         window: 'readonly',
