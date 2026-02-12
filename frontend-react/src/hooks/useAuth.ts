@@ -2,16 +2,20 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store'
 import { authApi } from '@/api'
-import type { LoginRequest, LoginResponse } from '@/types/common'
+import type { LoginRequest, RegisterRequest, LoginResponse } from '@/types/common'
 
 export const useLogin = () => {
   const navigate = useNavigate()
   const authStore = useAuthStore()
+
   return useMutation({
     mutationFn: (data: LoginRequest) => authApi.login(data),
     onSuccess: (data: LoginResponse) => {
       authStore.login(data)
       navigate('/dashboard')
+    },
+    onError: (error: Error | null) => {
+      authStore.setError(error?.message || '登录失败')
     },
   })
 }
@@ -19,21 +23,26 @@ export const useLogin = () => {
 export const useRegister = () => {
   const navigate = useNavigate()
   const authStore = useAuthStore()
+
   return useMutation({
-    mutationFn: (data: Parameters<typeof authApi.register>[0]) => authApi.register(data),
+    mutationFn: (data: RegisterRequest) => authApi.register(data),
     onSuccess: (data: LoginResponse) => {
       authStore.login(data)
       navigate('/dashboard')
     },
+    onError: (error: Error | null) => {
+      authStore.setError(error?.message || '注册失败')
+    },
   })
 }
 
-export const useCurrentUser = () => {
+export const useProfile = () => {
   const authStore = useAuthStore()
+
   return useQuery({
-    queryKey: ['currentUser'],
-    queryFn: () => authApi.getCurrentUser(),
-    enabled: !!authStore.token,
+    queryKey: ['profile'],
+    queryFn: () => authApi.getProfile(),
+    enabled: !!authStore.accessToken,
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 10,
   })
@@ -42,6 +51,7 @@ export const useCurrentUser = () => {
 export const useLogout = () => {
   const navigate = useNavigate()
   const authStore = useAuthStore()
+
   return useMutation({
     mutationFn: () => authApi.logout(),
     onSuccess: () => {
@@ -51,8 +61,13 @@ export const useLogout = () => {
   })
 }
 
-export const useChangePassword = () => {
+export const useRefreshToken = () => {
+  const authStore = useAuthStore()
+
   return useMutation({
-    mutationFn: (data: { oldPassword: string; newPassword: string }) => authApi.changePassword(data),
+    mutationFn: () => authApi.refreshToken(authStore.refreshToken || ''),
+    onSuccess: (data) => {
+      authStore.setAccessToken(data.accessToken)
+    },
   })
 }

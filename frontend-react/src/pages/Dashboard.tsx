@@ -1,10 +1,12 @@
-import { Row, Col, Card, Statistic, Button, Space, Empty } from 'antd'
-import { UserOutlined, FileOutlined, TeamOutlined, ShoppingOutlined } from '@ant-design/icons'
+import { Row, Col, Card, Statistic, Button, Space, Empty, Divider } from 'antd'
+import { UserOutlined, FileOutlined, TeamOutlined, ShoppingOutlined, LogoutOutlined } from '@ant-design/icons'
 import { useAuthStore } from '@/store'
+import { useLogout } from '@/hooks'
 import './Dashboard.css'
 
 const Dashboard = () => {
   const { user } = useAuthStore()
+  const { mutate: logout, isPending } = useLogout()
 
   return (
     <div className="dashboard-container">
@@ -12,12 +14,56 @@ const Dashboard = () => {
         <Col xs={24}>
           <Card>
             <Space direction="vertical" style={{ width: '100%' }}>
-              <h2>欢迎回来，{user?.username}！</h2>
-              <p>这是你的仪表盘。选择左侧菜单开始管理应用。</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h2>欢迎回来，{user?.username || user?.email}！</h2>
+                  <p>这是你的仪表盘。</p>
+                </div>
+                <Button
+                  type="primary"
+                  danger
+                  icon={<LogoutOutlined />}
+                  loading={isPending}
+                  onClick={() => logout()}
+                >
+                  登出
+                </Button>
+              </div>
             </Space>
           </Card>
         </Col>
       </Row>
+
+      <Row gutter={[16, 16]}>
+        <Col xs={24}>
+          <Card title="用户信息">
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <p>
+                <strong>ID:</strong> {user?.id}
+              </p>
+              <p>
+                <strong>用户名:</strong> {user?.username}
+              </p>
+              <p>
+                <strong>邮箱:</strong> {user?.email}
+              </p>
+              {user?.roles && (
+                <p>
+                  <strong>角色:</strong> {user.roles.join(', ')}
+                </p>
+              )}
+              {user?.createdAt && (
+                <p>
+                  <strong>创建时间:</strong> {new Date(user.createdAt).toLocaleString()}
+                </p>
+              )}
+            </Space>
+          </Card>
+        </Col>
+      </Row>
+
+      <Divider />
+
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={6}>
           <Card hoverable>
@@ -40,6 +86,7 @@ const Dashboard = () => {
           </Card>
         </Col>
       </Row>
+
       <Row gutter={[16, 16]} className="dashboard-footer">
         <Col xs={24}>
           <Card title="快速操作">
@@ -51,6 +98,7 @@ const Dashboard = () => {
           </Card>
         </Col>
       </Row>
+
       <Row gutter={[16, 16]}>
         <Col xs={24}>
           <Card title="最近活动">

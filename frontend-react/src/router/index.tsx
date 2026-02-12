@@ -6,8 +6,14 @@ import NotFound from '@/pages/NotFound'
 import ProtectedRoute from './ProtectedRoute'
 
 export const router = createBrowserRouter([
-  { path: '/', element: <Navigate to="/dashboard" replace /> },
-  { path: '/login', element: <Login /> },
+  {
+    path: '/',
+    element: <Navigate to="/dashboard" replace />,
+  },
+  {
+    path: '/login',
+    element: <Login />,
+  },
   {
     path: '/dashboard',
     element: (
@@ -15,7 +21,15 @@ export const router = createBrowserRouter([
         <Layout />
       </ProtectedRoute>
     ),
-    children: [{ index: true, element: <Dashboard /> }],
+    children: [
+      {
+        index: true,
+        element: <Dashboard />,
+      },
+    ],
   },
-  { path: '*', element: <NotFound /> },
+  {
+    path: '*',
+    element: <NotFound />,
+  },
 ])

@@ -14,9 +14,11 @@ instance.interceptors.request.use(
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { useAuthStore } = require('@/store')
     const authStore = useAuthStore()
-    if (authStore.token) {
-      config.headers.Authorization = `Bearer ${authStore.token}`
+
+    if (authStore.accessToken) {
+      config.headers.Authorization = `Bearer ${authStore.accessToken}`
     }
+
     return config
   },
   (error: AxiosError) => Promise.reject(error)
@@ -24,20 +26,18 @@ instance.interceptors.request.use(
 
 instance.interceptors.response.use(
   (response) => {
+    // 直接返回响应数据，不包装额外的 data 层
     const { data } = response
-    if (data.code !== 0 && data.code !== 200) {
-      message.error(data.message || '请求失败')
-      return Promise.reject(new Error(data.message || '请求失败'))
-    }
     return data
   },
   (error: AxiosError<ApiResponse>) => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { useAuthStore } = require('@/store')
     const authStore = useAuthStore()
+
     if (error.response?.status === 401) {
-      message.error('登录过期，请重新登录')
-      authStore.logout()
+      message.error('登录已过期，请重新登录')
+      authStore.clearAuth()
       window.location.href = '/login'
     } else if (error.response?.status === 403) {
       message.error('没有权限访问此资源')
@@ -50,7 +50,8 @@ instance.interceptors.response.use(
     } else {
       message.error(error.response?.data?.message || error.message || '请求失败')
     }
-    return Promise.reject(error)
+
+    return Promise.reject(error.response?.data || error)
   }
 )
 
