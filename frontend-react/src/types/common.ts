@@ -1,0 +1,1 @@
+export interface ApiResponse<T = Record<string, string>> {code: number;message: string;data?: T}export interface User {id: string;username: string;email: string}export interface LoginRequest {username: string;password: string}export interface LoginResponse {accessToken: string;user: User}

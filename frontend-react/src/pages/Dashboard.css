@@ -1,0 +1,5 @@
+.dashboard-container { display: flex; flex-direction: column; gap: 16px; }
+.dashboard-welcome { margin-bottom: 24px; }
+.dashboard-footer { margin-top: 24px; }
+.dashboard-container h2 { margin: 0; color: #000; }
+.dashboard-container p { margin: 8px 0 0 0; color: rgba(0, 0, 0, 0.45); }
