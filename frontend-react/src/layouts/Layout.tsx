@@ -1,25 +1,30 @@
-import { Layout as AntLayout, Menu, Dropdown, Avatar, Space, Button } from 'antd';
-import { LogoutOutlined, UserOutlined, SettingOutlined } from '@ant-design/icons';
-import { Outlet, useNavigate } from 'react-router-dom';
-import { useAuthStore } from '@/store';
-import { useLogout } from '@/hooks';
-import './Layout.css';
-const { Header, Sider, Content } = AntLayout;
+import { Layout as AntLayout, Menu, Dropdown, Avatar, Space, Button } from 'antd'
+import { LogoutOutlined, UserOutlined, SettingOutlined } from '@ant-design/icons'
+import { Outlet, useNavigate } from 'react-router-dom'
+import { useAuthStore } from '@/store'
+import { useLogout } from '@/hooks'
+import './Layout.css'
+
+const { Header, Sider, Content } = AntLayout
+
 const Layout = () => {
-  const navigate = useNavigate();
-  const { user } = useAuthStore();
-  const { mutate: logout } = useLogout();
+  const navigate = useNavigate()
+  const { user } = useAuthStore()
+  const { mutate: logout } = useLogout()
+
   const userMenuItems = [
     { key: 'profile', label: '个人资料', icon: <UserOutlined />, onClick: () => navigate('/profile') },
     { key: 'settings', label: '设置', icon: <SettingOutlined />, onClick: () => navigate('/settings') },
-    { type: 'divider' },
+    { type: 'divider' as const },
     { key: 'logout', label: '登出', icon: <LogoutOutlined />, onClick: () => logout(), danger: true },
-  ];
+  ]
+
   const sideMenuItems = [
     { key: 'dashboard', label: '仪表盘', onClick: () => navigate('/dashboard') },
     { key: 'users', label: '用户管理', onClick: () => navigate('/users') },
     { key: 'settings', label: '系统设置', onClick: () => navigate('/system-settings') },
-  ];
+  ]
+
   return (
     <AntLayout style={{ minHeight: '100vh' }}>
       <Header className="layout-header">
@@ -43,6 +48,7 @@ const Layout = () => {
         </Content>
       </AntLayout>
     </AntLayout>
-  );
-};
-export default Layout;
+  )
+}
+
+export default Layout

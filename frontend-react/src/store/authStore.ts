@@ -1,17 +1,19 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import type { User, LoginResponse } from '@/types/common';
+import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
+import type { User, LoginResponse } from '@/types/common'
+
 interface AuthState {
-  user: User | null;
-  token: string | null;
-  isLoading: boolean;
-  isAuthenticated: boolean;
-  setUser: (user: User | null) => void;
-  setToken: (token: string | null) => void;
-  setLoading: (loading: boolean) => void;
-  login: (response: LoginResponse) => void;
-  logout: () => void;
+  user: User | null
+  token: string | null
+  isLoading: boolean
+  isAuthenticated: boolean
+  setUser: (user: User | null) => void
+  setToken: (token: string | null) => void
+  setLoading: (loading: boolean) => void
+  login: (response: LoginResponse) => void
+  logout: () => void
 }
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
@@ -27,4 +29,4 @@ export const useAuthStore = create<AuthState>()(
     }),
     { name: 'auth-storage', partialize: (state) => ({ user: state.user, token: state.token }) }
   )
-);
+)

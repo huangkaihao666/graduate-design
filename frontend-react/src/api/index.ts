@@ -1,2 +1,2 @@
-export {httpClient} from "./client";
-export * as authApi from "./auth";
+export { httpClient } from './client'
+export * as authApi from './auth'

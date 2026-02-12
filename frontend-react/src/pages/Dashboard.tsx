@@ -1,9 +1,11 @@
-import { Row, Col, Card, Statistic, Button, Space, Empty } from 'antd';
-import { UserOutlined, FileOutlined, TeamOutlined, ShoppingOutlined } from '@ant-design/icons';
-import { useAuthStore } from '@/store';
-import './Dashboard.css';
+import { Row, Col, Card, Statistic, Button, Space, Empty } from 'antd'
+import { UserOutlined, FileOutlined, TeamOutlined, ShoppingOutlined } from '@ant-design/icons'
+import { useAuthStore } from '@/store'
+import './Dashboard.css'
+
 const Dashboard = () => {
-  const { user } = useAuthStore();
+  const { user } = useAuthStore()
+
   return (
     <div className="dashboard-container">
       <Row gutter={[16, 16]} className="dashboard-welcome">
@@ -57,6 +59,7 @@ const Dashboard = () => {
         </Col>
       </Row>
     </div>
-  );
-};
-export default Dashboard;
+  )
+}
+
+export default Dashboard
