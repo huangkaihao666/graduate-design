@@ -3,7 +3,7 @@ import { LogoutOutlined, UserOutlined, SettingOutlined } from '@ant-design/icons
 import { Outlet, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store'
 import { useLogout } from '@/hooks'
-import './Layout.css'
+import './Layout.less'
 
 const { Header, Sider, Content } = AntLayout
 

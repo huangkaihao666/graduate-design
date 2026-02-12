@@ -1,8 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import Layout from '@/layouts/Layout'
-import Login from '@/pages/Login'
-import Dashboard from '@/pages/Dashboard'
-import NotFound from '@/pages/NotFound'
+import { Login, Dashboard, NotFound } from '@/pages'
 import ProtectedRoute from './ProtectedRoute'
 
 export const router = createBrowserRouter([

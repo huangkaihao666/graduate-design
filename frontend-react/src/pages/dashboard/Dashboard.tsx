@@ -2,7 +2,7 @@ import { Row, Col, Card, Statistic, Button, Space, Empty, Divider } from 'antd'
 import { UserOutlined, FileOutlined, TeamOutlined, ShoppingOutlined, LogoutOutlined } from '@ant-design/icons'
 import { useAuthStore } from '@/store'
 import { useLogout } from '@/hooks'
-import './Dashboard.css'
+import './Dashboard.less'
 
 const Dashboard = () => {
   const { user } = useAuthStore()
@@ -14,7 +14,7 @@ const Dashboard = () => {
         <Col xs={24}>
           <Card>
             <Space direction="vertical" style={{ width: '100%' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="welcome-header">
                 <div>
                   <h2>欢迎回来，{user?.username || user?.email}！</h2>
                   <p>这是你的仪表盘。</p>

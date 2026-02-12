@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Form, Input, Button, Card, Space, Typography, Checkbox, Tabs, message } from 'antd'
 import { UserOutlined, LockOutlined, MailOutlined } from '@ant-design/icons'
 import { useLogin, useRegister } from '@/hooks'
-import './Login.css'
+import './Login.less'
 
 const { Title, Text } = Typography
 
@@ -91,7 +91,7 @@ const Login = () => {
 
       {loginError && (
         <Form.Item>
-          <div className="login-error">{typeof loginError === 'string' ? loginError : '登录失败'}</div>
+          <div className="auth-error">{typeof loginError === 'string' ? loginError : '登录失败'}</div>
         </Form.Item>
       )}
 
@@ -157,7 +157,7 @@ const Login = () => {
 
       {registerError && (
         <Form.Item>
-          <div className="login-error">{typeof registerError === 'string' ? registerError : '注册失败'}</div>
+          <div className="auth-error">{typeof registerError === 'string' ? registerError : '注册失败'}</div>
         </Form.Item>
       )}
 
@@ -170,10 +170,10 @@ const Login = () => {
   )
 
   return (
-    <div className="login-container">
-      <Card className="login-card">
+    <div className="auth-container">
+      <Card className="auth-card">
         <Space direction="vertical" style={{ width: '100%' }} size="large">
-          <div className="login-header">
+          <div className="auth-header">
             <Title level={2} style={{ margin: 0 }}>
               React Admin System
             </Title>
