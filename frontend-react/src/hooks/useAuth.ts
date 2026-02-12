@@ -15,7 +15,9 @@ export const useLogin = () => {
       navigate('/dashboard')
     },
     onError: (error: Error | null) => {
-      authStore.setError(error?.message || '登录失败')
+      const errorMsg = error?.message || '登录失败'
+      authStore.setError(errorMsg)
+      console.error('Login error:', error)
     },
   })
 }
@@ -31,7 +33,9 @@ export const useRegister = () => {
       navigate('/dashboard')
     },
     onError: (error: Error | null) => {
-      authStore.setError(error?.message || '注册失败')
+      const errorMsg = error?.message || '注册失败'
+      authStore.setError(errorMsg)
+      console.error('Register error:', error)
     },
   })
 }

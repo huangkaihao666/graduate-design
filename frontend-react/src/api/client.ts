@@ -26,15 +26,16 @@ instance.interceptors.request.use(
 
 instance.interceptors.response.use(
   (response) => {
-    // 直接返回响应数据，不包装额外的 data 层
-    const { data } = response
-    return data
+    // 后端返回格式: { statusCode, message, data }
+    // 我们需要返回整个响应数据让上层处理
+    return response.data
   },
   (error: AxiosError<ApiResponse>) => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { useAuthStore } = require('@/store')
     const authStore = useAuthStore()
 
+    // 先检查服务器返回的业务错误
     if (error.response?.status === 401) {
       message.error('登录已过期，请重新登录')
       authStore.clearAuth()
@@ -51,7 +52,7 @@ instance.interceptors.response.use(
       message.error(error.response?.data?.message || error.message || '请求失败')
     }
 
-    return Promise.reject(error.response?.data || error)
+    return Promise.reject(error)
   }
 )
 
