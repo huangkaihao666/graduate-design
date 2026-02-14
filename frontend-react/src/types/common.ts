@@ -5,11 +5,13 @@ export interface ApiResponse<T = Record<string, string>> {
 }
 
 export interface User {
-  id: string
-  username: string
+  id: number | string
+  name?: string
+  username?: string
   email: string
   avatar?: string
   roles?: string[]
+  isActive?: boolean
   createdAt?: string
   updatedAt?: string
 }

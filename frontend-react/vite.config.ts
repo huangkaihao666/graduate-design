@@ -34,6 +34,13 @@ export default defineConfig({
       port: 5174,
       protocol: 'http',
     },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        rewrite: (path) => path,
+      },
+    },
   },
   build: {
     outDir: 'dist',

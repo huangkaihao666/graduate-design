@@ -50,4 +50,17 @@ export class AuthController {
   async getProfile(@Request() req) {
     return req.user;
   }
+
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '用户登出' })
+  @ApiResponse({ status: 200, description: '登出成功' })
+  @UseGuards(JwtAuthGuard)
+  @Post('logout')
+  async logout() {
+    return {
+      statusCode: 200,
+      message: '登出成功',
+      data: {},
+    };
+  }
 }

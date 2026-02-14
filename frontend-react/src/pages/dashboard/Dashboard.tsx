@@ -42,7 +42,7 @@ const Dashboard = () => {
                 <strong>ID:</strong> {user?.id}
               </p>
               <p>
-                <strong>用户名:</strong> {user?.username}
+                <strong>用户名:</strong> {user?.name || user?.username}
               </p>
               <p>
                 <strong>邮箱:</strong> {user?.email}

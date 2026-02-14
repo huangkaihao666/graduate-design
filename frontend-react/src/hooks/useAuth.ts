@@ -69,7 +69,13 @@ export const useRefreshToken = () => {
   const authStore = useAuthStore()
 
   return useMutation({
-    mutationFn: () => authApi.refreshToken(authStore.refreshToken || ''),
+    mutationFn: () => {
+      const currentRefreshToken = authStore.refreshToken
+      if (!currentRefreshToken) {
+        return Promise.reject(new Error('没有刷新令牌'))
+      }
+      return authApi.refreshToken(currentRefreshToken)
+    },
     onSuccess: (data) => {
       authStore.setAccessToken(data.accessToken)
     },

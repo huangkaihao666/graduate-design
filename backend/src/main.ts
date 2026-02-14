@@ -11,9 +11,10 @@ import { appConfig } from './config';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Enable CORS
+  // Enable CORS - 支持多个开发端口
+  const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+    origin: corsOrigin.split(',').map((origin) => origin.trim()),
     credentials: true,
   });
 

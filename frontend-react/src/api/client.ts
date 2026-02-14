@@ -2,18 +2,17 @@ import type { AxiosInstance, InternalAxiosRequestConfig, AxiosError } from 'axio
 import axios from 'axios'
 import { message } from 'antd'
 import type { ApiResponse } from '@/types/common'
+import { useAuthStore } from '@/store'
 
 const instance: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1',
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
   timeout: 10000,
   headers: { 'Content-Type': 'application/json' },
 })
 
 instance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { useAuthStore } = require('@/store')
-    const authStore = useAuthStore()
+    const authStore = useAuthStore.getState()
 
     if (authStore.accessToken) {
       config.headers.Authorization = `Bearer ${authStore.accessToken}`
@@ -27,13 +26,11 @@ instance.interceptors.request.use(
 instance.interceptors.response.use(
   (response) => {
     // 后端返回格式: { statusCode, message, data }
-    // 我们需要返回整个响应数据让上层处理
-    return response.data
+    // 我们需要返回 data 部分给上层处理
+    return response.data.data || response.data
   },
   (error: AxiosError<ApiResponse>) => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { useAuthStore } = require('@/store')
-    const authStore = useAuthStore()
+    const authStore = useAuthStore.getState()
 
     // 先检查服务器返回的业务错误
     if (error.response?.status === 401) {

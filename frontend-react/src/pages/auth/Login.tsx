@@ -172,7 +172,7 @@ const Login = () => {
   return (
     <div className="auth-container">
       <Card className="auth-card">
-        <Space direction="vertical" style={{ width: '100%' }} size="large">
+        <Space orientation="vertical" style={{ width: '100%' }} size="large">
           <div className="auth-header">
             <Title level={2} style={{ margin: 0 }}>
               React Admin System

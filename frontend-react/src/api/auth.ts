@@ -3,22 +3,22 @@ import type { LoginRequest, RegisterRequest, LoginResponse, User } from '@/types
 
 export const register = async (data: RegisterRequest): Promise<LoginResponse> => {
   const response = await httpClient.post('/auth/register', data)
-  return response.data
+  return response
 }
 
 export const login = async (data: LoginRequest): Promise<LoginResponse> => {
   const response = await httpClient.post('/auth/login', data)
-  return response.data
+  return response
 }
 
 export const getProfile = async (): Promise<User> => {
   const response = await httpClient.get('/auth/profile')
-  return response.data
+  return response
 }
 
 export const refreshToken = async (refreshToken: string): Promise<{ accessToken: string }> => {
   const response = await httpClient.post('/auth/refresh', { refreshToken })
-  return response.data
+  return response
 }
 
 export const logout = async (): Promise<void> => {
