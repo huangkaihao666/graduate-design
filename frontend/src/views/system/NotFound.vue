@@ -1,3 +1,13 @@
+<template>
+  <div class="not-found">
+    <Result status="404" title="404" sub-title="抱歉，您访问的页面不存在" style="margin-top: 5rem">
+      <template #extra>
+        <Button type="primary" @click="handleGoHome"> 返回首页 </Button>
+      </template>
+    </Result>
+  </div>
+</template>
+
 <script setup lang="ts">
 import { Button, Result } from 'ant-design-vue';
 import { useRouter } from 'vue-router';
@@ -8,16 +18,6 @@ const handleGoHome = () => {
   router.push('/');
 };
 </script>
-
-<template>
-  <div class="not-found">
-    <Result status="404" title="404" sub-title="抱歉，您访问的页面不存在" style="margin-top: 5rem">
-      <template #extra>
-        <Button type="primary" @click="handleGoHome"> 返回首页 </Button>
-      </template>
-    </Result>
-  </div>
-</template>
 
 <style scoped>
 .not-found {

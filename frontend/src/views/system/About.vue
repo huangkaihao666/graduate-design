@@ -1,7 +1,3 @@
-<script setup lang="ts">
-import { Card, Divider } from 'ant-design-vue';
-</script>
-
 <template>
   <div class="about">
     <header class="header">
@@ -97,6 +93,10 @@ import { Card, Divider } from 'ant-design-vue';
     </main>
   </div>
 </template>
+
+<script setup lang="ts">
+import { Card, Divider } from 'ant-design-vue';
+</script>
 
 <style scoped>
 .about {
