@@ -1,37 +1,745 @@
 <template>
-  <div class="virtual-try-on">
-    <div class="header">
-      <h1>🤖 AI 虚拟试拍</h1>
-      <p>上传您的照片，一键生成高保真婚纱预览图</p>
+  <div class="virtual-try-on-container">
+    <!-- 页面标题 -->
+    <div class="page-header">
+      <h1>🤖 AI 虚拍生成</h1>
+      <p>上传生活照，AI 为您生成高保真婚纱大片</p>
     </div>
-    <div class="content">
-      <a-empty description="功能开发中..." />
+
+    <div class="content-grid">
+      <!-- 左侧：上传和配置 -->
+      <div class="left-panel">
+        <!-- 图片上传 -->
+        <div class="upload-section">
+          <h2>第 1 步：上传照片</h2>
+          <div
+            class="upload-area"
+            :class="{ active: dragActive }"
+            @click="() => fileInput?.click()"
+            @dragover.prevent="dragActive = true"
+            @dragleave.prevent="dragActive = false"
+            @drop.prevent="handleDrop"
+          >
+            <div v-if="!uploadedImage" class="upload-placeholder">
+              <span class="upload-icon">📸</span>
+              <p>拖拽照片到此或点击选择</p>
+              <small>支持 JPG、PNG 格式，文件大小不超过 10MB</small>
+              <input
+                type="file"
+                accept="image/jpeg,image/png"
+                @change="handleFileUpload"
+                ref="fileInput"
+                style="display: none"
+              />
+            </div>
+            <div v-else class="image-preview">
+              <img :src="uploadedImage" :alt="uploadedFileName" />
+              <button type="button" class="remove-btn" @click="clearImage">✕ 重新选择</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 风格选择 -->
+        <div class="style-section">
+          <h2>第 2 步：选择风格</h2>
+          <div class="style-grid">
+            <div
+              v-for="style in availableStyles"
+              :key="style.id"
+              class="style-card"
+              :class="{ active: selectedStyle === style.id }"
+              @click="selectedStyle = style.id"
+            >
+              <div class="style-icon">{{ style.icon }}</div>
+              <div class="style-name">{{ style.name }}</div>
+              <div class="style-desc">{{ style.description }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 个性化偏好 -->
+        <div class="preferences-section">
+          <h2>第 3 步：个性化偏好（可选）</h2>
+          <a-form layout="vertical">
+            <a-form-item label="妆容风格">
+              <a-select v-model:value="preferences.makeup" placeholder="选择妆容风格" allow-clear>
+                <a-select-option value="natural">自然清透</a-select-option>
+                <a-select-option value="romantic">浪漫烟熏</a-select-option>
+                <a-select-option value="elegant">典雅气质</a-select-option>
+                <a-select-option value="vintage">复古优雅</a-select-option>
+              </a-select>
+            </a-form-item>
+
+            <a-form-item label="发型风格">
+              <a-select
+                v-model:value="preferences.hairstyle"
+                placeholder="选择发型风格"
+                allow-clear
+              >
+                <a-select-option value="updo">盘发</a-select-option>
+                <a-select-option value="loose">飘逸长卷</a-select-option>
+                <a-select-option value="half-up">半扎</a-select-option>
+                <a-select-option value="sleek">贴头皮</a-select-option>
+              </a-select>
+            </a-form-item>
+
+            <a-form-item label="服装风格">
+              <a-select v-model:value="preferences.dress" placeholder="选择服装风格" allow-clear>
+                <a-select-option value="romantic">浪漫蓬裙</a-select-option>
+                <a-select-option value="minimalist">简约修身</a-select-option>
+                <a-select-option value="vintage">复古婚纱</a-select-option>
+                <a-select-option value="modern">现代设计</a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-form>
+        </div>
+
+        <!-- 生成按钮 -->
+        <a-button
+          type="primary"
+          size="large"
+          block
+          :loading="generating"
+          :disabled="!uploadedImage || !selectedStyle"
+          @click="handleGenerate"
+          class="generate-btn"
+        >
+          {{ generating ? '正在生成虚拍建议...' : '✨ 生成虚拍建议' }}
+        </a-button>
+      </div>
+
+      <!-- 右侧：结果展示 -->
+      <div class="right-panel">
+        <div v-if="generating" class="loading-state">
+          <div class="spinner"></div>
+          <p>正在生成虚拍建议...</p>
+          <small>这可能需要 30-60 秒，请耐心等待 ✨</small>
+        </div>
+
+        <div v-else-if="!result" class="empty-state">
+          <span class="empty-icon">✨</span>
+          <p>完成左侧配置后，点击按钮生成虚拍建议</p>
+        </div>
+
+        <div v-else class="result-container">
+          <!-- 结果概览 -->
+          <div class="result-summary">
+            <h2>{{ result.style }} - 虚拍效果</h2>
+            <div class="result-time">生成时间：{{ formatTime(result.timestamp) }}</div>
+          </div>
+
+          <!-- 修改后的图片展示 -->
+          <div class="image-comparison">
+            <div class="comparison-item">
+              <div class="label">原始照片</div>
+              <img
+                v-if="uploadedImage"
+                :src="uploadedImage"
+                :alt="uploadedFileName"
+                class="comparison-image"
+              />
+            </div>
+            <div class="arrow">→</div>
+            <div class="comparison-item">
+              <div class="label">{{ result.style }} 风格效果</div>
+              <img
+                v-if="result.modifiedImageUrl"
+                :src="result.modifiedImageUrl"
+                alt="修改后的图片"
+                class="comparison-image modified-preview"
+              />
+            </div>
+          </div>
+
+          <!-- 详细建议 -->
+          <a-collapse class="advice-collapse">
+            <!-- 妆容建议 -->
+            <template #items>
+              <a-collapse-panel key="makeup" header="💄 妆容建议">
+                <p>{{ result.makeupAdvice }}</p>
+              </a-collapse-panel>
+
+              <!-- 发型建议 -->
+              <a-collapse-panel key="hairstyle" header="💇 发型建议">
+                <p>{{ result.hairstyleAdvice }}</p>
+              </a-collapse-panel>
+
+              <!-- 服装建议 -->
+              <a-collapse-panel key="dress" header="👗 服装建议">
+                <p>{{ result.dressAdvice }}</p>
+              </a-collapse-panel>
+
+              <!-- 拍摄技巧 -->
+              <a-collapse-panel key="tips" header="📸 拍摄技巧">
+                <ul class="tips-list">
+                  <li v-for="(tip, index) in result.shootingTips" :key="index">
+                    {{ tip }}
+                  </li>
+                </ul>
+              </a-collapse-panel>
+
+              <!-- 预览描述 -->
+              <a-collapse-panel key="preview" header="🎬 预览效果">
+                <p>{{ result.previewDescription }}</p>
+              </a-collapse-panel>
+            </template>
+          </a-collapse>
+
+          <!-- 操作按钮 -->
+          <div class="result-actions">
+            <a-button type="primary" @click="handleSaveHistory"> 💾 保存到历史 </a-button>
+            <a-button @click="handleReset">🔄 重新生成</a-button>
+            <a-button type="text" danger @click="handleDownload"> ⬇️ 下载建议 </a-button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { Empty } from 'ant-design-vue';
+import { ref, reactive, onMounted } from 'vue';
+import { message } from 'ant-design-vue';
+import { aiApi, VirtualTryOnRequest } from '@/api/ai';
+
+// 状态管理
+const uploadedImage = ref<string>('');
+const uploadedFileName = ref<string>('');
+const dragActive = ref<boolean>(false);
+const selectedStyle = ref<string>('romantic');
+const generating = ref<boolean>(false);
+const result = ref<any>(null);
+const fileInput = ref<HTMLInputElement>();
+
+const preferences = reactive({
+  makeup: undefined,
+  hairstyle: undefined,
+  dress: undefined,
+});
+
+const availableStyles = ref<any[]>([]);
+
+// 获取可用风格列表
+onMounted(async () => {
+  try {
+    const response = await aiApi.getStyles();
+    availableStyles.value = response.data?.styles || [];
+  } catch (error) {
+    console.error('获取风格列表失败:', error);
+  }
+});
+
+// 处理文件上传
+const handleFileUpload = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const files = target.files;
+  if (files && files.length > 0) {
+    const file = files[0];
+    if (file.size > 10 * 1024 * 1024) {
+      message.error('文件大小不能超过 10MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      uploadedImage.value = e.target?.result as string;
+      uploadedFileName.value = file.name;
+    };
+    reader.readAsDataURL(file);
+  }
+};
+
+// 清除图片
+const clearImage = () => {
+  uploadedImage.value = '';
+  uploadedFileName.value = '';
+  if (fileInput.value) {
+    fileInput.value.value = '';
+  }
+};
+
+// 处理拖拽上传
+const handleDrop = (event: DragEvent) => {
+  dragActive.value = false;
+  const files = event.dataTransfer?.files;
+  if (files && files.length > 0) {
+    const file = files[0];
+    if (!file.type.startsWith('image/')) {
+      message.error('请上传图片文件');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      message.error('文件大小不能超过 10MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      uploadedImage.value = e.target?.result as string;
+      uploadedFileName.value = file.name;
+    };
+    reader.readAsDataURL(file);
+  }
+};
+
+// 生成虚拍建议
+const handleGenerate = async () => {
+  if (!uploadedImage.value || !selectedStyle.value) {
+    message.warning('请先上传照片并选择风格');
+    return;
+  }
+
+  generating.value = true;
+  try {
+    // 🔧 临时使用固定的婚纱图片 URL 进行测试
+    // TODO: 后续将改为使用上传的图片 (uploadedImage.value)
+    const weddingImageUrl =
+      'https://images.unsplash.com/photo-1469334031218-e382a71b716b?q=80&w=1000&auto=format&fit=crop';
+
+    const request: VirtualTryOnRequest = {
+      imageUrl: weddingImageUrl,
+      style: selectedStyle.value,
+      preferences: {
+        makeup: preferences.makeup,
+        hairstyle: preferences.hairstyle,
+        dress: preferences.dress,
+      },
+    };
+
+    const response = await aiApi.virtualTryOn(request);
+    // 处理嵌套的响应结构，取最内层的 data
+    result.value = response.data?.data || response.data;
+    message.success('虚拍建议生成成功！');
+  } catch (error: any) {
+    message.error(error.message || '生成失败，请重试');
+    console.error('虚拍生成错误:', error);
+  } finally {
+    generating.value = false;
+  }
+};
+
+// 保存到历史
+const handleSaveHistory = async () => {
+  try {
+    await aiApi.saveHistory({
+      type: 'virtual-try-on',
+      input: {
+        style: selectedStyle.value,
+        preferences,
+      },
+      output: result.value,
+    });
+    message.success('已保存到历史记录');
+  } catch (error: any) {
+    message.error(error.message || '保存失败');
+  }
+};
+
+// 重新生成
+const handleReset = () => {
+  result.value = null;
+  uploadedImage.value = '';
+  uploadedFileName.value = '';
+  clearImage();
+};
+
+// 下载建议
+const handleDownload = () => {
+  const content = JSON.stringify(result.value, null, 2);
+  const blob = new Blob([content], { type: 'application/json' });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `虚拍建议-${new Date().getTime()}.json`;
+  link.click();
+  window.URL.revokeObjectURL(url);
+  message.success('已下载建议文件');
+};
+
+// 格式化时间
+const formatTime = (timestamp: string): string => {
+  return new Date(timestamp).toLocaleString('zh-CN');
+};
 </script>
 
-<style scoped>
-.virtual-try-on {
-  padding: 40px;
-  max-width: 1200px;
-  margin: 0 auto;
+<style scoped lang="less">
+.virtual-try-on-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  padding: 40px 20px;
 }
-.header {
+
+.page-header {
   text-align: center;
   margin-bottom: 40px;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+
+  h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+
+  p {
+    font-size: 1.1rem;
+    opacity: 0.9;
+  }
 }
-.header h1 {
-  font-size: 2rem;
-  margin-bottom: 10px;
+
+.content-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  max-width: 1400px;
+  margin: 0 auto;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+  }
 }
-.content {
+
+.left-panel,
+.right-panel {
   background: white;
-  padding: 60px;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.left-panel {
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.upload-section,
+.style-section,
+.preferences-section {
+  h2 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 15px;
+    color: #333;
+  }
+}
+
+.upload-area {
+  border: 2px dashed #e0e0e0;
   border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 30px;
+  text-align: center;
+  transition: all 0.3s;
+  cursor: pointer;
+  background: #fafafa;
+  position: relative;
+
+  &:hover {
+    border-color: #ff758c;
+    background: #fff5f7;
+  }
+
+  &.active {
+    border-color: #ff758c;
+    background: #fff5f7;
+  }
+
+  input {
+    display: none;
+  }
+}
+
+.upload-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+
+  .upload-icon {
+    font-size: 3rem;
+  }
+
+  p {
+    font-weight: 500;
+    color: #333;
+    margin: 0;
+  }
+
+  small {
+    color: #999;
+  }
+}
+
+.image-preview {
+  position: relative;
+
+  img {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 8px;
+  }
+
+  .remove-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: background 0.3s;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.8);
+    }
+  }
+}
+
+.style-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.style-card {
+  padding: 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  background: white;
+
+  &:hover {
+    border-color: #ff758c;
+    background: #fff5f7;
+    transform: translateY(-2px);
+  }
+
+  &.active {
+    border-color: #ff758c;
+    background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%);
+    color: white;
+
+    .style-desc {
+      color: rgba(255, 255, 255, 0.9);
+    }
+  }
+
+  .style-icon {
+    font-size: 1.8rem;
+    margin-bottom: 8px;
+  }
+
+  .style-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 4px;
+  }
+
+  .style-desc {
+    font-size: 0.75rem;
+    color: #999;
+    line-height: 1.3;
+  }
+}
+
+.generate-btn {
+  margin-top: 10px;
+  height: 48px;
+  font-size: 1rem;
+  font-weight: 600;
+  background: linear-gradient(90deg, #ff758c 0%, #ff7eb3 100%);
+  border: none;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 117, 140, 0.4);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.right-panel {
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+  color: #666;
+  gap: 20px;
+
+  .spinner {
+    width: 60px;
+    height: 60px;
+    border: 4px solid #f0f0f0;
+    border-top: 4px solid #ff758c;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  p {
+    font-size: 1.1rem;
+    font-weight: 500;
+    margin: 0;
+  }
+
+  small {
+    font-size: 0.9rem;
+    color: #999;
+  }
+
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+  color: #999;
+
+  .empty-icon {
+    font-size: 3rem;
+    margin-bottom: 16px;
+    opacity: 0.5;
+  }
+
+  p {
+    font-size: 1rem;
+  }
+}
+
+.result-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.result-summary {
+  padding: 16px;
+  background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%);
+  border-radius: 12px;
+  color: white;
+
+  h2 {
+    margin: 0 0 8px 0;
+    font-size: 1.3rem;
+  }
+
+  .result-time {
+    font-size: 0.85rem;
+    opacity: 0.9;
+  }
+}
+
+.advice-collapse {
+  :deep(.ant-collapse-header) {
+    font-weight: 600;
+    font-size: 1rem;
+
+    &:hover {
+      color: #ff758c;
+    }
+  }
+
+  :deep(.ant-collapse-content-box) {
+    padding: 16px 12px;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: #666;
+  }
+}
+
+.tips-list {
+  margin: 0;
+  padding-left: 20px;
+
+  li {
+    margin-bottom: 8px;
+    list-style-type: disc;
+  }
+}
+
+.result-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+
+  button {
+    flex: 1;
+    min-width: 120px;
+  }
+}
+
+.image-comparison {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 12px;
+  align-items: center;
+  margin: 20px 0;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.comparison-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #666;
+    text-align: center;
+  }
+}
+
+.comparison-image {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 6px;
+  object-fit: cover;
+  border: 1px solid #e0e0e0;
+  transition: all 0.3s;
+
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  &.modified-preview {
+    filter: brightness(100%) contrast(1) saturate(1);
+  }
+}
+
+.arrow {
+  font-size: 1.5rem;
+  color: #ff758c;
+  font-weight: bold;
+  text-align: center;
 }
 </style>

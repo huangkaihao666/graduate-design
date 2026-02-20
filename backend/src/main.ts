@@ -7,6 +7,11 @@ import {
   ValidationPipe,
 } from './common';
 import { appConfig } from './config';
+import * as dotenv from 'dotenv';
+import { join } from 'path';
+
+// 加载环境变量
+dotenv.config({ path: join(__dirname, '../.env') });
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
