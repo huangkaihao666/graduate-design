@@ -24,7 +24,10 @@ model User {
   updatedAt DateTime @updatedAt
 
   // 关系
-  posts     Post[]
+  posts                          Post[]
+  virtualTryOnHistories          VirtualTryOnHistory[]         @relation("VirtualTryOnHistories")
+  styleRecommendationHistories   StyleRecommendationHistory[]  @relation("StyleRecommendationHistories")
+  itineraryPlanningHistories     ItineraryPlanningHistory[]    @relation("ItineraryPlanningHistories")
 
   @@map("users")
   @@index([email])
@@ -45,4 +48,103 @@ model Post {
 
   @@map("posts")
   @@index([authorId])
+}
+
+// ============ AI 功能数据模型 ============
+
+/// AI 虚拍历史记录
+model VirtualTryOnHistory {
+  id                    Int     @id @default(autoincrement()) @db.UnsignedInt
+  
+  // 输入参数
+  imageUrl              String  @db.LongText
+  style                 String  @db.VarChar(50)
+  preferences           Json?                              // 存储 preferences 对象的 JSON
+  
+  // 输出结果
+  modifiedImageUrl      String? @db.LongText
+  virtualAdvice         String? @db.Text
+  makeupAdvice          String? @db.Text
+  hairstyleAdvice       String? @db.Text
+  dressAdvice           String? @db.Text
+  shootingTips          Json?                              // 存储数组的 JSON
+  previewDescription    String? @db.Text
+  
+  // 用户关联（可选）
+  userId                Int?    @db.UnsignedInt
+  user                  User?   @relation("VirtualTryOnHistories", fields: [userId], references: [id], onDelete: SetNull)
+  
+  // 元数据
+  status                String  @default("success") @db.VarChar(50) // success, failed
+  errorMessage          String? @db.Text
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("virtual_try_on_histories")
+  @@index([userId])
+  @@index([style])
+  @@index([createdAt])
+}
+
+/// AI 风格推荐历史记录
+model StyleRecommendationHistory {
+  id                    Int     @id @default(autoincrement()) @db.UnsignedInt
+  
+  // 输入参数
+  preferences           String  @db.Text
+  budget                Int?    @db.UnsignedInt
+  occasions             Json?                              // 存储数组的 JSON
+  
+  // 输出结果
+  recommendedStyles     Json?                              // 存储推荐风格数组的 JSON
+  personalizedAdvice    String? @db.Text
+  
+  // 用户关联（可选）
+  userId                Int?    @db.UnsignedInt
+  user                  User?   @relation("StyleRecommendationHistories", fields: [userId], references: [id], onDelete: SetNull)
+  
+  // 元数据
+  status                String  @default("success") @db.VarChar(50) // success, failed
+  errorMessage          String? @db.Text
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("style_recommendation_histories")
+  @@index([userId])
+  @@index([createdAt])
+}
+
+/// AI 行程规划历史记录
+model ItineraryPlanningHistory {
+  id                    Int     @id @default(autoincrement()) @db.UnsignedInt
+  
+  // 输入参数
+  destination           String  @db.VarChar(255)
+  duration              Int     @db.UnsignedInt
+  style                 String  @db.VarChar(50)
+  interests             Json?                              // 存储数组的 JSON
+  
+  // 输出结果
+  overview              String? @db.Text
+  dailySchedule         Json?                              // 存储日程数组的 JSON
+  packingList           Json?                              // 存储打包清单数组的 JSON
+  localTips             String? @db.Text
+  
+  // 用户关联（可选）
+  userId                Int?    @db.UnsignedInt
+  user                  User?   @relation("ItineraryPlanningHistories", fields: [userId], references: [id], onDelete: SetNull)
+  
+  // 元数据
+  status                String  @default("success") @db.VarChar(50) // success, failed
+  errorMessage          String? @db.Text
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("itinerary_planning_histories")
+  @@index([userId])
+  @@index([destination])
+  @@index([createdAt])
 }

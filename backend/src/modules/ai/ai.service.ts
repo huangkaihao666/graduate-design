@@ -1,4 +1,5 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
 import axios from 'axios';
 
 export interface VirtualTryOnRequest {
@@ -53,7 +54,7 @@ export class AiService {
   private readonly deepseekBaseURL =
     'https://api.deepseek.com/chat/completions';
 
-  constructor() {
+  constructor(private readonly prisma: PrismaService) {
     console.log('[AI Service] 初始化配置:');
     console.log(
       '[AI Service] Volces API Key:',
@@ -662,5 +663,100 @@ export class AiService {
         },
       ],
     };
+  }
+
+  /**
+   * 保存虚拍历史记录
+   */
+  async saveVirtualTryOnHistory(
+    data: VirtualTryOnRequest,
+    result: any,
+    userId?: number,
+    status: string = 'success',
+    errorMessage?: string,
+  ): Promise<any> {
+    try {
+      return await this.prisma.virtualTryOnHistory.create({
+        data: {
+          imageUrl: data.imageUrl,
+          style: data.style,
+          preferences: data.preferences || undefined,
+          modifiedImageUrl: result?.modifiedImageUrl || undefined,
+          virtualAdvice: result?.virtualAdvice || undefined,
+          makeupAdvice: result?.makeupAdvice || undefined,
+          hairstyleAdvice: result?.hairstyleAdvice || undefined,
+          dressAdvice: result?.dressAdvice || undefined,
+          shootingTips: result?.shootingTips || undefined,
+          previewDescription: result?.previewDescription || undefined,
+          userId: userId || undefined,
+          status,
+          errorMessage: errorMessage || undefined,
+        },
+      });
+    } catch (error) {
+      console.error('[AI Service] 保存虚拍历史失败:', error);
+      // 不抛出异常，只记录日志
+    }
+  }
+
+  /**
+   * 保存风格推荐历史记录
+   */
+  async saveStyleRecommendationHistory(
+    data: StyleRecommendationRequest,
+    result: any,
+    userId?: number,
+    status: string = 'success',
+    errorMessage?: string,
+  ): Promise<any> {
+    try {
+      return await this.prisma.styleRecommendationHistory.create({
+        data: {
+          preferences: data.preferences,
+          budget: data.budget || undefined,
+          occasions: data.occasions || undefined,
+          recommendedStyles: result?.recommendedStyles || undefined,
+          personalizedAdvice: result?.personalizedAdvice || undefined,
+          userId: userId || undefined,
+          status,
+          errorMessage: errorMessage || undefined,
+        },
+      });
+    } catch (error) {
+      console.error('[AI Service] 保存风格推荐历史失败:', error);
+      // 不抛出异常，只记录日志
+    }
+  }
+
+  /**
+   * 保存行程规划历史记录
+   */
+  async saveItineraryPlanningHistory(
+    data: ItineraryPlanningRequest,
+    result: any,
+    userId?: number,
+    status: string = 'success',
+    errorMessage?: string,
+  ): Promise<any> {
+    try {
+      return await this.prisma.itineraryPlanningHistory.create({
+        data: {
+          destination: data.destination,
+          duration: data.duration,
+          style: data.style,
+          interests: data.interests || undefined,
+          overview: result?.overview || undefined,
+          dailySchedule: result?.dailySchedule || undefined,
+          packingList: result?.packingList || undefined,
+          localTips: result?.localTips || undefined,
+          userId: userId || undefined,
+          status,
+          errorMessage: errorMessage || undefined,
+        },
+      });
+    } catch (error) {
+      console.error('[AI Service] 保存行程规划历史失败:', error);
+      // 不抛出异常，只记录日志
+    }
   }
 }

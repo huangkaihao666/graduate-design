@@ -211,6 +211,172 @@ http://localhost:3000/api/docs
 - `PUT /api/v1/users/:id` - 更新用户
 - `DELETE /api/v1/users/:id` - 删除用户
 
+---
+
+## 💾 数据库表说明
+
+### 1. 虚拍历史表 (`virtual_try_on_histories`)
+
+**用途**：存储 AI 虚拍功能的请求和结果数据
+
+| 字段                 | 类型             | 说明                                                                       |
+| -------------------- | ---------------- | -------------------------------------------------------------------------- |
+| `id`                 | INTEGER UNSIGNED | 主键，自增                                                                 |
+| `imageUrl`           | LONGTEXT         | 用户上传的原始图片 URL                                                     |
+| `style`              | VARCHAR(50)      | 拍摄风格（romantic, artistic, bohemian, minimalist, classical, adventure） |
+| `preferences`        | JSON             | 用户偏好设置（妆容、发型、服饰等）                                         |
+| `modifiedImageUrl`   | LONGTEXT         | AI 生成的修改后图片 URL                                                    |
+| `virtualAdvice`      | TEXT             | 虚拍建议                                                                   |
+| `makeupAdvice`       | TEXT             | 妆容建议                                                                   |
+| `hairstyleAdvice`    | TEXT             | 发型建议                                                                   |
+| `dressAdvice`        | TEXT             | 服饰建议                                                                   |
+| `shootingTips`       | JSON             | 拍摄技巧数组                                                               |
+| `previewDescription` | TEXT             | 预览描述                                                                   |
+| `userId`             | INTEGER UNSIGNED | 关联用户 ID（可选）                                                        |
+| `status`             | VARCHAR(50)      | 处理状态（success/failed），默认 success                                   |
+| `errorMessage`       | TEXT             | 错误信息（失败时记录）                                                     |
+| `createdAt`          | DATETIME(3)      | 创建时间                                                                   |
+| `updatedAt`          | DATETIME(3)      | 更新时间                                                                   |
+
+**索引**：`userId`, `style`, `createdAt`
+
+**API 端点**：
+
+- `POST /api/v1/ai/virtual-try-on` - 生成虚拍
+
+---
+
+### 2. 风格推荐历史表 (`style_recommendation_histories`)
+
+**用途**：存储 AI 风格推荐功能的请求和结果数据
+
+| 字段                 | 类型             | 说明                                                            |
+| -------------------- | ---------------- | --------------------------------------------------------------- |
+| `id`                 | INTEGER UNSIGNED | 主键，自增                                                      |
+| `preferences`        | TEXT             | 用户偏好描述                                                    |
+| `budget`             | INTEGER UNSIGNED | 预算范围（元）                                                  |
+| `occasions`          | JSON             | 适合场景数组（如：室内、户外、海滩等）                          |
+| `recommendedStyles`  | JSON             | 推荐风格数组，包含：name, description, season, budget, topSpots |
+| `personalizedAdvice` | TEXT             | 个性化建议                                                      |
+| `userId`             | INTEGER UNSIGNED | 关联用户 ID（可选）                                             |
+| `status`             | VARCHAR(50)      | 处理状态（success/failed），默认 success                        |
+| `errorMessage`       | TEXT             | 错误信息（失败时记录）                                          |
+| `createdAt`          | DATETIME(3)      | 创建时间                                                        |
+| `updatedAt`          | DATETIME(3)      | 更新时间                                                        |
+
+**索引**：`userId`, `createdAt`
+
+**API 端点**：
+
+- `POST /api/v1/ai/style-recommendation` - 生成风格推荐
+
+**推荐风格结构示例**：
+
+```json
+{
+  "name": "浪漫梦幻",
+  "description": "强调柔和光线和优雅气质...",
+  "season": "全年适宜，春季和秋季最佳",
+  "budget": "¥8000-¥15000",
+  "topSpots": ["城市夜景街道", "复古建筑", "花卉婚礼场景", ...]
+}
+```
+
+---
+
+### 3. 行程规划历史表 (`itinerary_planning_histories`)
+
+**用途**：存储 AI 行程规划功能的请求和结果数据
+
+| 字段            | 类型             | 说明                                                            |
+| --------------- | ---------------- | --------------------------------------------------------------- |
+| `id`            | INTEGER UNSIGNED | 主键，自增                                                      |
+| `destination`   | VARCHAR(255)     | 目的地                                                          |
+| `duration`      | INTEGER UNSIGNED | 行程天数                                                        |
+| `style`         | VARCHAR(50)      | 拍摄风格                                                        |
+| `interests`     | JSON             | 兴趣爱好数组                                                    |
+| `overview`      | TEXT             | 行程概述                                                        |
+| `dailySchedule` | JSON             | 每日日程数组，包含：day, theme, schedule, spots, bestTime, tips |
+| `packingList`   | JSON             | 打包清单数组                                                    |
+| `localTips`     | TEXT             | 当地实用建议                                                    |
+| `userId`        | INTEGER UNSIGNED | 关联用户 ID（可选）                                             |
+| `status`        | VARCHAR(50)      | 处理状态（success/failed），默认 success                        |
+| `errorMessage`  | TEXT             | 错误信息（失败时记录）                                          |
+| `createdAt`     | DATETIME(3)      | 创建时间                                                        |
+| `updatedAt`     | DATETIME(3)      | 更新时间                                                        |
+
+**索引**：`userId`, `destination`, `createdAt`
+
+**API 端点**：
+
+- `POST /api/v1/ai/itinerary-planning` - 生成行程规划
+
+**日程结构示例**：
+
+```json
+{
+  "day": 1,
+  "theme": "第1天 - 浪漫梦幻风格拍摄",
+  "schedule": "上午拍摄自然光人像，中午休息调整妆容，下午拍摄风景及全身照...",
+  "spots": ["景点A", "景点B", "特色建筑"],
+  "bestTime": "06:00-08:00 (日出)",
+  "tips": "充分利用自然光，避免中午强光..."
+}
+```
+
+---
+
+### 数据库关系图
+
+```
+User (用户表)
+  ├── 1 ──→ ∞ VirtualTryOnHistory (虚拍历史)
+  ├── 1 ──→ ∞ StyleRecommendationHistory (风格推荐历史)
+  └── 1 ──→ ∞ ItineraryPlanningHistory (行程规划历史)
+```
+
+**关系说明**：
+
+- 所有 AI 功能的历史记录都与用户关联（`userId` 外键）
+- 删除用户时，对应的历史记录不会被删除，`userId` 会被设为 NULL
+- 这样保留了数据分析的完整性
+
+---
+
+### 查询示例
+
+**获取某用户的所有虚拍历史**：
+
+```typescript
+const histories = await prisma.virtualTryOnHistory.findMany({
+  where: { userId: 1 },
+  orderBy: { createdAt: 'desc' },
+  take: 10, // 最新 10 条
+});
+```
+
+**获取特定风格的推荐历史**：
+
+```typescript
+const recommendations = await prisma.styleRecommendationHistory.findMany({
+  where: {
+    status: 'success',
+    createdAt: {
+      gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 最近 7 天
+    },
+  },
+});
+```
+
+**统计行程规划数据**：
+
+```typescript
+const stats = await prisma.itineraryPlanningHistory.groupBy({
+  by: ['destination'],
+  _count: { id: true },
+});
+```
+
 ## 🔧 常见问题
 
 ### MySQL 连接失败
@@ -290,6 +456,8 @@ backend/
 - ✅ **全局异常处理** - 统一错误响应
 - ✅ **数据验证** - 请求数据自动校验
 - ✅ **CORS** - 跨域资源共享
+- ✅ **AI 模块** - 集成 DeepSeek 和火山引擎 API（虚拍、风格推荐、行程规划）
+- ✅ **AI 历史记录** - 自动保存 AI 功能的请求和结果数据到数据库
 
 ## 🎯 待集成功能
 

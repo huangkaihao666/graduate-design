@@ -209,6 +209,7 @@ const dragActive = ref<boolean>(false);
 const selectedStyle = ref<string>('romantic');
 const generating = ref<boolean>(false);
 const result = ref<any>(null);
+const lastRequest = ref<VirtualTryOnRequest | null>(null);
 const fileInput = ref<HTMLInputElement>();
 
 const preferences = reactive({
@@ -305,6 +306,7 @@ const handleGenerate = async () => {
         dress: preferences.dress,
       },
     };
+    lastRequest.value = request;
 
     const response = await aiApi.virtualTryOn(request);
     // 处理嵌套的响应结构，取最内层的 data
@@ -320,13 +322,15 @@ const handleGenerate = async () => {
 
 // 保存到历史
 const handleSaveHistory = async () => {
+  if (!result.value || !lastRequest.value) {
+    message.warning('请先生成虚拍建议');
+    return;
+  }
+
   try {
     await aiApi.saveHistory({
       type: 'virtual-try-on',
-      input: {
-        style: selectedStyle.value,
-        preferences,
-      },
+      input: { ...lastRequest.value },
       output: result.value,
     });
     message.success('已保存到历史记录');
