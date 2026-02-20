@@ -46,17 +46,19 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = '';
     try {
       const response = await authApi.login(credentials);
-      const { data } = response;
+      // API 返回的数据格式：{ statusCode, message, data: { statusCode, message, data: { user, accessToken, refreshToken } } }
+      // 需要取内层的 data
+      const authData = response.data?.data || response.data;
 
       // 保存 token 和用户信息
-      accessToken.value = data.accessToken;
-      refreshToken.value = data.refreshToken;
-      user.value = data.user;
+      accessToken.value = authData.accessToken;
+      refreshToken.value = authData.refreshToken;
+      user.value = authData.user;
 
       // 存储到本地存储
-      localStorage.setItem('accessToken', data.accessToken);
-      localStorage.setItem('refreshToken', data.refreshToken);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('accessToken', authData.accessToken);
+      localStorage.setItem('refreshToken', authData.refreshToken);
+      localStorage.setItem('user', JSON.stringify(authData.user));
 
       return response;
     } catch (err: any) {
@@ -75,7 +77,8 @@ export const useAuthStore = defineStore('auth', () => {
       const response = await authApi.register(data);
 
       // 自动登录
-      const authData = response.data;
+      // API 返回的数据格式：{ statusCode, message, data: { statusCode, message, data: { user, accessToken, refreshToken } } }
+      const authData = response.data?.data || response.data;
       accessToken.value = authData.accessToken;
       refreshToken.value = authData.refreshToken;
       user.value = authData.user;

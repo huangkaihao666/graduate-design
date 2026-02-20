@@ -1,34 +1,57 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router';
 import { useAuthStore } from '@/store/auth';
 
-// 视图组件
+// 扩展 Vue Router 的 RouteMeta 类型
+declare module 'vue-router' {
+  interface RouteMeta {
+    title?: string;
+    layout?: 'default' | 'full' | 'none';
+    requiresAuth?: boolean;
+    requiresAdmin?: boolean;
+    hideHeader?: boolean;
+    hideSidebar?: boolean;
+  }
+}
+
+// 视图组件 - 公开页面
 import Home from '../views/home/Home.vue';
-import Dashboard from '../views/home/Dashboard.vue';
-import About from '../views/system/About.vue';
 import Login from '../views/auth/Login.vue';
+import About from '../views/system/About.vue';
 import NotFound from '../views/system/NotFound.vue';
+
+// AI 模块
+import Dashboard from '../views/home/Dashboard.vue';
 import VirtualTryOn from '../views/ai/VirtualTryOn.vue';
 import StyleRecommendation from '../views/ai/StyleRecommendation.vue';
 import ItineraryPlanning from '../views/plan/ItineraryPlanning.vue';
 
+// 预约模块 (延迟加载)
+const Packages = () => import('../views/booking/Packages.vue');
+const Order = () => import('../views/booking/Order.vue');
+
+// 用户中心 (延迟加载)
+const UserProfile = () => import('../views/user/Profile.vue');
+const UserOrders = () => import('../views/user/Orders.vue');
+const UserFavorites = () => import('../views/user/Favorites.vue');
+const UserAIHistory = () => import('../views/user/AIHistory.vue');
+
+// 后台管理 (延迟加载)
+const AdminDashboard = () => import('../views/admin/Dashboard.vue');
+const AdminSpots = () => import('../views/admin/content/Spots.vue');
+const AdminPackages = () => import('../views/admin/content/Packages.vue');
+const AdminStyles = () => import('../views/admin/content/Styles.vue');
+const AdminOrders = () => import('../views/admin/Orders.vue');
+
 // 路由配置
 const routes: RouteRecordRaw[] = [
+  // 公开页面
   {
     path: '/',
     name: 'Home',
     component: Home,
     meta: {
       title: '首页',
-      description: '项目首页',
-    },
-  },
-  {
-    path: '/dashboard',
-    name: 'Dashboard',
-    component: Dashboard,
-    meta: {
-      title: '控制台',
-      requiresAuth: true,
+      layout: 'none',
     },
   },
   {
@@ -37,34 +60,7 @@ const routes: RouteRecordRaw[] = [
     component: Login,
     meta: {
       title: '登录/注册',
-      description: '用户登录与注册',
-    },
-  },
-  {
-    path: '/ai/virtual-try-on',
-    name: 'VirtualTryOn',
-    component: VirtualTryOn,
-    meta: {
-      title: 'AI 虚拟试拍',
-      requiresAuth: true,
-    },
-  },
-  {
-    path: '/ai/style-recommendation',
-    name: 'StyleRecommendation',
-    component: StyleRecommendation,
-    meta: {
-      title: '智能风格推荐',
-      requiresAuth: true,
-    },
-  },
-  {
-    path: '/plan/itinerary-planning',
-    name: 'ItineraryPlanning',
-    component: ItineraryPlanning,
-    meta: {
-      title: '智能行程规划',
-      requiresAuth: true,
+      layout: 'none',
     },
   },
   {
@@ -73,16 +69,189 @@ const routes: RouteRecordRaw[] = [
     component: About,
     meta: {
       title: '关于',
-      description: '关于项目',
+      layout: 'none',
     },
   },
-  // 捕获所有未匹配的路由，必须放在最后
+
+  // 用户控制台
+  {
+    path: '/dashboard',
+    name: 'Dashboard',
+    component: Dashboard,
+    meta: {
+      title: '控制台',
+      requiresAuth: true,
+      layout: 'default',
+    },
+  },
+
+  // AI 功能模块
+  {
+    path: '/ai',
+    meta: {
+      requiresAuth: true,
+      layout: 'default',
+    },
+    children: [
+      {
+        path: 'virtual-try-on',
+        name: 'VirtualTryOn',
+        component: VirtualTryOn,
+        meta: {
+          title: 'AI 虚拍',
+        },
+      },
+      {
+        path: 'style-recommendation',
+        name: 'StyleRecommendation',
+        component: StyleRecommendation,
+        meta: {
+          title: '风格推荐',
+        },
+      },
+      {
+        path: 'itinerary-planning',
+        name: 'ItineraryPlanning',
+        component: ItineraryPlanning,
+        meta: {
+          title: '行程规划',
+        },
+      },
+    ],
+  },
+
+  // 预约模块
+  {
+    path: '/booking',
+    meta: {
+      layout: 'none',
+    },
+    children: [
+      {
+        path: 'packages',
+        name: 'Packages',
+        component: Packages,
+        meta: {
+          title: '旅拍套餐',
+          layout: 'none',
+        },
+      },
+      {
+        path: 'order',
+        name: 'Order',
+        component: Order,
+        meta: {
+          title: '在线预约',
+          requiresAuth: true,
+          layout: 'default',
+        },
+      },
+    ],
+  },
+
+  // 用户中心
+  {
+    path: '/user',
+    meta: {
+      requiresAuth: true,
+      layout: 'default',
+    },
+    children: [
+      {
+        path: 'profile',
+        name: 'UserProfile',
+        component: UserProfile,
+        meta: {
+          title: '个人资料',
+        },
+      },
+      {
+        path: 'orders',
+        name: 'UserOrders',
+        component: UserOrders,
+        meta: {
+          title: '订单管理',
+        },
+      },
+      {
+        path: 'favorites',
+        name: 'UserFavorites',
+        component: UserFavorites,
+        meta: {
+          title: '我的收藏',
+        },
+      },
+      {
+        path: 'ai-history',
+        name: 'UserAIHistory',
+        component: UserAIHistory,
+        meta: {
+          title: 'AI 生成历史',
+        },
+      },
+    ],
+  },
+
+  // 后台管理（管理员只）
+  {
+    path: '/admin',
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      layout: 'default',
+    },
+    children: [
+      {
+        path: 'dashboard',
+        name: 'AdminDashboard',
+        component: AdminDashboard,
+        meta: {
+          title: '数据看板',
+        },
+      },
+      {
+        path: 'content/spots',
+        name: 'AdminSpots',
+        component: AdminSpots,
+        meta: {
+          title: '景点管理',
+        },
+      },
+      {
+        path: 'content/packages',
+        name: 'AdminPackages',
+        component: AdminPackages,
+        meta: {
+          title: '套餐管理',
+        },
+      },
+      {
+        path: 'content/styles',
+        name: 'AdminStyles',
+        component: AdminStyles,
+        meta: {
+          title: '风格标签管理',
+        },
+      },
+      {
+        path: 'orders',
+        name: 'AdminOrders',
+        component: AdminOrders,
+        meta: {
+          title: '订单管理',
+        },
+      },
+    ],
+  },
+
+  // 错误页面（必须放在最后）
   {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: NotFound,
     meta: {
       title: '404 - 页面不存在',
+      layout: 'none',
     },
   },
 ];

@@ -1,12 +1,26 @@
 <script setup lang="ts">
+import { useRoute } from 'vue-router';
 import { useAppStore } from './store/app';
+import Layout from '@/components/layout/Layout.vue';
 
 const appStore = useAppStore();
+const route = useRoute();
+
+// 判断当前路由是否需要使用默认 Layout
+const useDefaultLayout = () => {
+  const meta = route.meta;
+  // 如果 layout 为 'none'，就不使用 Layout
+  // 如果 layout 为 'default' 或 undefined（默认值），使用 Layout
+  return meta?.layout !== 'none';
+};
 </script>
 
 <template>
   <div id="app" :class="{ 'dark-mode': appStore.isDarkMode }">
-    <router-view />
+    <Layout v-if="useDefaultLayout()">
+      <router-view />
+    </Layout>
+    <router-view v-else />
   </div>
 </template>
 

@@ -28,3 +28,15 @@ export interface PaginationResponse<T> {
   page: number;
   pageSize: number;
 }
+
+/**
+ * 路由 Meta 类型定义
+ */
+export interface RouteMeta {
+  title?: string;
+  layout?: 'default' | 'full' | 'none';
+  requiresAuth?: boolean;
+  requiresAdmin?: boolean;
+  hideHeader?: boolean;
+  hideSidebar?: boolean;
+}
