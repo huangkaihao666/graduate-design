@@ -10,39 +10,111 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============ 数据模型示例 ============
+// ============ 核心数据模型 ============
 
 /// 用户模型
 model User {
   id        Int     @id @default(autoincrement()) @db.UnsignedInt
   email     String  @unique @db.VarChar(255)
-  name      String  @db.VarChar(100)
+  username  String  @unique @db.VarChar(100)
   password  String  @db.VarChar(255)
+  avatar    String? @db.VarChar(500)
+  bio       String? @db.Text
+  role      String  @default("USER") @db.VarChar(50)
   isActive  Boolean @default(true)
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // 关系
-  posts     Post[]
+  rooms     Room[]
+  votes     Vote[]
+  messages  Message[]
 
   @@map("users")
   @@index([email])
+  @@index([username])
 }
 
-/// 文章模型
-model Post {
+/// 案件/房间模型
+model Room {
   id        Int     @id @default(autoincrement()) @db.UnsignedInt
   title     String  @db.VarChar(255)
   content   String  @db.LongText
-  published Boolean @default(false)
+  status    String  @default("WAITING") @db.VarChar(50) // WAITING, LIVE, CLOSED
   
-  authorId  Int     @db.UnsignedInt
-  author    User    @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  ownerId   Int     @db.UnsignedInt
+  owner     User    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // 存储选中的Agent列表，如 ["bot_A", "bot_B", "bot_C"]
+  agents    String  @db.Text
+
+  viewCount Int     @default(0)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 关系
+  messages  Message[]
+  votes     Vote[]
+
+  @@map("rooms")
+  @@index([ownerId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+/// 消息模型
+model Message {
+  id        Int     @id @default(autoincrement()) @db.UnsignedInt
+  roomId    Int     @db.UnsignedInt
+  room      Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  senderType String  // "AI" 或 "HUMAN"
+  senderId   String  @db.VarChar(255) // 用户ID 或 BotID
+  content    String  @db.LongText
+  
+  createdAt DateTime @default(now())
+
+  @@map("messages")
+  @@index([roomId])
+  @@index([createdAt])
+}
+
+/// 投票模型
+model Vote {
+  id        Int     @id @default(autoincrement()) @db.UnsignedInt
+  userId    Int     @db.UnsignedInt
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  roomId    Int     @db.UnsignedInt
+  room      Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  agentId   String  @db.VarChar(255) // 投给了哪个Bot
+  
+  createdAt DateTime @default(now())
+
+  @@unique([userId, roomId])
+  @@map("votes")
+  @@index([userId])
+  @@index([roomId])
+}
+
+/// AI Agent 模型
+model Agent {
+  id           String  @id @db.VarChar(255)
+  name         String  @db.VarChar(100)
+  personality  String  @db.VarChar(100) // 性格特点
+  description  String  @db.Text
+  avatar       String? @db.VarChar(500)
+  
+  signature    String? @db.Text // 标志性语录/金句
+  winRate      Float   @default(0.5)
+  participateCount Int  @default(0)
+  fans         Int     @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@map("posts")
-  @@index([authorId])
+  @@map("agents")
 }

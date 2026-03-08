@@ -1,83 +1,48 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store'
-import { authApi } from '@/api'
-import type { LoginRequest, RegisterRequest, LoginResponse } from '@/types/common'
 
-export const useLogin = () => {
-  const navigate = useNavigate()
-  const authStore = useAuthStore()
+/**
+ * 认证 Hook
+ * 提供登录状态、用户信息等认证相关功能
+ */
+export const useAuth = () => {
+  const store = useAuthStore()
 
-  return useMutation({
-    mutationFn: (data: LoginRequest) => authApi.login(data),
-    onSuccess: (data: LoginResponse) => {
-      authStore.login(data)
-      navigate('/dashboard')
-    },
-    onError: (error: Error | null) => {
-      const errorMsg = error?.message || '登录失败'
-      authStore.setError(errorMsg)
-      console.error('Login error:', error)
-    },
-  })
+  return {
+    // 状态
+    user: store.user,
+    accessToken: store.accessToken,
+    refreshToken: store.refreshToken,
+    isAuthenticated: store.isAuthenticated,
+    isLoading: store.isLoading,
+    error: store.error,
+
+    // 操作
+    setUser: store.setUser,
+    setAccessToken: store.setAccessToken,
+    setRefreshToken: store.setRefreshToken,
+    setLoading: store.setLoading,
+    setError: store.setError,
+    setAuthenticated: store.setAuthenticated,
+    login: store.login,
+    logout: store.logout,
+    updateUser: store.updateUser,
+    clearAuth: store.clearAuth,
+  }
 }
 
-export const useRegister = () => {
-  const navigate = useNavigate()
-  const authStore = useAuthStore()
-
-  return useMutation({
-    mutationFn: (data: RegisterRequest) => authApi.register(data),
-    onSuccess: (data: LoginResponse) => {
-      authStore.login(data)
-      navigate('/dashboard')
-    },
-    onError: (error: Error | null) => {
-      const errorMsg = error?.message || '注册失败'
-      authStore.setError(errorMsg)
-      console.error('Register error:', error)
-    },
-  })
-}
-
-export const useProfile = () => {
-  const authStore = useAuthStore()
-
-  return useQuery({
-    queryKey: ['profile'],
-    queryFn: () => authApi.getProfile(),
-    enabled: !!authStore.accessToken,
-    staleTime: 1000 * 60 * 5,
-    gcTime: 1000 * 60 * 10,
-  })
-}
-
+/**
+ * 登出 Hook
+ * 处理登出逻辑并重定向到登录页
+ */
 export const useLogout = () => {
   const navigate = useNavigate()
-  const authStore = useAuthStore()
+  const { logout } = useAuthStore()
 
-  return useMutation({
-    mutationFn: () => authApi.logout(),
-    onSuccess: () => {
-      authStore.logout()
-      navigate('/login')
-    },
-  })
-}
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
+  }
 
-export const useRefreshToken = () => {
-  const authStore = useAuthStore()
-
-  return useMutation({
-    mutationFn: () => {
-      const currentRefreshToken = authStore.refreshToken
-      if (!currentRefreshToken) {
-        return Promise.reject(new Error('没有刷新令牌'))
-      }
-      return authApi.refreshToken(currentRefreshToken)
-    },
-    onSuccess: (data) => {
-      authStore.setAccessToken(data.accessToken)
-    },
-  })
+  return handleLogout
 }

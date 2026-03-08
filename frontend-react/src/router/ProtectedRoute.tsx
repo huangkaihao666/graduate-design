@@ -7,8 +7,11 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const { isAuthenticated, accessToken } = useAuthStore()
+  // 订阅认证状态
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const accessToken = useAuthStore((state) => state.accessToken)
 
+  // 未认证时重定向到登录页
   if (!isAuthenticated || !accessToken) {
     return <Navigate to="/login" replace />
   }

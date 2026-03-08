@@ -1,3 +1,8 @@
+/**
+ * 全局样式配置
+ * 所有项目级别的通用样式都在这里定义
+ */
+
 * {
   margin: 0;
   padding: 0;
@@ -16,4 +21,451 @@ body {
     'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+// ============ 全局过渡设置 ============
+:global {
+  // 平滑过渡
+  .ant-input,
+  .ant-input-number,
+  .ant-select,
+  .ant-picker,
+  .ant-btn,
+  .ant-checkbox,
+  .ant-radio {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  // 输入框聚焦样式
+  .ant-input:focus,
+  .ant-input-number-focused,
+  .ant-select-focused .ant-select-selector {
+    border-color: #1890ff !important;
+    box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.1) !important;
+  }
+
+  // 按钮悬浮效果
+  .ant-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+  }
+
+  .ant-btn:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  // 卡片阴影
+  .ant-card {
+    border-radius: 12px;
+  }
+
+  // 模态框
+  .ant-modal {
+    border-radius: 12px;
+  }
+
+  .ant-modal-content {
+    border-radius: 12px;
+  }
+
+  // 消息提示
+  .ant-message-notice-content {
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  // 通知
+  .ant-notification-notice {
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  // Dropdown
+  .ant-dropdown-menu {
+    border-radius: 8px;
+  }
+
+  // Popover
+  .ant-popover-inner {
+    border-radius: 8px;
+  }
+
+  // Tooltip
+  .ant-tooltip-inner {
+    border-radius: 6px;
+  }
+
+  // Tab
+  .ant-tabs-tab {
+    border-radius: 6px 6px 0 0;
+  }
+
+  // Table
+  .ant-table {
+    border-radius: 8px;
+  }
+
+  // Pagination
+  .ant-pagination-item-link {
+    border-radius: 6px;
+  }
+
+  .ant-pagination-item {
+    border-radius: 6px;
+  }
+
+  // 禁用状态
+  .ant-btn-disabled,
+  .ant-input-disabled,
+  .ant-select-disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  // 加载中状态
+  .ant-spin-spinning {
+    opacity: 0.7;
+  }
+
+  // 文本选择
+  user-select: none;
+
+  // 滚动条美化
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #d4d4d8;
+    border-radius: 4px;
+
+    &:hover {
+      background: #a1a1a6;
+    }
+  }
+
+  // 深色模式滚动条
+  @media (prefers-color-scheme: dark) {
+    ::-webkit-scrollbar-thumb {
+      background: #52525b;
+
+      &:hover {
+        background: #71717a;
+      }
+    }
+  }
+}
+
+// ============ 响应式工具类 ============
+.hidden-xs {
+  @media (max-width: 576px) {
+    display: none !important;
+  }
+}
+
+.hidden-sm {
+  @media (max-width: 768px) {
+    display: none !important;
+  }
+}
+
+.hidden-md {
+  @media (max-width: 992px) {
+    display: none !important;
+  }
+}
+
+.hidden-lg {
+  @media (max-width: 1200px) {
+    display: none !important;
+  }
+}
+
+.visible-xs {
+  @media (min-width: 577px) {
+    display: none !important;
+  }
+}
+
+.visible-sm {
+  @media (min-width: 769px) {
+    display: none !important;
+  }
+}
+
+.visible-md {
+  @media (min-width: 993px) {
+    display: none !important;
+  }
+}
+
+.visible-lg {
+  @media (min-width: 1201px) {
+    display: none !important;
+  }
+}
+
+// ============ 文本工具类 ============
+.text-center {
+  text-align: center;
+}
+
+.text-left {
+  text-align: left;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.text-ellipsis-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  text-overflow: ellipsis;
+}
+
+.text-ellipsis-3 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  text-overflow: ellipsis;
+}
+
+// ============ 间距工具类 ============
+.m-0 { margin: 0; }
+.m-4 { margin: 4px; }
+.m-8 { margin: 8px; }
+.m-16 { margin: 16px; }
+.m-24 { margin: 24px; }
+
+.mx-auto {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.p-0 { padding: 0; }
+.p-4 { padding: 4px; }
+.p-8 { padding: 8px; }
+.p-16 { padding: 16px; }
+.p-24 { padding: 24px; }
+
+// ============ 显示/隐藏 ============
+.show {
+  display: block !important;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.invisible {
+  visibility: hidden;
+}
+
+.visible {
+  visibility: visible;
+}
+
+// ============ 浮动 ============
+.float-left {
+  float: left;
+}
+
+.float-right {
+  float: right;
+}
+
+.clearfix::after {
+  content: '';
+  display: table;
+  clear: both;
+}
+
+// ============ 动画 ============
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInDown {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.animate-slide-in-up {
+  animation: slideInUp 0.3s ease-out;
+}
+
+.animate-slide-in-down {
+  animation: slideInDown 0.3s ease-out;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+// ============ Flexbox 工具类 ============
+.flex {
+  display: flex;
+}
+
+.flex-col {
+  flex-direction: column;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.flex-around {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+}
+
+// ============ Grid 工具类 ============
+.grid {
+  display: grid;
+}
+
+.grid-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.grid-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.grid-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+// ============ 宽度/高度 ============
+.w-full {
+  width: 100%;
+}
+
+.h-full {
+  height: 100%;
+}
+
+.w-screen {
+  width: 100vw;
+}
+
+.h-screen {
+  height: 100vh;
+}
+
+// ============ 边框 ============
+.border {
+  border: 1px solid #e8e8e8;
+}
+
+.border-t {
+  border-top: 1px solid #e8e8e8;
+}
+
+.border-b {
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.border-l {
+  border-left: 1px solid #e8e8e8;
+}
+
+.border-r {
+  border-right: 1px solid #e8e8e8;
+}
+
+// ============ 圆角 ============
+.rounded {
+  border-radius: 8px;
+}
+
+.rounded-lg {
+  border-radius: 12px;
+}
+
+.rounded-full {
+  border-radius: 9999px;
+}
+
+// ============ 位置 ============
+.absolute {
+  position: absolute;
+}
+
+.relative {
+  position: relative;
+}
+
+.fixed {
+  position: fixed;
+}
+
+.sticky {
+  position: sticky;
+}
+
+.inset-0 {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
 }

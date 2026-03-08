@@ -6,7 +6,7 @@ import './Dashboard.less'
 
 const Dashboard = () => {
   const { user } = useAuthStore()
-  const { mutate: logout, isPending } = useLogout()
+  const handleLogout = useLogout()
 
   return (
     <div className="dashboard-container">
@@ -23,8 +23,7 @@ const Dashboard = () => {
                   type="primary"
                   danger
                   icon={<LogoutOutlined />}
-                  loading={isPending}
-                  onClick={() => logout()}
+                  onClick={() => handleLogout()}
                 >
                   登出
                 </Button>

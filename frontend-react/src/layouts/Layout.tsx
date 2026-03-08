@@ -10,13 +10,13 @@ const { Header, Sider, Content } = AntLayout
 const Layout = () => {
   const navigate = useNavigate()
   const { user } = useAuthStore()
-  const { mutate: logout } = useLogout()
+  const handleLogout = useLogout()
 
   const userMenuItems = [
     { key: 'profile', label: '个人资料', icon: <UserOutlined />, onClick: () => navigate('/profile') },
     { key: 'settings', label: '设置', icon: <SettingOutlined />, onClick: () => navigate('/settings') },
     { type: 'divider' as const },
-    { key: 'logout', label: '登出', icon: <LogoutOutlined />, onClick: () => logout(), danger: true },
+    { key: 'logout', label: '登出', icon: <LogoutOutlined />, onClick: () => handleLogout(), danger: true },
   ]
 
   const sideMenuItems = [
