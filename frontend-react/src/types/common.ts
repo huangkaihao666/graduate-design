@@ -38,3 +38,38 @@ export interface AuthData {
   refreshToken?: string
   user: User
 }
+
+export interface Room {
+  id: number
+  title: string
+  content: string
+  image?: string
+  status: 'WAITING' | 'LIVE' | 'CLOSED'
+  ownerId: number
+  owner?: User
+  agents: string[]
+  viewCount: number
+  commentCount: number
+  votes?: Record<string, number>
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateRoomRequest {
+  title: string
+  content: string
+  image?: string
+  agents: string[]
+}
+
+export interface Agent {
+  id: string
+  name: string
+  personality: string
+  description: string
+  avatar?: string
+  signature?: string
+  winRate: number
+  participateCount: number
+  fans: number
+}

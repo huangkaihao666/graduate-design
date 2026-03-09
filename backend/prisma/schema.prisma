@@ -16,7 +16,7 @@ datasource db {
 model User {
   id        Int     @id @default(autoincrement()) @db.UnsignedInt
   email     String  @unique @db.VarChar(255)
-  username  String  @unique @db.VarChar(100)
+  name      String  @db.VarChar(100) // 用户名/昵称
   password  String  @db.VarChar(255)
   avatar    String? @db.VarChar(500)
   bio       String? @db.Text
@@ -33,7 +33,6 @@ model User {
 
   @@map("users")
   @@index([email])
-  @@index([username])
 }
 
 /// 案件/房间模型
@@ -41,6 +40,7 @@ model Room {
   id        Int     @id @default(autoincrement()) @db.UnsignedInt
   title     String  @db.VarChar(255)
   content   String  @db.LongText
+  image     String? @db.VarChar(500) // 案件头图
   status    String  @default("WAITING") @db.VarChar(50) // WAITING, LIVE, CLOSED
   
   ownerId   Int     @db.UnsignedInt
@@ -50,6 +50,7 @@ model Room {
   agents    String  @db.Text
 
   viewCount Int     @default(0)
+  commentCount Int @default(0)
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -62,6 +63,7 @@ model Room {
   @@index([ownerId])
   @@index([status])
   @@index([createdAt])
+  @@fulltext([title, content])
 }
 
 /// 消息模型
@@ -71,13 +73,18 @@ model Message {
   room      Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
   senderType String  // "AI" 或 "HUMAN"
-  senderId   String  @db.VarChar(255) // 用户ID 或 BotID
+  senderId   Int?    @db.UnsignedInt // 当为 HUMAN 时，存储用户ID；当为 AI 时，为 null
+  sender     User?   @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  
+  botId      String? @db.VarChar(255) // 当为 AI 时，存储 BotID
+  
   content    String  @db.LongText
   
   createdAt DateTime @default(now())
 
   @@map("messages")
   @@index([roomId])
+  @@index([senderId])
   @@index([createdAt])
 }
 

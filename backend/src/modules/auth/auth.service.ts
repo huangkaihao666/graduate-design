@@ -36,17 +36,14 @@ export class AuthService {
     // 生成 token
     const tokens = this.generateTokens(user.id);
 
+    // 规范返回：只返回 data 部分，由拦截器统一包装成 { statusCode, message, data }
     return {
-      statusCode: 201,
-      message: '注册成功',
-      data: {
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-        },
-        ...tokens,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
       },
+      ...tokens,
     };
   }
 
@@ -66,17 +63,14 @@ export class AuthService {
     // 生成 token
     const tokens = this.generateTokens(user.id);
 
+    // 规范返回：只返回 data 部分，由拦截器统一包装成 { statusCode, message, data }
     return {
-      statusCode: 200,
-      message: '登录成功',
-      data: {
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-        },
-        ...tokens,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
       },
+      ...tokens,
     };
   }
 
@@ -88,11 +82,8 @@ export class AuthService {
 
       const tokens = this.generateTokens(payload.sub);
 
-      return {
-        statusCode: 200,
-        message: '刷新成功',
-        data: tokens,
-      };
+      // 规范返回：只返回 data 部分，由拦截器统一包装成 { statusCode, message, data }
+      return tokens;
     } catch (error) {
       throw new UnauthorizedException('刷新 Token 失败');
     }

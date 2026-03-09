@@ -1,0 +1,134 @@
+.settings-page {
+  max-width: 800px;
+  margin: 0 auto;
+
+  .settings-header {
+    margin-bottom: 32px;
+    text-align: center;
+
+    h1 {
+      font-size: 32px;
+      font-weight: 700;
+      margin: 0 0 8px;
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    p {
+      color: rgba(0, 0, 0, 0.45);
+      margin: 0;
+      font-size: 14px;
+    }
+  }
+
+  .settings-card {
+    margin-bottom: 24px;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    border: 1px solid rgba(0, 0, 0, 0.04);
+
+    :deep(.ant-card-body) {
+      padding: 32px;
+    }
+
+    .card-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 18px;
+      font-weight: 600;
+      color: rgba(0, 0, 0, 0.85);
+      margin-bottom: 24px;
+
+      .title-icon {
+        color: #667eea;
+        font-size: 20px;
+      }
+    }
+
+    :deep(.ant-form) {
+      .ant-form-item {
+        margin-bottom: 16px;
+
+        .ant-form-item-label {
+          padding-bottom: 8px;
+
+          label {
+            font-weight: 600;
+            color: rgba(0, 0, 0, 0.85);
+          }
+        }
+
+        .ant-input,
+        .ant-input-password {
+          border-radius: 6px;
+          border: 1px solid #d9d9d9;
+          transition: all 0.3s ease;
+
+          &:hover {
+            border-color: #667eea;
+          }
+
+          &:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+          }
+        }
+      }
+
+      .ant-form-item-explain-error {
+        font-size: 12px;
+      }
+
+      .ant-btn {
+        border-radius: 6px;
+        height: 40px;
+        font-size: 14px;
+      }
+    }
+
+    .settings-group {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+
+      .setting-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px;
+        background: rgba(0, 0, 0, 0.02);
+        border-radius: 8px;
+        transition: all 0.3s ease;
+
+        &:hover {
+          background: rgba(102, 126, 234, 0.05);
+        }
+
+        .setting-label {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          flex: 1;
+
+          .label-title {
+            font-weight: 600;
+            color: rgba(0, 0, 0, 0.85);
+            font-size: 14px;
+          }
+
+          .label-desc {
+            color: rgba(0, 0, 0, 0.45);
+            font-size: 12px;
+          }
+        }
+
+        :deep(.ant-switch) {
+          margin: 0;
+        }
+      }
+    }
+  }
+}

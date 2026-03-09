@@ -1,16 +1,100 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import Layout from '@/layouts/Layout'
-import { Login, Dashboard, NotFound } from '@/pages'
+import {
+  Login,
+  Dashboard,
+  NotFound,
+  Home,
+  Profile,
+  Settings,
+  MyCases,
+  CreateCase,
+  CaseDetail,
+} from '@/pages'
 import ProtectedRoute from './ProtectedRoute'
 
 export const router = createBrowserRouter([
   {
     path: '/',
-    element: <Navigate to="/dashboard" replace />,
+    element: <Navigate to="/cases" replace />,
   },
   {
     path: '/login',
     element: <Login />,
+  },
+  {
+    path: '/cases',
+    element: (
+      <ProtectedRoute>
+        <Layout />
+      </ProtectedRoute>
+    ),
+    children: [
+      {
+        index: true,
+        element: <Home />,
+      },
+      {
+        path: ':id',
+        element: <CaseDetail />,
+      },
+    ],
+  },
+  {
+    path: '/create',
+    element: (
+      <ProtectedRoute>
+        <Layout />
+      </ProtectedRoute>
+    ),
+    children: [
+      {
+        index: true,
+        element: <CreateCase />,
+      },
+    ],
+  },
+  {
+    path: '/my-cases',
+    element: (
+      <ProtectedRoute>
+        <Layout />
+      </ProtectedRoute>
+    ),
+    children: [
+      {
+        index: true,
+        element: <MyCases />,
+      },
+    ],
+  },
+  {
+    path: '/profile',
+    element: (
+      <ProtectedRoute>
+        <Layout />
+      </ProtectedRoute>
+    ),
+    children: [
+      {
+        index: true,
+        element: <Profile />,
+      },
+    ],
+  },
+  {
+    path: '/settings',
+    element: (
+      <ProtectedRoute>
+        <Layout />
+      </ProtectedRoute>
+    ),
+    children: [
+      {
+        index: true,
+        element: <Settings />,
+      },
+    ],
   },
   {
     path: '/dashboard',

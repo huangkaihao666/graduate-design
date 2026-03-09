@@ -46,21 +46,22 @@ instance.interceptors.request.use(
 
 instance.interceptors.response.use(
   (response) => {
-    // 后端返回格式: { statusCode, message, data }
-    // 其中 data 可能是嵌套的: { statusCode, message, data: { user, accessToken, ... } }
-    // 我们需要返回最内层的 data 部分
-    const data = response.data as any
+    // 后端统一规范：所有接口返回 { statusCode, message, data }
+    // 其中 data 是实际业务数据，可能是：
+    //   - 数组: [...]
+    //   - 对象: { field: value, ... }
+    //   - 分页对象: { data: [...], pagination: {...} }
+    //   - 认证响应: { user: {...}, accessToken, refreshToken, ... }
+    const response_data = response.data as any
 
-    // 检查是否是嵌套结构 (登录/注册响应)
-    if (data.data && typeof data.data === 'object' && data.data.data) {
-      // 三层嵌套: response.data.data.data
-      return data.data.data
-    } else if (data.data && typeof data.data === 'object') {
-      // 两层嵌套或直接是 data
-      return data.data
+    if (response_data && response_data.data !== undefined) {
+      // 直接返回 data 部分给前端使用
+      // data 可能是任何形式（数组、对象、嵌套对象等），前端需要根据具体接口处理
+      return response_data.data
     }
-    // 否则返回整个响应数据
-    return data
+
+    // 如果响应格式不符合规范，返回整个响应
+    return response_data
   },
   async (error: AxiosError<ApiResponse>) => {
     const authStore = useAuthStore.getState()

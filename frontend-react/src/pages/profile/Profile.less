@@ -1,0 +1,112 @@
+.profile-page {
+  max-width: 800px;
+  margin: 0 auto;
+
+  .profile-header {
+    margin-bottom: 32px;
+    text-align: center;
+
+    h1 {
+      font-size: 32px;
+      font-weight: 700;
+      margin: 0 0 8px;
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    p {
+      color: rgba(0, 0, 0, 0.45);
+      margin: 0;
+      font-size: 14px;
+    }
+  }
+
+  .profile-card {
+    margin-bottom: 24px;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    border: 1px solid rgba(0, 0, 0, 0.04);
+
+    :deep(.ant-card-body) {
+      padding: 32px;
+    }
+
+    h3 {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 0 0 16px;
+      color: rgba(0, 0, 0, 0.85);
+    }
+  }
+
+  .profile-content {
+    .profile-avatar-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+
+      :deep(.ant-avatar) {
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+      }
+
+      :deep(.ant-btn) {
+        border-radius: 6px;
+      }
+    }
+
+    .profile-info-section {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+
+        label {
+          font-weight: 600;
+          color: rgba(0, 0, 0, 0.85);
+          font-size: 14px;
+        }
+
+        :deep(.ant-input),
+        :deep(.ant-input-textarea) {
+          border-radius: 6px;
+          border: 1px solid #d9d9d9;
+          transition: all 0.3s ease;
+
+          &:hover {
+            border-color: #667eea;
+          }
+
+          &:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+          }
+        }
+      }
+    }
+  }
+
+  .settings-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    :deep(.ant-btn) {
+      border-radius: 6px;
+      height: 40px;
+      font-size: 14px;
+
+      &:hover {
+        border-color: #667eea;
+        color: #667eea;
+      }
+    }
+  }
+}

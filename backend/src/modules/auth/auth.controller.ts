@@ -57,10 +57,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post('logout')
   async logout() {
-    return {
-      statusCode: 200,
-      message: '登出成功',
-      data: {},
-    };
+    // 规范返回：只返回 data 部分，由拦截器统一包装成 { statusCode, message, data }
+    return {};
   }
 }
