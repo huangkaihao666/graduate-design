@@ -13,7 +13,7 @@ const Dashboard = () => {
       <Row gutter={[16, 16]} className="dashboard-welcome">
         <Col xs={24}>
           <Card>
-            <Space direction="vertical" style={{ width: '100%' }}>
+            <Space orientation="vertical" style={{ width: '100%' }}>
               <div className="welcome-header">
                 <div>
                   <h2>欢迎回来，{user?.username || user?.email}！</h2>
@@ -36,7 +36,7 @@ const Dashboard = () => {
       <Row gutter={[16, 16]}>
         <Col xs={24}>
           <Card title="用户信息">
-            <Space direction="vertical" style={{ width: '100%' }}>
+            <Space orientation="vertical" style={{ width: '100%' }}>
               <p>
                 <strong>ID:</strong> {user?.id}
               </p>
@@ -66,22 +66,22 @@ const Dashboard = () => {
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={6}>
           <Card hoverable>
-            <Statistic title="用户总数" value={1234} prefix={<UserOutlined />} valueStyle={{ color: '#1890ff' }} />
+            <Statistic title="用户总数" value={1234} prefix={<UserOutlined />} styles={{ content: { color: '#1890ff' } }} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card hoverable>
-            <Statistic title="订单数量" value={5678} prefix={<ShoppingOutlined />} valueStyle={{ color: '#52c41a' }} />
+            <Statistic title="订单数量" value={5678} prefix={<ShoppingOutlined />} styles={{ content: { color: '#52c41a' } }} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card hoverable>
-            <Statistic title="团队成员" value={89} prefix={<TeamOutlined />} valueStyle={{ color: '#faad14' }} />
+            <Statistic title="团队成员" value={89} prefix={<TeamOutlined />} styles={{ content: { color: '#faad14' } }} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card hoverable>
-            <Statistic title="内容数量" value={234} prefix={<FileOutlined />} valueStyle={{ color: '#f5222d' }} />
+            <Statistic title="内容数量" value={234} prefix={<FileOutlined />} styles={{ content: { color: '#f5222d' } }} />
           </Card>
         </Col>
       </Row>

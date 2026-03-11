@@ -9,7 +9,13 @@ import {
 import { appConfig } from './config';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    bodyParser: true,
+  });
+
+  // 增加请求体大小限制（支持 Base64 图片上传）
+  app.use(require('express').json({ limit: '10mb' }));
+  app.use(require('express').urlencoded({ extended: true, limit: '10mb' }));
 
   // Enable CORS - 支持多个开发端口
   const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';

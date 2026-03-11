@@ -40,7 +40,7 @@ model Room {
   id        Int     @id @default(autoincrement()) @db.UnsignedInt
   title     String  @db.VarChar(255)
   content   String  @db.LongText
-  image     String? @db.VarChar(500) // 案件头图
+  image     String? @db.LongText // 案件头图，支持 Base64 或 URL
   status    String  @default("WAITING") @db.VarChar(50) // WAITING, LIVE, CLOSED
   
   ownerId   Int     @db.UnsignedInt

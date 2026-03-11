@@ -13,7 +13,7 @@ interface Agent {
 export const Home: React.FC = () => {
   const [page, setPage] = useState(1)
   const [pageSize] = useState(10)
-  const [status, setStatus] = useState('LIVE')
+  const [status, setStatus] = useState('all')
   const [sortBy, setSortBy] = useState('newest')
   const [search, setSearch] = useState('')
 
@@ -66,8 +66,50 @@ export const Home: React.FC = () => {
 
   const tabItems = [
     {
+      key: 'all',
+      label: '全部案件',
+      children: (
+        <div className="cases-grid">
+          {roomsLoading ? (
+            <Spin className="spinner-center" />
+          ) : roomsList.length === 0 ? (
+            <Empty description="暂无案件" />
+          ) : (
+            <Row gutter={[16, 16]}>
+              {roomsList.map((room: any) => (
+                <Col key={room.id} xs={24} sm={12} md={8} lg={6}>
+                  <CaseCard room={room} agents={agents} />
+                </Col>
+              ))}
+            </Row>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'WAITING',
+      label: '等待中',
+      children: (
+        <div className="cases-grid">
+          {roomsLoading ? (
+            <Spin className="spinner-center" />
+          ) : roomsList.length === 0 ? (
+            <Empty description="暂无等待中的案件" />
+          ) : (
+            <Row gutter={[16, 16]}>
+              {roomsList.map((room: any) => (
+                <Col key={room.id} xs={24} sm={12} md={8} lg={6}>
+                  <CaseCard room={room} agents={agents} />
+                </Col>
+              ))}
+            </Row>
+          )}
+        </div>
+      ),
+    },
+    {
       key: 'LIVE',
-      label: '进行中 (Live)',
+      label: '进行中',
       children: (
         <div className="cases-grid">
           {roomsLoading ? (
@@ -88,7 +130,7 @@ export const Home: React.FC = () => {
     },
     {
       key: 'CLOSED',
-      label: '已结束 (Archived)',
+      label: '已结束',
       children: (
         <div className="cases-grid">
           {roomsLoading ? (

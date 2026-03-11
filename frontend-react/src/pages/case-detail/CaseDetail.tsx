@@ -91,7 +91,7 @@ const CaseDetail: React.FC = () => {
           </div>
 
           <div className="meta-info">
-            <Space split="|" style={{ fontSize: 14, color: 'rgba(0,0,0,0.45)' }}>
+            <Space separator="|" style={{ fontSize: 14, color: 'rgba(0,0,0,0.45)' }}>
               <span>👀 {caseData.viewCount || 0} 人浏览</span>
               <span>💬 {caseData.commentCount || 0} 条评论</span>
               <span>📅 {new Date(caseData.createdAt).toLocaleDateString()}</span>

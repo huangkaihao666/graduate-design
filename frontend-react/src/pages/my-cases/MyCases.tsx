@@ -44,7 +44,8 @@ const MyCases: React.FC = () => {
     })
   }
 
-  const roomsList = roomsData?.data?.data || []
+  // roomsData 已经过拦截器处理，直接是 { data: [...], pagination: {...} } 格式
+  const roomsList = (roomsData as any)?.data || []
 
   // 按状态筛选
   const liveRooms = roomsList.filter((room: any) => room.status === 'LIVE')

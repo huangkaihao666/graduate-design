@@ -19,15 +19,31 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const status = exception.getStatus?.() || HttpStatus.INTERNAL_SERVER_ERROR;
     const exceptionResponse = exception.getResponse?.();
 
+    // 处理验证错误，返回详细的错误信息
+    let message: string = exception.message;
+    if (
+      typeof exceptionResponse === 'object' &&
+      'message' in exceptionResponse
+    ) {
+      const responseMessage = exceptionResponse.message;
+      if (Array.isArray(responseMessage)) {
+        message = responseMessage.join('; ');
+      } else if (typeof responseMessage === 'string') {
+        message = responseMessage;
+      } else {
+        message = String(responseMessage);
+      }
+    }
+
     const errorResponse = {
       statusCode: status,
       timestamp: new Date().toISOString(),
       path: request.url,
       method: request.method,
-      message:
-        typeof exceptionResponse === 'object' && 'message' in exceptionResponse
-          ? exceptionResponse.message
-          : exception.message,
+      message,
+      ...(typeof exceptionResponse === 'object' && 'error' in exceptionResponse
+        ? { error: exceptionResponse.error }
+        : {}),
     };
 
     this.logger.error(

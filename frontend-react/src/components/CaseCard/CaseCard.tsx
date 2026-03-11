@@ -121,7 +121,7 @@ export const CaseCard: React.FC<CaseCardProps> = ({ room, agents }) => {
 
       {/* 统计信息 */}
       <div className="case-card-stats">
-        <Space size="middle" split="|" style={{ width: '100%', justifyContent: 'space-around' }}>
+        <Space size="middle" separator="|" style={{ width: '100%', justifyContent: 'space-around' }}>
           <div className="stat-item">
             <EyeOutlined className="stat-icon" />
             <span>{room.viewCount}</span>

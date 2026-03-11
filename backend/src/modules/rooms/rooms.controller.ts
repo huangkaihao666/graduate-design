@@ -27,7 +27,8 @@ export class RoomsController {
   @UseGuards(JwtGuard)
   @ApiCreatedResponse({ description: '案件创建成功' })
   async createRoom(@Body() createRoomDto: CreateRoomDto, @Request() req: any) {
-    return await this.roomsService.createRoom(createRoomDto, req.user.sub);
+    // req.user 是 JwtStrategy 返回的完整 user 对象
+    return await this.roomsService.createRoom(createRoomDto, req.user.id);
   }
 
   /**
@@ -45,7 +46,7 @@ export class RoomsController {
   @Get()
   @ApiOkResponse({ description: '获取案件列表成功' })
   async getRooms(@Query() query: QueryRoomDto, @Request() req?: any) {
-    const userId = req?.user?.sub;
+    const userId = req?.user?.id;
     return await this.roomsService.getRooms(query, userId);
   }
 
@@ -72,7 +73,7 @@ export class RoomsController {
     return await this.roomsService.updateRoom(
       parseInt(id, 10),
       updateRoomDto,
-      req.user.sub,
+      req.user.id,
     );
   }
 
@@ -83,6 +84,6 @@ export class RoomsController {
   @UseGuards(JwtGuard)
   @ApiOkResponse({ description: '案件删除成功' })
   async deleteRoom(@Param('id') id: string, @Request() req: any) {
-    return await this.roomsService.deleteRoom(parseInt(id, 10), req.user.sub);
+    return await this.roomsService.deleteRoom(parseInt(id, 10), req.user.id);
   }
 }

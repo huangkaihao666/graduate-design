@@ -17,11 +17,16 @@ export class RoomsService {
    */
   async createRoom(data: CreateRoomDto, userId: number) {
     try {
+      // 验证 agents 数组
+      if (!Array.isArray(data.agents) || data.agents.length !== 3) {
+        throw new BadRequestException('必须选择 3 个 AI Agent');
+      }
+
       const room = await this.prisma.room.create({
         data: {
           title: data.title,
           content: data.content,
-          image: data.image,
+          image: data.image || null,
           agents: JSON.stringify(data.agents),
           ownerId: userId,
           status: 'WAITING',
@@ -43,7 +48,13 @@ export class RoomsService {
         agents: JSON.parse(room.agents),
       };
     } catch (error) {
-      throw new BadRequestException('创建案件失败');
+      console.error('创建案件错误:', error);
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        `创建案件失败: ${error.message || '未知错误'}`,
+      );
     }
   }
 
