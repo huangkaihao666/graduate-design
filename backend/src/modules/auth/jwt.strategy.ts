@@ -19,6 +19,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!user) {
       throw new UnauthorizedException('用户不存在');
     }
-    return user;
+    // 返回包含 sub 的对象，以便 controller 可以访问 req.user.sub
+    return {
+      ...user,
+      sub: user.id,
+    };
   }
 }

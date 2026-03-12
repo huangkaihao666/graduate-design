@@ -759,4 +759,100 @@ export class AiService {
       // 不抛出异常，只记录日志
     }
   }
+
+  /**
+   * 获取当前用户的虚拍历史记录（按创建时间倒序，支持分页）
+   */
+  async getVirtualTryOnHistoriesByUser(
+    userId: number,
+    page: number = 1,
+    pageSize: number = 10,
+  ) {
+    const skip = (page - 1) * pageSize;
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.virtualTryOnHistory.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize,
+      }),
+      this.prisma.virtualTryOnHistory.count({
+        where: { userId },
+      }),
+    ]);
+
+    return {
+      items,
+      pagination: {
+        total,
+        page,
+        pageSize,
+      },
+    };
+  }
+
+  /**
+   * 获取当前用户的风格推荐历史记录（按创建时间倒序，支持分页）
+   */
+  async getStyleRecommendationHistoriesByUser(
+    userId: number,
+    page: number = 1,
+    pageSize: number = 10,
+  ) {
+    const skip = (page - 1) * pageSize;
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.styleRecommendationHistory.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize,
+      }),
+      this.prisma.styleRecommendationHistory.count({
+        where: { userId },
+      }),
+    ]);
+
+    return {
+      items,
+      pagination: {
+        total,
+        page,
+        pageSize,
+      },
+    };
+  }
+
+  /**
+   * 获取当前用户的行程规划历史记录（按创建时间倒序，支持分页）
+   */
+  async getItineraryPlanningHistoriesByUser(
+    userId: number,
+    page: number = 1,
+    pageSize: number = 10,
+  ) {
+    const skip = (page - 1) * pageSize;
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.itineraryPlanningHistory.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize,
+      }),
+      this.prisma.itineraryPlanningHistory.count({
+        where: { userId },
+      }),
+    ]);
+
+    return {
+      items,
+      pagination: {
+        total,
+        page,
+        pageSize,
+      },
+    };
+  }
 }

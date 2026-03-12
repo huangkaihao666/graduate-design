@@ -1,20 +1,21 @@
 import {
-  Controller,
-  Post,
-  Get,
   Body,
-  UseGuards,
+  Controller,
+  Get,
   HttpException,
   HttpStatus,
+  Post,
+  Query,
   Req,
+  UseGuards,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type {
-  VirtualTryOnRequest,
-  StyleRecommendationRequest,
   ItineraryPlanningRequest,
+  StyleRecommendationRequest,
+  VirtualTryOnRequest,
 } from './ai.service';
 import { AiService } from './ai.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('ai')
 export class AiController {
@@ -191,6 +192,103 @@ export class AiController {
           message: error.message || '保存历史记录失败',
         },
         HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
+   * 获取当前用户的 AI 生成历史
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('history')
+  async getHistory(
+    @Req() req: any,
+    @Query('type')
+    type:
+      | 'virtual-try-on'
+      | 'style-recommendation'
+      | 'itinerary-planning'
+      | 'all' = 'all',
+    @Query('page') page: string = '1',
+    @Query('pageSize') pageSize: string = '10',
+  ) {
+    try {
+      const userId = req.user?.sub ? parseInt(req.user.sub, 10) : undefined;
+
+      if (!userId) {
+        throw new HttpException(
+          {
+            statusCode: 401,
+            message: '未登录用户无法查看历史记录',
+          },
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+
+      const pageNum = Number.isNaN(Number(page)) ? 1 : Number(page);
+      const sizeNum = Number.isNaN(Number(pageSize)) ? 10 : Number(pageSize);
+
+      let data: unknown;
+
+      if (type === 'virtual-try-on') {
+        data = await this.aiService.getVirtualTryOnHistoriesByUser(
+          userId,
+          pageNum,
+          sizeNum,
+        );
+      } else if (type === 'style-recommendation') {
+        data = await this.aiService.getStyleRecommendationHistoriesByUser(
+          userId,
+          pageNum,
+          sizeNum,
+        );
+      } else if (type === 'itinerary-planning') {
+        data = await this.aiService.getItineraryPlanningHistoriesByUser(
+          userId,
+          pageNum,
+          sizeNum,
+        );
+      } else {
+        // all: 分别获取三类历史
+        const [virtualTryOn, styleRecommendation, itineraryPlanning] =
+          await Promise.all([
+            this.aiService.getVirtualTryOnHistoriesByUser(
+              userId,
+              pageNum,
+              sizeNum,
+            ),
+            this.aiService.getStyleRecommendationHistoriesByUser(
+              userId,
+              pageNum,
+              sizeNum,
+            ),
+            this.aiService.getItineraryPlanningHistoriesByUser(
+              userId,
+              pageNum,
+              sizeNum,
+            ),
+          ]);
+
+        data = {
+          virtualTryOn,
+          styleRecommendation,
+          itineraryPlanning,
+        };
+      }
+
+      return {
+        statusCode: 200,
+        message: '获取历史记录成功',
+        data,
+      };
+    } catch (error: any) {
+      console.error('[AI Controller] 获取历史记录失败:', error);
+      throw new HttpException(
+        {
+          statusCode: error.status || 400,
+          message: error.message || '获取历史记录失败',
+        },
+        error.status || HttpStatus.BAD_REQUEST,
       );
     }
   }

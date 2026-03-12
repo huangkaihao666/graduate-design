@@ -3,7 +3,7 @@ import { message } from 'ant-design-vue';
 
 // 创建单一的 axios 实例
 const instance: AxiosInstance = axios.create({
-  // 默认使用相对路径，配合 Vite devServer proxy，避免在局域网/多设备访问时被 localhost 指向“本机”导致 Network Error
+  // 默认使用相对路径，配合 Vite devServer proxy，避免在局域网/多设备访问时被 localhost 指向"本机"导致 Network Error
   // 若有独立后端地址（如部署环境），可通过 VITE_API_BASE_URL 覆盖
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
   timeout: 10000,
@@ -12,25 +12,30 @@ const instance: AxiosInstance = axios.create({
   },
 });
 
-// 获取 auth store 的函数
-const getAuthStore = () => {
-  // 这里使用延迟导入以避免循环依赖
-
-  // @ts-ignore
-  const { useAuthStore } = require('@/store/auth');
-  return useAuthStore();
+// 从 localStorage 获取 token（避免循环依赖）
+const getTokenFromStorage = (): string | null => {
+  try {
+    return localStorage.getItem('accessToken');
+  } catch (e) {
+    // localStorage 可能不可用（如 SSR 环境）
+    return null;
+  }
 };
 
 // 请求拦截器 - 添加认证信息
 instance.interceptors.request.use(
   (config) => {
     try {
-      const authStore = getAuthStore();
-      if (authStore.accessToken) {
-        config.headers.Authorization = `Bearer ${authStore.accessToken}`;
+      // 直接从 localStorage 读取 token（store 初始化时也会从这里读取）
+      const token = getTokenFromStorage();
+
+      // 如果找到了 token，添加到请求头
+      if (token && typeof token === 'string' && token.trim()) {
+        config.headers.Authorization = `Bearer ${token}`;
       }
-    } catch {
-      // 如果 store 未初始化，继续发送请求
+    } catch (error) {
+      // 如果读取失败，继续发送请求（不添加 token）
+      console.warn('Failed to add auth token to request:', error);
     }
 
     return config;
@@ -44,19 +49,33 @@ instance.interceptors.response.use(
     // 返回响应数据
     return response.data;
   },
-  (error) => {
+  async (error) => {
     // 处理错误
-    try {
-      const authStore = getAuthStore();
+    // 如果是 401 未授权错误，清除 token 并重定向到登录
+    if (error.response?.status === 401) {
+      try {
+        // 清除 localStorage 中的 token
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
 
-      // 如果是 401 未授权错误，清除 token 并重定向到登录
-      if (error.response?.status === 401) {
-        authStore.clearAuth();
+        // 尝试清除 store（如果可用）
+        try {
+          // 使用动态导入避免循环依赖
+          const { useAuthStore } = await import('@/store/auth');
+          const authStore = useAuthStore();
+          authStore.clearAuth();
+        } catch {
+          // store 可能未初始化，忽略错误
+        }
+
+        // 重定向到登录页
         window.location.href = '/login';
         message.error('登录已过期，请重新登录');
+      } catch (e) {
+        // 如果清除失败，至少重定向到登录页
+        window.location.href = '/login';
       }
-    } catch {
-      // store 可能未初始化
     }
 
     // 其他错误信息

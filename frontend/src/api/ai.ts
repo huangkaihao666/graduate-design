@@ -23,6 +23,12 @@ export interface ItineraryPlanningRequest {
   interests?: string[];
 }
 
+export type AiHistoryType =
+  | 'virtual-try-on'
+  | 'style-recommendation'
+  | 'itinerary-planning'
+  | 'all';
+
 export const aiApi = {
   /**
    * 获取可用的拍摄风格列表
@@ -55,4 +61,12 @@ export const aiApi = {
     input: any;
     output: any;
   }) => httpClient.post('/ai/save-history', data),
+
+  /**
+   * 获取当前用户的 AI 生成历史
+   */
+  getHistory: (params: { type?: AiHistoryType; page?: number; pageSize?: number }) =>
+    httpClient.get('/ai/history', {
+      params,
+    }),
 };
