@@ -23,6 +23,14 @@ export default defineConfig({
     port: 5173,
     host: '0.0.0.0',
     open: false,
+    // 将前端对 /api 的请求代理到后端，避免本地开发/局域网访问时因写死 localhost 导致 Network Error，
+    // 同时也能减少 CORS 带来的环境差异。
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+    },
     hmr: {
       host: 'localhost',
       port: 5173,

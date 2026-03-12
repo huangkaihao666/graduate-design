@@ -15,7 +15,7 @@
   "author": "Your Team",
   "license": "MIT",
   "scripts": {
-    "prepare": "husky install",
+    "prepare": "husky",
     "commitlint": "commitlint --from HEAD~1",
     "frontend:dev": "pnpm --filter frontend dev",
     "frontend:build": "pnpm --filter frontend build",

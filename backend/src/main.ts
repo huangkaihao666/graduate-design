@@ -9,12 +9,18 @@ import {
 import { appConfig } from './config';
 import * as dotenv from 'dotenv';
 import { join } from 'path';
+import { json, urlencoded } from 'express';
 
 // 加载环境变量
 dotenv.config({ path: join(__dirname, '../.env') });
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // 配置请求体大小限制，支持 Base64 图片上传（默认 1MB，增加到 50MB）
+  // Base64 编码会使图片大小增加约 33%，所以需要更大的限制
+  app.use(json({ limit: '50mb' }));
+  app.use(urlencoded({ limit: '50mb', extended: true }));
 
   // Enable CORS
   app.enableCors({

@@ -224,9 +224,50 @@ const availableStyles = ref<any[]>([]);
 onMounted(async () => {
   try {
     const response = await aiApi.getStyles();
-    availableStyles.value = response.data?.styles || [];
+    // 响应拦截器已经返回了 response.data，所以直接使用 response.styles
+    availableStyles.value = response?.styles || response?.data?.styles || [];
+    console.log('获取到的风格列表:', availableStyles.value);
   } catch (error) {
     console.error('获取风格列表失败:', error);
+    // 如果 API 失败，使用默认风格列表
+    availableStyles.value = [
+      {
+        id: 'romantic',
+        name: '浪漫梦幻',
+        description: '注重柔和光线和浪漫氛围的风格',
+        icon: '✨',
+      },
+      {
+        id: 'artistic',
+        name: '艺术文艺',
+        description: '强调艺术感和创意构图的风格',
+        icon: '🎨',
+      },
+      {
+        id: 'bohemian',
+        name: '波西米亚',
+        description: '自由奔放、充满异域风情的风格',
+        icon: '🌻',
+      },
+      {
+        id: 'minimalist',
+        name: '极简现代',
+        description: '简洁大气、注重线条和留白的风格',
+        icon: '⬜',
+      },
+      {
+        id: 'classical',
+        name: '古典优雅',
+        description: '庄重典雅、融合传统元素的风格',
+        icon: '👑',
+      },
+      {
+        id: 'adventure',
+        name: '冒险活力',
+        description: '充满能量、展现青春活力的风格',
+        icon: '⛰️',
+      },
+    ];
   }
 });
 
@@ -292,13 +333,10 @@ const handleGenerate = async () => {
 
   generating.value = true;
   try {
-    // 🔧 临时使用固定的婚纱图片 URL 进行测试
-    // TODO: 后续将改为使用上传的图片 (uploadedImage.value)
-    const weddingImageUrl =
-      'https://images.unsplash.com/photo-1469334031218-e382a71b716b?q=80&w=1000&auto=format&fit=crop';
-
+    // 使用用户实际上传的图片（Base64 格式）
+    // uploadedImage.value 已经是 Base64 格式：data:image/jpeg;base64,...
     const request: VirtualTryOnRequest = {
-      imageUrl: weddingImageUrl,
+      imageUrl: uploadedImage.value, // 使用用户上传的图片，而不是固定的 URL
       style: selectedStyle.value,
       preferences: {
         makeup: preferences.makeup,

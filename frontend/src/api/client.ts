@@ -3,7 +3,9 @@ import { message } from 'ant-design-vue';
 
 // 创建单一的 axios 实例
 const instance: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1',
+  // 默认使用相对路径，配合 Vite devServer proxy，避免在局域网/多设备访问时被 localhost 指向“本机”导致 Network Error
+  // 若有独立后端地址（如部署环境），可通过 VITE_API_BASE_URL 覆盖
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
