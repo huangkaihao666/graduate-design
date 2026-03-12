@@ -695,7 +695,7 @@ export class AiService {
       });
     } catch (error) {
       console.error('[AI Service] 保存虚拍历史失败:', error);
-      // 不抛出异常，只记录日志
+      throw error; // 抛出异常，让上层处理
     }
   }
 
@@ -724,7 +724,7 @@ export class AiService {
       });
     } catch (error) {
       console.error('[AI Service] 保存风格推荐历史失败:', error);
-      // 不抛出异常，只记录日志
+      throw error; // 抛出异常，让上层处理
     }
   }
 
@@ -756,7 +756,7 @@ export class AiService {
       });
     } catch (error) {
       console.error('[AI Service] 保存行程规划历史失败:', error);
-      // 不抛出异常，只记录日志
+      throw error; // 抛出异常，让上层处理
     }
   }
 

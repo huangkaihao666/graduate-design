@@ -438,7 +438,11 @@ const fetchHistory = async (type: AiHistoryType, page?: number, pageSize?: numbe
     if (pageSize) params.pageSize = pageSize;
 
     const response: any = await aiApi.getHistory(params);
-    const data = response?.data || response;
+    // 兼容后端多层 data 包裹：{ statusCode, message, data: { statusCode, message, data: {...实际数据} } }
+    const data = response?.data?.data || response?.data || response;
+
+    console.log('[AIHistory] 历史接口返回原始数据:', response);
+    console.log('[AIHistory] 解析后的数据对象:', data);
 
     if (type === 'all') {
       if (data.virtualTryOn) {

@@ -201,6 +201,7 @@
 import { ref, reactive, onMounted } from 'vue';
 import { message } from 'ant-design-vue';
 import { aiApi, VirtualTryOnRequest } from '@/api/ai';
+import { useAuthStore } from '@/store/auth';
 
 // 状态管理
 const uploadedImage = ref<string>('');
@@ -219,6 +220,7 @@ const preferences = reactive({
 });
 
 const availableStyles = ref<any[]>([]);
+const authStore = useAuthStore();
 
 // 获取可用风格列表
 onMounted(async () => {
@@ -350,6 +352,38 @@ const handleGenerate = async () => {
     // 处理嵌套的响应结构，取最内层的 data
     result.value = response.data?.data || response.data;
     message.success('虚拍建议生成成功！');
+
+    // 如果用户已登录，自动保存到历史记录
+    if (authStore.isAuthenticated && result.value && lastRequest.value) {
+      try {
+        console.log('[VirtualTryOn] 开始自动保存历史记录...', {
+          type: 'virtual-try-on',
+          hasInput: !!lastRequest.value,
+          hasOutput: !!result.value,
+        });
+        const saveResponse = await aiApi.saveHistory({
+          type: 'virtual-try-on',
+          input: { ...lastRequest.value },
+          output: result.value,
+        });
+        console.log('[VirtualTryOn] 历史记录保存成功:', saveResponse);
+        // 静默保存，不显示额外提示
+      } catch (saveError: any) {
+        // 保存失败不影响主流程，但记录详细错误
+        console.error('[VirtualTryOn] 自动保存历史记录失败:', saveError);
+        console.error('[VirtualTryOn] 错误详情:', {
+          message: saveError?.message,
+          statusCode: saveError?.statusCode,
+          data: saveError?.data,
+        });
+      }
+    } else {
+      console.log('[VirtualTryOn] 跳过自动保存:', {
+        isAuthenticated: authStore.isAuthenticated,
+        hasResult: !!result.value,
+        hasRequest: !!lastRequest.value,
+      });
+    }
   } catch (error: any) {
     message.error(error.message || '生成失败，请重试');
     console.error('虚拍生成错误:', error);
@@ -365,15 +399,32 @@ const handleSaveHistory = async () => {
     return;
   }
 
+  if (!authStore.isAuthenticated) {
+    message.warning('请先登录后再保存历史记录');
+    return;
+  }
+
   try {
-    await aiApi.saveHistory({
+    console.log('[VirtualTryOn] 手动保存历史记录...', {
+      type: 'virtual-try-on',
+      hasInput: !!lastRequest.value,
+      hasOutput: !!result.value,
+    });
+    const saveResponse = await aiApi.saveHistory({
       type: 'virtual-try-on',
       input: { ...lastRequest.value },
       output: result.value,
     });
+    console.log('[VirtualTryOn] 手动保存成功:', saveResponse);
     message.success('已保存到历史记录');
   } catch (error: any) {
-    message.error(error.message || '保存失败');
+    console.error('[VirtualTryOn] 手动保存失败:', error);
+    console.error('[VirtualTryOn] 错误详情:', {
+      message: error?.message,
+      statusCode: error?.statusCode,
+      data: error?.data,
+    });
+    message.error(error?.message || '保存失败，请检查是否已登录');
   }
 };
 

@@ -136,6 +136,7 @@ export class AiController {
   /**
    * 保存 AI 生成历史
    */
+  @UseGuards(JwtAuthGuard)
   @Post('save-history')
   async saveHistory(
     @Body()
@@ -147,7 +148,17 @@ export class AiController {
     @Req() req: any,
   ) {
     try {
-      const userId = req.user?.sub ? parseInt(req.user.sub) : undefined;
+      const userId = req.user?.sub ? parseInt(req.user.sub, 10) : undefined;
+
+      if (!userId) {
+        throw new HttpException(
+          {
+            statusCode: 401,
+            message: '未登录用户无法保存历史记录',
+          },
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
 
       if (body.type === 'virtual-try-on') {
         // 保存虚拍历史

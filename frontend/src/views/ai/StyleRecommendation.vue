@@ -141,6 +141,7 @@
 import { ref, reactive } from 'vue';
 import { message } from 'ant-design-vue';
 import { aiApi, StyleRecommendationRequest } from '@/api/ai';
+import { useAuthStore } from '@/store/auth';
 
 const formData = reactive({
   preferences: '',
@@ -151,6 +152,7 @@ const formData = reactive({
 const loading = ref<boolean>(false);
 const result = ref<any>(null);
 const selectedRecommendation = ref<number | null>(null);
+const authStore = useAuthStore();
 
 // 生成推荐
 const handleRecommend = async () => {
@@ -172,6 +174,21 @@ const handleRecommend = async () => {
     result.value = response.data?.data || response.data;
     selectedRecommendation.value = 0;
     message.success('推荐生成成功！');
+
+    // 如果用户已登录，自动保存到历史记录
+    if (authStore.isAuthenticated && result.value) {
+      try {
+        await aiApi.saveHistory({
+          type: 'style-recommendation',
+          input: { ...formData },
+          output: result.value,
+        });
+        // 静默保存，不显示额外提示
+      } catch (saveError: any) {
+        // 保存失败不影响主流程，只记录日志
+        console.warn('自动保存历史记录失败:', saveError);
+      }
+    }
   } catch (error: any) {
     message.error(error.message || '生成失败，请重试');
   } finally {
