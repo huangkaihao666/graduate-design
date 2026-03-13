@@ -18,12 +18,18 @@
               :rows="4"
               show-count
               :maxlength="500"
+              @change="saveStateToStorage"
             />
           </a-form-item>
 
           <!-- 预算 -->
           <a-form-item label="预算范围（可选）">
-            <a-select v-model:value="formData.budget" placeholder="选择您的预算范围" allow-clear>
+            <a-select
+              v-model:value="formData.budget"
+              placeholder="选择您的预算范围"
+              allow-clear
+              @change="saveStateToStorage"
+            >
               <a-select-option :value="10000">¥0-10000</a-select-option>
               <a-select-option :value="20000">¥10000-20000</a-select-option>
               <a-select-option :value="50000">¥20000-50000</a-select-option>
@@ -34,7 +40,7 @@
 
           <!-- 适合场景 -->
           <a-form-item label="适合场景（可多选）">
-            <a-checkbox-group v-model:value="formData.occasions">
+            <a-checkbox-group v-model:value="formData.occasions" @change="saveStateToStorage">
               <a-checkbox value="wedding">婚礼</a-checkbox>
               <a-checkbox value="engagement">订婚</a-checkbox>
               <a-checkbox value="anniversary">周年纪念</a-checkbox>
@@ -65,7 +71,12 @@
             :key="index"
             class="recommendation-card"
             :class="{ active: selectedRecommendation === index }"
-            @click="selectedRecommendation = index"
+            @click="
+              () => {
+                selectedRecommendation = index;
+                saveStateToStorage();
+              }
+            "
           >
             <div class="card-header">
               <h3>{{ style.name }}</h3>
@@ -129,6 +140,7 @@
             <div class="detail-actions">
               <a-button type="primary" @click="handleSaveRecommendation"> 💾 保存推荐 </a-button>
               <a-button @click="handleDownloadRecommendation"> ⬇️ 下载详情 </a-button>
+              <a-button @click="handleReset"> 🔄 重新生成 </a-button>
             </div>
           </div>
         </div>
@@ -138,7 +150,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import { message } from 'ant-design-vue';
 import { aiApi, StyleRecommendationRequest } from '@/api/ai';
 import { useAuthStore } from '@/store/auth';
@@ -153,6 +165,54 @@ const loading = ref<boolean>(false);
 const result = ref<any>(null);
 const selectedRecommendation = ref<number | null>(null);
 const authStore = useAuthStore();
+
+// 状态持久化的 key
+const STORAGE_KEY = 'style-recommendation-state';
+
+// 保存状态到 sessionStorage
+const saveStateToStorage = () => {
+  try {
+    const state = {
+      preferences: formData.preferences,
+      budget: formData.budget,
+      occasions: [...formData.occasions],
+      result: result.value,
+      selectedRecommendation: selectedRecommendation.value,
+    };
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    console.error('保存状态失败:', error);
+  }
+};
+
+// 从 sessionStorage 恢复状态
+const restoreStateFromStorage = () => {
+  try {
+    const savedState = sessionStorage.getItem(STORAGE_KEY);
+    if (savedState) {
+      const state = JSON.parse(savedState);
+      formData.preferences = state.preferences || '';
+      formData.budget = state.budget;
+      formData.occasions = state.occasions || [];
+      result.value = state.result || null;
+      selectedRecommendation.value = state.selectedRecommendation ?? null;
+      console.log('已恢复风格推荐页面状态');
+    }
+  } catch (error) {
+    console.error('恢复状态失败:', error);
+  }
+};
+
+// 清空状态和存储
+const clearStateAndStorage = () => {
+  formData.preferences = '';
+  formData.budget = undefined;
+  formData.occasions = [];
+  result.value = null;
+  selectedRecommendation.value = null;
+  sessionStorage.removeItem(STORAGE_KEY);
+  message.info('已清空，可以重新开始生成');
+};
 
 // 生成推荐
 const handleRecommend = async () => {
@@ -174,6 +234,9 @@ const handleRecommend = async () => {
     result.value = response.data?.data || response.data;
     selectedRecommendation.value = 0;
     message.success('推荐生成成功！');
+
+    // 保存状态到 sessionStorage
+    saveStateToStorage();
 
     // 如果用户已登录，自动保存到历史记录
     if (authStore.isAuthenticated && result.value) {
@@ -222,6 +285,15 @@ const handleDownloadRecommendation = () => {
   window.URL.revokeObjectURL(url);
   message.success('已下载推荐文件');
 };
+
+// 重新生成（清空）
+const handleReset = () => {
+  clearStateAndStorage();
+};
+
+onMounted(() => {
+  restoreStateFromStorage();
+});
 </script>
 
 <style scoped lang="less">

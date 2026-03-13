@@ -43,13 +43,19 @@
               :min="2"
               :max="14"
               :tip-formatter="(value: number) => `${value} 天`"
+              @change="saveStateToStorage"
             />
             <div class="duration-display">计划 {{ formData.duration }} 天的旅程</div>
           </a-form-item>
 
           <!-- 拍摄风格 -->
           <a-form-item label="拍摄风格" required>
-            <a-select v-model:value="formData.style" placeholder="选择拍摄风格" allow-clear>
+            <a-select
+              v-model:value="formData.style"
+              placeholder="选择拍摄风格"
+              allow-clear
+              @change="saveStateToStorage"
+            >
               <a-select-option value="romantic">✨ 浪漫梦幻</a-select-option>
               <a-select-option value="artistic">🎨 艺术文艺</a-select-option>
               <a-select-option value="bohemian">🌻 波西米亚</a-select-option>
@@ -61,7 +67,7 @@
 
           <!-- 兴趣爱好 -->
           <a-form-item label="兴趣爱好（可多选）">
-            <a-checkbox-group v-model:value="formData.interests">
+            <a-checkbox-group v-model:value="formData.interests" @change="saveStateToStorage">
               <a-checkbox value="nature">自然风景</a-checkbox>
               <a-checkbox value="culture">文化古迹</a-checkbox>
               <a-checkbox value="city">城市建筑</a-checkbox>
@@ -107,7 +113,12 @@
               :key="day.day"
               class="day-card"
               :class="{ active: selectedDay === day.day }"
-              @click="selectedDay = day.day"
+              @click="
+                () => {
+                  selectedDay = day.day;
+                  saveStateToStorage();
+                }
+              "
             >
               <div class="day-number">第 {{ day.day }} 天</div>
               <div class="day-theme">{{ day.theme }}</div>
@@ -179,6 +190,7 @@
             <a-button type="primary" @click="handleSaveItinerary"> 💾 保存行程 </a-button>
             <a-button @click="handleDownloadItinerary"> ⬇️ 下载详情 </a-button>
             <a-button @click="handlePrintItinerary"> 🖨️ 打印行程 </a-button>
+            <a-button @click="handleReset"> 🔄 重新生成 </a-button>
           </div>
         </div>
       </div>
@@ -187,7 +199,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { message } from 'ant-design-vue';
 import { aiApi, ItineraryPlanningRequest } from '@/api/ai';
 import { useAuthStore } from '@/store/auth';
@@ -204,6 +216,57 @@ const result = ref<any>(null);
 const selectedDay = ref<number | null>(null);
 const authStore = useAuthStore();
 const searchKeyword = ref<string>('');
+
+// 状态持久化的 key
+const STORAGE_KEY = 'itinerary-planning-state';
+
+// 保存状态到 sessionStorage
+const saveStateToStorage = () => {
+  try {
+    const state = {
+      destination: formData.destination,
+      duration: formData.duration,
+      style: formData.style,
+      interests: [...formData.interests],
+      result: result.value,
+      selectedDay: selectedDay.value,
+    };
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    console.error('保存状态失败:', error);
+  }
+};
+
+// 从 sessionStorage 恢复状态
+const restoreStateFromStorage = () => {
+  try {
+    const savedState = sessionStorage.getItem(STORAGE_KEY);
+    if (savedState) {
+      const state = JSON.parse(savedState);
+      formData.destination = state.destination || '';
+      formData.duration = state.duration ?? 5;
+      formData.style = state.style || '';
+      formData.interests = state.interests || [];
+      result.value = state.result || null;
+      selectedDay.value = state.selectedDay ?? null;
+      console.log('已恢复行程规划页面状态');
+    }
+  } catch (error) {
+    console.error('恢复状态失败:', error);
+  }
+};
+
+// 清空状态和存储
+const clearStateAndStorage = () => {
+  formData.destination = '';
+  formData.duration = 5;
+  formData.style = '';
+  formData.interests = [];
+  result.value = null;
+  selectedDay.value = null;
+  sessionStorage.removeItem(STORAGE_KEY);
+  message.info('已清空，可以重新开始生成');
+};
 
 // 预设的目的地列表（更多选项）
 const presetDestinations = [
@@ -716,6 +779,7 @@ const handleDestinationSearch = (value: string) => {
 const handleDestinationSelect = (value: string) => {
   formData.destination = value;
   searchKeyword.value = '';
+  saveStateToStorage();
 };
 
 // 生成行程
@@ -740,6 +804,9 @@ const handlePlanItinerary = async () => {
     result.value = response.data?.data || response.data;
     selectedDay.value = 1;
     message.success('行程规划生成成功！');
+
+    // 保存状态到 sessionStorage
+    saveStateToStorage();
 
     // 如果用户已登录，自动保存到历史记录
     if (authStore.isAuthenticated && result.value) {
@@ -800,6 +867,15 @@ const handlePrintItinerary = () => {
   window.print();
   message.success('已打开打印窗口');
 };
+
+// 重新生成（清空）
+const handleReset = () => {
+  clearStateAndStorage();
+};
+
+onMounted(() => {
+  restoreStateFromStorage();
+});
 </script>
 
 <style scoped lang="less">
