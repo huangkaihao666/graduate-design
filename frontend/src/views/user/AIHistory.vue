@@ -106,6 +106,7 @@
                 v-for="item in styleRecommendation.items"
                 :key="`sr-${item.id}`"
                 class="history-card"
+                @click="openStyleRecommendationDetail(item)"
               >
                 <div class="card-type-tag sr">风格推荐</div>
                 <div class="card-body">
@@ -258,6 +259,7 @@
                 v-for="item in currentList.items"
                 :key="`sr-single-${item.id}`"
                 class="history-card"
+                @click="openStyleRecommendationDetail(item)"
               >
                 <div class="card-type-tag sr">风格推荐</div>
                 <div class="card-body">
@@ -454,6 +456,88 @@
         </div>
       </div>
     </a-modal>
+
+    <!-- 风格推荐详情模态框 -->
+    <a-modal
+      v-model:open="styleRecommendationModalVisible"
+      title="风格推荐详情"
+      :width="900"
+      :footer="null"
+      @cancel="closeStyleRecommendationDetail"
+    >
+      <div v-if="selectedStyleRecommendation" class="style-recommendation-detail">
+        <!-- 基本信息 -->
+        <div class="detail-info-section">
+          <h3>📋 基本信息</h3>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">个性化偏好：</span>
+              <span class="info-value">{{ selectedStyleRecommendation.preferences }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">预算范围：</span>
+              <span class="info-value">
+                {{
+                  selectedStyleRecommendation.budget
+                    ? `¥${selectedStyleRecommendation.budget}`
+                    : '未填写'
+                }}
+              </span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">生成时间：</span>
+              <span class="info-value">{{
+                formatTime(selectedStyleRecommendation.createdAt)
+              }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 推荐风格列表 -->
+        <div
+          v-if="selectedStyleRecommendation.recommendedStyles"
+          class="recommended-styles-section"
+        >
+          <h3>🎨 推荐风格</h3>
+          <div class="styles-list">
+            <div
+              v-for="(style, index) in Array.isArray(selectedStyleRecommendation.recommendedStyles)
+                ? selectedStyleRecommendation.recommendedStyles
+                : []"
+              :key="index"
+              class="style-item-card"
+            >
+              <div class="style-item-header">
+                <h4>{{ style.name || `风格 ${index + 1}` }}</h4>
+                <div class="style-tags">
+                  <span v-if="style.season" class="tag season">🌍 {{ style.season }}</span>
+                  <span v-if="style.budget" class="tag budget">💰 {{ style.budget }}</span>
+                </div>
+              </div>
+              <p v-if="style.description" class="style-description">{{ style.description }}</p>
+              <div v-if="style.topSpots && Array.isArray(style.topSpots)" class="top-spots">
+                <h5>推荐景点：</h5>
+                <div class="spots-list">
+                  <span
+                    v-for="(spot, spotIndex) in style.topSpots"
+                    :key="spotIndex"
+                    class="spot-tag"
+                  >
+                    {{ spot }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 个性化建议 -->
+        <div v-if="selectedStyleRecommendation.personalizedAdvice" class="advice-section">
+          <h3>💡 个性化建议</h3>
+          <p>{{ selectedStyleRecommendation.personalizedAdvice }}</p>
+        </div>
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -514,6 +598,8 @@ const loading = ref(false);
 const activeTab = ref<AiHistoryType>('all');
 const virtualTryOnModalVisible = ref(false);
 const selectedVirtualTryOn = ref<VirtualTryOnHistory | null>(null);
+const styleRecommendationModalVisible = ref(false);
+const selectedStyleRecommendation = ref<StyleRecommendationHistory | null>(null);
 
 const virtualTryOn = reactive<ListWithPagination<VirtualTryOnHistory>>({
   items: [],
@@ -716,6 +802,18 @@ const openVirtualTryOnDetail = (item: VirtualTryOnHistory) => {
 const closeVirtualTryOnDetail = () => {
   virtualTryOnModalVisible.value = false;
   selectedVirtualTryOn.value = null;
+};
+
+// 打开风格推荐详情
+const openStyleRecommendationDetail = (item: StyleRecommendationHistory) => {
+  selectedStyleRecommendation.value = item;
+  styleRecommendationModalVisible.value = true;
+};
+
+// 关闭风格推荐详情
+const closeStyleRecommendationDetail = () => {
+  styleRecommendationModalVisible.value = false;
+  selectedStyleRecommendation.value = null;
 };
 
 onMounted(() => {
@@ -1168,6 +1266,120 @@ onMounted(() => {
 
   .info-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+// 风格推荐详情模态框样式
+.style-recommendation-detail {
+  padding: 10px 0;
+}
+
+.recommended-styles-section {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #f0f0f0;
+
+  h3 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: #333;
+  }
+}
+
+.styles-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.style-item-card {
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #36cfc9;
+  transition: all 0.3s;
+
+  &:hover {
+    background: #f0f0f0;
+    transform: translateX(4px);
+  }
+}
+
+.style-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+
+  h4 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+    flex: 1;
+  }
+}
+
+.style-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tag {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+
+  &.season {
+    background: #e6f7ff;
+    color: #1890ff;
+  }
+
+  &.budget {
+    background: #fff7e6;
+    color: #fa8c16;
+  }
+}
+
+.style-description {
+  color: #666;
+  line-height: 1.6;
+  margin: 8px 0;
+}
+
+.top-spots {
+  margin-top: 12px;
+
+  h5 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #666;
+    margin-bottom: 8px;
+  }
+}
+
+.spots-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.spot-tag {
+  padding: 4px 12px;
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: #666;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: #36cfc9;
+    color: #36cfc9;
+    background: #e6fffb;
   }
 }
 </style>
