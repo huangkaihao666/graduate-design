@@ -48,7 +48,12 @@
               :key="style.id"
               class="style-card"
               :class="{ active: selectedStyle === style.id }"
-              @click="selectedStyle = style.id"
+              @click="
+                () => {
+                  selectedStyle = style.id;
+                  saveStateToStorage();
+                }
+              "
             >
               <div class="style-icon">{{ style.icon }}</div>
               <div class="style-name">{{ style.name }}</div>
@@ -62,7 +67,12 @@
           <h2>第 3 步：个性化偏好（可选）</h2>
           <a-form layout="vertical">
             <a-form-item label="妆容风格">
-              <a-select v-model:value="preferences.makeup" placeholder="选择妆容风格" allow-clear>
+              <a-select
+                v-model:value="preferences.makeup"
+                placeholder="选择妆容风格"
+                allow-clear
+                @change="saveStateToStorage"
+              >
                 <a-select-option value="natural">自然清透</a-select-option>
                 <a-select-option value="romantic">浪漫烟熏</a-select-option>
                 <a-select-option value="elegant">典雅气质</a-select-option>
@@ -75,6 +85,7 @@
                 v-model:value="preferences.hairstyle"
                 placeholder="选择发型风格"
                 allow-clear
+                @change="saveStateToStorage"
               >
                 <a-select-option value="updo">盘发</a-select-option>
                 <a-select-option value="loose">飘逸长卷</a-select-option>
@@ -84,7 +95,12 @@
             </a-form-item>
 
             <a-form-item label="服装风格">
-              <a-select v-model:value="preferences.dress" placeholder="选择服装风格" allow-clear>
+              <a-select
+                v-model:value="preferences.dress"
+                placeholder="选择服装风格"
+                allow-clear
+                @change="saveStateToStorage"
+              >
                 <a-select-option value="romantic">浪漫蓬裙</a-select-option>
                 <a-select-option value="minimalist">简约修身</a-select-option>
                 <a-select-option value="vintage">复古婚纱</a-select-option>
@@ -222,8 +238,70 @@ const preferences = reactive({
 const availableStyles = ref<any[]>([]);
 const authStore = useAuthStore();
 
+// 状态持久化的 key
+const STORAGE_KEY = 'virtual-try-on-state';
+
+// 保存状态到 sessionStorage
+const saveStateToStorage = () => {
+  try {
+    const state = {
+      uploadedImage: uploadedImage.value,
+      uploadedFileName: uploadedFileName.value,
+      selectedStyle: selectedStyle.value,
+      preferences: { ...preferences },
+      result: result.value,
+      lastRequest: lastRequest.value,
+    };
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    console.error('保存状态失败:', error);
+  }
+};
+
+// 从 sessionStorage 恢复状态
+const restoreStateFromStorage = () => {
+  try {
+    const savedState = sessionStorage.getItem(STORAGE_KEY);
+    if (savedState) {
+      const state = JSON.parse(savedState);
+      uploadedImage.value = state.uploadedImage || '';
+      uploadedFileName.value = state.uploadedFileName || '';
+      selectedStyle.value = state.selectedStyle || 'romantic';
+      if (state.preferences) {
+        preferences.makeup = state.preferences.makeup;
+        preferences.hairstyle = state.preferences.hairstyle;
+        preferences.dress = state.preferences.dress;
+      }
+      result.value = state.result || null;
+      lastRequest.value = state.lastRequest || null;
+      console.log('已恢复虚拍试衣页面状态');
+    }
+  } catch (error) {
+    console.error('恢复状态失败:', error);
+  }
+};
+
+// 清空状态和存储
+const clearStateAndStorage = () => {
+  uploadedImage.value = '';
+  uploadedFileName.value = '';
+  selectedStyle.value = 'romantic';
+  preferences.makeup = undefined;
+  preferences.hairstyle = undefined;
+  preferences.dress = undefined;
+  result.value = null;
+  lastRequest.value = null;
+  sessionStorage.removeItem(STORAGE_KEY);
+  if (fileInput.value) {
+    fileInput.value.value = '';
+  }
+};
+
 // 获取可用风格列表
 onMounted(async () => {
+  // 先恢复保存的状态
+  restoreStateFromStorage();
+
   try {
     const response = await aiApi.getStyles();
     // 响应拦截器已经返回了 response.data，所以直接使用 response.styles
@@ -288,6 +366,8 @@ const handleFileUpload = (event: Event) => {
     reader.onload = (e) => {
       uploadedImage.value = e.target?.result as string;
       uploadedFileName.value = file.name;
+      // 保存状态
+      saveStateToStorage();
     };
     reader.readAsDataURL(file);
   }
@@ -300,6 +380,8 @@ const clearImage = () => {
   if (fileInput.value) {
     fileInput.value.value = '';
   }
+  // 保存状态
+  saveStateToStorage();
 };
 
 // 处理拖拽上传
@@ -321,6 +403,8 @@ const handleDrop = (event: DragEvent) => {
     reader.onload = (e) => {
       uploadedImage.value = e.target?.result as string;
       uploadedFileName.value = file.name;
+      // 保存状态
+      saveStateToStorage();
     };
     reader.readAsDataURL(file);
   }
@@ -352,6 +436,9 @@ const handleGenerate = async () => {
     // 处理嵌套的响应结构，取最内层的 data
     result.value = response.data?.data || response.data;
     message.success('虚拍建议生成成功！');
+
+    // 保存状态到 sessionStorage
+    saveStateToStorage();
 
     // 如果用户已登录，自动保存到历史记录
     if (authStore.isAuthenticated && result.value && lastRequest.value) {
@@ -430,10 +517,8 @@ const handleSaveHistory = async () => {
 
 // 重新生成
 const handleReset = () => {
-  result.value = null;
-  uploadedImage.value = '';
-  uploadedFileName.value = '';
-  clearImage();
+  clearStateAndStorage();
+  message.info('已清空，可以重新开始生成');
 };
 
 // 下载建议
