@@ -124,6 +124,7 @@
                   v-for="(spot, index) in result.recommendedStyles[selectedRecommendation].topSpots"
                   :key="index"
                   class="spot-card"
+                  @click="openSpotDetail(spot, index)"
                 >
                   <div class="spot-number">{{ index + 1 }}</div>
                   <div class="spot-name">{{ spot }}</div>
@@ -146,6 +147,71 @@
         </div>
       </div>
     </div>
+
+    <!-- 景点详情模态框 -->
+    <a-modal
+      v-model:open="spotDetailModalVisible"
+      title="景点详情"
+      :width="700"
+      :footer="null"
+      @cancel="closeSpotDetail"
+    >
+      <div v-if="selectedSpot" class="spot-detail">
+        <div class="spot-detail-header">
+          <h2>{{ selectedSpot.name }}</h2>
+          <span class="spot-rank">推荐排名：第 {{ selectedSpot.index + 1 }} 名</span>
+        </div>
+
+        <div class="spot-detail-content">
+          <div class="detail-item">
+            <h3>📍 景点介绍</h3>
+            <p>{{ selectedSpot.description || getSpotDescription(selectedSpot.name) }}</p>
+          </div>
+
+          <div class="detail-item">
+            <h3>🎨 推荐理由</h3>
+            <p>
+              {{
+                selectedSpot.reason ||
+                `该景点完美契合"${result.recommendedStyles[selectedRecommendation]?.name}"风格，是拍摄${result.recommendedStyles[selectedRecommendation]?.style || '浪漫'}风格照片的理想选择。`
+              }}
+            </p>
+          </div>
+
+          <div class="detail-item">
+            <h3>📸 拍摄建议</h3>
+            <ul>
+              <li v-for="(tip, tipIndex) in getSpotShootingTips(selectedSpot.name)" :key="tipIndex">
+                {{ tip }}
+              </li>
+            </ul>
+          </div>
+
+          <div class="detail-item">
+            <h3>⏰ 最佳拍摄时间</h3>
+            <p>{{ getBestShootingTime(selectedSpot.name) }}</p>
+          </div>
+
+          <div class="detail-item">
+            <h3>💡 实用信息</h3>
+            <div class="info-grid">
+              <div class="info-item">
+                <span class="info-label">推荐季节：</span>
+                <span class="info-value">{{
+                  result.recommendedStyles[selectedRecommendation]?.season || '四季皆宜'
+                }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">拍摄风格：</span>
+                <span class="info-value">{{
+                  result.recommendedStyles[selectedRecommendation]?.name || '—'
+                }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -165,6 +231,13 @@ const loading = ref<boolean>(false);
 const result = ref<any>(null);
 const selectedRecommendation = ref<number | null>(null);
 const authStore = useAuthStore();
+const spotDetailModalVisible = ref(false);
+const selectedSpot = ref<{
+  name: string;
+  index: number;
+  description?: string;
+  reason?: string;
+} | null>(null);
 
 // 状态持久化的 key
 const STORAGE_KEY = 'style-recommendation-state';
@@ -289,6 +362,94 @@ const handleDownloadRecommendation = () => {
 // 重新生成（清空）
 const handleReset = () => {
   clearStateAndStorage();
+};
+
+// 打开景点详情
+const openSpotDetail = (spotName: string, index: number) => {
+  selectedSpot.value = {
+    name: spotName,
+    index,
+  };
+  spotDetailModalVisible.value = true;
+};
+
+// 关闭景点详情
+const closeSpotDetail = () => {
+  spotDetailModalVisible.value = false;
+  selectedSpot.value = null;
+};
+
+// 获取景点描述（根据景点名称生成）
+const getSpotDescription = (spotName: string): string => {
+  const descriptions: Record<string, string> = {
+    巴厘岛:
+      '巴厘岛是印度尼西亚著名的旅游胜地，拥有美丽的海滩、古老的寺庙和丰富的文化。这里风景如画，是拍摄浪漫婚纱照的理想之地。',
+    马尔代夫:
+      '马尔代夫以其清澈的海水、白色沙滩和豪华度假村而闻名。这里是蜜月旅行的天堂，也是拍摄唯美婚纱照的绝佳选择。',
+    三亚: '三亚拥有中国最美的海滩和热带风光，椰林婆娑，海天一色。这里气候宜人，是拍摄浪漫海边婚纱照的热门目的地。',
+    大理: '大理古城依山傍水，苍山洱海相映成趣。这里有着浓厚的民族文化和自然风光，是拍摄文艺风格婚纱照的理想之地。',
+    丽江: '丽江古城保存完好的纳西族建筑和独特的文化氛围，加上玉龙雪山的壮丽景色，是拍摄古典优雅风格婚纱照的绝佳选择。',
+  };
+  return (
+    descriptions[spotName] ||
+    `${spotName}是一个风景优美、文化底蕴深厚的旅游胜地，拥有独特的自然风光和人文景观，非常适合拍摄婚纱照。`
+  );
+};
+
+// 获取景点拍摄建议
+const getSpotShootingTips = (spotName: string): string[] => {
+  const tips: Record<string, string[]> = {
+    巴厘岛: [
+      '利用日出和日落时分的柔和光线拍摄',
+      '选择海边、稻田或寺庙等特色场景',
+      '穿着轻盈的婚纱，展现自然随性的风格',
+      '捕捉海浪、椰林等自然元素',
+    ],
+    马尔代夫: [
+      '充分利用海天一色的背景',
+      '选择水屋、沙滩等特色场景',
+      '利用清澈的海水拍摄水下或倒影效果',
+      '捕捉夕阳西下的浪漫时刻',
+    ],
+    三亚: [
+      '选择椰林、海滩、礁石等多样化场景',
+      '利用早晨和傍晚的黄金光线',
+      '穿着飘逸的婚纱，展现海边浪漫',
+      '捕捉海浪、海风等动态元素',
+    ],
+    大理: [
+      '选择洱海边、古城内、苍山下等场景',
+      '利用白族建筑和民族元素',
+      '穿着简约优雅的婚纱，展现文艺气质',
+      '捕捉古城韵味和自然风光',
+    ],
+    丽江: [
+      '选择古城街道、玉龙雪山、束河古镇等场景',
+      '利用纳西族建筑和民族文化元素',
+      '穿着古典优雅的婚纱，展现文化底蕴',
+      '捕捉古城韵味和雪山壮丽',
+    ],
+  };
+  return (
+    tips[spotName] || [
+      '选择最佳光线时段进行拍摄',
+      '充分利用当地特色景观和建筑',
+      '穿着与场景风格匹配的婚纱',
+      '捕捉自然和人文的完美结合',
+    ]
+  );
+};
+
+// 获取最佳拍摄时间
+const getBestShootingTime = (spotName: string): string => {
+  const times: Record<string, string> = {
+    巴厘岛: '早晨 6:00-9:00 和傍晚 17:00-19:00（避开正午强光）',
+    马尔代夫: '早晨 6:00-8:00 和傍晚 17:00-19:00（最佳光线时段）',
+    三亚: '早晨 6:00-9:00 和傍晚 17:00-19:00（避免中午强光）',
+    大理: '早晨 7:00-9:00 和傍晚 17:00-19:00（光线柔和）',
+    丽江: '早晨 7:00-9:00 和傍晚 17:00-19:00（光线最佳）',
+  };
+  return times[spotName] || '早晨 7:00-9:00 和傍晚 17:00-19:00（黄金光线时段）';
 };
 
 onMounted(() => {
@@ -568,6 +729,160 @@ onMounted(() => {
 
   button {
     flex: 1;
+  }
+}
+
+// 景点详情模态框样式
+.spot-detail {
+  padding: 0;
+}
+
+.spot-detail-header {
+  margin-bottom: 30px;
+  padding: 24px;
+  background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%);
+  border-radius: 12px;
+  color: white;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+    animation: pulse 3s ease-in-out infinite;
+  }
+
+  h2 {
+    margin: 0 0 12px 0;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    position: relative;
+    z-index: 1;
+  }
+
+  .spot-rank {
+    display: inline-block;
+    padding: 6px 16px;
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(10px);
+    color: white;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    position: relative;
+    z-index: 1;
+  }
+}
+
+.spot-detail-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.detail-item {
+  padding: 20px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+  border-radius: 12px;
+  border-left: 4px solid #ff758c;
+  transition: all 0.3s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+
+  &:hover {
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px rgba(255, 117, 140, 0.15);
+  }
+
+  h3 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  p {
+    color: #555;
+    line-height: 1.8;
+    margin: 0;
+    font-size: 0.95rem;
+  }
+
+  ul {
+    margin: 0;
+    padding-left: 0;
+    list-style: none;
+    color: #555;
+    line-height: 1.8;
+
+    li {
+      margin-bottom: 10px;
+      padding-left: 24px;
+      position: relative;
+      font-size: 0.95rem;
+
+      &::before {
+        content: '✨';
+        position: absolute;
+        left: 0;
+        top: 0;
+      }
+    }
+  }
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+
+  .info-item {
+    padding: 16px;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e8e8e8;
+    transition: all 0.3s;
+
+    &:hover {
+      border-color: #ff758c;
+      box-shadow: 0 2px 8px rgba(255, 117, 140, 0.1);
+      transform: translateY(-2px);
+    }
+
+    .info-label {
+      font-weight: 600;
+      color: #999;
+      font-size: 0.85rem;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .info-value {
+      color: #333;
+      font-size: 1rem;
+      font-weight: 500;
+    }
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.8;
   }
 }
 </style>
