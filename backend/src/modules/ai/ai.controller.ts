@@ -16,7 +16,6 @@ import type {
   VirtualTryOnRequest,
 } from './ai.service';
 import { AiService } from './ai.service';
-
 @Controller('ai')
 export class AiController {
   constructor(private readonly aiService: AiService) {}
