@@ -56,7 +56,13 @@
                 <div class="card-body">
                   <div class="card-main">
                     <div class="thumb" v-if="item.modifiedImageUrl || item.imageUrl">
-                      <img :src="item.modifiedImageUrl || item.imageUrl" alt="预览" />
+                      <a-image
+                        :src="item.modifiedImageUrl || item.imageUrl"
+                        alt="预览"
+                        :preview="true"
+                        class="thumb-image"
+                        :fallback="item.modifiedImageUrl || item.imageUrl"
+                      />
                     </div>
                     <div class="meta">
                       <div class="meta-title">
@@ -227,7 +233,13 @@
                 <div class="card-body">
                   <div class="card-main">
                     <div class="thumb" v-if="item.modifiedImageUrl || item.imageUrl">
-                      <img :src="item.modifiedImageUrl || item.imageUrl" alt="预览" />
+                      <a-image
+                        :src="item.modifiedImageUrl || item.imageUrl"
+                        alt="预览"
+                        :preview="true"
+                        class="thumb-image"
+                        :fallback="item.modifiedImageUrl || item.imageUrl"
+                      />
                     </div>
                     <div class="meta">
                       <div class="meta-title">
@@ -360,11 +372,13 @@
           <div class="comparison-item">
             <div class="image-label">📸 原始照片</div>
             <div class="image-wrapper">
-              <img
+              <a-image
                 v-if="selectedVirtualTryOn.imageUrl"
                 :src="selectedVirtualTryOn.imageUrl"
                 alt="原始照片"
+                :preview="true"
                 class="detail-image"
+                :fallback="selectedVirtualTryOn.imageUrl"
               />
               <div v-else class="no-image">暂无原始照片</div>
             </div>
@@ -375,11 +389,13 @@
               ✨ {{ getStyleName(selectedVirtualTryOn.style) }} 风格效果
             </div>
             <div class="image-wrapper">
-              <img
+              <a-image
                 v-if="selectedVirtualTryOn.modifiedImageUrl"
                 :src="selectedVirtualTryOn.modifiedImageUrl"
                 alt="生成效果"
+                :preview="true"
                 class="detail-image"
+                :fallback="selectedVirtualTryOn.modifiedImageUrl"
               />
               <div v-else class="no-image">暂无生成效果</div>
             </div>
@@ -1125,6 +1141,24 @@ onMounted(() => {
   border-radius: 8px;
   overflow: hidden;
   background: #f5f5f5;
+
+  .thumb-image {
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    display: block;
+
+    :deep(.ant-image-img) {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 8px;
+    }
+
+    &:hover {
+      opacity: 0.9;
+    }
+  }
   flex-shrink: 0;
 
   img {
@@ -1273,7 +1307,19 @@ onMounted(() => {
   height: auto;
   display: block;
   max-height: 400px;
-  object-fit: contain;
+  cursor: pointer;
+
+  :deep(.ant-image-img) {
+    width: 100%;
+    height: auto;
+    max-height: 400px;
+    object-fit: contain;
+    display: block;
+  }
+
+  &:hover {
+    opacity: 0.9;
+  }
 }
 
 .no-image {
