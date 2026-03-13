@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react'
+import React, { useState } from 'react'
 import { Card, Form, Input, Button, message, Upload, Progress, Modal } from 'antd'
-import { PlusOutlined, ArrowLeftOutlined, InboxOutlined, CheckCircleOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, InboxOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { UploadFile, RcFile } from 'antd/es/upload/interface'
@@ -25,7 +25,7 @@ const CreateCase: React.FC = () => {
   const [createdRoomId, setCreatedRoomId] = useState<number | null>(null)
 
   // 获取所有 Agents
-  const { data: agentsData, isLoading: agentsLoading } = useQuery({
+  const { data: agentsData } = useQuery({
     queryKey: ['agents'],
     queryFn: roomApi.getAllAgents,
     staleTime: Infinity,
@@ -120,7 +120,7 @@ const CreateCase: React.FC = () => {
 
   const handleGoHome = () => {
     setShowSuccessModal(false)
-    navigate('/home')
+    navigate('/cases')
   }
 
   return (
@@ -128,7 +128,7 @@ const CreateCase: React.FC = () => {
       <Button
         type="text"
         icon={<ArrowLeftOutlined />}
-        onClick={() => navigate('/home')}
+        onClick={() => navigate('/cases')}
         className="back-button"
       >
         返回首页
@@ -264,7 +264,7 @@ const CreateCase: React.FC = () => {
               </Button>
               <Button
                 size="large"
-                onClick={() => navigate('/home')}
+                onClick={() => navigate('/cases')}
                 className="cancel-button"
                 block
               >

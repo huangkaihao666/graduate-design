@@ -7,6 +7,8 @@ import {
   ValidationPipe,
 } from './common';
 import { appConfig } from './config';
+import { Server as SocketIOServer } from 'socket.io';
+import { RoomsGateway } from './modules/rooms/rooms.gateway';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -44,16 +46,35 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
-  // Set global prefix（在 Swagger 之后）
-  app.setGlobalPrefix('api/v1');
+  // Set global prefix（在 Swagger 之后，但排除 socket.io）
+  app.setGlobalPrefix('api/v1', {
+    exclude: ['/socket.io/*path'],
+  });
 
-  await app.listen(appConfig.port);
+  const server = await app.listen(appConfig.port);
+
+  // 手动创建 Socket.IO 服务器
+  const io = new SocketIOServer(server, {
+    cors: {
+      origin: ['http://localhost:5173', 'http://localhost:5174'],
+      credentials: true,
+    },
+  });
+
+  console.log('🚀 [MANUAL] Socket.IO server created manually');
+
+  // 获取 Gateway 实例并手动调用 afterInit
+  const gateway = app.get(RoomsGateway);
+  gateway.server = io;
+  gateway.afterInit(io);
+
   console.log(
     `🚀 Application is running on: http://localhost:${appConfig.port}/api/v1`,
   );
   console.log(
     `📚 Swagger API 文档: http://localhost:${appConfig.port}/api/docs`,
   );
+  console.log(`🔌 WebSocket 服务: ws://localhost:${appConfig.port}/socket.io/`);
 }
 
 bootstrap();

@@ -11,6 +11,7 @@ import {
   Request,
 } from '@nestjs/common';
 import { RoomsService } from './rooms.service';
+import { DebateService } from './debate.service';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { QueryRoomDto } from './dto/query-room.dto';
 import { JwtGuard } from '@/common/guards/jwt.guard';
@@ -18,7 +19,10 @@ import { ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
 
 @Controller('rooms')
 export class RoomsController {
-  constructor(private readonly roomsService: RoomsService) {}
+  constructor(
+    private readonly roomsService: RoomsService,
+    private readonly debateService: DebateService,
+  ) {}
 
   /**
    * 创建案件 (需要 JWT)
@@ -85,5 +89,40 @@ export class RoomsController {
   @ApiOkResponse({ description: '案件删除成功' })
   async deleteRoom(@Param('id') id: string, @Request() req: any) {
     return await this.roomsService.deleteRoom(parseInt(id, 10), req.user.id);
+  }
+
+  /**
+   * 开始辩论 (需要 JWT 且为案件所有者)
+   */
+  @Post(':id/start')
+  @UseGuards(JwtGuard)
+  @ApiOkResponse({ description: '辩论开始成功' })
+  async startDebate(@Param('id') id: string, @Request() req: any) {
+    const roomId = parseInt(id, 10);
+    // TODO: 验证是否为 owner
+    await this.debateService.startDebate(roomId);
+    return { message: '辩论已开始' };
+  }
+
+  /**
+   * 暂停辩论
+   */
+  @Post(':id/pause')
+  @UseGuards(JwtGuard)
+  @ApiOkResponse({ description: '辩论暂停成功' })
+  async pauseDebate(@Param('id') id: string) {
+    await this.debateService.pauseDebate(parseInt(id, 10));
+    return { message: '辩论已暂停' };
+  }
+
+  /**
+   * 继续辩论
+   */
+  @Post(':id/resume')
+  @UseGuards(JwtGuard)
+  @ApiOkResponse({ description: '辩论继续成功' })
+  async resumeDebate(@Param('id') id: string) {
+    await this.debateService.resumeDebate(parseInt(id, 10));
+    return { message: '辩论已继续' };
   }
 }

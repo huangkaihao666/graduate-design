@@ -10,6 +10,7 @@ import {
   MyCases,
   CreateCase,
   CaseDetail,
+  DebateRoom,
 } from '@/pages'
 import ProtectedRoute from './ProtectedRoute'
 
@@ -39,6 +40,14 @@ export const router = createBrowserRouter([
         element: <CaseDetail />,
       },
     ],
+  },
+  {
+    path: '/debate/:id',
+    element: (
+      <ProtectedRoute>
+        <DebateRoom />
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/create',

@@ -53,7 +53,13 @@ export const CaseCard: React.FC<CaseCardProps> = ({ room, agents }) => {
   }
 
   const handleCardClick = () => {
-    navigate(`/cases/${room.id}`)
+    // 如果是进行中的案件，跳转到辩论室
+    if (room.status === 'LIVE' || room.status === 'WAITING') {
+      navigate(`/debate/${room.id}`)
+    } else {
+      // 已结束的案件，跳转到详情页
+      navigate(`/cases/${room.id}`)
+    }
   }
 
   return (
