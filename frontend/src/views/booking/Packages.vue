@@ -160,8 +160,8 @@
           class="package-card"
           @click="openPackageDetail(pkg)"
         >
-          <div class="card-badge" v-if="pkg.isPopular">🔥 热门</div>
-          <div class="card-badge hot" v-if="pkg.isHot">⭐ 推荐</div>
+          <div v-if="pkg.isPopular" class="card-badge">🔥 热门</div>
+          <div v-if="pkg.isHot" class="card-badge hot">⭐ 推荐</div>
           <div class="card-image">
             <a-image
               :src="pkg.coverImage"
@@ -207,7 +207,7 @@
       </div>
 
       <!-- 分页 -->
-      <div class="pagination-wrapper" v-if="packages.length > 0">
+      <div v-if="packages.length > 0" class="pagination-wrapper">
         <a-pagination
           v-model:current="pagination.page"
           v-model:page-size="pagination.pageSize"
@@ -348,11 +348,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { type Package } from '@/api/packages';
 import { useAuthStore } from '@/store/auth';
 import { message } from 'ant-design-vue';
-import { packagesApi, type Package } from '@/api/packages';
+import { onMounted, reactive, ref } from 'vue';
+import { useRouter } from 'vue-router';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -522,12 +522,42 @@ const generateMockPackages = (): Package[] => {
   const styles = ['romantic', 'artistic', 'bohemian', 'minimalist', 'classical', 'adventure'];
   const mockPackages: Package[] = [];
 
+  // 预设的图片URL数组（如果无法访问，可以替换为本地图片路径，如：'/images/package-1.jpg'）
+  const imageUrls = [
+    'https://images.unsplash.com/photo-1519741497674-611481863552?w=600&h=400&fit=crop&auto=format&q=80',
+    'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=600&h=400&fit=crop&auto=format&q=80',
+    'https://images.unsplash.com/photo-1581338834647-b0fb40704e21?w=600&h=400&fit=crop&auto=format&q=80',
+    'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=600&h=400&fit=crop&auto=format&q=80',
+    'https://images.unsplash.com/photo-1519741497674-611481863552?w=600&h=400&fit=crop&auto=format&q=80',
+    'https://images.unsplash.com/photo-1519741497674-611481863552?w=600&h=400&fit=crop&auto=format&q=80',
+  ];
+
+  const detailImageUrls = [
+    [
+      'https://images.unsplash.com/photo-1519741497674-611481863552?w=800&h=600&fit=crop&auto=format&q=80',
+      'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=800&h=600&fit=crop&auto=format&q=80',
+      'https://images.unsplash.com/photo-1581338834647-b0fb40704e21?w=800&h=600&fit=crop&auto=format&q=80',
+    ],
+    [
+      'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=800&h=600&fit=crop&auto=format&q=80',
+      'https://images.unsplash.com/photo-1519741497674-611481863552?w=800&h=600&fit=crop&auto=format&q=80',
+      'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=800&h=600&fit=crop&auto=format&q=80',
+    ],
+    [
+      'https://images.unsplash.com/photo-1581338834647-b0fb40704e21?w=800&h=600&fit=crop&auto=format&q=80',
+      'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=800&h=600&fit=crop&auto=format&q=80',
+      'https://images.unsplash.com/photo-1519741497674-611481863552?w=800&h=600&fit=crop&auto=format&q=80',
+    ],
+  ];
+
   for (let i = 1; i <= 30; i++) {
     const location = locations[Math.floor(Math.random() * locations.length)];
     const style = styles[Math.floor(Math.random() * styles.length)];
     const duration = [1, 2, 3, 5, 7][Math.floor(Math.random() * 5)];
     const basePrice = [2999, 3999, 4999, 5999, 6999, 8999, 12999][Math.floor(Math.random() * 7)];
     const hasDiscount = Math.random() > 0.5;
+    const imageIndex = (i - 1) % imageUrls.length;
+    const detailImageIndex = (i - 1) % detailImageUrls.length;
 
     mockPackages.push({
       id: i,
@@ -538,12 +568,9 @@ const generateMockPackages = (): Package[] => {
       duration,
       location,
       style,
-      coverImage: `https://picsum.photos/600/400?random=${i}`,
-      images: [
-        `https://picsum.photos/800/600?random=${i}1`,
-        `https://picsum.photos/800/600?random=${i}2`,
-        `https://picsum.photos/800/600?random=${i}3`,
-      ],
+      // 使用预设的图片URL（如果无法访问，可以替换为本地图片路径，如：'/images/package-1.jpg'）
+      coverImage: imageUrls[imageIndex],
+      images: detailImageUrls[detailImageIndex],
       features: [
         '专业摄影师全程跟拍',
         '精美婚纱礼服提供',
