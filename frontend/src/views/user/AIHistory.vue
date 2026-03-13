@@ -166,6 +166,7 @@
                 v-for="item in itineraryPlanning.items"
                 :key="`ip-${item.id}`"
                 class="history-card"
+                @click="openItineraryPlanningDetail(item)"
               >
                 <div class="card-type-tag ip">行程规划</div>
                 <div class="card-body">
@@ -300,6 +301,7 @@
                 v-for="item in currentList.items"
                 :key="`ip-single-${item.id}`"
                 class="history-card"
+                @click="openItineraryPlanningDetail(item)"
               >
                 <div class="card-type-tag ip">行程规划</div>
                 <div class="card-body">
@@ -538,6 +540,105 @@
         </div>
       </div>
     </a-modal>
+
+    <!-- 行程规划详情模态框 -->
+    <a-modal
+      v-model:open="itineraryPlanningModalVisible"
+      title="行程规划详情"
+      :width="1000"
+      :footer="null"
+      @cancel="closeItineraryPlanningDetail"
+    >
+      <div v-if="selectedItineraryPlanning" class="itinerary-planning-detail">
+        <!-- 基本信息 -->
+        <div class="detail-info-section">
+          <h3>📋 基本信息</h3>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">目的地：</span>
+              <span class="info-value highlight">{{ selectedItineraryPlanning.destination }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">行程天数：</span>
+              <span class="info-value">{{ selectedItineraryPlanning.duration }} 天</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">拍摄风格：</span>
+              <span class="info-value highlight">{{
+                getStyleName(selectedItineraryPlanning.style)
+              }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">生成时间：</span>
+              <span class="info-value">{{ formatTime(selectedItineraryPlanning.createdAt) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 行程概览 -->
+        <div v-if="selectedItineraryPlanning.overview" class="overview-section">
+          <h3>🗺️ 行程概览</h3>
+          <p>{{ selectedItineraryPlanning.overview }}</p>
+        </div>
+
+        <!-- 日程安排 -->
+        <div v-if="selectedItineraryPlanning.dailySchedule" class="daily-schedule-section">
+          <h3>📅 日程安排</h3>
+          <div class="schedule-list">
+            <div
+              v-for="(day, index) in Array.isArray(selectedItineraryPlanning.dailySchedule)
+                ? selectedItineraryPlanning.dailySchedule
+                : []"
+              :key="index"
+              class="day-schedule-card"
+            >
+              <div class="day-header">
+                <h4>第 {{ day.day || index + 1 }} 天</h4>
+                <span v-if="day.theme" class="day-theme">{{ day.theme }}</span>
+              </div>
+              <div v-if="day.schedule" class="day-content">
+                <p><strong>日程安排：</strong>{{ day.schedule }}</p>
+              </div>
+              <div v-if="day.bestTime" class="day-content">
+                <p><strong>最佳拍摄时间：</strong>{{ day.bestTime }}</p>
+              </div>
+              <div v-if="day.tips" class="day-content">
+                <p><strong>拍摄技巧：</strong>{{ day.tips }}</p>
+              </div>
+              <div v-if="day.spots && Array.isArray(day.spots)" class="day-spots">
+                <strong>主要景点：</strong>
+                <div class="spots-list">
+                  <span v-for="(spot, spotIndex) in day.spots" :key="spotIndex" class="spot-tag">
+                    {{ spot }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 准备清单 -->
+        <div v-if="selectedItineraryPlanning.packingList" class="packing-list-section">
+          <h3>📦 准备清单</h3>
+          <ul class="packing-list">
+            <li
+              v-for="(item, index) in Array.isArray(selectedItineraryPlanning.packingList)
+                ? selectedItineraryPlanning.packingList
+                : []"
+              :key="index"
+            >
+              {{ item }}
+            </li>
+          </ul>
+        </div>
+
+        <!-- 当地建议 -->
+        <div v-if="selectedItineraryPlanning.localTips" class="local-tips-section">
+          <h3>💡 当地实用建议</h3>
+          <p>{{ selectedItineraryPlanning.localTips }}</p>
+        </div>
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -600,6 +701,8 @@ const virtualTryOnModalVisible = ref(false);
 const selectedVirtualTryOn = ref<VirtualTryOnHistory | null>(null);
 const styleRecommendationModalVisible = ref(false);
 const selectedStyleRecommendation = ref<StyleRecommendationHistory | null>(null);
+const itineraryPlanningModalVisible = ref(false);
+const selectedItineraryPlanning = ref<ItineraryPlanningHistory | null>(null);
 
 const virtualTryOn = reactive<ListWithPagination<VirtualTryOnHistory>>({
   items: [],
@@ -814,6 +917,18 @@ const openStyleRecommendationDetail = (item: StyleRecommendationHistory) => {
 const closeStyleRecommendationDetail = () => {
   styleRecommendationModalVisible.value = false;
   selectedStyleRecommendation.value = null;
+};
+
+// 打开行程规划详情
+const openItineraryPlanningDetail = (item: ItineraryPlanningHistory) => {
+  selectedItineraryPlanning.value = item;
+  itineraryPlanningModalVisible.value = true;
+};
+
+// 关闭行程规划详情
+const closeItineraryPlanningDetail = () => {
+  itineraryPlanningModalVisible.value = false;
+  selectedItineraryPlanning.value = null;
 };
 
 onMounted(() => {
@@ -1380,6 +1495,154 @@ onMounted(() => {
     border-color: #36cfc9;
     color: #36cfc9;
     background: #e6fffb;
+  }
+}
+
+// 行程规划详情模态框样式
+.itinerary-planning-detail {
+  padding: 10px 0;
+}
+
+.overview-section {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #f0f0f0;
+
+  h3 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: #333;
+  }
+
+  p {
+    color: #666;
+    line-height: 1.8;
+  }
+}
+
+.daily-schedule-section {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #f0f0f0;
+
+  h3 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: #333;
+  }
+}
+
+.schedule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.day-schedule-card {
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #ffa940;
+  transition: all 0.3s;
+
+  &:hover {
+    background: #f0f0f0;
+    transform: translateX(4px);
+  }
+}
+
+.day-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+
+  h4 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+  }
+
+  .day-theme {
+    padding: 4px 12px;
+    background: #fff7e6;
+    color: #fa8c16;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+}
+
+.day-content {
+  margin-bottom: 8px;
+  color: #666;
+  line-height: 1.6;
+
+  p {
+    margin: 0;
+  }
+
+  strong {
+    color: #333;
+    font-weight: 600;
+  }
+}
+
+.day-spots {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e0e0e0;
+
+  strong {
+    display: block;
+    margin-bottom: 8px;
+    color: #333;
+    font-weight: 600;
+  }
+}
+
+.packing-list-section {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #f0f0f0;
+
+  h3 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: #333;
+  }
+}
+
+.packing-list {
+  margin: 0;
+  padding-left: 20px;
+  color: #666;
+  line-height: 1.8;
+
+  li {
+    margin-bottom: 8px;
+  }
+}
+
+.local-tips-section {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #f0f0f0;
+
+  h3 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: #333;
+  }
+
+  p {
+    color: #666;
+    line-height: 1.8;
   }
 }
 </style>
