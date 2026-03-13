@@ -33,7 +33,13 @@
               />
             </div>
             <div v-else class="image-preview">
-              <img :src="uploadedImage" :alt="uploadedFileName" />
+              <a-image
+                :src="uploadedImage"
+                :alt="uploadedFileName"
+                :preview="true"
+                class="upload-preview-image"
+                :fallback="uploadedImage"
+              />
               <button type="button" class="remove-btn" @click="clearImage">✕ 重新选择</button>
             </div>
           </div>
@@ -148,21 +154,25 @@
           <div class="image-comparison">
             <div class="comparison-item">
               <div class="label">原始照片</div>
-              <img
+              <a-image
                 v-if="uploadedImage"
                 :src="uploadedImage"
                 :alt="uploadedFileName"
+                :preview="true"
                 class="comparison-image"
+                :fallback="uploadedImage"
               />
             </div>
             <div class="arrow">→</div>
             <div class="comparison-item">
               <div class="label">{{ result.style }} 风格效果</div>
-              <img
+              <a-image
                 v-if="result.modifiedImageUrl"
                 :src="result.modifiedImageUrl"
                 alt="修改后的图片"
+                :preview="true"
                 class="comparison-image modified-preview"
+                :fallback="result.modifiedImageUrl"
               />
             </div>
           </div>
@@ -652,10 +662,23 @@ const formatTime = (timestamp: string): string => {
 .image-preview {
   position: relative;
 
-  img {
+  .upload-preview-image {
     max-width: 100%;
     max-height: 300px;
     border-radius: 8px;
+    cursor: pointer;
+    display: block;
+
+    :deep(.ant-image-img) {
+      max-width: 100%;
+      max-height: 300px;
+      border-radius: 8px;
+      object-fit: cover;
+    }
+
+    &:hover {
+      opacity: 0.9;
+    }
   }
 
   .remove-btn {
@@ -901,16 +924,27 @@ const formatTime = (timestamp: string): string => {
   max-width: 100%;
   max-height: 300px;
   border-radius: 6px;
-  object-fit: cover;
   border: 1px solid #e0e0e0;
   transition: all 0.3s;
+  cursor: pointer;
+  display: block;
+
+  :deep(.ant-image-img) {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 6px;
+    object-fit: cover;
+  }
 
   &:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: scale(1.02);
   }
 
   &.modified-preview {
-    filter: brightness(100%) contrast(1) saturate(1);
+    :deep(.ant-image-img) {
+      filter: brightness(100%) contrast(1) saturate(1);
+    }
   }
 }
 
