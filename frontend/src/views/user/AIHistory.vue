@@ -46,14 +46,19 @@
               <span class="count-badge">{{ virtualTryOn.pagination.total }} 条</span>
             </div>
             <div class="card-grid">
-              <div
-                v-for="item in virtualTryOn.items"
-                :key="`vto-${item.id}`"
-                class="history-card"
-                @click="openVirtualTryOnDetail(item)"
-              >
+              <div v-for="item in virtualTryOn.items" :key="`vto-${item.id}`" class="history-card">
                 <div class="card-type-tag vto">虚拍</div>
-                <div class="card-body">
+                <a-button
+                  type="text"
+                  danger
+                  size="small"
+                  class="delete-btn"
+                  @click.stop="handleDelete('virtual-try-on', item.id)"
+                  :loading="deletingIds.has(`vto-${item.id}`)"
+                >
+                  🗑️
+                </a-button>
+                <div class="card-body" @click="openVirtualTryOnDetail(item)">
                   <div class="card-main">
                     <div class="thumb" v-if="getImageUrl(item)">
                       <a-image
@@ -116,10 +121,19 @@
                 v-for="item in styleRecommendation.items"
                 :key="`sr-${item.id}`"
                 class="history-card"
-                @click="openStyleRecommendationDetail(item)"
               >
                 <div class="card-type-tag sr">风格推荐</div>
-                <div class="card-body">
+                <a-button
+                  type="text"
+                  danger
+                  size="small"
+                  class="delete-btn"
+                  @click.stop="handleDelete('style-recommendation', item.id)"
+                  :loading="deletingIds.has(`sr-${item.id}`)"
+                >
+                  🗑️
+                </a-button>
+                <div class="card-body" @click="openStyleRecommendationDetail(item)">
                   <div class="meta">
                     <div class="meta-title">
                       偏好：<span class="highlight single-line">{{ item.preferences }}</span>
@@ -176,10 +190,19 @@
                 v-for="item in itineraryPlanning.items"
                 :key="`ip-${item.id}`"
                 class="history-card"
-                @click="openItineraryPlanningDetail(item)"
               >
                 <div class="card-type-tag ip">行程规划</div>
-                <div class="card-body">
+                <a-button
+                  type="text"
+                  danger
+                  size="small"
+                  class="delete-btn"
+                  @click.stop="handleDelete('itinerary-planning', item.id)"
+                  :loading="deletingIds.has(`ip-${item.id}`)"
+                >
+                  🗑️
+                </a-button>
+                <div class="card-body" @click="openItineraryPlanningDetail(item)">
                   <div class="meta">
                     <div class="meta-title">
                       目的地：
@@ -231,10 +254,19 @@
                 v-for="item in currentList.items"
                 :key="`vto-single-${item.id}`"
                 class="history-card"
-                @click="openVirtualTryOnDetail(item)"
               >
                 <div class="card-type-tag vto">虚拍</div>
-                <div class="card-body">
+                <a-button
+                  type="text"
+                  danger
+                  size="small"
+                  class="delete-btn"
+                  @click.stop="handleDelete('virtual-try-on', item.id)"
+                  :loading="deletingIds.has(`vto-single-${item.id}`)"
+                >
+                  🗑️
+                </a-button>
+                <div class="card-body" @click="openVirtualTryOnDetail(item)">
                   <div class="card-main">
                     <div class="thumb" v-if="getImageUrl(item)">
                       <a-image
@@ -280,10 +312,19 @@
                 v-for="item in currentList.items"
                 :key="`sr-single-${item.id}`"
                 class="history-card"
-                @click="openStyleRecommendationDetail(item)"
               >
                 <div class="card-type-tag sr">风格推荐</div>
-                <div class="card-body">
+                <a-button
+                  type="text"
+                  danger
+                  size="small"
+                  class="delete-btn"
+                  @click.stop="handleDelete('style-recommendation', item.id)"
+                  :loading="deletingIds.has(`sr-single-${item.id}`)"
+                >
+                  🗑️
+                </a-button>
+                <div class="card-body" @click="openStyleRecommendationDetail(item)">
                   <div class="meta">
                     <div class="meta-title">
                       偏好：<span class="highlight single-line">{{ item.preferences }}</span>
@@ -321,10 +362,19 @@
                 v-for="item in currentList.items"
                 :key="`ip-single-${item.id}`"
                 class="history-card"
-                @click="openItineraryPlanningDetail(item)"
               >
                 <div class="card-type-tag ip">行程规划</div>
-                <div class="card-body">
+                <a-button
+                  type="text"
+                  danger
+                  size="small"
+                  class="delete-btn"
+                  @click.stop="handleDelete('itinerary-planning', item.id)"
+                  :loading="deletingIds.has(`ip-single-${item.id}`)"
+                >
+                  🗑️
+                </a-button>
+                <div class="card-body" @click="openItineraryPlanningDetail(item)">
                   <div class="meta">
                     <div class="meta-title">
                       目的地：
@@ -670,7 +720,7 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, onMounted } from 'vue';
-import { message } from 'ant-design-vue';
+import { message, Modal } from 'ant-design-vue';
 import { aiApi, AiHistoryType } from '@/api/ai';
 
 type Pagination = {
@@ -729,6 +779,7 @@ const styleRecommendationModalVisible = ref(false);
 const selectedStyleRecommendation = ref<StyleRecommendationHistory | null>(null);
 const itineraryPlanningModalVisible = ref(false);
 const selectedItineraryPlanning = ref<ItineraryPlanningHistory | null>(null);
+const deletingIds = ref<Set<string>>(new Set());
 
 const virtualTryOn = reactive<ListWithPagination<VirtualTryOnHistory>>({
   items: [],
@@ -1057,6 +1108,56 @@ const closeItineraryPlanningDetail = () => {
   selectedItineraryPlanning.value = null;
 };
 
+// 删除历史记录
+const handleDelete = async (
+  type: 'virtual-try-on' | 'style-recommendation' | 'itinerary-planning',
+  id: number
+) => {
+  Modal.confirm({
+    title: '确认删除',
+    content: '确定要删除这条历史记录吗？删除后无法恢复。',
+    okText: '删除',
+    okType: 'danger',
+    cancelText: '取消',
+    onOk: async () => {
+      // 根据类型和标签页生成唯一key
+      const keyPrefix =
+        activeTab.value === 'all'
+          ? type === 'virtual-try-on'
+            ? 'vto'
+            : type === 'style-recommendation'
+              ? 'sr'
+              : 'ip'
+          : type === 'virtual-try-on'
+            ? 'vto-single'
+            : type === 'style-recommendation'
+              ? 'sr-single'
+              : 'ip-single';
+      const deleteKey = `${keyPrefix}-${id}`;
+
+      deletingIds.value.add(deleteKey);
+
+      try {
+        await aiApi.deleteHistory(type, id);
+        message.success('删除成功');
+
+        // 刷新当前列表
+        if (activeTab.value === 'all') {
+          fetchHistory('all');
+        } else {
+          const list = currentList.value;
+          fetchHistory(activeTab.value, list.pagination.page, list.pagination.pageSize);
+        }
+      } catch (error: any) {
+        console.error('[AIHistory] 删除失败:', error);
+        message.error(error?.message || '删除失败，请稍后重试');
+      } finally {
+        deletingIds.value.delete(deleteKey);
+      }
+    },
+  });
+};
+
 onMounted(() => {
   fetchHistory('all');
 });
@@ -1209,6 +1310,33 @@ onMounted(() => {
   &:hover {
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
     transform: translateY(-2px);
+
+    .delete-btn {
+      opacity: 1;
+    }
+  }
+
+  .delete-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.3s;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(4px);
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+
+    &:hover {
+      background: rgba(255, 77, 79, 0.1);
+      opacity: 1 !important;
+    }
   }
 }
 

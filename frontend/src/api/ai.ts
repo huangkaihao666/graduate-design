@@ -69,4 +69,12 @@ export const aiApi = {
     httpClient.get('/ai/history', {
       params,
     }),
+
+  /**
+   * 删除 AI 生成历史
+   */
+  deleteHistory: (
+    type: 'virtual-try-on' | 'style-recommendation' | 'itinerary-planning',
+    id: number
+  ) => httpClient.delete(`/ai/history/${type}/${id}`),
 };

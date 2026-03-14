@@ -1,9 +1,12 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpException,
   HttpStatus,
+  Param,
+  ParseIntPipe,
   Post,
   Query,
   Req,
@@ -297,6 +300,67 @@ export class AiController {
         {
           statusCode: error.status || 400,
           message: error.message || '获取历史记录失败',
+        },
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
+   * 删除 AI 生成历史
+   */
+  @UseGuards(JwtAuthGuard)
+  @Delete('history/:type/:id')
+  async deleteHistory(
+    @Param('type')
+    type: 'virtual-try-on' | 'style-recommendation' | 'itinerary-planning',
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
+  ) {
+    try {
+      const userId = req.user?.sub ? parseInt(req.user.sub, 10) : undefined;
+
+      if (!userId) {
+        throw new HttpException(
+          {
+            statusCode: 401,
+            message: '未登录用户无法删除历史记录',
+          },
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+
+      if (type === 'virtual-try-on') {
+        await this.aiService.deleteVirtualTryOnHistory(id, userId);
+      } else if (type === 'style-recommendation') {
+        await this.aiService.deleteStyleRecommendationHistory(id, userId);
+      } else if (type === 'itinerary-planning') {
+        await this.aiService.deleteItineraryPlanningHistory(id, userId);
+      } else {
+        throw new HttpException(
+          {
+            statusCode: 400,
+            message: '无效的历史记录类型',
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      return {
+        statusCode: 200,
+        message: '历史记录删除成功',
+        data: {
+          id,
+          type,
+          deletedAt: new Date().toISOString(),
+        },
+      };
+    } catch (error: any) {
+      console.error('[AI Controller] 删除历史记录失败:', error);
+      throw new HttpException(
+        {
+          statusCode: error.status || 400,
+          message: error.message || '删除历史记录失败',
         },
         error.status || HttpStatus.BAD_REQUEST,
       );

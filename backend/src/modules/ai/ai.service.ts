@@ -907,4 +907,79 @@ export class AiService {
       },
     };
   }
+
+  /**
+   * 删除虚拍历史记录
+   */
+  async deleteVirtualTryOnHistory(id: number, userId: number): Promise<void> {
+    const history = await this.prisma.virtualTryOnHistory.findFirst({
+      where: { id, userId },
+    });
+
+    if (!history) {
+      throw new HttpException(
+        {
+          statusCode: 404,
+          message: '历史记录不存在或无权访问',
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    await this.prisma.virtualTryOnHistory.delete({
+      where: { id },
+    });
+  }
+
+  /**
+   * 删除风格推荐历史记录
+   */
+  async deleteStyleRecommendationHistory(
+    id: number,
+    userId: number,
+  ): Promise<void> {
+    const history = await this.prisma.styleRecommendationHistory.findFirst({
+      where: { id, userId },
+    });
+
+    if (!history) {
+      throw new HttpException(
+        {
+          statusCode: 404,
+          message: '历史记录不存在或无权访问',
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    await this.prisma.styleRecommendationHistory.delete({
+      where: { id },
+    });
+  }
+
+  /**
+   * 删除行程规划历史记录
+   */
+  async deleteItineraryPlanningHistory(
+    id: number,
+    userId: number,
+  ): Promise<void> {
+    const history = await this.prisma.itineraryPlanningHistory.findFirst({
+      where: { id, userId },
+    });
+
+    if (!history) {
+      throw new HttpException(
+        {
+          statusCode: 404,
+          message: '历史记录不存在或无权访问',
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    await this.prisma.itineraryPlanningHistory.delete({
+      where: { id },
+    });
+  }
 }
