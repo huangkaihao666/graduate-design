@@ -55,14 +55,18 @@
                 <div class="card-type-tag vto">虚拍</div>
                 <div class="card-body">
                   <div class="card-main">
-                    <div class="thumb" v-if="item.modifiedImageUrl || item.imageUrl">
+                    <div class="thumb" v-if="getImageUrl(item)">
                       <a-image
-                        :src="item.modifiedImageUrl || item.imageUrl"
+                        :src="getImageUrl(item)!"
                         alt="预览"
                         :preview="true"
                         class="thumb-image"
-                        :fallback="item.modifiedImageUrl || item.imageUrl"
+                        :fallback="getImageUrl(item)!"
+                        @error="(e: any) => handleImageError(e, item)"
                       />
+                    </div>
+                    <div v-else class="thumb no-image-placeholder">
+                      <span class="placeholder-text">暂无图片</span>
                     </div>
                     <div class="meta">
                       <div class="meta-title">
@@ -232,14 +236,18 @@
                 <div class="card-type-tag vto">虚拍</div>
                 <div class="card-body">
                   <div class="card-main">
-                    <div class="thumb" v-if="item.modifiedImageUrl || item.imageUrl">
+                    <div class="thumb" v-if="getImageUrl(item)">
                       <a-image
-                        :src="item.modifiedImageUrl || item.imageUrl"
+                        :src="getImageUrl(item)!"
                         alt="预览"
                         :preview="true"
                         class="thumb-image"
-                        :fallback="item.modifiedImageUrl || item.imageUrl"
+                        :fallback="getImageUrl(item)!"
+                        @error="(e: any) => handleImageError(e, item)"
                       />
+                    </div>
+                    <div v-else class="thumb no-image-placeholder">
+                      <span class="placeholder-text">暂无图片</span>
                     </div>
                     <div class="meta">
                       <div class="meta-title">
@@ -379,6 +387,7 @@
                 :preview="true"
                 class="detail-image"
                 :fallback="selectedVirtualTryOn.imageUrl"
+                @error="(e: any) => handleImageError(e, selectedVirtualTryOn)"
               />
               <div v-else class="no-image">暂无原始照片</div>
             </div>
@@ -390,12 +399,13 @@
             </div>
             <div class="image-wrapper">
               <a-image
-                v-if="selectedVirtualTryOn.modifiedImageUrl"
-                :src="selectedVirtualTryOn.modifiedImageUrl"
+                v-if="getImageUrl(selectedVirtualTryOn)"
+                :src="getImageUrl(selectedVirtualTryOn)!"
                 alt="生成效果"
                 :preview="true"
                 class="detail-image"
-                :fallback="selectedVirtualTryOn.modifiedImageUrl"
+                :fallback="getImageUrl(selectedVirtualTryOn)!"
+                @error="(e: any) => handleImageError(e, selectedVirtualTryOn)"
               />
               <div v-else class="no-image">暂无生成效果</div>
             </div>
@@ -821,6 +831,106 @@ const formatPreferences = (preferences: any): string => {
   return parts.length > 0 ? parts.join(' | ') : '无';
 };
 
+// 智能选择图片URL：优先显示生成后的图片，避免外部URL过期时回退到base64
+const getImageUrl = (item: VirtualTryOnHistory): string | null => {
+  if (!item) return null;
+
+  // 策略1: 优先使用修改后的图片（无论是base64还是外部URL）
+  if (item.modifiedImageUrl && typeof item.modifiedImageUrl === 'string') {
+    const modifiedUrl = item.modifiedImageUrl.trim();
+    if (
+      modifiedUrl &&
+      modifiedUrl !== '' &&
+      modifiedUrl !== 'null' &&
+      modifiedUrl !== 'undefined'
+    ) {
+      // 优先使用base64格式的修改后图片（永久有效）
+      if (modifiedUrl.startsWith('data:')) {
+        return modifiedUrl;
+      }
+      // 使用外部URL的修改后图片（可能过期，但优先于原始图片）
+      if (modifiedUrl.startsWith('http')) {
+        return modifiedUrl;
+      }
+    }
+  }
+
+  // 策略2: 如果没有修改后的图片，才使用原始图片
+  if (item.imageUrl && typeof item.imageUrl === 'string') {
+    const originalUrl = item.imageUrl.trim();
+    if (
+      originalUrl &&
+      originalUrl !== '' &&
+      originalUrl !== 'null' &&
+      originalUrl !== 'undefined'
+    ) {
+      // 优先使用base64格式的原始图片（永久有效）
+      if (originalUrl.startsWith('data:')) {
+        return originalUrl;
+      }
+      // 使用外部URL的原始图片（最后的选择）
+      if (originalUrl.startsWith('http')) {
+        return originalUrl;
+      }
+    }
+  }
+
+  return null;
+};
+
+// 处理图片加载错误：外部URL失败时优先尝试base64格式的生成图片
+const handleImageError = (event: any, item: VirtualTryOnHistory) => {
+  const img = event.target as HTMLImageElement;
+  const failedSrc = img.src;
+
+  console.warn('[handleImageError] 图片加载失败，尝试回退:', {
+    id: item.id,
+    failedSrc: failedSrc.substring(0, 100),
+    hasModifiedBase64: item.modifiedImageUrl?.startsWith('data:'),
+    hasOriginalBase64: item.imageUrl?.startsWith('data:'),
+  });
+
+  // 如果失败的是修改后的图片URL（外部URL过期）
+  if (failedSrc === item.modifiedImageUrl || failedSrc.includes(item.modifiedImageUrl || '')) {
+    // 优先尝试base64格式的修改后图片（生成图片的base64版本）
+    if (item.modifiedImageUrl && item.modifiedImageUrl.startsWith('data:')) {
+      console.log('[handleImageError] 使用base64格式的生成图片');
+      img.src = item.modifiedImageUrl;
+      return;
+    }
+    // 如果没有base64格式的生成图片，尝试使用原始图片（作为最后的选择）
+    if (item.imageUrl && item.imageUrl !== failedSrc) {
+      console.log('[handleImageError] 回退到原始图片');
+      img.src = item.imageUrl;
+      return;
+    }
+  }
+
+  // 如果失败的是外部URL（可能是原始图片的外部URL）
+  if (failedSrc.startsWith('http')) {
+    // 优先尝试base64格式的修改后图片（生成图片）
+    if (item.modifiedImageUrl && item.modifiedImageUrl.startsWith('data:')) {
+      console.log('[handleImageError] 使用base64格式的生成图片');
+      img.src = item.modifiedImageUrl;
+      return;
+    }
+    // 如果没有base64格式的生成图片，尝试base64格式的原始图片
+    if (item.imageUrl && item.imageUrl.startsWith('data:')) {
+      console.log('[handleImageError] 使用base64格式的原始图片');
+      img.src = item.imageUrl;
+      return;
+    }
+  }
+
+  // 如果都失败了，隐藏图片并显示占位符
+  console.error('[handleImageError] 所有图片URL都失败，显示占位符');
+  img.style.display = 'none';
+  const placeholder = document.createElement('div');
+  placeholder.className = 'thumb no-image-placeholder';
+  placeholder.innerHTML = '<span class="placeholder-text">图片已过期</span>';
+  img.parentElement?.appendChild(placeholder);
+};
+
 const fetchHistory = async (type: AiHistoryType, page?: number, pageSize?: number) => {
   loading.value = true;
   try {
@@ -1141,6 +1251,10 @@ onMounted(() => {
   border-radius: 8px;
   overflow: hidden;
   background: #f5f5f5;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   .thumb-image {
     width: 100%;
@@ -1159,7 +1273,17 @@ onMounted(() => {
       opacity: 0.9;
     }
   }
-  flex-shrink: 0;
+
+  &.no-image-placeholder {
+    background: #f0f0f0;
+    border: 1px dashed #d9d9d9;
+
+    .placeholder-text {
+      font-size: 0.75rem;
+      color: #999;
+      text-align: center;
+    }
+  }
 
   img {
     width: 100%;

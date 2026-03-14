@@ -666,6 +666,38 @@ export class AiService {
   }
 
   /**
+   * 将外部URL的图片转换为base64格式
+   */
+  private async convertImageUrlToBase64(
+    imageUrl: string,
+  ): Promise<string | null> {
+    try {
+      // 如果已经是base64格式，直接返回
+      if (imageUrl.startsWith('data:')) {
+        return imageUrl;
+      }
+
+      // 如果是外部URL，下载并转换为base64
+      if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+        const response = await axios.get(imageUrl, {
+          responseType: 'arraybuffer',
+          timeout: 10000, // 10秒超时
+        });
+
+        const buffer = Buffer.from(response.data);
+        const contentType = response.headers['content-type'] || 'image/jpeg';
+        const base64 = buffer.toString('base64');
+        return `data:${contentType};base64,${base64}`;
+      }
+
+      return imageUrl;
+    } catch (error) {
+      console.error('[AI Service] 转换图片为base64失败:', error);
+      return null;
+    }
+  }
+
+  /**
    * 保存虚拍历史记录
    */
   async saveVirtualTryOnHistory(
@@ -676,12 +708,32 @@ export class AiService {
     errorMessage?: string,
   ): Promise<any> {
     try {
+      // 处理生成图片URL：如果是外部URL，转换为base64格式保存
+      let modifiedImageUrl = result?.modifiedImageUrl || undefined;
+      if (modifiedImageUrl && typeof modifiedImageUrl === 'string') {
+        // 如果是外部URL，转换为base64格式
+        if (
+          modifiedImageUrl.startsWith('http://') ||
+          modifiedImageUrl.startsWith('https://')
+        ) {
+          console.log('[AI Service] 检测到外部URL，转换为base64格式保存');
+          const base64Url =
+            await this.convertImageUrlToBase64(modifiedImageUrl);
+          if (base64Url) {
+            modifiedImageUrl = base64Url;
+          } else {
+            // 如果转换失败，仍然保存原始URL（至少可以尝试加载）
+            console.warn('[AI Service] base64转换失败，保存原始URL');
+          }
+        }
+      }
+
       return await this.prisma.virtualTryOnHistory.create({
         data: {
           imageUrl: data.imageUrl,
           style: data.style,
           preferences: data.preferences || undefined,
-          modifiedImageUrl: result?.modifiedImageUrl || undefined,
+          modifiedImageUrl: modifiedImageUrl,
           virtualAdvice: result?.virtualAdvice || undefined,
           makeupAdvice: result?.makeupAdvice || undefined,
           hairstyleAdvice: result?.hairstyleAdvice || undefined,
