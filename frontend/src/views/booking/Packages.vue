@@ -162,6 +162,15 @@
         >
           <div v-if="pkg.isPopular" class="card-badge">🔥 热门</div>
           <div v-if="pkg.isHot" class="card-badge hot">⭐ 推荐</div>
+          <a-button
+            v-if="authStore.isAuthenticated"
+            type="text"
+            :class="['favorite-btn', { active: favoritePackageIds.has(pkg.id) }]"
+            :loading="favoriteLoading.has(pkg.id)"
+            @click.stop="handleToggleFavorite(pkg)"
+          >
+            {{ favoritePackageIds.has(pkg.id) ? '❤️' : '🤍' }}
+          </a-button>
           <div class="card-image">
             <a-image
               :src="pkg.coverImage"
@@ -348,6 +357,7 @@
 </template>
 
 <script setup lang="ts">
+import { favoritesApi } from '@/api/favorites';
 import { type Package } from '@/api/packages';
 import { useAuthStore } from '@/store/auth';
 import { message } from 'ant-design-vue';
@@ -364,6 +374,8 @@ const searchKeyword = ref('');
 const packages = ref<Package[]>([]);
 const detailModalVisible = ref(false);
 const selectedPackage = ref<Package | null>(null);
+const favoritePackageIds = ref<Set<number>>(new Set());
+const favoriteLoading = ref<Set<number>>(new Set());
 
 const filters = reactive({
   style: undefined as string | undefined,
@@ -449,7 +461,7 @@ const handlePageChange = (page: number, pageSize: number) => {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
-const handlePageSizeChange = (current: number, size: number) => {
+const handlePageSizeChange = (_current: number, size: number) => {
   pagination.page = 1;
   pagination.pageSize = size;
   fetchPackages();
@@ -474,7 +486,7 @@ const fetchPackages = async () => {
     // pagination.total = response.data.pagination.total;
 
     // 模拟数据
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => window.setTimeout(resolve, 500));
     const mockPackages = generateMockPackages();
     let filtered = mockPackages;
 
@@ -619,10 +631,58 @@ const handleBook = (pkg: Package) => {
   router.push(`/booking/order?packageId=${pkg.id}`);
 };
 
+// 加载收藏状态
+const loadFavoriteStatus = async () => {
+  if (!authStore.isAuthenticated) {
+    return;
+  }
+  try {
+    const response: any = await favoritesApi.getFavoritePackageIds();
+    const data = response?.data?.data || response?.data || response;
+    if (data?.packageIds && Array.isArray(data.packageIds)) {
+      favoritePackageIds.value = new Set(data.packageIds);
+    }
+  } catch (error: any) {
+    console.error('加载收藏状态失败:', error);
+  }
+};
+
+// 切换收藏状态
+const handleToggleFavorite = async (pkg: Package) => {
+  if (!authStore.isAuthenticated) {
+    message.warning('请先登录后再收藏');
+    router.push('/login');
+    return;
+  }
+
+  const isFavorite = favoritePackageIds.value.has(pkg.id);
+  favoriteLoading.value.add(pkg.id);
+
+  try {
+    if (isFavorite) {
+      // 取消收藏
+      await favoritesApi.removeFavoriteByPackageId(pkg.id);
+      favoritePackageIds.value.delete(pkg.id);
+      message.success('已取消收藏');
+    } else {
+      // 添加收藏
+      await favoritesApi.addFavorite(pkg.id);
+      favoritePackageIds.value.add(pkg.id);
+      message.success('收藏成功');
+    }
+  } catch (error: any) {
+    console.error('收藏操作失败:', error);
+    message.error(error?.response?.data?.message || '操作失败，请稍后重试');
+  } finally {
+    favoriteLoading.value.delete(pkg.id);
+  }
+};
+
 onMounted(() => {
   authStore.initializeAuth();
   window.addEventListener('scroll', handleScroll);
   fetchPackages();
+  loadFavoriteStatus();
 });
 </script>
 
@@ -969,6 +1029,53 @@ onMounted(() => {
     }
   }
 
+  .favorite-btn {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    z-index: 3;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    border: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s;
+    cursor: pointer;
+
+    &:hover {
+      background: rgba(255, 255, 255, 1);
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    &.active {
+      background: rgba(255, 77, 79, 0.1);
+      animation: heartBeat 0.5s ease-in-out;
+    }
+  }
+
+  @keyframes heartBeat {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    25% {
+      transform: scale(1.2);
+    }
+    50% {
+      transform: scale(1);
+    }
+    75% {
+      transform: scale(1.1);
+    }
+  }
+
   .card-image {
     position: relative;
     width: 100%;
@@ -1053,6 +1160,7 @@ onMounted(() => {
       margin-bottom: 15px;
       display: -webkit-box;
       -webkit-line-clamp: 2;
+      line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
     }

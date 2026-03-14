@@ -6,9 +6,17 @@ import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AiModule } from './modules/ai/ai.module';
+import { FavoritesModule } from './modules/favorites/favorites.module';
 
 @Module({
-  imports: [PrismaModule, HealthModule, UsersModule, AuthModule, AiModule],
+  imports: [
+    PrismaModule,
+    HealthModule,
+    UsersModule,
+    AuthModule,
+    AiModule,
+    FavoritesModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

@@ -57,8 +57,8 @@
                   danger
                   size="small"
                   class="delete-btn"
-                  @click.stop="handleRemoveFavorite('packages', item.id)"
-                  :loading="removingIds.has(`pkg-${item.id}`)"
+                  @click.stop="handleRemoveFavorite('packages', item.favoriteId || item.id)"
+                  :loading="removingIds.has(`pkg-${item.favoriteId || item.id}`)"
                 >
                   🗑️
                 </a-button>
@@ -293,7 +293,7 @@
                   danger
                   size="small"
                   class="delete-btn"
-                  @click.stop="handleRemoveFavorite('packages', item.id)"
+                  @click.stop="handleRemoveFavorite('packages', item.favoriteId || item.id)"
                   :loading="removingIds.has(`pkg-single-${item.id}`)"
                 >
                   🗑️
@@ -690,6 +690,8 @@ import { message } from 'ant-design-vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/store/auth';
 import type { Package } from '@/api/packages';
+import { favoritesApi } from '@/api/favorites';
+import { packagesApi } from '@/api/packages';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -707,6 +709,7 @@ type ListWithPagination<T> = {
 
 type FavoritePackage = Package & {
   favoritedAt: string;
+  favoriteId?: number; // 收藏记录的ID，用于删除操作
 };
 
 type FavoriteSpot = {
@@ -817,24 +820,173 @@ const handlePageChange = (type: string, page: number, pageSize: number) => {
   refresh();
 };
 
+// 生成模拟套餐数据（用于根据ID查找套餐）
+const generateMockPackageById = (id: number): Package | null => {
+  const locations = ['三亚', '大理', '丽江', '厦门', '青岛', '巴厘岛', '普吉岛'];
+  const styles = ['romantic', 'artistic', 'bohemian', 'minimalist', 'classical', 'adventure'];
+  const imageUrls = [
+    'https://images.unsplash.com/photo-1519741497674-611481863552?w=600&h=400&fit=crop&auto=format&q=80',
+    'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=600&h=400&fit=crop&auto=format&q=80',
+    'https://images.unsplash.com/photo-1581338834647-b0fb40704e21?w=600&h=400&fit=crop&auto=format&q=80',
+    'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=600&h=400&fit=crop&auto=format&q=80',
+  ];
+
+  const location = locations[id % locations.length];
+  const style = styles[id % styles.length];
+  const duration = [1, 2, 3, 5, 7][id % 5];
+  const basePrice = [2999, 3999, 4999, 5999, 6999, 8999, 12999][id % 7];
+  const hasDiscount = id % 2 === 0;
+
+  return {
+    id,
+    name: `${location}${duration}日${getStyleName(style)}旅拍套餐`,
+    description: `精选${location}最美景点，专业摄影师全程跟拍，${duration}天${duration > 1 ? '深度' : ''}体验，为您打造难忘的旅拍回忆。包含专业化妆、精美服装、后期精修等服务。`,
+    price: hasDiscount ? Math.floor(basePrice * 0.8) : basePrice,
+    originalPrice: hasDiscount ? basePrice : undefined,
+    duration,
+    location,
+    style,
+    coverImage: imageUrls[id % imageUrls.length],
+    images: [],
+    features: [
+      '专业摄影师全程跟拍',
+      '精美婚纱礼服提供',
+      '专业化妆造型服务',
+      '精修照片30张以上',
+      '视频花絮制作',
+    ],
+    includes: [
+      '专业摄影师服务',
+      '化妆造型服务',
+      '精美婚纱礼服',
+      '景点门票',
+      '精修照片30张',
+      '视频花絮',
+    ],
+    excludes: ['往返交通', '住宿费用', '餐饮费用'],
+    maxPeople: [2, 4, 6][id % 3],
+    isPopular: id <= 3,
+    isHot: id > 3 && id <= 6,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+};
+
 // 刷新
-const refresh = () => {
-  // TODO: 实现数据加载
-  console.log('刷新收藏列表');
+const refresh = async () => {
+  if (!authStore.isAuthenticated) {
+    return;
+  }
+
+  loading.value = true;
+  try {
+    if (activeTab.value === 'all' || activeTab.value === 'packages') {
+      await fetchPackages();
+    }
+    // TODO: 实现景点和行程的收藏功能
+  } catch (error: any) {
+    console.error('刷新收藏列表失败:', error);
+    message.error(error?.message || '刷新失败');
+  } finally {
+    loading.value = false;
+  }
+};
+
+// 加载套餐收藏
+const fetchPackages = async () => {
+  try {
+    const response: any = await favoritesApi.getFavorites({
+      page: packages.pagination.page,
+      pageSize: packages.pagination.pageSize,
+    });
+
+    console.log('[Favorites] API响应数据:', response);
+
+    // httpClient 的响应拦截器已经返回了 response.data
+    // 后端返回格式: { statusCode: 200, message: '...', data: { items: [...], pagination: {...} } }
+    // httpClient 拦截器返回 response.data，所以这里收到的是: { statusCode: 200, message: '...', data: { items: [...], pagination: {...} } }
+    // 需要访问 response.data 来获取实际的收藏数据
+    const data = response?.data || response;
+
+    console.log('[Favorites] 解析后的数据:', data);
+    console.log('[Favorites] data.data:', data?.data);
+    console.log('[Favorites] items:', data?.data?.items);
+    console.log('[Favorites] pagination:', data?.data?.pagination);
+
+    // 实际的数据在 data.data 中
+    const favoritesData = data?.data || data;
+
+    if (favoritesData && favoritesData.items && Array.isArray(favoritesData.items)) {
+      console.log('[Favorites] 找到收藏记录数量:', favoritesData.items.length);
+
+      // 将收藏记录转换为套餐数据
+      const favoritePackages: FavoritePackage[] = [];
+
+      for (const favorite of favoritesData.items) {
+        console.log('[Favorites] 处理收藏记录:', favorite);
+        // TODO: 如果有真实的套餐API，应该调用 packagesApi.getPackageDetail(favorite.packageId)
+        // 目前使用模拟数据
+        const pkg = generateMockPackageById(favorite.packageId);
+        if (pkg) {
+          favoritePackages.push({
+            ...pkg,
+            favoritedAt: favorite.createdAt,
+            favoriteId: favorite.id, // 保存收藏记录的ID，用于删除操作
+          });
+        } else {
+          console.warn('[Favorites] 无法生成套餐数据，packageId:', favorite.packageId);
+        }
+      }
+
+      console.log('[Favorites] 转换后的套餐数量:', favoritePackages.length);
+      packages.items = favoritePackages;
+      packages.pagination = {
+        total: favoritesData.pagination?.total || 0,
+        page: favoritesData.pagination?.page || 1,
+        pageSize: favoritesData.pagination?.pageSize || 12,
+      };
+    } else {
+      console.warn('[Favorites] 没有找到有效的收藏数据');
+      // 如果没有数据，清空列表
+      packages.items = [];
+      packages.pagination.total = 0;
+    }
+  } catch (error: any) {
+    console.error('获取套餐收藏失败:', error);
+    const errorMessage = error?.message || error?.response?.data?.message || '获取收藏列表失败';
+    message.error(errorMessage);
+    // 发生错误时清空列表
+    packages.items = [];
+    packages.pagination.total = 0;
+  }
 };
 
 // 删除收藏
 const handleRemoveFavorite = async (type: string, id: number) => {
-  // TODO: 实现删除收藏功能
+  if (!authStore.isAuthenticated) {
+    message.warning('请先登录');
+    router.push('/login');
+    return;
+  }
+
   const key = `${type}-${id}`;
   removingIds.value.add(key);
 
   try {
-    // await favoritesApi.removeFavorite(type, id);
+    if (type === 'packages') {
+      // 通过收藏ID删除
+      await favoritesApi.removeFavorite(id);
+    } else {
+      // TODO: 实现景点和行程的删除
+      message.warning('该功能暂未实现');
+      return;
+    }
+
     message.success('已取消收藏');
-    refresh();
+    await refresh();
   } catch (error: any) {
-    message.error(error?.message || '取消收藏失败');
+    console.error('删除收藏失败:', error);
+    message.error(error?.response?.data?.message || '取消收藏失败');
   } finally {
     removingIds.value.delete(key);
   }
@@ -885,8 +1037,12 @@ const handleBook = (pkg: FavoritePackage) => {
 
 onMounted(() => {
   authStore.initializeAuth();
-  // TODO: 加载收藏数据
-  refresh();
+  if (authStore.isAuthenticated) {
+    refresh();
+  } else {
+    message.warning('请先登录后查看收藏');
+    router.push('/login');
+  }
 });
 </script>
 
