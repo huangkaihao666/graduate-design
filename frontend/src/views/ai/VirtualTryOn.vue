@@ -313,12 +313,21 @@ onMounted(async () => {
   restoreStateFromStorage();
 
   try {
-    const response = await aiApi.getStyles();
-    // 响应拦截器已经返回了 response.data，所以直接使用 response.styles
-    availableStyles.value = response?.styles || response?.data?.styles || [];
+    const response: any = await aiApi.getStyles();
+    // 后端返回格式: { statusCode: 200, message: '...', data: { styles: [...] } }
+    // 前端响应拦截器返回 response.data，所以这里收到的是: { statusCode: 200, message: '...', data: { styles: [...] } }
+    // 需要访问 response.data.styles 来获取实际的风格列表
+    const stylesData = response?.data || response;
+    availableStyles.value = stylesData?.styles || [];
+
+    if (availableStyles.value.length === 0) {
+      console.warn('获取到的风格列表为空，使用默认风格列表');
+      throw new Error('风格列表为空');
+    }
     console.log('获取到的风格列表:', availableStyles.value);
   } catch (error) {
     console.error('获取风格列表失败:', error);
+    message.error('获取风格列表失败，已使用默认风格');
     // 如果 API 失败，使用默认风格列表
     availableStyles.value = [
       {
