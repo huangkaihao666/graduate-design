@@ -58,7 +58,11 @@
                 >
                   🗑️
                 </a-button>
-                <div class="card-body" @click="openVirtualTryOnDetail(item)">
+                <div
+                  class="card-body"
+                  @click="openVirtualTryOnDetail(item)"
+                  :data-item-id="item.id"
+                >
                   <div class="card-main">
                     <div class="thumb" v-if="getImageUrl(item)">
                       <a-image
@@ -66,9 +70,11 @@
                         alt="预览"
                         :preview="true"
                         class="thumb-image"
-                        :fallback="getImageUrl(item)!"
                         @error="(e: any) => handleImageError(e, item)"
                       />
+                      <div class="no-image-placeholder" style="display: none">
+                        <span class="placeholder-text">图片已过期</span>
+                      </div>
                     </div>
                     <div v-else class="thumb no-image-placeholder">
                       <span class="placeholder-text">暂无图片</span>
@@ -266,7 +272,11 @@
                 >
                   🗑️
                 </a-button>
-                <div class="card-body" @click="openVirtualTryOnDetail(item)">
+                <div
+                  class="card-body"
+                  @click="openVirtualTryOnDetail(item)"
+                  :data-item-id="item.id"
+                >
                   <div class="card-main">
                     <div class="thumb" v-if="getImageUrl(item)">
                       <a-image
@@ -274,9 +284,11 @@
                         alt="预览"
                         :preview="true"
                         class="thumb-image"
-                        :fallback="getImageUrl(item)!"
                         @error="(e: any) => handleImageError(e, item)"
                       />
+                      <div class="no-image-placeholder" style="display: none">
+                        <span class="placeholder-text">图片已过期</span>
+                      </div>
                     </div>
                     <div v-else class="thumb no-image-placeholder">
                       <span class="placeholder-text">暂无图片</span>
@@ -436,7 +448,6 @@
                 alt="原始照片"
                 :preview="true"
                 class="detail-image"
-                :fallback="selectedVirtualTryOn.imageUrl"
                 @error="(e: any) => handleImageError(e, selectedVirtualTryOn)"
               />
               <div v-else class="no-image">暂无原始照片</div>
@@ -454,10 +465,12 @@
                 alt="生成效果"
                 :preview="true"
                 class="detail-image"
-                :fallback="getImageUrl(selectedVirtualTryOn)!"
                 @error="(e: any) => handleImageError(e, selectedVirtualTryOn)"
               />
               <div v-else class="no-image">暂无生成效果</div>
+              <div class="no-image-placeholder" style="display: none">
+                <span class="placeholder-text">图片已过期</span>
+              </div>
             </div>
           </div>
         </div>
@@ -882,11 +895,34 @@ const formatPreferences = (preferences: any): string => {
   return parts.length > 0 ? parts.join(' | ') : '无';
 };
 
-// 智能选择图片URL：优先显示生成后的图片，避免外部URL过期时回退到base64
+// 智能选择图片URL：优先显示生成后的图片，优先使用base64格式避免外部URL过期
 const getImageUrl = (item: VirtualTryOnHistory): string | null => {
   if (!item) return null;
 
-  // 策略1: 优先使用修改后的图片（无论是base64还是外部URL）
+  // 调试：打印完整的数据结构
+  console.log('[getImageUrl] 处理图片URL选择:', {
+    id: item.id,
+    hasModifiedImageUrl: !!item.modifiedImageUrl,
+    modifiedImageUrlType: item.modifiedImageUrl
+      ? item.modifiedImageUrl.startsWith('data:')
+        ? 'base64'
+        : item.modifiedImageUrl.startsWith('http')
+          ? 'external'
+          : 'other'
+      : 'null',
+    modifiedImageUrlPreview: item.modifiedImageUrl?.substring(0, 80),
+    hasImageUrl: !!item.imageUrl,
+    imageUrlType: item.imageUrl
+      ? item.imageUrl.startsWith('data:')
+        ? 'base64'
+        : item.imageUrl.startsWith('http')
+          ? 'external'
+          : 'other'
+      : 'null',
+    imageUrlPreview: item.imageUrl?.substring(0, 80),
+  });
+
+  // 策略1: 优先使用base64格式的修改后图片（永久有效，不会过期）
   if (item.modifiedImageUrl && typeof item.modifiedImageUrl === 'string') {
     const modifiedUrl = item.modifiedImageUrl.trim();
     if (
@@ -897,16 +933,51 @@ const getImageUrl = (item: VirtualTryOnHistory): string | null => {
     ) {
       // 优先使用base64格式的修改后图片（永久有效）
       if (modifiedUrl.startsWith('data:')) {
-        return modifiedUrl;
-      }
-      // 使用外部URL的修改后图片（可能过期，但优先于原始图片）
-      if (modifiedUrl.startsWith('http')) {
+        console.log('[getImageUrl] ✅ 使用base64格式的生成图片');
         return modifiedUrl;
       }
     }
   }
 
-  // 策略2: 如果没有修改后的图片，才使用原始图片
+  // 策略2: 如果修改后的图片是外部URL，检查是否有原始图片的base64版本
+  // 如果有，优先使用原始图片的base64（避免外部URL过期问题）
+  // 如果没有，才使用外部URL（即使可能过期，也比原始图片好）
+  if (item.modifiedImageUrl && typeof item.modifiedImageUrl === 'string') {
+    const modifiedUrl = item.modifiedImageUrl.trim();
+    if (
+      modifiedUrl &&
+      modifiedUrl !== '' &&
+      modifiedUrl !== 'null' &&
+      modifiedUrl !== 'undefined' &&
+      modifiedUrl.startsWith('http')
+    ) {
+      // 如果生成图片只有外部URL，且原始图片有base64版本，优先使用原始图片
+      // 这样可以避免外部URL过期导致无法显示的问题
+      if (item.imageUrl && typeof item.imageUrl === 'string') {
+        const originalUrl = item.imageUrl.trim();
+        if (
+          originalUrl &&
+          originalUrl !== '' &&
+          originalUrl !== 'null' &&
+          originalUrl !== 'undefined' &&
+          originalUrl.startsWith('data:')
+        ) {
+          console.log(
+            '[getImageUrl] ⚠️ 生成图片只有外部URL（可能过期），优先使用原始图片的base64版本'
+          );
+          return originalUrl;
+        }
+      }
+      // 如果没有原始图片的base64版本，才使用外部URL
+      console.log(
+        '[getImageUrl] ⚠️ 使用外部URL的生成图片（可能过期，失败时将回退到原始图片）:',
+        modifiedUrl.substring(0, 50)
+      );
+      return modifiedUrl;
+    }
+  }
+
+  // 策略2: 如果没有修改后的图片，才使用原始图片（优先base64格式）
   if (item.imageUrl && typeof item.imageUrl === 'string') {
     const originalUrl = item.imageUrl.trim();
     if (
@@ -917,69 +988,218 @@ const getImageUrl = (item: VirtualTryOnHistory): string | null => {
     ) {
       // 优先使用base64格式的原始图片（永久有效）
       if (originalUrl.startsWith('data:')) {
+        console.log('[getImageUrl] ⚠️ 使用base64格式的原始图片（没有生成图片）');
         return originalUrl;
       }
-      // 使用外部URL的原始图片（最后的选择）
+      // 最后使用外部URL的原始图片（可能过期）
       if (originalUrl.startsWith('http')) {
+        console.log('[getImageUrl] ⚠️ 使用外部URL的原始图片（没有生成图片）');
         return originalUrl;
       }
     }
   }
 
+  console.warn('[getImageUrl] ❌ 没有找到有效的图片URL:', {
+    id: item.id,
+    hasModifiedImageUrl: !!item.modifiedImageUrl,
+    modifiedImageUrl: item.modifiedImageUrl,
+    hasImageUrl: !!item.imageUrl,
+    imageUrl: item.imageUrl,
+  });
   return null;
 };
 
 // 处理图片加载错误：外部URL失败时优先尝试base64格式的生成图片
 const handleImageError = (event: any, item: VirtualTryOnHistory) => {
-  const img = event.target as HTMLImageElement;
-  const failedSrc = img.src;
+  // 获取实际的图片元素（a-image组件内部可能有嵌套）
+  const img = (event.target as HTMLImageElement) || event.target?.querySelector?.('img');
+  if (!img) {
+    console.warn('[handleImageError] 无法找到图片元素');
+    return;
+  }
+
+  const failedSrc = img.src || event.target?.src;
+  if (!failedSrc) return;
+
+  // 使用item作为重试计数器存储
+  const retryKey = `__retryCount_${item.id}`;
+  let retryCount = (item as any)[retryKey] || 0;
+  (item as any)[retryKey] = retryCount + 1;
+
+  // 防止无限重试
+  if (retryCount >= 2) {
+    console.error('[handleImageError] 重试次数过多，显示占位符');
+    showImagePlaceholder(event.target, item);
+    return;
+  }
 
   console.warn('[handleImageError] 图片加载失败，尝试回退:', {
     id: item.id,
+    retryCount,
     failedSrc: failedSrc.substring(0, 100),
     hasModifiedBase64: item.modifiedImageUrl?.startsWith('data:'),
     hasOriginalBase64: item.imageUrl?.startsWith('data:'),
+    failedIsModified:
+      failedSrc === item.modifiedImageUrl || failedSrc.includes(item.modifiedImageUrl || ''),
   });
 
-  // 如果失败的是修改后的图片URL（外部URL过期）
-  if (failedSrc === item.modifiedImageUrl || failedSrc.includes(item.modifiedImageUrl || '')) {
-    // 优先尝试base64格式的修改后图片（生成图片的base64版本）
-    if (item.modifiedImageUrl && item.modifiedImageUrl.startsWith('data:')) {
-      console.log('[handleImageError] 使用base64格式的生成图片');
-      img.src = item.modifiedImageUrl;
-      return;
-    }
-    // 如果没有base64格式的生成图片，尝试使用原始图片（作为最后的选择）
-    if (item.imageUrl && item.imageUrl !== failedSrc) {
-      console.log('[handleImageError] 回退到原始图片');
-      img.src = item.imageUrl;
-      return;
-    }
-  }
+  // 判断失败的是生成图片还是原始图片
+  const isFailedModifiedImage =
+    failedSrc === item.modifiedImageUrl ||
+    (item.modifiedImageUrl && failedSrc.includes(item.modifiedImageUrl));
+  const isFailedOriginalImage =
+    failedSrc === item.imageUrl || (item.imageUrl && failedSrc.includes(item.imageUrl));
 
-  // 如果失败的是外部URL（可能是原始图片的外部URL）
-  if (failedSrc.startsWith('http')) {
+  // 策略1: 如果失败的是生成图片的外部URL，尝试使用base64格式的生成图片
+  if (isFailedModifiedImage && failedSrc.startsWith('http')) {
+    console.log('[handleImageError] 策略1: 生成图片的外部URL失败');
     // 优先尝试base64格式的修改后图片（生成图片）
-    if (item.modifiedImageUrl && item.modifiedImageUrl.startsWith('data:')) {
-      console.log('[handleImageError] 使用base64格式的生成图片');
-      img.src = item.modifiedImageUrl;
+    if (
+      item.modifiedImageUrl &&
+      item.modifiedImageUrl.startsWith('data:') &&
+      item.modifiedImageUrl !== failedSrc
+    ) {
+      console.log('[handleImageError] ✅ 回退到base64格式的生成图片');
+      if (img) img.src = item.modifiedImageUrl;
+      // 更新a-image组件的src
+      if (event.target && event.target.setAttribute) {
+        event.target.setAttribute('src', item.modifiedImageUrl);
+      }
       return;
     }
-    // 如果没有base64格式的生成图片，尝试base64格式的原始图片
-    if (item.imageUrl && item.imageUrl.startsWith('data:')) {
-      console.log('[handleImageError] 使用base64格式的原始图片');
-      img.src = item.imageUrl;
+    // 如果没有base64格式的生成图片，尝试显示原始图片（至少能看到效果）
+    console.log('[handleImageError] 检查原始图片:', {
+      hasImageUrl: !!item.imageUrl,
+      isBase64: item.imageUrl?.startsWith('data:'),
+      isDifferent: item.imageUrl !== failedSrc,
+    });
+    if (item.imageUrl && item.imageUrl.startsWith('data:') && item.imageUrl !== failedSrc) {
+      console.warn('[handleImageError] ⚠️ 生成图片的外部URL失败，且没有base64版本，回退到原始图片');
+      // 直接更新图片源
+      if (img) {
+        img.src = item.imageUrl;
+        img.onerror = null; // 清除错误处理器，避免循环
+      }
+      // 更新a-image组件的src（可能需要更新多个地方）
+      if (event.target) {
+        if (event.target.setAttribute) {
+          event.target.setAttribute('src', item.imageUrl);
+        }
+        // 尝试更新a-image组件内部的img元素
+        const innerImg = event.target.querySelector?.('img');
+        if (innerImg) {
+          innerImg.src = item.imageUrl;
+          innerImg.onerror = null;
+        }
+      }
       return;
+    }
+    // 如果原始图片也不是base64，显示占位符
+    console.warn('[handleImageError] ⚠️ 生成图片的外部URL失败，且没有可用的base64版本，显示占位符');
+    showImagePlaceholder(event.target, item);
+    return;
+  }
+
+  // 策略2: 如果失败的是外部URL（可能是原始图片的外部URL），优先尝试base64格式的生成图片
+  if (failedSrc.startsWith('http') && !isFailedModifiedImage) {
+    // 优先尝试base64格式的修改后图片（生成图片）
+    if (
+      item.modifiedImageUrl &&
+      item.modifiedImageUrl.startsWith('data:') &&
+      item.modifiedImageUrl !== failedSrc
+    ) {
+      console.log('[handleImageError] ✅ 回退到base64格式的生成图片');
+      if (img) img.src = item.modifiedImageUrl;
+      if (event.target && event.target.setAttribute) {
+        event.target.setAttribute('src', item.modifiedImageUrl);
+      }
+      return;
+    }
+    // 如果失败的是原始图片URL，且没有生成图片，才回退到base64格式的原始图片
+    if (isFailedOriginalImage) {
+      if (item.imageUrl && item.imageUrl.startsWith('data:') && item.imageUrl !== failedSrc) {
+        console.log('[handleImageError] ⚠️ 回退到base64格式的原始图片（生成图片不可用）');
+        if (img) img.src = item.imageUrl;
+        if (event.target && event.target.setAttribute) {
+          event.target.setAttribute('src', item.imageUrl);
+        }
+        return;
+      }
     }
   }
 
-  // 如果都失败了，隐藏图片并显示占位符
-  console.error('[handleImageError] 所有图片URL都失败，显示占位符');
-  img.style.display = 'none';
-  const placeholder = document.createElement('div');
-  placeholder.className = 'thumb no-image-placeholder';
-  placeholder.innerHTML = '<span class="placeholder-text">图片已过期</span>';
-  img.parentElement?.appendChild(placeholder);
+  // 如果都失败了，显示占位符
+  console.error('[handleImageError] ❌ 所有图片URL都失败，显示占位符');
+  showImagePlaceholder(event.target, item);
+};
+
+// 显示图片占位符
+const showImagePlaceholder = (target: any, item: VirtualTryOnHistory) => {
+  // 查找包含图片的容器（可能是thumb或image-wrapper）
+  let container: HTMLElement | null = null;
+
+  // 尝试多种方式找到容器
+  if (target) {
+    container =
+      target.closest?.('.thumb') ||
+      target.closest?.('.image-wrapper') ||
+      target.parentElement?.closest?.('.thumb') ||
+      target.parentElement?.closest?.('.image-wrapper') ||
+      target.querySelector?.('.thumb') ||
+      target.querySelector?.('.image-wrapper');
+  }
+
+  // 如果找不到，尝试通过item.id查找（列表页）
+  if (!container) {
+    const card = document.querySelector(`[data-item-id="${item.id}"]`);
+    container = card?.querySelector('.thumb') as HTMLElement;
+  }
+
+  // 如果还是找不到，尝试查找详情页的image-wrapper
+  if (!container) {
+    container = document.querySelector('.image-wrapper') as HTMLElement;
+  }
+
+  if (!container) {
+    console.warn('[showImagePlaceholder] 无法找到图片容器');
+    return;
+  }
+
+  // 使用nextTick确保DOM更新后再操作
+  setTimeout(() => {
+    // 隐藏所有图片和a-image组件
+    const images = container.querySelectorAll(
+      'img, .ant-image, .ant-image-img, .thumb-image, .detail-image'
+    );
+    images.forEach((img: any) => {
+      if (img) {
+        if (img.style) {
+          img.style.display = 'none';
+        }
+        if (img.parentElement && img.parentElement.classList.contains('ant-image')) {
+          img.parentElement.style.display = 'none';
+        }
+      }
+    });
+
+    // 查找现有的占位符
+    let placeholder = container.querySelector('.no-image-placeholder') as HTMLElement;
+
+    // 如果不存在，创建占位符
+    if (!placeholder) {
+      placeholder = document.createElement('div');
+      placeholder.className = 'no-image-placeholder';
+      const text = document.createElement('span');
+      text.className = 'placeholder-text';
+      text.textContent = '图片已过期';
+      placeholder.appendChild(text);
+      container.appendChild(placeholder);
+    }
+
+    // 显示占位符
+    placeholder.style.display = 'flex';
+    placeholder.style.visibility = 'visible';
+  }, 0);
 };
 
 const fetchHistory = async (type: AiHistoryType, page?: number, pageSize?: number) => {
@@ -1005,6 +1225,18 @@ const fetchHistory = async (type: AiHistoryType, page?: number, pageSize?: numbe
       if (data.virtualTryOn) {
         virtualTryOn.items = data.virtualTryOn.items || [];
         virtualTryOn.pagination = data.virtualTryOn.pagination || virtualTryOn.pagination;
+        // 调试：打印第一条记录的数据结构
+        if (virtualTryOn.items.length > 0) {
+          const firstItem = virtualTryOn.items[0];
+          console.log('[AIHistory] 虚拍历史第一条记录:', {
+            id: firstItem.id,
+            hasModifiedImageUrl: !!firstItem.modifiedImageUrl,
+            modifiedImageUrlType: firstItem.modifiedImageUrl?.substring(0, 50),
+            hasImageUrl: !!firstItem.imageUrl,
+            imageUrlType: firstItem.imageUrl?.substring(0, 50),
+            selectedUrl: getImageUrl(firstItem),
+          });
+        }
       }
       if (data.styleRecommendation) {
         styleRecommendation.items = data.styleRecommendation.items || [];
@@ -1019,6 +1251,18 @@ const fetchHistory = async (type: AiHistoryType, page?: number, pageSize?: numbe
     } else if (type === 'virtual-try-on') {
       virtualTryOn.items = data.items || [];
       virtualTryOn.pagination = data.pagination || virtualTryOn.pagination;
+      // 调试：打印第一条记录的数据结构
+      if (virtualTryOn.items.length > 0) {
+        const firstItem = virtualTryOn.items[0];
+        console.log('[AIHistory] 虚拍历史第一条记录:', {
+          id: firstItem.id,
+          hasModifiedImageUrl: !!firstItem.modifiedImageUrl,
+          modifiedImageUrlType: firstItem.modifiedImageUrl?.substring(0, 50),
+          hasImageUrl: !!firstItem.imageUrl,
+          imageUrlType: firstItem.imageUrl?.substring(0, 50),
+          selectedUrl: getImageUrl(firstItem),
+        });
+      }
     } else if (type === 'style-recommendation') {
       styleRecommendation.items = data.items || [];
       styleRecommendation.pagination = data.pagination || styleRecommendation.pagination;
@@ -1403,11 +1647,16 @@ onMounted(() => {
   }
 
   &.no-image-placeholder {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    min-height: 180px;
     background: #f0f0f0;
     border: 1px dashed #d9d9d9;
+    border-radius: 8px;
 
     .placeholder-text {
-      font-size: 0.75rem;
+      font-size: 0.875rem;
       color: #999;
       text-align: center;
     }
