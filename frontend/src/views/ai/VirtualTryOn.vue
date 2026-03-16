@@ -256,7 +256,7 @@ const preferences = reactive({
 const availableStyles = ref<any[]>([]);
 const authStore = useAuthStore();
 
-// 状态持久化的 key
+// 状态持久化的 key（仅当前浏览器会话内有效）
 const STORAGE_KEY = 'virtual-try-on-state';
 
 // 保存状态到 sessionStorage
@@ -292,32 +292,16 @@ const restoreStateFromStorage = () => {
       }
       result.value = state.result || null;
       lastRequest.value = state.lastRequest || null;
-      console.log('已恢复虚拍试衣页面状态');
+      console.log('[VirtualTryOn] 已恢复页面状态');
     }
   } catch (error) {
     console.error('恢复状态失败:', error);
   }
 };
 
-// 清空状态和存储
-const clearStateAndStorage = () => {
-  uploadedImage.value = '';
-  uploadedFileName.value = '';
-  selectedStyle.value = 'romantic';
-  preferences.makeup = undefined;
-  preferences.hairstyle = undefined;
-  preferences.dress = undefined;
-  result.value = null;
-  lastRequest.value = null;
-  sessionStorage.removeItem(STORAGE_KEY);
-  if (fileInput.value) {
-    fileInput.value.value = '';
-  }
-};
-
 // 获取可用风格列表
 onMounted(async () => {
-  // 先恢复保存的状态
+  // 先恢复保存的状态（确保返回页面后仍可展示之前结果）
   restoreStateFromStorage();
 
   try {
@@ -393,7 +377,6 @@ const handleFileUpload = (event: Event) => {
     reader.onload = (e) => {
       uploadedImage.value = e.target?.result as string;
       uploadedFileName.value = file.name;
-      // 保存状态
       saveStateToStorage();
     };
     reader.readAsDataURL(file);
@@ -407,7 +390,7 @@ const clearImage = () => {
   if (fileInput.value) {
     fileInput.value.value = '';
   }
-  // 保存状态
+  // 清图后也要同步持久化
   saveStateToStorage();
 };
 
@@ -430,7 +413,6 @@ const handleDrop = (event: DragEvent) => {
     reader.onload = (e) => {
       uploadedImage.value = e.target?.result as string;
       uploadedFileName.value = file.name;
-      // 保存状态
       saveStateToStorage();
     };
     reader.readAsDataURL(file);
@@ -464,40 +446,8 @@ const handleGenerate = async () => {
     result.value = response.data?.data || response.data;
     message.success('虚拍建议生成成功！');
 
-    // 保存状态到 sessionStorage
+    // 生成成功后持久化（保存生成结果与最后一次请求）
     saveStateToStorage();
-
-    // 如果用户已登录，自动保存到历史记录
-    if (authStore.isAuthenticated && result.value && lastRequest.value) {
-      try {
-        console.log('[VirtualTryOn] 开始自动保存历史记录...', {
-          type: 'virtual-try-on',
-          hasInput: !!lastRequest.value,
-          hasOutput: !!result.value,
-        });
-        const saveResponse = await aiApi.saveHistory({
-          type: 'virtual-try-on',
-          input: { ...lastRequest.value },
-          output: result.value,
-        });
-        console.log('[VirtualTryOn] 历史记录保存成功:', saveResponse);
-        // 静默保存，不显示额外提示
-      } catch (saveError: any) {
-        // 保存失败不影响主流程，但记录详细错误
-        console.error('[VirtualTryOn] 自动保存历史记录失败:', saveError);
-        console.error('[VirtualTryOn] 错误详情:', {
-          message: saveError?.message,
-          statusCode: saveError?.statusCode,
-          data: saveError?.data,
-        });
-      }
-    } else {
-      console.log('[VirtualTryOn] 跳过自动保存:', {
-        isAuthenticated: authStore.isAuthenticated,
-        hasResult: !!result.value,
-        hasRequest: !!lastRequest.value,
-      });
-    }
   } catch (error: any) {
     message.error(error.message || '生成失败，请重试');
     console.error('虚拍生成错误:', error);
@@ -531,6 +481,8 @@ const handleSaveHistory = async () => {
     });
     console.log('[VirtualTryOn] 手动保存成功:', saveResponse);
     message.success('已保存到历史记录');
+    // 保存成功后也同步一下本地状态（不改变结果，只是确保回到页面仍然在）
+    saveStateToStorage();
   } catch (error: any) {
     console.error('[VirtualTryOn] 手动保存失败:', error);
     console.error('[VirtualTryOn] 错误详情:', {
@@ -544,7 +496,19 @@ const handleSaveHistory = async () => {
 
 // 重新生成
 const handleReset = () => {
-  clearStateAndStorage();
+  uploadedImage.value = '';
+  uploadedFileName.value = '';
+  selectedStyle.value = 'romantic';
+  preferences.makeup = undefined;
+  preferences.hairstyle = undefined;
+  preferences.dress = undefined;
+  result.value = null;
+  lastRequest.value = null;
+  if (fileInput.value) {
+    fileInput.value.value = '';
+  }
+  // 清空持久化
+  sessionStorage.removeItem(STORAGE_KEY);
   message.info('已清空，可以重新开始生成');
 };
 
