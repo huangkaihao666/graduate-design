@@ -166,14 +166,22 @@
             <div class="arrow">→</div>
             <div class="comparison-item">
               <div class="label">{{ result.style }} 风格效果</div>
-              <a-image
-                v-if="result.modifiedImageUrl"
-                :src="result.modifiedImageUrl"
-                alt="修改后的图片"
-                :preview="true"
-                class="comparison-image modified-preview"
-                :fallback="result.modifiedImageUrl"
-              />
+              <div class="image-wrapper">
+                <a-image
+                  v-if="getResultImageUrl()"
+                  :src="getResultImageUrl()!"
+                  alt="修改后的图片"
+                  :preview="true"
+                  class="comparison-image modified-preview"
+                  @error="handleResultImageError"
+                />
+                <div v-else class="no-image-placeholder">
+                  <span class="placeholder-text">暂无生成效果</span>
+                </div>
+                <div class="no-image-placeholder" style="display: none">
+                  <span class="placeholder-text">图片已过期</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -556,6 +564,208 @@ const handleDownload = () => {
 // 格式化时间
 const formatTime = (timestamp: string): string => {
   return new Date(timestamp).toLocaleString('zh-CN');
+};
+
+// 智能选择结果图片URL：优先base64格式，避免外部URL过期
+const getResultImageUrl = (): string | null => {
+  if (!result.value) return null;
+
+  const item = result.value;
+  console.log('[VirtualTryOn] 处理结果图片URL选择:', {
+    hasModifiedImageUrl: !!item.modifiedImageUrl,
+    modifiedImageUrlType: item.modifiedImageUrl
+      ? item.modifiedImageUrl.startsWith('data:')
+        ? 'base64'
+        : item.modifiedImageUrl.startsWith('http')
+          ? 'external'
+          : 'other'
+      : 'null',
+    modifiedImageUrlPreview: item.modifiedImageUrl?.substring(0, 80),
+    hasImageUrl: !!uploadedImage.value,
+    imageUrlType: uploadedImage.value
+      ? uploadedImage.value.startsWith('data:')
+        ? 'base64'
+        : uploadedImage.value.startsWith('http')
+          ? 'external'
+          : 'other'
+      : 'null',
+  });
+
+  // 策略1: 优先使用base64格式的修改后图片（永久有效，不会过期）
+  if (item.modifiedImageUrl && typeof item.modifiedImageUrl === 'string') {
+    const modifiedUrl = item.modifiedImageUrl.trim();
+    if (
+      modifiedUrl &&
+      modifiedUrl !== '' &&
+      modifiedUrl !== 'null' &&
+      modifiedUrl !== 'undefined'
+    ) {
+      if (modifiedUrl.startsWith('data:')) {
+        console.log('[VirtualTryOn] ✅ 使用base64格式的生成图片');
+        return modifiedUrl;
+      }
+    }
+  }
+
+  // 策略2: 如果修改后的图片是外部URL，先尝试使用（失败时会回退到原始图片）
+  if (item.modifiedImageUrl && typeof item.modifiedImageUrl === 'string') {
+    const modifiedUrl = item.modifiedImageUrl.trim();
+    if (
+      modifiedUrl &&
+      modifiedUrl !== '' &&
+      modifiedUrl !== 'null' &&
+      modifiedUrl !== 'undefined' &&
+      modifiedUrl.startsWith('http')
+    ) {
+      console.log(
+        '[VirtualTryOn] ⚠️ 使用外部URL的生成图片（可能过期，失败时将回退到原始图片）:',
+        modifiedUrl.substring(0, 50)
+      );
+      return modifiedUrl;
+    }
+  }
+
+  // 策略3: 如果没有生成图片，使用原始图片（base64格式）
+  if (uploadedImage.value && typeof uploadedImage.value === 'string') {
+    const originalUrl = uploadedImage.value.trim();
+    if (
+      originalUrl &&
+      originalUrl !== '' &&
+      originalUrl !== 'null' &&
+      originalUrl !== 'undefined'
+    ) {
+      if (originalUrl.startsWith('data:')) {
+        console.log('[VirtualTryOn] ⚠️ 使用base64格式的原始图片（没有生成图片）');
+        return originalUrl;
+      }
+    }
+  }
+
+  console.warn('[VirtualTryOn] ❌ 没有找到有效的图片URL');
+  return null;
+};
+
+// 处理结果图片加载错误：外部URL失败时回退到原始图片
+const handleResultImageError = (event: any) => {
+  const img = (event.target as HTMLImageElement) || event.target?.querySelector?.('img');
+  if (!img) {
+    console.warn('[VirtualTryOn] 无法找到图片元素');
+    return;
+  }
+
+  const failedSrc = img.src || event.target?.src;
+  if (!failedSrc) return;
+
+  console.warn('[VirtualTryOn] 结果图片加载失败，尝试回退:', {
+    failedSrc: failedSrc.substring(0, 100),
+    hasModifiedBase64: result.value?.modifiedImageUrl?.startsWith('data:'),
+    hasOriginalBase64: uploadedImage.value?.startsWith('data:'),
+    failedIsModified:
+      failedSrc === result.value?.modifiedImageUrl ||
+      (result.value?.modifiedImageUrl && failedSrc.includes(result.value.modifiedImageUrl)),
+  });
+
+  // 如果失败的是生成图片的外部URL，尝试使用原始图片（base64格式）
+  const isFailedModifiedImage =
+    failedSrc === result.value?.modifiedImageUrl ||
+    (result.value?.modifiedImageUrl && failedSrc.includes(result.value.modifiedImageUrl));
+
+  if (isFailedModifiedImage && failedSrc.startsWith('http')) {
+    // 优先尝试base64格式的修改后图片
+    if (
+      result.value?.modifiedImageUrl &&
+      result.value.modifiedImageUrl.startsWith('data:') &&
+      result.value.modifiedImageUrl !== failedSrc
+    ) {
+      console.log('[VirtualTryOn] ✅ 回退到base64格式的生成图片');
+      if (img) img.src = result.value.modifiedImageUrl;
+      if (event.target && event.target.setAttribute) {
+        event.target.setAttribute('src', result.value.modifiedImageUrl);
+      }
+      return;
+    }
+    // 如果没有base64格式的生成图片，回退到原始图片
+    if (
+      uploadedImage.value &&
+      uploadedImage.value.startsWith('data:') &&
+      uploadedImage.value !== failedSrc
+    ) {
+      console.warn('[VirtualTryOn] ⚠️ 生成图片的外部URL失败，回退到原始图片');
+      if (img) {
+        img.src = uploadedImage.value;
+        img.onerror = null; // 清除错误处理器，避免循环
+      }
+      if (event.target) {
+        if (event.target.setAttribute) {
+          event.target.setAttribute('src', uploadedImage.value);
+        }
+        const innerImg = event.target.querySelector?.('img');
+        if (innerImg) {
+          innerImg.src = uploadedImage.value;
+          innerImg.onerror = null;
+        }
+      }
+      return;
+    }
+  }
+
+  // 如果都失败了，显示占位符
+  console.error('[VirtualTryOn] ❌ 所有图片URL都失败，显示占位符');
+  showResultImagePlaceholder(event.target);
+};
+
+// 显示结果图片占位符
+const showResultImagePlaceholder = (target: any) => {
+  let container: HTMLElement | null = null;
+
+  if (target) {
+    container =
+      target.closest?.('.image-wrapper') ||
+      target.parentElement?.closest?.('.image-wrapper') ||
+      target.querySelector?.('.image-wrapper');
+  }
+
+  if (!container) {
+    container = document.querySelector('.comparison-item .image-wrapper') as HTMLElement;
+  }
+
+  if (!container) {
+    console.warn('[VirtualTryOn] 无法找到图片容器');
+    return;
+  }
+
+  setTimeout(() => {
+    // 隐藏所有图片和a-image组件
+    const images = container.querySelectorAll('img, .ant-image, .ant-image-img, .comparison-image');
+    images.forEach((img: any) => {
+      if (img) {
+        if (img.style) {
+          img.style.display = 'none';
+        }
+        if (img.parentElement && img.parentElement.classList.contains('ant-image')) {
+          img.parentElement.style.display = 'none';
+        }
+      }
+    });
+
+    // 查找现有的占位符
+    let placeholder = container.querySelector('.no-image-placeholder') as HTMLElement;
+
+    // 如果不存在，创建占位符
+    if (!placeholder) {
+      placeholder = document.createElement('div');
+      placeholder.className = 'no-image-placeholder';
+      const text = document.createElement('span');
+      text.className = 'placeholder-text';
+      text.textContent = '图片已过期';
+      placeholder.appendChild(text);
+      container.appendChild(placeholder);
+    }
+
+    // 显示占位符
+    placeholder.style.display = 'flex';
+    placeholder.style.visibility = 'visible';
+  }, 0);
 };
 </script>
 
@@ -954,6 +1164,32 @@ const formatTime = (timestamp: string): string => {
     :deep(.ant-image-img) {
       filter: brightness(100%) contrast(1) saturate(1);
     }
+  }
+}
+
+.image-wrapper {
+  position: relative;
+  width: 100%;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.no-image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  background: #f0f0f0;
+  border: 1px dashed #d9d9d9;
+  border-radius: 8px;
+  width: 100%;
+
+  .placeholder-text {
+    font-size: 0.875rem;
+    color: #999;
+    text-align: center;
   }
 }
 
