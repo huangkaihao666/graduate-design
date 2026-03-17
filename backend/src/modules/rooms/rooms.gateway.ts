@@ -46,6 +46,9 @@ export class RoomsGateway
     }[]
   > = new Map();
 
+  // 房间投票（按用户去重）：roomKey -> (userId -> agentId)
+  private roomVotes: Map<string, Map<number, string>> = new Map();
+
   constructor(private readonly jwtService: JwtService) {
     this.logger.log('🚀 RoomsGateway constructor called');
   }
@@ -349,21 +352,29 @@ export class RoomsGateway
   ) {
     const userId = await this.ensureAuthenticatedUser(client);
 
-    // TODO: 检查是否已投票（数据库查询）
-    // TODO: 保存投票到数据库
-    // TODO: 更新 Agent 统计
+    const roomKey = `room_${data.roomId}`;
+    const voteMap = this.roomVotes.get(roomKey) || new Map<number, string>();
+    voteMap.set(userId, data.agentId);
+    this.roomVotes.set(roomKey, voteMap);
+
+    const counts: Record<string, number> = {};
+    for (const agentId of voteMap.values()) {
+      counts[agentId] = (counts[agentId] || 0) + 1;
+    }
+    const totalVotes = voteMap.size;
 
     // 广播投票更新
-    const roomKey = `room_${data.roomId}`;
     this.server.to(roomKey).emit('voteUpdate', {
       agentId: data.agentId,
       userId,
+      counts,
+      totalVotes,
     });
 
     this.logger.log(
       `User ${userId} voted for ${data.agentId} in room ${data.roomId}`,
     );
-    return { success: true };
+    return { success: true, counts, totalVotes, myVote: data.agentId };
   }
 
   /**

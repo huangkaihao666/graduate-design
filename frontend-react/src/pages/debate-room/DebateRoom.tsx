@@ -45,10 +45,23 @@ export const DebateRoom: React.FC = () => {
   const [typingAgents, setTypingAgents] = useState<Set<string>>(new Set())
   const [activeTab, setActiveTab] = useState('debate')
   const [roomStatus, setRoomStatus] = useState<'WAITING' | 'LIVE' | 'CLOSED' | string>('WAITING')
+  const lastRoundToastRef = useRef<number | null>(null)
+  const [voteCounts, setVoteCounts] = useState<Record<string, number>>({})
+  const [totalVotes, setTotalVotes] = useState(0)
 
   // 缓冲流式 chunk（区分 reasoning/answer），避免频繁 setState 导致舞台滚动卡死
   const pendingChunksRef = useRef<Map<string, { reasoning: string[]; answer: string[] }>>(new Map())
   const flushTimerRef = useRef<number | null>(null)
+
+  const getRoundPhaseLabel = (round: number) =>
+    round === 1 ? '阐述观点' : round === 2 ? '交叉反驳' : '律师裁决'
+
+  const notifyEnterRound = (round: number) => {
+    if (!round || Number.isNaN(round)) return
+    if (lastRoundToastRef.current === round) return
+    lastRoundToastRef.current = round
+    message.info(`进入第 ${round} 轮：${getRoundPhaseLabel(round)}`)
+  }
 
   // 未登录用户直接跳转到登录页
   useEffect(() => {
@@ -132,15 +145,15 @@ export const DebateRoom: React.FC = () => {
 
     // 辩论开始
     socketInstance.on('debateStarted', (data: any) => {
-      message.success('辩论已开始！')
       setCurrentRound(data.round)
       setRoomStatus('LIVE')
+      notifyEnterRound(Number(data.round))
     })
 
     // 轮次变化
     socketInstance.on('roundChanged', (data: any) => {
       setCurrentRound(data.round)
-      message.info(`进入第 ${data.round} 轮`)
+      notifyEnterRound(Number(data.round))
     })
 
     // Agent 正在输入
@@ -223,6 +236,10 @@ export const DebateRoom: React.FC = () => {
     // 投票更新
     socketInstance.on('voteUpdate', (data: any) => {
       console.log('Vote update:', data)
+      if (data?.counts && typeof data?.totalVotes === 'number') {
+        setVoteCounts(data.counts)
+        setTotalVotes(data.totalVotes)
+      }
     })
 
     // 新消息
@@ -345,7 +362,6 @@ export const DebateRoom: React.FC = () => {
           Authorization: `Bearer ${accessToken}`,
         },
       })
-      message.success('辩论即将开始')
     } catch (error) {
       message.error('开始辩论失败')
     }
@@ -368,8 +384,9 @@ export const DebateRoom: React.FC = () => {
   }
 
   const handleVote = (agentId: string) => {
-    if (!socket) return
-    socket.emit(
+    if (!socket) return Promise.resolve(false)
+    return new Promise<boolean>((resolve) => {
+      socket.emit(
       'vote',
       {
         roomId: parseInt(id!),
@@ -378,11 +395,18 @@ export const DebateRoom: React.FC = () => {
       (resp: any) => {
         if (!resp?.success) {
           message.error(resp?.error || '投票失败')
+          resolve(false)
           return
         }
+        if (resp?.counts && typeof resp?.totalVotes === 'number') {
+          setVoteCounts(resp.counts)
+          setTotalVotes(resp.totalVotes)
+        }
         message.success('投票成功')
+        resolve(true)
       }
-    )
+      )
+    })
   }
 
   if (isLoading || !room) {
@@ -483,6 +507,8 @@ export const DebateRoom: React.FC = () => {
           )}
           onVote={handleVote}
           onlineCount={onlineCount}
+          voteCounts={voteCounts}
+          totalVotes={totalVotes}
         />
       )}
     </div>

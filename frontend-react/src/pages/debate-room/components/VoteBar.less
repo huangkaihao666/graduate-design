@@ -8,6 +8,16 @@
   box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
   z-index: 100;
 
+  &.vote-bar-minimized {
+    left: auto;
+    right: 16px;
+    bottom: 16px;
+    width: auto;
+    padding: 8px;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  }
+
   .vote-bar-content {
     max-width: 1200px;
     margin: 0 auto;
@@ -22,6 +32,13 @@
         color: white;
         font-size: 16px;
         font-weight: 600;
+
+        .vote-summary {
+          color: rgba(255, 255, 255, 0.9);
+          font-size: 13px;
+          font-weight: 500;
+          margin-left: 6px;
+        }
       }
 
       .viewer-count {
@@ -30,6 +47,16 @@
         display: flex;
         align-items: center;
         gap: 4px;
+      }
+
+      .vote-actions {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+
+        .ant-btn {
+          color: rgba(255, 255, 255, 0.9);
+        }
       }
     }
 
