@@ -11,6 +11,7 @@ interface DebateContext {
     roundNumber: number;
     agentId: string;
     content: string;
+    reasoning?: string;
     createdAt: Date;
   }>;
 }
@@ -86,11 +87,13 @@ export class DebateService {
       content: room.content,
     };
 
-    // 并发调用 Bot A 和 Bot B
-    await Promise.all([
-      this.streamAgentResponse(roomId, botA, caseInfo, [], 1),
-      this.streamAgentResponse(roomId, botB, caseInfo, [], 1),
-    ]);
+    // 方案一：严格交替发言（A → B）
+    this.roomsGateway.broadcastToRoom(roomId, 'roundChanged', {
+      roomId,
+      round: 1,
+    });
+    await this.streamAgentResponse(roomId, botA, caseInfo, [], 1, 'statement');
+    await this.streamAgentResponse(roomId, botB, caseInfo, [], 1, 'statement');
 
     // Round 1 完成后，等待 2 秒，然后执行 Round 2
     await this.delay(2000);
@@ -130,11 +133,23 @@ export class DebateService {
       round: 2,
     });
 
-    // 并发调用
-    await Promise.all([
-      this.streamAgentResponse(roomId, botA, caseInfo, botAContext, 2),
-      this.streamAgentResponse(roomId, botB, caseInfo, botBContext, 2),
-    ]);
+    // 方案一：交叉反驳（严格交替：B 反驳 A → A 反驳 B）
+    await this.streamAgentResponse(
+      roomId,
+      botB,
+      caseInfo,
+      botBContext,
+      2,
+      'rebuttal',
+    );
+    await this.streamAgentResponse(
+      roomId,
+      botA,
+      caseInfo,
+      botAContext,
+      2,
+      'rebuttal',
+    );
 
     // Round 2 完成后，执行 Round 3
     await this.delay(2000);
@@ -169,8 +184,15 @@ export class DebateService {
       round: 3,
     });
 
-    // Bot C 总结
-    await this.streamAgentResponse(roomId, botC, caseInfo, allMessages, 3);
+    // Bot C 裁决总结（只发一次）
+    await this.streamAgentResponse(
+      roomId,
+      botC,
+      caseInfo,
+      allMessages,
+      3,
+      'verdict',
+    );
 
     // 辩论结束
     await this.finishDebate(roomId);
@@ -185,6 +207,7 @@ export class DebateService {
     caseInfo: { title: string; content: string },
     context: Array<{ agentId: string; content: string }>,
     roundNumber: number,
+    phase: 'statement' | 'rebuttal' | 'verdict',
   ): Promise<void> {
     const debateContext = this.debateContexts.get(roomId);
     if (!debateContext) return;
@@ -195,7 +218,8 @@ export class DebateService {
       roomId,
     });
 
-    let fullContent = '';
+    let fullAnswer = '';
+    let fullReasoning = '';
 
     // 将逻辑 Agent 标识映射到具体的 Coze bot_id
     const cozeBotIdMap: Record<string, string> = {
@@ -205,19 +229,43 @@ export class DebateService {
     };
     const botId = cozeBotIdMap[agentId] || agentId;
 
-    // 调用 Coze API（Prompt 里仍然用逻辑角色名 agentId）
-    const prompt = this.cozeService.buildPrompt(caseInfo, context, agentId);
+    const roleDisplayMap: Record<string, string> = {
+      bot_A: '毒舌现实主义者（A）',
+      bot_B: '温柔共情者（B）',
+      bot_C: '理智律师（C）',
+    };
+    const roleName = roleDisplayMap[agentId] || agentId;
+
+    const speakingOrderHint =
+      phase === 'statement'
+        ? 'Round1：A 先发言，B 后发言（交替）'
+        : phase === 'rebuttal'
+          ? 'Round2：先由 B 反驳 A，再由 A 反驳 B（交替）'
+          : 'Round3：律师 C 汇总裁决（只发一次）';
+
+    // 调用 Coze API（Prompt 里带轮次与阶段约束）
+    const prompt = this.cozeService.buildPrompt(caseInfo, context, roleName, {
+      roundNumber,
+      phase,
+      speakingOrderHint,
+      maxChars: phase === 'verdict' ? 1200 : 900,
+    });
     this.logger.log(
       `📨 [room ${roomId}] round ${roundNumber} calling agent ${agentId} (botId=${botId}). Case title: ${caseInfo.title}`,
     );
 
-    await this.cozeService.streamChat(botId, prompt, (chunk: string) => {
-      fullContent += chunk;
+    await this.cozeService.streamChat(botId, prompt, (chunk) => {
+      if (chunk.kind === 'reasoning') {
+        fullReasoning += chunk.text;
+      } else {
+        fullAnswer += chunk.text;
+      }
 
-      // 实时广播 chunk
+      // 实时广播 chunk（区分 reasoning / answer）
       this.roomsGateway.broadcastToRoom(roomId, 'messageChunk', {
         agentId,
-        chunk,
+        kind: chunk.kind,
+        chunk: chunk.text,
         roomId,
         roundNumber,
       });
@@ -227,7 +275,8 @@ export class DebateService {
     debateContext.messages.push({
       roundNumber,
       agentId,
-      content: fullContent,
+      content: fullAnswer,
+      reasoning: fullReasoning,
       createdAt: new Date(),
     });
 
@@ -235,7 +284,7 @@ export class DebateService {
     await this.prisma.message.create({
       data: {
         roomId,
-        content: fullContent,
+        content: fullAnswer,
         senderType: 'AI',
         botId: agentId, // AI 消息使用 botId 字段
         senderId: null, // AI 消息没有 senderId
@@ -247,7 +296,8 @@ export class DebateService {
       agentId,
       roomId,
       roundNumber,
-      content: fullContent,
+      content: fullAnswer,
+      reasoning: fullReasoning,
     });
   }
 

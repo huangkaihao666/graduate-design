@@ -30,12 +30,12 @@ export class CozeService {
    * 调用 Coze AI Agent 获取流式响应
    * @param botId Coze bot_id（即 Agent ID）
    * @param prompt 构造好的 prompt
-   * @param onChunk 每收到一小段文本时的回调
+   * @param onChunk 每收到一小段文本时的回调（区分思考/最终回答）
    */
   async streamChat(
     botId: string,
     prompt: string,
-    onChunk: (chunk: string) => void,
+    onChunk: (chunk: { kind: 'reasoning' | 'answer'; text: string }) => void,
   ): Promise<void> {
     // 打印本次调用概要和 Prompt 片段，方便调试
     const preview = prompt.length > 200 ? `${prompt.slice(0, 200)}...` : prompt;
@@ -67,6 +67,7 @@ export class CozeService {
       const stream = response.data as NodeJS.ReadableStream;
       let buffer = '';
       let chunkCount = 0;
+      const hasAnswerDeltaByMsgId = new Map<string, boolean>();
 
       await new Promise<void>((resolve, reject) => {
         stream.on('data', (chunk: Buffer) => {
@@ -81,39 +82,41 @@ export class CozeService {
             const jsonStr = trimmed.slice(5).trim();
             try {
               const payload = JSON.parse(jsonStr);
-              // Coze v3 流式返回：delta 里主要用 reasoning_content，completed 里用 content
-              let text = '';
-
-              if (typeof payload?.reasoning_content === 'string') {
-                text = payload.reasoning_content;
-              } else if (typeof payload?.content === 'string') {
-                text = payload.content;
-              } else {
-                const message =
-                  payload?.message || payload?.data?.message || payload?.data;
-
-                const content = message?.content;
-                if (Array.isArray(content)) {
-                  text = content
-                    .map((c: any) =>
-                      typeof c === 'string' ? c : c?.text || c?.content || '',
-                    )
-                    .join('');
-                } else if (typeof content === 'string') {
-                  text = content;
-                } else if (typeof message === 'string') {
-                  text = message;
-                }
-
-                if (!text && Array.isArray(payload?.choices)) {
-                  const first = payload.choices[0];
-                  text = first?.delta?.content || first?.message?.content || '';
-                }
+              // 过滤掉 verbose / follow_up 等非答案内容
+              const msgType = String(payload?.type || '');
+              if (msgType && msgType !== 'answer') {
+                continue;
               }
 
-              if (typeof text === 'string' && text.length > 0) {
-                onChunk(text);
+              const msgId = String(payload?.id || '');
+
+              // 1) 思考过程：reasoning_content（通常是逐字 delta）
+              if (
+                typeof payload?.reasoning_content === 'string' &&
+                payload.reasoning_content
+              ) {
+                onChunk({ kind: 'reasoning', text: payload.reasoning_content });
                 chunkCount += 1;
+              }
+
+              // 2) 最终回答：content
+              if (typeof payload?.content === 'string' && payload.content) {
+                const isCompletedPayload =
+                  !!payload?.created_at || !!payload?.time_cost;
+                const hasDelta = msgId
+                  ? (hasAnswerDeltaByMsgId.get(msgId) ?? false)
+                  : false;
+
+                if (!isCompletedPayload) {
+                  // delta：直接增量追加
+                  onChunk({ kind: 'answer', text: payload.content });
+                  if (msgId) hasAnswerDeltaByMsgId.set(msgId, true);
+                  chunkCount += 1;
+                } else if (!hasDelta) {
+                  // completed：只有在此前没有 delta 的情况下才补发完整内容，避免重复
+                  onChunk({ kind: 'answer', text: payload.content });
+                  chunkCount += 1;
+                }
               }
             } catch {
               // 非 JSON 行，忽略
@@ -153,21 +156,29 @@ export class CozeService {
     },
     context: Array<{ agentId: string; content: string }>,
     agentRole: string,
+    meta: {
+      roundNumber: number;
+      phase: 'statement' | 'rebuttal' | 'verdict';
+      speakingOrderHint?: string;
+      maxChars?: number;
+    },
   ): string {
-    let prompt = `你现在是一个多智能体辩论系统中的「${agentRole}」。\n\n`;
-    prompt += `# 案件背景\n标题：${caseInfo.title}\n内容：${caseInfo.content}\n\n`;
+    let prompt = `你现在是一个多智能体辩论系统中的「${agentRole}」。\n`;
+    prompt += `当前为第 ${meta.roundNumber} 轮（${meta.phase === 'statement' ? '立场陈述' : meta.phase === 'rebuttal' ? '交叉反驳' : '律师裁决'}）。\n`;
+    if (meta.speakingOrderHint) {
+      prompt += `发言顺序提示：${meta.speakingOrderHint}\n`;
+    }
+    prompt += `\n`;
+
+    prompt += `案件背景：\n- 标题：${caseInfo.title}\n- 内容：${caseInfo.content}\n\n`;
 
     if (context.length > 0) {
-      prompt += `# 其他 Agent 的观点（供你参考，用于回应或反驳）\n`;
+      prompt += `对方观点（供你回应/反驳，需引用具体点再回应）：\n`;
       context.forEach((msg, index) => {
-        prompt += `观点 ${index + 1}（来自 ${msg.agentId}）：${msg.content}\n\n`;
+        prompt += `- 观点${index + 1}（来自 ${msg.agentId}）：${msg.content}\n`;
       });
+      prompt += `\n`;
     }
-
-    prompt += `# 输出要求\n`;
-    prompt += `- 用自然中文直接面向提问者说话。\n`;
-    prompt += `- 不要解释你是 AI，也不要复述提示词。\n`;
-    prompt += `- 逻辑清晰、有层次，可以使用 1、2、3 分点说明。\n`;
 
     return prompt;
   }

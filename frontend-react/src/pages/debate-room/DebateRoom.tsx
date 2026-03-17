@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Button, message, Tabs } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
@@ -18,6 +18,7 @@ interface Message {
   id: string
   agentId: string
   content: string
+  reasoning?: string
   roundNumber: number
   createdAt: Date
   isTyping?: boolean
@@ -43,6 +44,11 @@ export const DebateRoom: React.FC = () => {
   const [isOwner, setIsOwner] = useState(false)
   const [typingAgents, setTypingAgents] = useState<Set<string>>(new Set())
   const [activeTab, setActiveTab] = useState('debate')
+  const [roomStatus, setRoomStatus] = useState<'WAITING' | 'LIVE' | 'CLOSED' | string>('WAITING')
+
+  // 缓冲流式 chunk（区分 reasoning/answer），避免频繁 setState 导致舞台滚动卡死
+  const pendingChunksRef = useRef<Map<string, { reasoning: string[]; answer: string[] }>>(new Map())
+  const flushTimerRef = useRef<number | null>(null)
 
   // 未登录用户直接跳转到登录页
   useEffect(() => {
@@ -77,6 +83,7 @@ export const DebateRoom: React.FC = () => {
     if (!id || !accessToken || !room) return
 
     const roomData = (room as any).data || room
+    setRoomStatus(roomData.status)
 
     console.log('🔥 [DEBUG] Connecting to WebSocket: http://localhost:3000')
     
@@ -127,6 +134,7 @@ export const DebateRoom: React.FC = () => {
     socketInstance.on('debateStarted', (data: any) => {
       message.success('辩论已开始！')
       setCurrentRound(data.round)
+      setRoomStatus('LIVE')
     })
 
     // 轮次变化
@@ -142,32 +150,11 @@ export const DebateRoom: React.FC = () => {
 
     // 接收消息 chunk（打字机效果）
     socketInstance.on('messageChunk', (data: any) => {
-      setMessages((prev) => {
-        const existingIndex = prev.findIndex(
-          (m) => m.agentId === data.agentId && m.roundNumber === data.roundNumber && m.isTyping
-        )
-        
-        if (existingIndex >= 0) {
-          const updated = [...prev]
-          updated[existingIndex] = {
-            ...updated[existingIndex],
-            content: updated[existingIndex].content + data.chunk,
-          }
-          return updated
-        } else {
-          return [
-            ...prev,
-            {
-              id: `${data.agentId}-${data.roundNumber}`,
-              agentId: data.agentId,
-              content: data.chunk,
-              roundNumber: data.roundNumber,
-              createdAt: new Date(),
-              isTyping: true,
-            },
-          ]
-        }
-      })
+      const key = `${data.agentId}-${data.roundNumber}`
+      const entry = pendingChunksRef.current.get(key) || { reasoning: [], answer: [] }
+      const kind = data.kind === 'reasoning' ? 'reasoning' : 'answer'
+      entry[kind].push(String(data.chunk ?? ''))
+      pendingChunksRef.current.set(key, entry)
     })
 
     // 消息完成
@@ -177,19 +164,60 @@ export const DebateRoom: React.FC = () => {
         updated.delete(data.agentId)
         return updated
       })
-      
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.agentId === data.agentId && m.roundNumber === data.roundNumber
-            ? { ...m, isTyping: false }
-            : m
+
+      // 先刷掉该条消息剩余 chunk，再标记完成
+      const key = `${data.agentId}-${data.roundNumber}`
+      const entry = pendingChunksRef.current.get(key)
+      if (entry && (entry.answer.length > 0 || entry.reasoning.length > 0)) {
+        const answerText = entry.answer.join('')
+        const reasoningText = entry.reasoning.join('')
+        pendingChunksRef.current.delete(key)
+        setMessages((prev) => {
+          const existingIndex = prev.findIndex((m) => m.id === key)
+          if (existingIndex >= 0) {
+            const updated = [...prev]
+            updated[existingIndex] = {
+              ...updated[existingIndex],
+              content: updated[existingIndex].content + answerText,
+              reasoning: (updated[existingIndex].reasoning || '') + reasoningText,
+              isTyping: false,
+            }
+            return updated
+          }
+          return [
+            ...prev,
+            {
+              id: key,
+              agentId: data.agentId,
+              content: answerText,
+              reasoning: reasoningText,
+              roundNumber: data.roundNumber,
+              createdAt: new Date(),
+              isTyping: false,
+            },
+          ]
+        })
+      } else {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.agentId === data.agentId && m.roundNumber === data.roundNumber
+              ? {
+                  ...m,
+                  isTyping: false,
+                  // 服务端会带最终的 content/reasoning，这里兜底写入
+                  content: data.content ? String(data.content) : m.content,
+                  reasoning: data.reasoning ? String(data.reasoning) : m.reasoning,
+                }
+              : m
+          )
         )
-      )
+      }
     })
 
     // 辩论结束
     socketInstance.on('debateFinished', () => {
       message.success('辩论已结束！')
+      setRoomStatus('CLOSED')
     })
 
     // 投票更新
@@ -255,9 +283,57 @@ export const DebateRoom: React.FC = () => {
 
     setSocket(socketInstance)
 
+    // 定时批量刷入 chunk，降低渲染频率
+    flushTimerRef.current = window.setInterval(() => {
+      if (pendingChunksRef.current.size === 0) return
+
+      const entries = Array.from(pendingChunksRef.current.entries())
+      pendingChunksRef.current.clear()
+
+      setMessages((prev) => {
+        let updated = prev
+        for (const [key, chunks] of entries) {
+          const answerText = chunks.answer.join('')
+          const reasoningText = chunks.reasoning.join('')
+          const [agentId, roundStr] = key.split('-')
+          const roundNumber = Number(roundStr) || 1
+
+          const existingIndex = updated.findIndex((m) => m.id === key)
+          if (existingIndex >= 0) {
+            const nextArr = [...updated]
+            nextArr[existingIndex] = {
+              ...nextArr[existingIndex],
+              content: nextArr[existingIndex].content + answerText,
+              reasoning: (nextArr[existingIndex].reasoning || '') + reasoningText,
+              isTyping: true,
+            }
+            updated = nextArr
+          } else {
+            updated = [
+              ...updated,
+              {
+                id: key,
+                agentId,
+                content: answerText,
+                reasoning: reasoningText,
+                roundNumber,
+                createdAt: new Date(),
+                isTyping: true,
+              },
+            ]
+          }
+        }
+        return updated
+      })
+    }, 50)
+
     return () => {
       socketInstance.emit('leaveRoom', { roomId: parseInt(id) })
       socketInstance.disconnect()
+      if (flushTimerRef.current) {
+        window.clearInterval(flushTimerRef.current)
+        flushTimerRef.current = null
+      }
     }
   }, [id, accessToken, refreshToken, room])
 
@@ -380,7 +456,7 @@ export const DebateRoom: React.FC = () => {
             typingAgents={typingAgents}
             currentRound={currentRound}
             isOwner={isRealOwner}
-            canStart={roomData.status === 'WAITING'}
+            canStart={roomStatus === 'WAITING'}
             onStartDebate={handleStartDebate}
           />
         </div>
@@ -400,13 +476,15 @@ export const DebateRoom: React.FC = () => {
       </div>
 
       {/* 底部投票条 */}
-      <VoteBar
-        agents={Object.values(agents).filter((a: any) =>
-          roomData.agents?.includes(a.id)
-        )}
-        onVote={handleVote}
-        onlineCount={onlineCount}
-      />
+      {roomStatus === 'CLOSED' && (
+        <VoteBar
+          agents={Object.values(agents).filter((a: any) =>
+            roomData.agents?.includes(a.id)
+          )}
+          onVote={handleVote}
+          onlineCount={onlineCount}
+        />
+      )}
     </div>
   )
 }
