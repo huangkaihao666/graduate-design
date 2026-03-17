@@ -61,7 +61,10 @@ export class RoomsGateway
 
     try {
       const payload = await this.jwtService.verifyAsync(token);
-      client.data.userId = payload.sub || payload.id;
+      const rawId = (payload as any).sub ?? (payload as any).id;
+      const userId =
+        typeof rawId === 'string' ? parseInt(rawId, 10) : Number(rawId);
+      client.data.userId = userId;
       this.logger.log(`User ${client.data.userId} authenticated (handshake)`);
     } catch (error: any) {
       this.logger.warn(`JWT verification failed: ${error?.message || error}`);
@@ -74,7 +77,7 @@ export class RoomsGateway
    */
   private async ensureAuthenticatedUser(client: Socket): Promise<number> {
     if (client.data.userId) {
-      return client.data.userId;
+      return Number(client.data.userId);
     }
 
     const token =
@@ -89,7 +92,9 @@ export class RoomsGateway
 
     try {
       const payload = await this.jwtService.verifyAsync(token);
-      const userId = payload.sub || payload.id;
+      const rawId = (payload as any).sub ?? (payload as any).id;
+      const userId =
+        typeof rawId === 'string' ? parseInt(rawId, 10) : Number(rawId);
       client.data.userId = userId;
       this.logger.log(`User ${userId} authenticated (lazy)`);
       return userId;
@@ -200,7 +205,10 @@ export class RoomsGateway
     if (token) {
       try {
         const payload = await this.jwtService.verifyAsync(token);
-        client.data.userId = payload.sub || payload.id;
+        const rawId = (payload as any).sub ?? (payload as any).id;
+        const userId =
+          typeof rawId === 'string' ? parseInt(rawId, 10) : Number(rawId);
+        client.data.userId = userId;
         this.logger.log(`User ${client.data.userId} authenticated`);
       } catch (error) {
         this.logger.warn(`JWT verification failed: ${error.message}`);

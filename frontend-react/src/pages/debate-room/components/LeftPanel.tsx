@@ -8,7 +8,11 @@ interface LeftPanelProps {
   currentRound: number
 }
 
-export const LeftPanel: React.FC<LeftPanelProps> = ({ room, agents, currentRound }) => {
+export const LeftPanel: React.FC<LeftPanelProps> = ({
+  room,
+  agents,
+  currentRound,
+}) => {
   const roomAgents = room.agents || []
   const voteStats = room.votes || {}
 

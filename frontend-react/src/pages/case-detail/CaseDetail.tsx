@@ -87,7 +87,19 @@ const CaseDetail: React.FC = () => {
         <Card className="case-header-info">
           <div className="title-section">
             <h1>{caseData.title}</h1>
-            <Tag color="blue">{caseData.status === 'LIVE' ? '进行中' : '已结束'}</Tag>
+            <Tag color={
+              caseData.status === 'LIVE'
+                ? 'blue'
+                : caseData.status === 'WAITING'
+                ? 'orange'
+                : 'default'
+            }>
+              {caseData.status === 'LIVE'
+                ? '进行中'
+                : caseData.status === 'WAITING'
+                ? '即将开始'
+                : '已结束'}
+            </Tag>
           </div>
 
           <div className="meta-info">

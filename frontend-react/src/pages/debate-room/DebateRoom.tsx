@@ -33,7 +33,7 @@ interface ChatMessage {
 export const DebateRoom: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { accessToken, refreshToken, setAccessToken, clearAuth } = useAuthStore()
+  const { accessToken, refreshToken, setAccessToken, clearAuth, user } = useAuthStore()
   
   const [socket, setSocket] = useState<Socket | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
@@ -315,12 +315,21 @@ export const DebateRoom: React.FC = () => {
 
   const roomData = room.data || room
 
+  // 双保险：既依赖 WebSocket 返回的 isOwner，也用登录用户和 ownerId 再算一遍
+  const isRealOwner =
+    isOwner ||
+    (!!user &&
+      (roomData.ownerId === user.id ||
+        roomData.ownerId === Number(user.id)))
+
   // 移动端使用 Tab 切换
   const mobileTabItems = [
     {
       key: 'info',
       label: '案件信息',
-      children: <LeftPanel room={roomData} agents={agents} currentRound={currentRound} />,
+      children: (
+        <LeftPanel room={roomData} agents={agents} currentRound={currentRound} />
+      ),
     },
     {
       key: 'debate',
@@ -362,13 +371,6 @@ export const DebateRoom: React.FC = () => {
       <div className="debate-room-desktop">
         <div className="left-panel">
           <LeftPanel room={roomData} agents={agents} currentRound={currentRound} />
-          {isOwner && roomData.status === 'WAITING' && (
-            <div className="owner-controls">
-              <Button type="primary" block onClick={handleStartDebate}>
-                🚀 开始辩论
-              </Button>
-            </div>
-          )}
         </div>
 
         <div className="center-panel">
@@ -377,6 +379,9 @@ export const DebateRoom: React.FC = () => {
             agents={agents}
             typingAgents={typingAgents}
             currentRound={currentRound}
+            isOwner={isRealOwner}
+            canStart={roomData.status === 'WAITING'}
+            onStartDebate={handleStartDebate}
           />
         </div>
 

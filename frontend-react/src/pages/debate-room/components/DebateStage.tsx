@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react'
-import { Avatar, Empty } from 'antd'
+import { Avatar, Empty, Button } from 'antd'
 import { LoadingOutlined } from '@ant-design/icons'
 import './DebateStage.less'
 
@@ -17,6 +17,9 @@ interface DebateStageProps {
   agents: Record<string, any>
   typingAgents: Set<string>
   currentRound: number
+  isOwner?: boolean
+  canStart?: boolean
+  onStartDebate?: () => void
 }
 
 export const DebateStage: React.FC<DebateStageProps> = ({
@@ -24,6 +27,9 @@ export const DebateStage: React.FC<DebateStageProps> = ({
   agents,
   typingAgents,
   currentRound,
+  isOwner,
+  canStart,
+  onStartDebate,
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -36,7 +42,14 @@ export const DebateStage: React.FC<DebateStageProps> = ({
     <div className="debate-stage">
       <div className="stage-header">
         <h2>🎭 AI 辩论舞台</h2>
-        <span className="round-badge">Round {currentRound}</span>
+        <div className="stage-header-right">
+          <span className="round-badge">Round {currentRound}</span>
+          {isOwner && canStart && onStartDebate && (
+            <Button type="primary" size="small" onClick={onStartDebate} style={{ marginLeft: 12 }}>
+              🚀 开始辩论
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="messages-container">

@@ -75,7 +75,7 @@ export class DebateService {
    * Round 1: Bot A 和 Bot B 并发发言
    */
   private async executeRound1(roomId: number, room: any): Promise<void> {
-    this.logger.log(`Executing Round 1 for room ${roomId}`);
+    this.logger.log(`🟦 Executing Round 1 for room ${roomId}`);
 
     const agents = JSON.parse(room.agents);
     const botA = agents[0];
@@ -101,7 +101,7 @@ export class DebateService {
    * Round 2: Bot A 和 Bot B 交叉反驳
    */
   private async executeRound2(roomId: number, room: any): Promise<void> {
-    this.logger.log(`Executing Round 2 for room ${roomId}`);
+    this.logger.log(`🟩 Executing Round 2 for room ${roomId}`);
 
     const context = this.debateContexts.get(roomId);
     if (!context) return;
@@ -145,7 +145,7 @@ export class DebateService {
    * Round 3: Bot C 总结
    */
   private async executeRound3(roomId: number, room: any): Promise<void> {
-    this.logger.log(`Executing Round 3 for room ${roomId}`);
+    this.logger.log(`🟥 Executing Round 3 for room ${roomId}`);
 
     const context = this.debateContexts.get(roomId);
     if (!context) return;
@@ -181,7 +181,7 @@ export class DebateService {
    */
   private async streamAgentResponse(
     roomId: number,
-    agentId: string,
+    agentId: string, // 逻辑上的 Agent 标识（如 bot_A / bot_B / bot_C）
     caseInfo: { title: string; content: string },
     context: Array<{ agentId: string; content: string }>,
     roundNumber: number,
@@ -197,10 +197,21 @@ export class DebateService {
 
     let fullContent = '';
 
-    // 调用 Coze API（模拟）
-    const prompt = this.cozeService.buildPrompt(caseInfo, context, agentId);
+    // 将逻辑 Agent 标识映射到具体的 Coze bot_id
+    const cozeBotIdMap: Record<string, string> = {
+      bot_A: '7613771804259581971', // 毒舌现实主义者
+      bot_B: '7616710739609075752', // 温柔共情者
+      bot_C: '7616712140996902922', // 理智律师
+    };
+    const botId = cozeBotIdMap[agentId] || agentId;
 
-    await this.cozeService.streamChat(agentId, prompt, (chunk: string) => {
+    // 调用 Coze API（Prompt 里仍然用逻辑角色名 agentId）
+    const prompt = this.cozeService.buildPrompt(caseInfo, context, agentId);
+    this.logger.log(
+      `📨 [room ${roomId}] round ${roundNumber} calling agent ${agentId} (botId=${botId}). Case title: ${caseInfo.title}`,
+    );
+
+    await this.cozeService.streamChat(botId, prompt, (chunk: string) => {
       fullContent += chunk;
 
       // 实时广播 chunk
