@@ -1,0 +1,2 @@
+export { RoomReport } from './RoomReport'
+

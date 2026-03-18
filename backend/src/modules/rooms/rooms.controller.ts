@@ -125,4 +125,24 @@ export class RoomsController {
     await this.debateService.resumeDebate(parseInt(id, 10));
     return { message: '辩论已继续' };
   }
+
+  /**
+   * 结案（结束辩论）
+   */
+  @Post(':id/close')
+  @UseGuards(JwtGuard)
+  @ApiOkResponse({ description: '结案成功' })
+  async closeRoom(@Param('id') id: string, @Request() req: any) {
+    return await this.roomsService.closeRoom(parseInt(id, 10), req.user.id);
+  }
+
+  /**
+   * 获取结案报告
+   */
+  @Get(':id/report')
+  @UseGuards(JwtGuard)
+  @ApiOkResponse({ description: '获取结案报告成功' })
+  async getRoomReport(@Param('id') id: string) {
+    return await this.roomsService.getRoomReport(parseInt(id, 10));
+  }
 }

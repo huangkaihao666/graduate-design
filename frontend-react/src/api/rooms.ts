@@ -48,3 +48,17 @@ export const deleteRoom = (roomId: number) => {
 export const getAllAgents = () => {
   return httpClient.get('/rooms/agents/list')
 }
+
+/**
+ * 结案
+ */
+export const closeRoom = (roomId: number) => {
+  return httpClient.post(`/rooms/${roomId}/close`)
+}
+
+/**
+ * 获取结案报告
+ */
+export const getRoomReport = (roomId: number) => {
+  return httpClient.get(`/rooms/${roomId}/report`)
+}

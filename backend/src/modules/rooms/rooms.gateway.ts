@@ -11,6 +11,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { Logger, UseGuards } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { PrismaService } from '@/prisma/prisma.service';
 
 @WebSocketGateway({
   cors: {
@@ -49,7 +50,10 @@ export class RoomsGateway
   // 房间投票（按用户去重）：roomKey -> (userId -> agentId)
   private roomVotes: Map<string, Map<number, string>> = new Map();
 
-  constructor(private readonly jwtService: JwtService) {
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly prisma: PrismaService,
+  ) {
     this.logger.log('🚀 RoomsGateway constructor called');
   }
 
@@ -228,11 +232,13 @@ export class RoomsGateway
     // 从所有房间中移除该用户
     this.roomUsers.forEach((users, roomId) => {
       if (users.has(client.id)) {
+        const info = users.get(client.id);
         users.delete(client.id);
 
         // 广播用户离开事件
         this.server.to(roomId).emit('userLeft', {
           socketId: client.id,
+          userId: info?.userId,
           onlineCount: users.size,
         });
 
@@ -321,11 +327,13 @@ export class RoomsGateway
 
     const roomUserMap = this.roomUsers.get(roomId);
     if (roomUserMap) {
+      const info = roomUserMap.get(client.id);
       roomUserMap.delete(client.id);
 
       // 广播用户离开
       this.server.to(roomId).emit('userLeft', {
         socketId: client.id,
+        userId: info?.userId,
         onlineCount: roomUserMap.size,
       });
     }
@@ -356,6 +364,24 @@ export class RoomsGateway
     const voteMap = this.roomVotes.get(roomKey) || new Map<number, string>();
     voteMap.set(userId, data.agentId);
     this.roomVotes.set(roomKey, voteMap);
+
+    // 持久化投票（同一用户同一房间可覆盖更新）
+    await this.prisma.vote.upsert({
+      where: {
+        userId_roomId: {
+          userId,
+          roomId: data.roomId,
+        },
+      },
+      update: {
+        agentId: data.agentId,
+      },
+      create: {
+        userId,
+        roomId: data.roomId,
+        agentId: data.agentId,
+      },
+    });
 
     const counts: Record<string, number> = {};
     for (const agentId of voteMap.values()) {

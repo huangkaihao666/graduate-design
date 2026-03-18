@@ -282,13 +282,16 @@ export class DebateService {
 
     // 保存到数据库
     await this.prisma.message.create({
+      // Prisma Client 类型在部分环境会滞后（db push 后 TS 未刷新），这里显式放宽类型
       data: {
         roomId,
         content: fullAnswer,
+        reasoning: fullReasoning || null,
+        roundNumber,
         senderType: 'AI',
         botId: agentId, // AI 消息使用 botId 字段
         senderId: null, // AI 消息没有 senderId
-      },
+      } as any,
     });
 
     // 广播消息完成
@@ -322,6 +325,27 @@ export class DebateService {
     this.roomsGateway.broadcastToRoom(roomId, 'debateFinished', {
       roomId,
     });
+  }
+
+  /**
+   * 强制结案（用于手动结案/生成报告）
+   * - 幂等：已 CLOSED 仍返回成功
+   * - 会广播 debateFinished，方便前端即时切换到 CLOSED
+   */
+  async forceCloseDebate(roomId: number): Promise<void> {
+    this.logger.log(`Force closing debate for room ${roomId}`);
+
+    const context = this.debateContexts.get(roomId);
+    if (context) {
+      context.status = 'FINISHED';
+    }
+
+    await this.prisma.room.update({
+      where: { id: roomId },
+      data: { status: 'CLOSED' },
+    });
+
+    this.roomsGateway.broadcastToRoom(roomId, 'debateFinished', { roomId });
   }
 
   /**

@@ -7,6 +7,7 @@ import './ChatPanel.less'
 interface ChatMessage {
   id: number
   senderId: number
+  senderType?: 'HUMAN' | 'SYSTEM'
   content: string
   createdAt: string
 }
@@ -74,35 +75,45 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           />
         ) : (
-          messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`chat-message ${msg.senderId === currentUserId ? 'chat-message-self' : 'chat-message-other'}`}
-            >
-              <Avatar
-                size="small"
-                style={
-                  msg.senderId === currentUserId
-                    ? { backgroundColor: '#3182ce', color: '#fff' }
-                    : { backgroundColor: '#e2e8f0', color: '#2d3748' }
-                }
-                icon={<UserOutlined />}
-              />
-              <div className="message-content">
-                <div className="message-header">
-                  <span className="sender-name">
-                    {msg.senderId === currentUserId
-                      ? currentUserDisplayName || '我'
-                      : `用户 ${msg.senderId}`}
-                  </span>
-                  <span className="message-time">
-                    {new Date(msg.createdAt).toLocaleTimeString()}
-                  </span>
+          messages.map((msg) => {
+            if (msg.senderType === 'SYSTEM' || msg.senderId === 0) {
+              return (
+                <div key={msg.id} className="chat-system-message">
+                  <span className="system-text">{msg.content}</span>
                 </div>
-                <div className="message-text">{msg.content}</div>
+              )
+            }
+
+            return (
+              <div
+                key={msg.id}
+                className={`chat-message ${msg.senderId === currentUserId ? 'chat-message-self' : 'chat-message-other'}`}
+              >
+                <Avatar
+                  size="small"
+                  style={
+                    msg.senderId === currentUserId
+                      ? { backgroundColor: '#3182ce', color: '#fff' }
+                      : { backgroundColor: '#e2e8f0', color: '#2d3748' }
+                  }
+                  icon={<UserOutlined />}
+                />
+                <div className="message-content">
+                  <div className="message-header">
+                    <span className="sender-name">
+                      {msg.senderId === currentUserId
+                        ? currentUserDisplayName || '我'
+                        : `用户 ${msg.senderId}`}
+                    </span>
+                    <span className="message-time">
+                      {new Date(msg.createdAt).toLocaleTimeString()}
+                    </span>
+                  </div>
+                  <div className="message-text">{msg.content}</div>
+                </div>
               </div>
-            </div>
-          ))
+            )
+          })
         )}
         <div ref={messagesEndRef} />
       </div>

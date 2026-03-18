@@ -415,6 +415,38 @@
 
 前后端完整实现结案报告。**难度: ⭐⭐ 中等**
 
+### 方案（2026-03 更新）
+
+目标：辩论结束（或手动结案）后，提供一个**结案报告页**，统一展示「案件信息 + 三轮辩论回顾 + 律师最终建议 + 投票统计/胜者 + 分享」。
+
+#### 5.0 数据契约（推荐 DTO）
+
+- `GET /api/v1/rooms/:id/report` 返回：
+  - **room**：`{ id, title, description, createdAt, ownerId, status, agents: [{id,name,avatar}] }`
+  - **debateMessages**：三轮 AI 历史记录（来自 `Message` 表）
+    - 字段：`{ id, roundNumber, agentId(botId), content, reasoning?, createdAt }`
+    - 排序：按 `createdAt` 升序；前端按 `roundNumber` 分组折叠显示
+  - **finalAdvice**：Bot C（理智律师）在 Round 3 的消息
+    - `raw`: `{ content, reasoning? }`（先保证可用）
+    - `items`（可选增强）：把建议/风险/优先级做轻量解析后返回（不要强依赖 prompt 标签）
+  - **voteStats**：
+    - `totalVotes`
+    - `countsByAgentId: Record<string, number>`
+    - `percentByAgentId: Record<string, number>`
+    - `ranking: [{ agentId, count, percent, rank }]`
+    - `winner: { type: 'WIN'|'TIE'|'NO_VOTES', agentId?: string, topPercent?: number }`
+
+#### 5.0 规则（胜负与弃权）
+
+- **不投票**：视为弃权，不计入分母（分母 = `totalVotes`）
+- **0 票**：`winner.type = 'NO_VOTES'`，前端展示“暂无投票结果”，并提示“以 Round 3 律师裁决为参考”
+- **平票**：`winner.type = 'TIE'`，展示平票与 Top 排名
+- **获胜**：票数最高者获胜（同票判平）
+
+#### 5.0 存储策略（投票持久化）
+
+- 推荐新增 `RoomVote` 表（`roomId,userId,agentId,createdAt`，`unique(roomId,userId)`）用于 report 聚合，避免 WebSocket 内存投票在重启后丢失。
+
 ### 前端任务
 
 - [ ] **5.1-FE** 构建报告页基础布局
@@ -441,6 +473,11 @@
   - 下载报告为 PDF（可选）
   - 分享统计
 
+- [ ] **5.5-FE** 报告入口与跳转
+  - 辩论结束后提供“查看结案报告”按钮（跳转到 `/rooms/:id/report` 或 `/debate-room/:id/report`）
+  - 案件详情页在 `status=CLOSED` 时展示“查看报告”
+  - `NO_VOTES/TIE/WIN` 三种赢家展示文案完整覆盖
+
 ### 后端任务
 
 - [ ] **5.1-BE** 实现结案 API
@@ -455,6 +492,10 @@
   - 计算每个 Agent 的总投票数
   - 计算支持率百分比
   - 排序并返回
+
+- [ ] **5.4-BE** 投票持久化（推荐）
+  - 新增 `RoomVote` 表并实现 upsert（同房间同用户只能投一次，可覆盖更新）
+  - `GET /report` 从 DB 聚合生成 `voteStats`（支持 `NO_VOTES/TIE/WIN`）
 
 ### 验收标准
 

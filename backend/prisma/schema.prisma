@@ -79,6 +79,8 @@ model Message {
   botId      String? @db.VarChar(255) // 当为 AI 时，存储 BotID
   
   content    String  @db.LongText
+  reasoning  String? @db.LongText
+  roundNumber Int?   @db.UnsignedInt
   
   createdAt DateTime @default(now())
 
@@ -86,6 +88,7 @@ model Message {
   @@index([roomId])
   @@index([senderId])
   @@index([createdAt])
+  @@index([roundNumber])
 }
 
 /// 投票模型

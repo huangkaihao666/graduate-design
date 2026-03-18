@@ -18,9 +18,14 @@ interface DebateStageProps {
   agents: Record<string, any>
   typingAgents: Set<string>
   currentRound: number
+  roomStatus?: 'WAITING' | 'LIVE' | 'CLOSED' | string
   isOwner?: boolean
   canStart?: boolean
   onStartDebate?: () => void
+  canClose?: boolean
+  onCloseDebate?: () => void
+  canViewReport?: boolean
+  onViewReport?: () => void
 }
 
 export const DebateStage: React.FC<DebateStageProps> = ({
@@ -28,9 +33,14 @@ export const DebateStage: React.FC<DebateStageProps> = ({
   agents,
   typingAgents,
   currentRound,
+  roomStatus,
   isOwner,
   canStart,
   onStartDebate,
+  canClose,
+  onCloseDebate,
+  canViewReport,
+  onViewReport,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -82,13 +92,27 @@ export const DebateStage: React.FC<DebateStageProps> = ({
               🚀 开始辩论
             </Button>
           )}
+          {isOwner && canClose && onCloseDebate && (
+            <Button danger size="small" onClick={onCloseDebate} style={{ marginLeft: 12 }}>
+              ✅ 结案
+            </Button>
+          )}
+          {canViewReport && onViewReport && (
+            <Button size="small" type="primary" onClick={onViewReport} style={{ marginLeft: 12 }}>
+              📊 结案报告
+            </Button>
+          )}
         </div>
       </div>
 
       <div className="messages-container" ref={containerRef} onScroll={handleScroll}>
         {messages.length === 0 ? (
           <Empty
-            description="辩论尚未开始，请等待..."
+            description={
+              roomStatus === 'CLOSED'
+                ? '辩论已结束，正在加载历史记录…'
+                : '辩论尚未开始，请等待...'
+            }
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           />
         ) : (

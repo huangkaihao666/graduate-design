@@ -116,6 +116,19 @@ const CaseDetail: React.FC = () => {
               <span>{caseData.owner.name}</span>
             </div>
           )}
+
+          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
+            <Space wrap>
+              <Button type="primary" onClick={() => navigate(`/debate/${caseData.id}`)}>
+                🎭 进入辩论室
+              </Button>
+              {caseData.status === 'CLOSED' && (
+                <Button onClick={() => navigate(`/rooms/${caseData.id}/report`)}>
+                  📊 查看结案报告
+                </Button>
+              )}
+            </Space>
+          </div>
         </Card>
       </div>
 

@@ -1,0 +1,157 @@
+.room-report-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 16px 80px;
+}
+
+.room-report-hero {
+  background: radial-gradient(1200px 500px at 10% 0%, rgba(102, 126, 234, 0.25) 0%, rgba(255, 255, 255, 0) 55%),
+    radial-gradient(900px 500px at 90% 0%, rgba(118, 75, 162, 0.22) 0%, rgba(255, 255, 255, 0) 55%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.9) 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 18px 18px 14px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
+}
+
+.room-report-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.room-report-title h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.25;
+}
+
+.room-report-sub {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  color: #475569;
+  font-size: 13px;
+}
+
+.room-report-grid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 14px;
+}
+
+@media (max-width: 900px) {
+  .room-report-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.report-card {
+  border-radius: 14px !important;
+  overflow: hidden;
+}
+
+.agent-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.agent-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 999px;
+}
+
+.agent-chip .name {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.advice-raw {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: #0f172a;
+  line-height: 1.7;
+}
+
+.advice-reasoning {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: #475569;
+  line-height: 1.65;
+}
+
+.winner-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.winner-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.winner-name {
+  font-size: 16px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.winner-meta {
+  color: #475569;
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.rank-list {
+  display: grid;
+  gap: 10px;
+}
+
+.rank-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.rank-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.rank-left .label {
+  font-weight: 700;
+  width: 42px;
+}
+
+.rank-left .agent {
+  color: #0f172a;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.share-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+

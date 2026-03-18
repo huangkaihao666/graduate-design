@@ -27,6 +27,7 @@ interface Message {
 interface ChatMessage {
   id: number
   senderId: number
+  senderType?: 'HUMAN' | 'SYSTEM'
   content: string
   createdAt: string
 }
@@ -48,6 +49,7 @@ export const DebateRoom: React.FC = () => {
   const lastRoundToastRef = useRef<number | null>(null)
   const [voteCounts, setVoteCounts] = useState<Record<string, number>>({})
   const [totalVotes, setTotalVotes] = useState(0)
+  const loadedDebateHistoryRef = useRef(false)
 
   // 缓冲流式 chunk（区分 reasoning/answer），避免频繁 setState 导致舞台滚动卡死
   const pendingChunksRef = useRef<Map<string, { reasoning: string[]; answer: string[] }>>(new Map())
@@ -133,14 +135,46 @@ export const DebateRoom: React.FC = () => {
       console.log('Joined room:', data)
       setIsOwner(data.isOwner)
       setOnlineCount(data.onlineCount)
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + Math.floor(Math.random() * 1000),
+          senderId: 0,
+          senderType: 'SYSTEM',
+          content: '你进入了房间',
+          createdAt: new Date().toISOString(),
+        },
+      ])
     })
 
     socketInstance.on('userJoined', (data: any) => {
       setOnlineCount(data.onlineCount)
+      const text = data?.userId ? `用户 ${data.userId} 进入房间` : '有新用户进入房间'
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + Math.floor(Math.random() * 1000),
+          senderId: 0,
+          senderType: 'SYSTEM',
+          content: text,
+          createdAt: new Date().toISOString(),
+        },
+      ])
     })
 
     socketInstance.on('userLeft', (data: any) => {
       setOnlineCount(data.onlineCount)
+      const text = data?.userId ? `用户 ${data.userId} 离开房间` : '有用户离开房间'
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + Math.floor(Math.random() * 1000),
+          senderId: 0,
+          senderType: 'SYSTEM',
+          content: text,
+          createdAt: new Date().toISOString(),
+        },
+      ])
     })
 
     // 辩论开始
@@ -250,7 +284,20 @@ export const DebateRoom: React.FC = () => {
     // 房间历史聊天记录（刷新页面后初始化）
     socketInstance.on('chatHistory', (data: any[]) => {
       if (Array.isArray(data)) {
-        setChatMessages(data)
+        setChatMessages((prev) => {
+          const merged = [...prev, ...data]
+          const map = new Map<number, ChatMessage>()
+          for (const m of merged) {
+            if (!m || typeof m.id !== 'number') continue
+            // 后来的覆盖之前的（以防相同 id）
+            map.set(m.id, m)
+          }
+          return Array.from(map.values()).sort((a, b) => {
+            const ta = new Date(a.createdAt).getTime()
+            const tb = new Date(b.createdAt).getTime()
+            return ta - tb
+          })
+        })
       }
     })
 
@@ -354,6 +401,39 @@ export const DebateRoom: React.FC = () => {
     }
   }, [id, accessToken, refreshToken, room])
 
+  // CLOSED 状态下从持久化 report 拉取辩论历史，填充舞台（刷新/重启后也可回放）
+  useEffect(() => {
+    const roomData = (room as any)?.data || room
+    if (!id || !accessToken || !roomData) return
+    if (roomStatus !== 'CLOSED') return
+    if (loadedDebateHistoryRef.current) return
+    if (messages.length > 0) {
+      loadedDebateHistoryRef.current = true
+      return
+    }
+
+    loadedDebateHistoryRef.current = true
+    void (async () => {
+      try {
+        const report = await roomApi.getRoomReport(parseInt(id))
+        const list = Array.isArray((report as any)?.debateMessages) ? (report as any).debateMessages : []
+        setMessages(
+          list.map((m: any) => ({
+            id: String(m.id),
+            agentId: String(m.agentId),
+            content: String(m.content || ''),
+            reasoning: m.reasoning ? String(m.reasoning) : undefined,
+            roundNumber: Number(m.roundNumber || 0),
+            createdAt: m.createdAt ? new Date(m.createdAt) : new Date(),
+            isTyping: false,
+          }))
+        )
+      } catch (e) {
+        // 拉取失败不打断页面，仅保持空态，用户仍可点击“结案报告”查看
+      }
+    })()
+  }, [id, accessToken, room, roomStatus, messages.length])
+
   const handleStartDebate = async () => {
     try {
       await fetch(`http://localhost:3000/api/v1/rooms/${id}/start`, {
@@ -364,6 +444,15 @@ export const DebateRoom: React.FC = () => {
       })
     } catch (error) {
       message.error('开始辩论失败')
+    }
+  }
+
+  const handleCloseAndReport = async () => {
+    try {
+      await roomApi.closeRoom(parseInt(id || '0'))
+      navigate(`/rooms/${id}/report`)
+    } catch (e: any) {
+      message.error(e?.message || '结案失败')
     }
   }
 
@@ -467,6 +556,8 @@ export const DebateRoom: React.FC = () => {
         返回
       </Button>
 
+      {/* 结案报告入口已挪到辩论舞台标题区 */}
+
       {/* 桌面版：三栏布局 */}
       <div className="debate-room-desktop">
         <div className="left-panel">
@@ -479,9 +570,14 @@ export const DebateRoom: React.FC = () => {
             agents={agents}
             typingAgents={typingAgents}
             currentRound={currentRound}
+            roomStatus={roomStatus}
             isOwner={isRealOwner}
             canStart={roomStatus === 'WAITING'}
             onStartDebate={handleStartDebate}
+            canClose={roomStatus === 'LIVE'}
+            onCloseDebate={handleCloseAndReport}
+            canViewReport={roomStatus === 'CLOSED'}
+            onViewReport={() => navigate(`/rooms/${roomData.id}/report`)}
           />
         </div>
 
