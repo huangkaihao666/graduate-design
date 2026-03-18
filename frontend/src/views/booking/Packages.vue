@@ -4,12 +4,6 @@
     <nav class="navbar" :class="{ scrolled: isScrolled }">
       <div class="nav-content">
         <div class="nav-left">
-          <a-button type="text" class="back-btn" @click="goBack">
-            <template #icon>
-              <span class="back-icon">←</span>
-            </template>
-            返回
-          </a-button>
           <div class="logo" @click="goToHome">
             <span class="icon">📸</span>
             <span class="text">旅拍 · 智享</span>
@@ -405,15 +399,6 @@ const getStyleName = (style: string) => {
   return styleMap[style] || style;
 };
 
-// 返回上一页
-const goBack = () => {
-  if (window.history.length > 1) {
-    router.go(-1);
-  } else {
-    router.push('/');
-  }
-};
-
 // 滚动监听
 const handleScroll = () => {
   isScrolled.value = window.scrollY > 50;
@@ -729,32 +714,6 @@ onMounted(() => {
     align-items: center;
     gap: 20px;
 
-    .back-btn {
-      color: white;
-      font-size: 1rem;
-      padding: 8px 16px;
-      height: auto;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      transition: all 0.3s;
-      border-radius: 20px;
-      background: linear-gradient(90deg, #ff758c 0%, #ff7eb3 100%);
-      border: none;
-      box-shadow: 0 2px 8px rgba(255, 117, 140, 0.3);
-
-      &:hover {
-        background: linear-gradient(90deg, #ff7eb3 0%, #ff758c 100%);
-        transform: translateX(-3px);
-        box-shadow: 0 4px 12px rgba(255, 117, 140, 0.4);
-      }
-
-      .back-icon {
-        font-size: 1.2rem;
-        font-weight: 600;
-      }
-    }
-
     .logo {
       display: flex;
       align-items: center;
@@ -773,18 +732,6 @@ onMounted(() => {
 
   &.scrolled {
     .nav-left {
-      .back-btn {
-        color: white;
-        background: linear-gradient(90deg, #ff758c 0%, #ff7eb3 100%);
-        border: none;
-        box-shadow: 0 2px 8px rgba(255, 117, 140, 0.3);
-
-        &:hover {
-          background: linear-gradient(90deg, #ff7eb3 0%, #ff758c 100%);
-          box-shadow: 0 4px 12px rgba(255, 117, 140, 0.4);
-        }
-      }
-
       .logo .text {
         color: #333;
         text-shadow: none;
