@@ -10,6 +10,7 @@ export interface User {
   username?: string
   email: string
   avatar?: string
+  bio?: string
   roles?: string[]
   isActive?: boolean
   createdAt?: string

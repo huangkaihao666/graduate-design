@@ -7,6 +7,9 @@ import {
   Delete,
   Put,
   ParseIntPipe,
+  Query,
+  UseGuards,
+  Request,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -17,6 +20,9 @@ import {
 } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { JwtGuard } from '@/common/guards/jwt.guard';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UpdatePasswordDto } from './dto/update-password.dto';
 
 @ApiTags('Users')
 @Controller('users')
@@ -158,5 +164,88 @@ export class UsersController {
   })
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.remove(id);
+  }
+
+  /**
+   * 更新个人资料（头像/昵称/简介）
+   */
+  @Put(':id/profile')
+  @UseGuards(JwtGuard)
+  async updateProfile(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateProfileDto,
+    @Request() req: any,
+  ) {
+    return this.usersService.updateProfile(id, req.user.id, dto);
+  }
+
+  /**
+   * 修改密码
+   */
+  @Put(':id/password')
+  @UseGuards(JwtGuard)
+  async updatePassword(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdatePasswordDto,
+    @Request() req: any,
+  ) {
+    return this.usersService.updatePassword(id, req.user.id, dto);
+  }
+
+  /**
+   * 获取我发布的案件列表
+   */
+  @Get(':id/rooms')
+  @UseGuards(JwtGuard)
+  async getMyRooms(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('page') page: string,
+    @Query('pageSize') pageSize: string,
+    @Query('status') status: string,
+    @Request() req: any,
+  ) {
+    return this.usersService.getUserRooms(id, req.user.id, {
+      page: page ? Number(page) : 1,
+      pageSize: pageSize ? Number(pageSize) : 10,
+      status,
+    });
+  }
+
+  /**
+   * 获取我的投票历史
+   */
+  @Get(':id/votes')
+  @UseGuards(JwtGuard)
+  async getMyVotes(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('page') page: string,
+    @Query('pageSize') pageSize: string,
+    @Request() req: any,
+  ) {
+    return this.usersService.getUserVotes(id, req.user.id, {
+      page: page ? Number(page) : 1,
+      pageSize: pageSize ? Number(pageSize) : 10,
+    });
+  }
+
+  /**
+   * 性格诊断（雷达图数据）
+   */
+  @Get(':id/diagnosis')
+  @UseGuards(JwtGuard)
+  async getDiagnosis(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: any,
+  ) {
+    return this.usersService.getUserDiagnosis(id, req.user.id);
+  }
+
+  /**
+   * 个人统计
+   */
+  @Get(':id/stats')
+  @UseGuards(JwtGuard)
+  async getStats(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
+    return this.usersService.getUserStats(id, req.user.id);
   }
 }

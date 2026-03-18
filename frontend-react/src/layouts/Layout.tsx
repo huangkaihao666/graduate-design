@@ -21,13 +21,13 @@ const Layout = () => {
     if (location.pathname.includes('/create')) return 'create'
     if (location.pathname.includes('/my-cases')) return 'my-cases'
     if (location.pathname.includes('/agents')) return 'agents'
-    if (location.pathname.includes('/profile')) return 'profile'
+    if (location.pathname.includes('/me') || location.pathname.includes('/profile')) return 'profile'
     if (location.pathname.includes('/dashboard')) return 'dashboard'
     return 'cases'
   }
 
   const userMenuItems = [
-    { key: 'profile', label: '个人资料', icon: <UserOutlined />, onClick: () => navigate('/profile') },
+    { key: 'profile', label: '个人中心', icon: <UserOutlined />, onClick: () => navigate('/me') },
     { key: 'settings', label: '设置', icon: <SettingOutlined />, onClick: () => navigate('/settings') },
     { type: 'divider' as const },
     { key: 'logout', label: '登出', icon: <LogoutOutlined />, onClick: () => handleLogout(), danger: true },
@@ -37,6 +37,7 @@ const Layout = () => {
     { key: 'cases', label: '案件列表', icon: <HomeOutlined />, onClick: () => { navigate('/cases'); setDrawerVisible(false) } },
     { key: 'create', label: '创建案件', icon: <PlusOutlined />, onClick: () => { navigate('/create'); setDrawerVisible(false) } },
     { key: 'my-cases', label: '我的案件', icon: <FileTextOutlined />, onClick: () => { navigate('/my-cases'); setDrawerVisible(false) } },
+    { key: 'profile', label: '个人中心', icon: <UserOutlined />, onClick: () => { navigate('/me'); setDrawerVisible(false) } },
     { key: 'agents', label: 'Agent 图鉴', icon: <RobotOutlined />, onClick: () => { navigate('/agents'); setDrawerVisible(false) } },
     { type: 'divider' as const },
     { key: 'dashboard', label: '管理后台', icon: <DashboardOutlined />, onClick: () => { navigate('/dashboard'); setDrawerVisible(false) } },

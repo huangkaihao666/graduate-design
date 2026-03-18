@@ -13,6 +13,7 @@ import {
   DebateRoom,
   RoomReport,
   Agents,
+  Me,
 } from '@/pages'
 import ProtectedRoute from './ProtectedRoute'
 
@@ -88,18 +89,16 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    path: '/profile',
+    path: '/me',
     element: (
       <ProtectedRoute>
-        <Layout />
+        <Me />
       </ProtectedRoute>
     ),
-    children: [
-      {
-        index: true,
-        element: <Profile />,
-      },
-    ],
+  },
+  {
+    path: '/profile',
+    element: <Navigate to="/me" replace />,
   },
   {
     path: '/settings',
