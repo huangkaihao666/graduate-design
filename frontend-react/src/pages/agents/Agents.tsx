@@ -1,0 +1,245 @@
+import React, { useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import {
+  Avatar,
+  Card,
+  Input,
+  Modal,
+  Select,
+  Skeleton,
+  Space,
+  Tag,
+  Typography,
+  List,
+  Button,
+} from 'antd'
+import { EyeOutlined } from '@ant-design/icons'
+import * as agentsApi from '@/api/agents'
+
+import './Agents.less'
+
+const { Paragraph, Text } = Typography
+
+type AgentSort = agentsApi.AgentSort
+
+export const Agents: React.FC = () => {
+  const [search, setSearch] = useState('')
+  const [sort, setSort] = useState<AgentSort>('winRate')
+  const [order, setOrder] = useState<'asc' | 'desc'>('desc')
+
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const [detailOpen, setDetailOpen] = useState(false)
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['agents-gallery', search, sort, order],
+    queryFn: () => agentsApi.getAgents({ search: search.trim() || undefined, sort, order }),
+  })
+
+  const agents = Array.isArray(data) ? data : []
+
+  const activeAgent = useMemo(() => agents.find((a: any) => a.id === activeId) || null, [agents, activeId])
+
+  const { data: casesData, isLoading: casesLoading } = useQuery({
+    queryKey: ['agent-cases', activeId],
+    queryFn: () => agentsApi.getAgentCases(String(activeId), 5),
+    enabled: !!activeId && detailOpen,
+  })
+
+  const recentCases = Array.isArray(casesData) ? casesData : []
+
+  const sortOptions = [
+    { value: 'winRate', label: '胜率' },
+    { value: 'participateCount', label: '参与案件数' },
+    { value: 'fans', label: '粉丝数' },
+    { value: 'name', label: '名字' },
+  ]
+
+  return (
+    <div className="agents-page">
+      <div className="agents-hero">
+        <div>
+          <h1 className="agents-hero-title">🤖 AI Agent 图鉴</h1>
+          <div className="agents-hero-sub">浏览智能体的人设、金句与数据表现，选择你喜欢的辩论风格。</div>
+        </div>
+      </div>
+
+      <div className="agents-toolbar">
+        <Input.Search
+          allowClear
+          placeholder="搜索 Agent 名字 / 性格 / 简介"
+          style={{ maxWidth: 420 }}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+
+        <Space wrap>
+          <Select
+            value={sort}
+            onChange={(v) => setSort(v)}
+            options={sortOptions}
+            style={{ width: 160 }}
+          />
+          <Select
+            value={order}
+            onChange={(v) => setOrder(v)}
+            options={[
+              { value: 'desc', label: '从高到低' },
+              { value: 'asc', label: '从低到高' },
+            ]}
+            style={{ width: 140 }}
+          />
+        </Space>
+      </div>
+
+      {isLoading ? (
+        <Skeleton active paragraph={{ rows: 10 }} />
+      ) : (
+        <div className="agents-grid">
+          {agents.map((agent: any) => (
+            <Card
+              key={agent.id}
+              className="agent-card"
+              hoverable
+              onClick={() => {
+                setActiveId(agent.id)
+                setDetailOpen(true)
+              }}
+              bodyStyle={{ padding: 16 }}
+            >
+              <div className="agent-card-top">
+                <Space size={12}>
+                  <Avatar size={56} src={agent.avatar} style={{ background: '#667eea', fontWeight: 900 }}>
+                    {!agent.avatar ? String(agent.name || 'A')[0] : ''}
+                  </Avatar>
+                  <div style={{ minWidth: 0 }}>
+                    <h3 className="agent-name">{agent.name}</h3>
+                    <div className="agent-persona">
+                      {agent.personality ? <Tag color="blue">{agent.personality}</Tag> : <Text type="secondary">—</Text>}
+                    </div>
+                  </div>
+                </Space>
+                <Tag icon={<EyeOutlined />} color="purple">
+                  查看详情
+                </Tag>
+              </div>
+
+              <Paragraph className="agent-desc" ellipsis={{ rows: 2 }}>
+                {agent.description || '暂无简介'}
+              </Paragraph>
+
+              <div className="agent-stats-row">
+                <div className="stat-box">
+                  <div className="stat-label">胜率</div>
+                  <div className="stat-value">{Math.round((agent.winRate || 0) * 100)}%</div>
+                </div>
+                <div className="stat-box">
+                  <div className="stat-label">参与案件</div>
+                  <div className="stat-value">{agent.participateCount ?? 0}</div>
+                </div>
+                <div className="stat-box">
+                  <div className="stat-label">粉丝</div>
+                  <div className="stat-value">{agent.fans ?? 0}</div>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Modal
+        open={detailOpen}
+        onCancel={() => setDetailOpen(false)}
+        footer={null}
+        width={860}
+        destroyOnClose
+        title={
+          <div className="agent-modal-head">
+            <Avatar size={44} src={activeAgent?.avatar} style={{ background: '#667eea', fontWeight: 900 }}>
+              {!activeAgent?.avatar ? String(activeAgent?.name || 'A')[0] : ''}
+            </Avatar>
+            <div>
+              <h2>{activeAgent?.name || 'Agent'}</h2>
+              {activeAgent?.personality && <Tag color="blue">{activeAgent.personality}</Tag>}
+            </div>
+          </div>
+        }
+      >
+        {!activeAgent ? (
+          <Skeleton active paragraph={{ rows: 8 }} />
+        ) : (
+          <Space direction="vertical" size={14} style={{ width: '100%' }}>
+            <Card size="small" title="人设简介" className="agent-card">
+              <Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>
+                {activeAgent.description || '暂无'}
+              </Paragraph>
+            </Card>
+
+            {activeAgent.signature && (
+              <Card size="small" title="历史高赞金句" className="agent-card">
+                <div className="quote-box">{activeAgent.signature}</div>
+              </Card>
+            )}
+
+            <Card size="small" title="统计数据" className="agent-card">
+              <Space wrap>
+                <Tag color="green">胜率：{Math.round((activeAgent.winRate || 0) * 100)}%</Tag>
+                <Tag color="blue">参与案件：{activeAgent.participateCount ?? 0}</Tag>
+                <Tag color="purple">粉丝：{activeAgent.fans ?? 0}</Tag>
+              </Space>
+            </Card>
+
+            <Card
+              size="small"
+              title="参与案件（最近 5 个）"
+              className="agent-card"
+              extra={
+                <Button
+                  size="small"
+                  onClick={() => {
+                    // 目前没有 agent 专属案件页，这里先保持弹窗内查看
+                  }}
+                >
+                  刷新
+                </Button>
+              }
+            >
+              {casesLoading ? (
+                <Skeleton active paragraph={{ rows: 4 }} />
+              ) : (
+                <List
+                  dataSource={recentCases}
+                  locale={{ emptyText: '暂无参与案件' }}
+                  renderItem={(item: any) => (
+                    <List.Item>
+                      <List.Item.Meta
+                        title={
+                          <Space wrap>
+                            <Text strong>{item.title}</Text>
+                            <Tag color={item.status === 'LIVE' ? 'blue' : item.status === 'WAITING' ? 'gold' : 'default'}>
+                              {item.status === 'LIVE' ? '进行中' : item.status === 'WAITING' ? '待开始' : '已结束'}
+                            </Tag>
+                          </Space>
+                        }
+                        description={
+                          <Space wrap>
+                            <Text type="secondary">创建于 {new Date(item.createdAt).toLocaleDateString()}</Text>
+                            <Text type="secondary">
+                              发起人：{item.owner?.name || item.owner?.email || `用户${item.owner?.id}`}
+                            </Text>
+                          </Space>
+                        }
+                      />
+                    </List.Item>
+                  )}
+                />
+              )}
+            </Card>
+          </Space>
+        )}
+      </Modal>
+    </div>
+  )
+}
+
+export default Agents
+

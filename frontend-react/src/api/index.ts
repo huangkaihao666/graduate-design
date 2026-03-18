@@ -1,2 +1,4 @@
 export { httpClient } from './client'
 export * as authApi from './auth'
+export * as roomsApi from './rooms'
+export * as agentsApi from './agents'

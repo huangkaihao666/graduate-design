@@ -12,6 +12,7 @@ import {
   CaseDetail,
   DebateRoom,
   RoomReport,
+  Agents,
 } from '@/pages'
 import ProtectedRoute from './ProtectedRoute'
 
@@ -125,6 +126,20 @@ export const router = createBrowserRouter([
       {
         index: true,
         element: <Dashboard />,
+      },
+    ],
+  },
+  {
+    path: '/agents',
+    element: (
+      <ProtectedRoute>
+        <Layout />
+      </ProtectedRoute>
+    ),
+    children: [
+      {
+        index: true,
+        element: <Agents />,
       },
     ],
   },

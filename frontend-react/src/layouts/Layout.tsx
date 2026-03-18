@@ -1,5 +1,5 @@
 import { Layout as AntLayout, Menu, Dropdown, Avatar, Space, Button, Drawer } from 'antd'
-import { LogoutOutlined, UserOutlined, SettingOutlined, MenuOutlined, HomeOutlined, FileTextOutlined, PlusOutlined, DashboardOutlined } from '@ant-design/icons'
+import { LogoutOutlined, UserOutlined, SettingOutlined, MenuOutlined, HomeOutlined, FileTextOutlined, PlusOutlined, DashboardOutlined, RobotOutlined } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/store'
 import { useLogout } from '@/hooks'
@@ -20,6 +20,7 @@ const Layout = () => {
     if (location.pathname.includes('/cases')) return 'cases'
     if (location.pathname.includes('/create')) return 'create'
     if (location.pathname.includes('/my-cases')) return 'my-cases'
+    if (location.pathname.includes('/agents')) return 'agents'
     if (location.pathname.includes('/profile')) return 'profile'
     if (location.pathname.includes('/dashboard')) return 'dashboard'
     return 'cases'
@@ -36,6 +37,7 @@ const Layout = () => {
     { key: 'cases', label: '案件列表', icon: <HomeOutlined />, onClick: () => { navigate('/cases'); setDrawerVisible(false) } },
     { key: 'create', label: '创建案件', icon: <PlusOutlined />, onClick: () => { navigate('/create'); setDrawerVisible(false) } },
     { key: 'my-cases', label: '我的案件', icon: <FileTextOutlined />, onClick: () => { navigate('/my-cases'); setDrawerVisible(false) } },
+    { key: 'agents', label: 'Agent 图鉴', icon: <RobotOutlined />, onClick: () => { navigate('/agents'); setDrawerVisible(false) } },
     { type: 'divider' as const },
     { key: 'dashboard', label: '管理后台', icon: <DashboardOutlined />, onClick: () => { navigate('/dashboard'); setDrawerVisible(false) } },
   ]
