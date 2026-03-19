@@ -59,15 +59,27 @@
             v-model:value="filters.style"
             placeholder="全部风格"
             allow-clear
-            style="width: 150px"
+            size="large"
+            mode="multiple"
+            :max-tag-count="2"
+            style="width: 220px"
+            :options="styleSelectOptions"
             @change="handleFilterChange"
+          />
+        </div>
+
+        <div class="filter-group">
+          <span class="filter-label">地区类型：</span>
+          <a-select
+            v-model:value="filters.region"
+            placeholder="全部地区"
+            allow-clear
+            size="large"
+            style="width: 120px"
+            @change="handleRegionChange"
           >
-            <a-select-option value="romantic">浪漫梦幻</a-select-option>
-            <a-select-option value="artistic">艺术文艺</a-select-option>
-            <a-select-option value="bohemian">波西米亚</a-select-option>
-            <a-select-option value="minimalist">极简现代</a-select-option>
-            <a-select-option value="classical">古典优雅</a-select-option>
-            <a-select-option value="adventure">冒险活力</a-select-option>
+            <a-select-option value="domestic">国内</a-select-option>
+            <a-select-option value="overseas">国外</a-select-option>
           </a-select>
         </div>
 
@@ -77,17 +89,24 @@
             v-model:value="filters.location"
             placeholder="全部目的地"
             allow-clear
-            style="width: 150px"
+            size="large"
+            mode="multiple"
+            :max-tag-count="2"
+            style="width: 240px"
+            :options="locationSelectOptions"
             @change="handleFilterChange"
-          >
-            <a-select-option value="三亚">三亚</a-select-option>
-            <a-select-option value="大理">大理</a-select-option>
-            <a-select-option value="丽江">丽江</a-select-option>
-            <a-select-option value="厦门">厦门</a-select-option>
-            <a-select-option value="青岛">青岛</a-select-option>
-            <a-select-option value="巴厘岛">巴厘岛</a-select-option>
-            <a-select-option value="普吉岛">普吉岛</a-select-option>
-          </a-select>
+          />
+        </div>
+
+        <div class="filter-group">
+          <span class="filter-label">排序：</span>
+          <a-select
+            v-model:value="filters.sortBy"
+            size="large"
+            style="width: 150px"
+            :options="sortOptions"
+            @change="handleFilterChange"
+          />
         </div>
 
         <div class="filter-group">
@@ -96,6 +115,7 @@
             v-model:value="filters.minPrice"
             placeholder="最低价"
             :min="0"
+            size="large"
             style="width: 120px"
             @change="handleFilterChange"
           />
@@ -104,6 +124,7 @@
             v-model:value="filters.maxPrice"
             placeholder="最高价"
             :min="0"
+            size="large"
             style="width: 120px"
             @change="handleFilterChange"
           />
@@ -115,6 +136,7 @@
             v-model:value="filters.duration"
             placeholder="全部天数"
             allow-clear
+            size="large"
             style="width: 120px"
             @change="handleFilterChange"
           >
@@ -128,13 +150,89 @@
 
         <a-button @click="resetFilters">重置</a-button>
       </div>
+      <div class="hot-tags-row">
+        <span class="hot-tags-label">热门标签：</span>
+        <a-button
+          v-for="tag in hotTags"
+          :key="tag.value"
+          size="middle"
+          class="hot-tag-btn"
+          :type="filters.hotTags.includes(tag.value) ? 'primary' : 'default'"
+          @click="toggleHotTag(tag.value)"
+        >
+          <span v-text="tag.label"></span>
+        </a-button>
+      </div>
+    </div>
+
+    <!-- 个性化推荐 -->
+    <div class="recommend-section" v-if="recommendedPackages.length > 0">
+      <div class="section-header">
+        <h2>你可能喜欢</h2>
+        <p>基于你的浏览与生成偏好，为你智能推荐</p>
+      </div>
+      <div class="recommend-grid">
+        <div
+          v-for="pkg in recommendedPackages"
+          :key="`recommend-${pkg.id}`"
+          class="recommend-card"
+          @click="openPackageDetail(pkg)"
+        >
+          <a-image :src="pkg.coverImage" :preview="false" class="recommend-cover" />
+          <div class="recommend-info">
+            <h4>{{ pkg.name }}</h4>
+            <p>📍 {{ pkg.location }} · 🎨 {{ getStyleName(pkg.style) }} · {{ pkg.duration }} 天</p>
+            <span class="recommend-price">¥{{ pkg.price.toLocaleString() }}</span>
+            <a-button
+              type="primary"
+              block
+              size="small"
+              class="recommend-book-btn"
+              @click.stop="handleBook(pkg)"
+            >
+              立即预约
+            </a-button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="recommend-section" v-if="comboRecommendations.length > 0">
+      <div class="section-header">
+        <h2>推荐组合套餐</h2>
+        <p>按主题自动搭配，帮你快速决策</p>
+      </div>
+      <div class="combo-grid">
+        <div
+          v-for="combo in comboRecommendations"
+          :key="combo.title"
+          class="combo-card"
+          @click="openComboDetail(combo)"
+        >
+          <h4>{{ combo.title }}</h4>
+          <p class="combo-desc">{{ combo.description }}</p>
+          <div class="combo-items">
+            <button
+              v-for="item in combo.items"
+              :key="`${combo.title}-${item.id}`"
+              type="button"
+              class="combo-item-chip"
+              @click.stop="openPackageDetail(item)"
+            >
+              {{ item.location }} · {{ getStyleName(item.style) }} · ¥{{
+                item.price.toLocaleString()
+              }}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 套餐列表 -->
     <div class="packages-section">
       <div class="section-header">
         <h2>精选套餐</h2>
-        <p>共找到 {{ pagination.total }} 个套餐</p>
+        <p>共找到 <span v-text="pagination.total"></span> 个套餐</p>
       </div>
 
       <div v-if="loading" class="loading-state">
@@ -157,7 +255,6 @@
           <div v-if="pkg.isPopular" class="card-badge">🔥 热门</div>
           <div v-if="pkg.isHot" class="card-badge hot">⭐ 推荐</div>
           <a-button
-            v-if="authStore.isAuthenticated"
             type="text"
             :class="['favorite-btn', { active: favoritePackageIds.has(pkg.id) }]"
             :loading="favoriteLoading.has(pkg.id)"
@@ -353,9 +450,14 @@
 <script setup lang="ts">
 import { favoritesApi } from '@/api/favorites';
 import { type Package } from '@/api/packages';
+import {
+  HOT_TAGS_CONFIG,
+  matchPackageByHotTag,
+  type HotTagKey,
+} from '@/constants/package-hot-tags';
 import { useAuthStore } from '@/store/auth';
 import { message } from 'ant-design-vue';
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
@@ -366,24 +468,63 @@ const isScrolled = ref(false);
 const loading = ref(false);
 const searchKeyword = ref('');
 const packages = ref<Package[]>([]);
+const allPackages = ref<Package[]>([]);
 const detailModalVisible = ref(false);
 const selectedPackage = ref<Package | null>(null);
 const favoritePackageIds = ref<Set<number>>(new Set());
 const favoriteLoading = ref<Set<number>>(new Set());
-
-const filters = reactive({
-  style: undefined as string | undefined,
-  location: undefined as string | undefined,
-  minPrice: undefined as number | undefined,
-  maxPrice: undefined as number | undefined,
-  duration: undefined as number | undefined,
+const behaviorProfile = ref<{ locations: string[]; styles: string[]; budgets: number[] }>({
+  locations: [],
+  styles: [],
+  budgets: [],
 });
 
-const pagination = reactive({
-  page: 1,
-  pageSize: 12,
-  total: 0,
-});
+const GUEST_FAVORITES_KEY = 'guest-favorite-package-ids';
+const BROWSE_HISTORY_KEY = 'package-browse-history';
+const VTO_STATE_KEY = 'virtual-try-on-state';
+const STYLE_RECOMMENDATION_STATE_KEY = 'style-recommendation-state';
+const ITINERARY_STATE_KEY = 'itinerary-planning-state';
+
+const domesticLocations = [
+  '三亚',
+  '大理',
+  '丽江',
+  '厦门',
+  '青岛',
+  '北京',
+  '上海',
+  '杭州',
+  '苏州',
+  '南京',
+  '成都',
+  '重庆',
+  '西安',
+  '长沙',
+  '张家界',
+  '桂林',
+  '昆明',
+  '香格里拉',
+  '拉萨',
+  '香港',
+  '澳门',
+];
+
+const overseasLocations = [
+  '东京',
+  '京都',
+  '首尔',
+  '新加坡',
+  '巴厘岛',
+  '普吉岛',
+  '清迈',
+  '马尔代夫',
+  '巴黎',
+  '罗马',
+];
+
+const locationRegionMap = new Map<string, 'domestic' | 'overseas'>();
+domesticLocations.forEach((location) => locationRegionMap.set(location, 'domestic'));
+overseasLocations.forEach((location) => locationRegionMap.set(location, 'overseas'));
 
 // 风格名称映射
 const styleMap: Record<string, string> = {
@@ -395,8 +536,223 @@ const styleMap: Record<string, string> = {
   adventure: '冒险活力',
 };
 
+const locationOptions = ref<string[]>([...domesticLocations, ...overseasLocations]);
+const locationSelectOptions = computed(() =>
+  locationOptions.value.map((city) => ({
+    label: city,
+    value: city,
+  }))
+);
+const styleSelectOptions = computed(() =>
+  Object.entries(styleMap).map(([value, label]) => ({
+    label,
+    value,
+  }))
+);
+const sortOptions = [
+  { label: '推荐排序', value: 'recommended' },
+  { label: '价格从低到高', value: 'priceAsc' },
+  { label: '价格从高到低', value: 'priceDesc' },
+  { label: '行程天数从短到长', value: 'durationAsc' },
+  { label: '最新上架', value: 'newest' },
+];
+const hotTags = HOT_TAGS_CONFIG;
+
+const filters = reactive({
+  region: undefined as 'domestic' | 'overseas' | undefined,
+  style: [] as string[],
+  location: [] as string[],
+  minPrice: undefined as number | undefined,
+  maxPrice: undefined as number | undefined,
+  duration: undefined as number | undefined,
+  sortBy: 'recommended' as 'recommended' | 'priceAsc' | 'priceDesc' | 'durationAsc' | 'newest',
+  hotTags: [] as HotTagKey[],
+});
+
+const pagination = reactive({
+  page: 1,
+  pageSize: 12,
+  total: 0,
+});
+
+const recommendedPackages = computed(() => {
+  if (allPackages.value.length === 0) {
+    return [];
+  }
+
+  const locationSet = new Set(behaviorProfile.value.locations);
+  const styleSet = new Set(behaviorProfile.value.styles);
+  const avgBudget = behaviorProfile.value.budgets.length
+    ? behaviorProfile.value.budgets.reduce((sum, n) => sum + n, 0) /
+      behaviorProfile.value.budgets.length
+    : undefined;
+
+  const ranked = [...allPackages.value]
+    .map((pkg) => {
+      let score = 0;
+      if (locationSet.has(pkg.location)) {
+        score += 4;
+      }
+      if (styleSet.has(pkg.style)) {
+        score += 4;
+      }
+      if (favoritePackageIds.value.has(pkg.id)) {
+        score += 3;
+      }
+      if (pkg.isPopular) {
+        score += 2;
+      }
+      if (pkg.isHot) {
+        score += 1;
+      }
+      if (avgBudget) {
+        const budgetGap = Math.abs(pkg.price - avgBudget);
+        score += Math.max(0, 3 - budgetGap / 2000);
+      }
+      return { pkg, score };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6)
+    .map((item) => item.pkg);
+
+  return ranked;
+});
+
+const comboRecommendations = computed(() => {
+  const source =
+    recommendedPackages.value.length > 0 ? recommendedPackages.value : allPackages.value;
+  if (source.length < 2) {
+    return [];
+  }
+
+  const byPriceAsc = [...source].sort((a, b) => a.price - b.price);
+  const byDurationAsc = [...source].sort((a, b) => a.duration - b.duration);
+  const byHot = [...source].sort(
+    (a, b) => Number(Boolean(b.isPopular || b.isHot)) - Number(Boolean(a.isPopular || a.isHot))
+  );
+
+  return [
+    {
+      title: '周末轻量组合',
+      description: '优先短行程与高性价比，适合快节奏出行',
+      items: byDurationAsc.slice(0, 2),
+    },
+    {
+      title: '品质进阶组合',
+      description: '热门+高口碑搭配，适合一次拍到位',
+      items: byHot.slice(0, 2),
+    },
+    {
+      title: '预算友好组合',
+      description: '价格更友好，兼顾风格与体验',
+      items: byPriceAsc.slice(0, 2),
+    },
+  ].filter((combo) => combo.items.length > 0);
+});
+
 const getStyleName = (style: string) => {
   return styleMap[style] || style;
+};
+
+const safeReadJSON = (raw: string | null) => {
+  if (!raw) {
+    return null;
+  }
+  try {
+    return JSON.parse(raw);
+  } catch (_error) {
+    return null;
+  }
+};
+
+const updateBehaviorProfile = () => {
+  const locationSet = new Set<string>();
+  const styleSet = new Set<string>();
+  const budgets: number[] = [];
+
+  const browseHistory = safeReadJSON(localStorage.getItem(BROWSE_HISTORY_KEY));
+  if (Array.isArray(browseHistory)) {
+    browseHistory.slice(0, 20).forEach((item) => {
+      if (item?.location) {
+        locationSet.add(String(item.location));
+      }
+      if (item?.style) {
+        styleSet.add(String(item.style));
+      }
+      if (typeof item?.price === 'number') {
+        budgets.push(item.price);
+      }
+    });
+  }
+
+  const vtoState = safeReadJSON(sessionStorage.getItem(VTO_STATE_KEY));
+  if (vtoState?.selectedStyle) {
+    styleSet.add(String(vtoState.selectedStyle));
+  }
+
+  const styleState = safeReadJSON(sessionStorage.getItem(STYLE_RECOMMENDATION_STATE_KEY));
+  if (styleState?.formData?.destination) {
+    locationSet.add(String(styleState.formData.destination));
+  }
+  if (styleState?.result?.recommendedStyles && Array.isArray(styleState.result.recommendedStyles)) {
+    styleState.result.recommendedStyles.slice(0, 3).forEach((x: any) => {
+      if (x?.style) {
+        styleSet.add(String(x.style));
+      }
+      if (x?.budget) {
+        const budgetNum = Number(String(x.budget).replace(/[^\d]/g, ''));
+        if (!Number.isNaN(budgetNum) && budgetNum > 0) {
+          budgets.push(budgetNum);
+        }
+      }
+    });
+  }
+
+  const itineraryState = safeReadJSON(sessionStorage.getItem(ITINERARY_STATE_KEY));
+  if (itineraryState?.destination) {
+    locationSet.add(String(itineraryState.destination));
+  }
+  if (itineraryState?.style) {
+    styleSet.add(String(itineraryState.style));
+  }
+  if (itineraryState?.budget) {
+    const budgetNum = Number(String(itineraryState.budget).replace(/[^\d]/g, ''));
+    if (!Number.isNaN(budgetNum) && budgetNum > 0) {
+      budgets.push(budgetNum);
+    }
+  }
+
+  behaviorProfile.value = {
+    locations: [...locationSet],
+    styles: [...styleSet],
+    budgets,
+  };
+};
+
+const saveBrowseBehavior = (pkg: Package) => {
+  const raw = safeReadJSON(localStorage.getItem(BROWSE_HISTORY_KEY));
+  const history = Array.isArray(raw) ? raw : [];
+  const next = [
+    {
+      packageId: pkg.id,
+      location: pkg.location,
+      style: pkg.style,
+      price: pkg.price,
+      timestamp: Date.now(),
+    },
+    ...history.filter((item) => item?.packageId !== pkg.id),
+  ].slice(0, 30);
+  localStorage.setItem(BROWSE_HISTORY_KEY, JSON.stringify(next));
+  updateBehaviorProfile();
+};
+
+const getGuestFavoriteIds = (): number[] => {
+  const data = safeReadJSON(localStorage.getItem(GUEST_FAVORITES_KEY));
+  return Array.isArray(data) ? data.filter((id) => typeof id === 'number') : [];
+};
+
+const setGuestFavoriteIds = (ids: number[]) => {
+  localStorage.setItem(GUEST_FAVORITES_KEY, JSON.stringify(ids));
 };
 
 // 滚动监听
@@ -428,12 +784,41 @@ const handleFilterChange = () => {
   fetchPackages();
 };
 
+const handleRegionChange = () => {
+  if (filters.region === 'domestic') {
+    locationOptions.value = [...domesticLocations];
+  } else if (filters.region === 'overseas') {
+    locationOptions.value = [...overseasLocations];
+  } else {
+    locationOptions.value = [...domesticLocations, ...overseasLocations];
+  }
+
+  filters.location = filters.location.filter((location) =>
+    locationOptions.value.includes(location)
+  );
+
+  handleFilterChange();
+};
+
+const toggleHotTag = (tagValue: HotTagKey) => {
+  if (filters.hotTags.includes(tagValue)) {
+    filters.hotTags = filters.hotTags.filter((tag) => tag !== tagValue);
+  } else {
+    filters.hotTags = [...filters.hotTags, tagValue];
+  }
+  handleFilterChange();
+};
+
 const resetFilters = () => {
-  filters.style = undefined;
-  filters.location = undefined;
+  filters.region = undefined;
+  filters.style = [];
+  filters.location = [];
   filters.minPrice = undefined;
   filters.maxPrice = undefined;
   filters.duration = undefined;
+  filters.sortBy = 'recommended';
+  filters.hotTags = [];
+  locationOptions.value = [...domesticLocations, ...overseasLocations];
   pagination.page = 1;
   fetchPackages();
 };
@@ -460,11 +845,13 @@ const fetchPackages = async () => {
     // const response = await packagesApi.getPackages({
     //   page: pagination.page,
     //   pageSize: pagination.pageSize,
-    //   style: filters.style,
-    //   location: filters.location,
+    //   region: filters.region,
+    //   styles: filters.style.length ? filters.style : undefined,
+    //   locations: filters.location.length ? filters.location : undefined,
     //   minPrice: filters.minPrice,
     //   maxPrice: filters.maxPrice,
     //   duration: filters.duration,
+    //   sortBy: filters.sortBy,
     //   keyword: searchKeyword.value || undefined,
     // });
     // packages.value = response.data.items;
@@ -472,15 +859,20 @@ const fetchPackages = async () => {
 
     // 模拟数据
     await new Promise((resolve) => window.setTimeout(resolve, 500));
-    const mockPackages = generateMockPackages();
-    let filtered = mockPackages;
+    if (allPackages.value.length === 0) {
+      allPackages.value = generateMockPackages();
+    }
+    let filtered = [...allPackages.value];
 
     // 应用筛选
-    if (filters.style) {
-      filtered = filtered.filter((p) => p.style === filters.style);
+    if (filters.region) {
+      filtered = filtered.filter((p) => locationRegionMap.get(p.location) === filters.region);
     }
-    if (filters.location) {
-      filtered = filtered.filter((p) => p.location === filters.location);
+    if (filters.style.length > 0) {
+      filtered = filtered.filter((p) => filters.style.includes(p.style));
+    }
+    if (filters.location.length > 0) {
+      filtered = filtered.filter((p) => filters.location.includes(p.location));
     }
     if (filters.minPrice !== undefined) {
       filtered = filtered.filter((p) => p.price >= filters.minPrice!);
@@ -500,6 +892,34 @@ const fetchPackages = async () => {
           p.description.toLowerCase().includes(keyword)
       );
     }
+    if (filters.hotTags.length > 0) {
+      const hotTagMap = new Map(hotTags.map((tag) => [tag.value, tag]));
+      filtered = filtered.filter((p) =>
+        filters.hotTags.every((tag) => {
+          const tagConfig = hotTagMap.get(tag);
+          if (!tagConfig) {
+            return true;
+          }
+          return matchPackageByHotTag(p, tagConfig);
+        })
+      );
+    }
+
+    if (filters.sortBy === 'priceAsc') {
+      filtered.sort((a, b) => a.price - b.price);
+    } else if (filters.sortBy === 'priceDesc') {
+      filtered.sort((a, b) => b.price - a.price);
+    } else if (filters.sortBy === 'durationAsc') {
+      filtered.sort((a, b) => a.duration - b.duration);
+    } else if (filters.sortBy === 'newest') {
+      filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } else {
+      filtered.sort((a, b) => {
+        const scoreA = (a.isPopular ? 2 : 0) + (a.isHot ? 1 : 0);
+        const scoreB = (b.isPopular ? 2 : 0) + (b.isHot ? 1 : 0);
+        return scoreB - scoreA;
+      });
+    }
 
     pagination.total = filtered.length;
     const start = (pagination.page - 1) * pagination.pageSize;
@@ -515,7 +935,7 @@ const fetchPackages = async () => {
 
 // 生成模拟数据
 const generateMockPackages = (): Package[] => {
-  const locations = ['三亚', '大理', '丽江', '厦门', '青岛', '巴厘岛', '普吉岛'];
+  const locations = [...domesticLocations, ...overseasLocations];
   const styles = ['romantic', 'artistic', 'bohemian', 'minimalist', 'classical', 'adventure'];
   const mockPackages: Package[] = [];
 
@@ -599,6 +1019,13 @@ const generateMockPackages = (): Package[] => {
 const openPackageDetail = (pkg: Package) => {
   selectedPackage.value = pkg;
   detailModalVisible.value = true;
+  saveBrowseBehavior(pkg);
+};
+
+const openComboDetail = (combo: { items: Package[] }) => {
+  const first = combo.items?.[0];
+  if (!first) return;
+  openPackageDetail(first);
 };
 
 const closePackageDetail = () => {
@@ -613,20 +1040,39 @@ const handleBook = (pkg: Package) => {
     router.push('/login');
     return;
   }
+
   router.push(`/booking/order?packageId=${pkg.id}`);
 };
 
 // 加载收藏状态
 const loadFavoriteStatus = async () => {
+  const guestFavorites = getGuestFavoriteIds();
+
   if (!authStore.isAuthenticated) {
+    favoritePackageIds.value = new Set(guestFavorites);
     return;
   }
+
   try {
     const response: any = await favoritesApi.getFavoritePackageIds();
     const data = response?.data?.data || response?.data || response;
-    if (data?.packageIds && Array.isArray(data.packageIds)) {
-      favoritePackageIds.value = new Set(data.packageIds);
+    const remoteIds = data?.packageIds && Array.isArray(data.packageIds) ? data.packageIds : [];
+
+    if (guestFavorites.length > 0) {
+      for (const packageId of guestFavorites) {
+        if (!remoteIds.includes(packageId)) {
+          try {
+            await favoritesApi.addFavorite(packageId);
+            remoteIds.push(packageId);
+          } catch (_error) {
+            // 忽略单条同步失败，避免阻断整体加载
+          }
+        }
+      }
+      setGuestFavoriteIds([]);
     }
+
+    favoritePackageIds.value = new Set(remoteIds);
   } catch (error: any) {
     console.error('加载收藏状态失败:', error);
   }
@@ -634,23 +1080,27 @@ const loadFavoriteStatus = async () => {
 
 // 切换收藏状态
 const handleToggleFavorite = async (pkg: Package) => {
+  const isFavorite = favoritePackageIds.value.has(pkg.id);
+
   if (!authStore.isAuthenticated) {
-    message.warning('请先登录后再收藏');
-    router.push('/login');
+    const guestIds = getGuestFavoriteIds();
+    const nextIds = isFavorite
+      ? guestIds.filter((id) => id !== pkg.id)
+      : [...new Set([...guestIds, pkg.id])];
+    setGuestFavoriteIds(nextIds);
+    favoritePackageIds.value = new Set(nextIds);
+    message.success(isFavorite ? '已取消收藏（本地）' : '收藏成功（本地）');
     return;
   }
 
-  const isFavorite = favoritePackageIds.value.has(pkg.id);
   favoriteLoading.value.add(pkg.id);
 
   try {
     if (isFavorite) {
-      // 取消收藏
       await favoritesApi.removeFavoriteByPackageId(pkg.id);
       favoritePackageIds.value.delete(pkg.id);
       message.success('已取消收藏');
     } else {
-      // 添加收藏
       await favoritesApi.addFavorite(pkg.id);
       favoritePackageIds.value.add(pkg.id);
       message.success('收藏成功');
@@ -666,6 +1116,7 @@ const handleToggleFavorite = async (pkg: Package) => {
 onMounted(() => {
   authStore.initializeAuth();
   window.addEventListener('scroll', handleScroll);
+  updateBehaviorProfile();
   fetchPackages();
   loadFavoriteStatus();
 });
@@ -864,6 +1315,14 @@ onMounted(() => {
   padding: 20px 0;
   border-bottom: 1px solid #e0e0e0;
 
+  :deep(.ant-select-selector) {
+    min-height: 44px;
+  }
+
+  :deep(.ant-select-selection-item) {
+    font-size: 1rem;
+  }
+
   .filters-content {
     max-width: 1200px;
     margin: 0 auto;
@@ -880,6 +1339,7 @@ onMounted(() => {
 
       .filter-label {
         font-weight: 500;
+        font-size: 1.05rem;
         color: #666;
         white-space: nowrap;
       }
@@ -887,6 +1347,164 @@ onMounted(() => {
       .filter-separator {
         color: #999;
         margin: 0 5px;
+      }
+    }
+  }
+
+  .hot-tags-row {
+    max-width: 1200px;
+    margin: 16px auto 0;
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+
+    .hot-tags-label {
+      color: #666;
+      font-weight: 500;
+      font-size: 1.05rem;
+      white-space: nowrap;
+    }
+
+    .hot-tag-btn {
+      border-radius: 999px;
+      padding: 0 22px;
+      height: 42px;
+      font-size: 1.02rem;
+      line-height: 42px;
+    }
+  }
+}
+
+.recommend-section {
+  max-width: 1200px;
+  margin: 24px auto 0;
+  padding: 0 20px;
+
+  .section-header {
+    text-align: center;
+    margin-bottom: 24px;
+
+    h2 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 10px;
+    }
+
+    p {
+      margin: 0;
+      color: #666;
+      font-size: 1rem;
+    }
+  }
+
+  .recommend-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 16px;
+  }
+
+  .recommend-card {
+    background: #fff;
+    border: 1px solid #ececec;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.25s ease;
+
+    &:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    .recommend-cover {
+      width: 100%;
+      height: 140px;
+      display: block;
+
+      :deep(.ant-image-img) {
+        width: 100%;
+        height: 140px;
+        object-fit: cover;
+      }
+    }
+
+    .recommend-info {
+      padding: 10px 12px 12px;
+
+      h4 {
+        margin: 0 0 6px;
+        font-size: 0.98rem;
+        color: #222;
+        line-height: 1.4;
+      }
+
+      p {
+        margin: 0;
+        color: #666;
+        font-size: 0.85rem;
+      }
+
+      .recommend-price {
+        margin-top: 8px;
+        display: inline-block;
+        color: #ff4d4f;
+        font-weight: 700;
+      }
+
+      .recommend-book-btn {
+        margin-top: 10px;
+      }
+    }
+  }
+
+  .combo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+  }
+
+  .combo-card {
+    background: linear-gradient(135deg, #f8fbff 0%, #eef5ff 100%);
+    border: 1px solid #dbe9ff;
+    border-radius: 12px;
+    padding: 14px;
+    cursor: pointer;
+
+    h4 {
+      margin: 0 0 8px;
+      color: #174ea6;
+      font-size: 1rem;
+    }
+
+    .combo-desc {
+      margin: 0 0 10px;
+      color: #5f6368;
+      font-size: 0.88rem;
+    }
+
+    .combo-items {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+
+      .combo-item-chip {
+        cursor: pointer;
+        border: 1px solid #91caff;
+        background: #e6f4ff;
+        color: #0958d9;
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 12px;
+        line-height: 1.6;
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: #d0e8ff;
+          border-color: #69b1ff;
+        }
       }
     }
   }
@@ -1364,10 +1982,21 @@ onMounted(() => {
         align-items: stretch;
       }
     }
+
+    .hot-tags-row {
+      align-items: flex-start;
+    }
   }
 
   .packages-grid {
     grid-template-columns: 1fr !important;
+  }
+
+  .recommend-section {
+    .recommend-grid,
+    .combo-grid {
+      grid-template-columns: 1fr;
+    }
   }
 
   .footer-content {
