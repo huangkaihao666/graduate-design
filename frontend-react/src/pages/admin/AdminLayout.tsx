@@ -1,7 +1,7 @@
 import React from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
 import { Layout, Menu, Button, Space, Modal } from 'antd'
-import { HomeOutlined, LogoutOutlined } from '@ant-design/icons'
+import { HomeOutlined, LogoutOutlined, UserOutlined, FileTextOutlined, WarningOutlined, BarChartOutlined } from '@ant-design/icons'
 import { useAuthStore } from '@/store'
 
 const { Header, Sider, Content } = Layout
@@ -45,6 +45,10 @@ const AdminLayout: React.FC = () => {
             mode="inline"
             items={[
               { key: 'home', label: '概览', icon: <HomeOutlined />, onClick: () => navigate('/admin') },
+              { key: 'stats', label: '数据面板', icon: <BarChartOutlined />, onClick: () => navigate('/admin/stats') },
+              { key: 'rooms', label: '房间管理', icon: <FileTextOutlined />, onClick: () => navigate('/admin/rooms') },
+              { key: 'users', label: '用户管理', icon: <UserOutlined />, onClick: () => navigate('/admin/users') },
+              { key: 'messages', label: '消息审核', icon: <WarningOutlined />, onClick: () => navigate('/admin/messages') },
             ]}
           />
         </Sider>

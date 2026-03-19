@@ -17,6 +17,10 @@ import {
   AdminLayout,
   AdminHome,
   AdminLogin,
+  RoomsAdmin,
+  UsersAdmin,
+  MessagesAdmin,
+  StatsAdmin,
 } from '@/pages'
 import ProtectedRoute from './ProtectedRoute'
 import AdminRoute from './AdminRoute'
@@ -45,6 +49,22 @@ export const router = createBrowserRouter([
       {
         index: true,
         element: <AdminHome />,
+      },
+      {
+        path: 'rooms',
+        element: <RoomsAdmin />,
+      },
+      {
+        path: 'users',
+        element: <UsersAdmin />,
+      },
+      {
+        path: 'messages',
+        element: <MessagesAdmin />,
+      },
+      {
+        path: 'stats',
+        element: <StatsAdmin />,
       },
     ],
   },
