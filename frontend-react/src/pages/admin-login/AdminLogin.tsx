@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Card, Form, Input, Space, message } from 'antd'
-import { LockOutlined, MailOutlined, ArrowLeftOutlined } from '@ant-design/icons'
+import { LockOutlined, MailOutlined, ArrowLeftOutlined, ControlOutlined } from '@ant-design/icons'
 import * as authApi from '@/api/auth'
 import { useAuthStore } from '@/store'
 import './AdminLogin.less'
@@ -34,7 +34,12 @@ const AdminLogin: React.FC = () => {
     <div className="admin-login-page">
       <Card className="admin-login-card" bordered={false}>
         <div className="admin-login-head">
-          <h1 className="admin-login-title">🎛️ 管理后台 · 管理员登录</h1>
+          <h1 className="admin-login-title">
+            <span style={{ marginRight: 8, color: '#667eea' }}>
+              <ControlOutlined />
+            </span>
+            管理后台 · 管理员登录
+          </h1>
           <div className="admin-login-sub">仅管理员账号可进入后台。普通用户请返回辩论平台。</div>
           <div className="admin-login-actions">
             <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/cases')}>

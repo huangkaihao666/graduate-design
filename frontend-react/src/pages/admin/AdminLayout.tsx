@@ -1,20 +1,33 @@
 import React from 'react'
-import { Outlet, useNavigate } from 'react-router-dom'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Layout, Menu, Button, Space, Modal } from 'antd'
-import { HomeOutlined, LogoutOutlined, UserOutlined, FileTextOutlined, WarningOutlined, BarChartOutlined } from '@ant-design/icons'
+import { HomeOutlined, LogoutOutlined, UserOutlined, FileTextOutlined, WarningOutlined, BarChartOutlined, ControlOutlined } from '@ant-design/icons'
 import { useAuthStore } from '@/store'
+import './AdminLayout.less'
 
 const { Header, Sider, Content } = Layout
 
 const AdminLayout: React.FC = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const { clearAuth } = useAuthStore()
 
+  const selectedKey = (() => {
+    if (location.pathname.startsWith('/admin/stats')) return 'stats'
+    if (location.pathname.startsWith('/admin/rooms')) return 'rooms'
+    if (location.pathname.startsWith('/admin/users')) return 'users'
+    if (location.pathname.startsWith('/admin/messages')) return 'messages'
+    return 'home'
+  })()
+
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0b1020' }}>
-        <div style={{ color: '#fff', fontWeight: 900, cursor: 'pointer' }} onClick={() => navigate('/admin')}>
-          🎛️ 管理后台
+    <Layout className="admin-shell">
+      <Header className="admin-header">
+        <div className="admin-header-left" onClick={() => navigate('/admin')}>
+          <span className="admin-logo" aria-hidden="true">
+            <ControlOutlined />
+          </span>
+          <span className="admin-title">管理后台</span>
         </div>
         <Space>
           <Button onClick={() => navigate('/cases')}>返回平台</Button>
@@ -40,9 +53,10 @@ const AdminLayout: React.FC = () => {
         </Space>
       </Header>
       <Layout>
-        <Sider width={220} theme="light">
+        <Sider width={228} theme="light" className="admin-sider">
           <Menu
             mode="inline"
+            selectedKeys={[selectedKey]}
             items={[
               { key: 'home', label: '概览', icon: <HomeOutlined />, onClick: () => navigate('/admin') },
               { key: 'stats', label: '数据面板', icon: <BarChartOutlined />, onClick: () => navigate('/admin/stats') },
@@ -52,8 +66,10 @@ const AdminLayout: React.FC = () => {
             ]}
           />
         </Sider>
-        <Content style={{ background: '#f8fafc' }}>
-          <Outlet />
+        <Content className="admin-content">
+          <div className="admin-content-inner">
+            <Outlet />
+          </div>
         </Content>
       </Layout>
     </Layout>

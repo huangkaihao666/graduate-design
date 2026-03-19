@@ -98,7 +98,7 @@ const MessagesAdmin: React.FC = () => {
   )
 
   return (
-    <Card style={{ margin: 18, borderRadius: 16 }} title="消息审核（关键词命中）" extra={<Button onClick={() => refetch()}>刷新</Button>}>
+    <Card style={{ borderRadius: 16 }} title="消息审核（关键词命中）" extra={<Button onClick={() => refetch()}>刷新</Button>}>
       <Space wrap style={{ marginBottom: 12 }}>
         <Input.Search
           allowClear

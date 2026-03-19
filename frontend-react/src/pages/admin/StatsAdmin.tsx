@@ -39,7 +39,7 @@ const StatsAdmin: React.FC = () => {
   }, [trends])
 
   return (
-    <div style={{ padding: 18 }}>
+    <div>
       <Row gutter={[14, 14]}>
         <Col xs={24} md={6}>
           <Card style={{ borderRadius: 16 }}>

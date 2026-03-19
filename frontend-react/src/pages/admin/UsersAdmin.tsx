@@ -104,7 +104,7 @@ const UsersAdmin: React.FC = () => {
   )
 
   return (
-    <Card style={{ margin: 18, borderRadius: 16 }} title="用户管理" extra={<Button onClick={() => refetch()}>刷新</Button>}>
+    <Card style={{ borderRadius: 16 }} title="用户管理" extra={<Button onClick={() => refetch()}>刷新</Button>}>
       <Space wrap style={{ marginBottom: 12 }}>
         <Select
           allowClear
