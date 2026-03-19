@@ -1,5 +1,5 @@
-import { Layout as AntLayout, Menu, Dropdown, Avatar, Space, Button, Drawer } from 'antd'
-import { LogoutOutlined, UserOutlined, SettingOutlined, MenuOutlined, HomeOutlined, FileTextOutlined, PlusOutlined, DashboardOutlined, RobotOutlined } from '@ant-design/icons'
+import { Layout as AntLayout, Menu, Dropdown, Avatar, Space, Button, Drawer, Modal } from 'antd'
+import { LogoutOutlined, UserOutlined, SettingOutlined, MenuOutlined, HomeOutlined, FileTextOutlined, PlusOutlined, RobotOutlined } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/store'
 import { useLogout } from '@/hooks'
@@ -22,7 +22,6 @@ const Layout = () => {
     if (location.pathname.includes('/my-cases')) return 'my-cases'
     if (location.pathname.includes('/agents')) return 'agents'
     if (location.pathname.includes('/me') || location.pathname.includes('/profile')) return 'profile'
-    if (location.pathname.includes('/dashboard')) return 'dashboard'
     return 'cases'
   }
 
@@ -30,7 +29,22 @@ const Layout = () => {
     { key: 'profile', label: '个人中心', icon: <UserOutlined />, onClick: () => navigate('/me') },
     { key: 'settings', label: '设置', icon: <SettingOutlined />, onClick: () => navigate('/settings') },
     { type: 'divider' as const },
-    { key: 'logout', label: '登出', icon: <LogoutOutlined />, onClick: () => handleLogout(), danger: true },
+    {
+      key: 'logout',
+      label: '登出',
+      icon: <LogoutOutlined />,
+      danger: true,
+      onClick: () => {
+        Modal.confirm({
+          title: '确认退出登录？',
+          content: '退出后需要重新登录才能继续使用。',
+          okText: '退出',
+          okButtonProps: { danger: true },
+          cancelText: '取消',
+          onOk: () => handleLogout(),
+        })
+      },
+    },
   ]
 
   const sideMenuItems = [
@@ -39,8 +53,6 @@ const Layout = () => {
     { key: 'my-cases', label: '我的案件', icon: <FileTextOutlined />, onClick: () => { navigate('/my-cases'); setDrawerVisible(false) } },
     { key: 'profile', label: '个人中心', icon: <UserOutlined />, onClick: () => { navigate('/me'); setDrawerVisible(false) } },
     { key: 'agents', label: 'Agent 图鉴', icon: <RobotOutlined />, onClick: () => { navigate('/agents'); setDrawerVisible(false) } },
-    { type: 'divider' as const },
-    { key: 'dashboard', label: '管理后台', icon: <DashboardOutlined />, onClick: () => { navigate('/dashboard'); setDrawerVisible(false) } },
   ]
 
   return (

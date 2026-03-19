@@ -35,6 +35,13 @@ export class AuthController {
     return this.authService.login(loginDto.email, loginDto.password);
   }
 
+  @ApiOperation({ summary: '管理员登录' })
+  @ApiResponse({ status: 200, description: '仅管理员可登录，返回 token' })
+  @Post('admin/login')
+  async adminLogin(@Body() loginDto: { email: string; password: string }) {
+    return this.authService.adminLogin(loginDto.email, loginDto.password);
+  }
+
   @ApiOperation({ summary: '刷新 Token' })
   @ApiResponse({ status: 200, description: '刷新成功，返回新 token' })
   @Post('refresh')

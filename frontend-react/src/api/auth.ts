@@ -9,6 +9,10 @@ export const login = async (data: LoginRequest) => {
   return httpClient.post<LoginResponse>('/auth/login', data)
 }
 
+export const adminLogin = async (data: LoginRequest) => {
+  return httpClient.post<LoginResponse>('/auth/admin/login', data)
+}
+
 export const getProfile = async () => {
   return httpClient.get<User>('/auth/profile')
 }

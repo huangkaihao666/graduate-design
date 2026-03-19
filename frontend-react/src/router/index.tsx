@@ -14,8 +14,12 @@ import {
   RoomReport,
   Agents,
   Me,
+  AdminLayout,
+  AdminHome,
+  AdminLogin,
 } from '@/pages'
 import ProtectedRoute from './ProtectedRoute'
+import AdminRoute from './AdminRoute'
 
 export const router = createBrowserRouter([
   {
@@ -25,6 +29,24 @@ export const router = createBrowserRouter([
   {
     path: '/login',
     element: <Login />,
+  },
+  {
+    path: '/admin/login',
+    element: <AdminLogin />,
+  },
+  {
+    path: '/admin',
+    element: (
+      <AdminRoute>
+        <AdminLayout />
+      </AdminRoute>
+    ),
+    children: [
+      {
+        index: true,
+        element: <AdminHome />,
+      },
+    ],
   },
   {
     path: '/cases',

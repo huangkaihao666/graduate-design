@@ -42,6 +42,9 @@ export class AuthService {
         id: user.id,
         email: user.email,
         name: user.name,
+        avatar: user.avatar,
+        bio: user.bio,
+        role: user.role,
       },
       ...tokens,
     };
@@ -69,6 +72,40 @@ export class AuthService {
         id: user.id,
         email: user.email,
         name: user.name,
+        avatar: user.avatar,
+        bio: user.bio,
+        role: user.role,
+      },
+      ...tokens,
+    };
+  }
+
+  async adminLogin(email: string, password: string) {
+    // 管理员登录：先按邮箱定位用户并校验角色，再校验密码
+    // 这样普通用户即使密码输错，也会得到“非管理员”的明确提示（符合管理后台的产品诉求）
+    const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      throw new UnauthorizedException('邮箱或密码错误');
+    }
+
+    if (user.role !== 'ADMIN') {
+      throw new UnauthorizedException('该账号不是管理员，无法登录管理后台');
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('邮箱或密码错误');
+    }
+
+    const tokens = this.generateTokens(user.id);
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        avatar: user.avatar,
+        bio: user.bio,
+        role: user.role,
       },
       ...tokens,
     };
