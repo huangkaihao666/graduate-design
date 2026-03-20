@@ -33,11 +33,13 @@
         <!-- 搜索框 -->
         <div class="search-box">
           <a-input
-            v-model:value="searchKeyword"
+            v-model:value="searchInputKeyword"
             placeholder="搜索套餐名称、目的地..."
             size="large"
             class="search-input"
+            allow-clear
             @press-enter="handleSearch"
+            @clear="handleClearSearch"
           >
             <template #prefix>
               <span class="search-icon">🔍</span>
@@ -60,8 +62,6 @@
             placeholder="全部风格"
             allow-clear
             size="large"
-            mode="multiple"
-            :max-tag-count="2"
             style="width: 220px"
             :options="styleSelectOptions"
             @change="handleFilterChange"
@@ -90,8 +90,6 @@
             placeholder="全部目的地"
             allow-clear
             size="large"
-            mode="multiple"
-            :max-tag-count="2"
             style="width: 240px"
             :options="locationSelectOptions"
             @change="handleFilterChange"
@@ -149,6 +147,14 @@
         </div>
 
         <a-button @click="resetFilters">重置</a-button>
+        <a-button
+          v-if="isFilteringActive"
+          type="primary"
+          class="recommend-entry-btn"
+          @click="openRecommendDrawer"
+        >
+          {{ isFilteringActive ? '查看推荐' : '猜你喜欢' }}
+        </a-button>
       </div>
       <div class="hot-tags-row">
         <span class="hot-tags-label">热门标签：</span>
@@ -165,8 +171,8 @@
       </div>
     </div>
 
-    <!-- 个性化推荐 -->
-    <div class="recommend-section" v-if="recommendedPackages.length > 0">
+    <!-- 个性化推荐（仅在未筛选时展示） -->
+    <div v-if="!isFilteringActive && recommendedPackages.length > 0" class="recommend-section">
       <div class="section-header">
         <h2>你可能喜欢</h2>
         <p>基于你的浏览与生成偏好，为你智能推荐</p>
@@ -197,7 +203,7 @@
       </div>
     </div>
 
-    <div class="recommend-section" v-if="comboRecommendations.length > 0">
+    <div v-if="!isFilteringActive && comboRecommendations.length > 0" class="recommend-section">
       <div class="section-header">
         <h2>推荐组合套餐</h2>
         <p>按主题自动搭配，帮你快速决策</p>
@@ -420,6 +426,86 @@
       </div>
     </a-modal>
 
+    <a-drawer
+      v-model:open="recommendDrawerVisible"
+      title="猜你喜欢"
+      placement="right"
+      :width="560"
+      class="recommend-drawer"
+    >
+      <p class="drawer-subtitle">
+        {{
+          isFilteringActive
+            ? '你正在筛选中，推荐已收纳到侧边，避免遮挡目的地列表。'
+            : '基于你的浏览与生成偏好，为你推荐更适合的套餐。'
+        }}
+      </p>
+
+      <div v-if="recommendedPackages.length > 0" class="recommend-section drawer-mode">
+        <div class="section-header">
+          <h2>你可能喜欢</h2>
+          <p>点击卡片可查看详情或直接预约</p>
+        </div>
+        <div class="recommend-grid">
+          <div
+            v-for="pkg in recommendedPackages"
+            :key="`recommend-drawer-${pkg.id}`"
+            class="recommend-card"
+            @click="openPackageDetail(pkg)"
+          >
+            <a-image :src="pkg.coverImage" :preview="false" class="recommend-cover" />
+            <div class="recommend-info">
+              <h4>{{ pkg.name }}</h4>
+              <p>
+                📍 {{ pkg.location }} · 🎨 {{ getStyleName(pkg.style) }} · {{ pkg.duration }} 天
+              </p>
+              <span class="recommend-price">¥{{ pkg.price.toLocaleString() }}</span>
+              <a-button
+                type="primary"
+                block
+                size="small"
+                class="recommend-book-btn"
+                @click.stop="handleBook(pkg)"
+              >
+                立即预约
+              </a-button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="comboRecommendations.length > 0" class="recommend-section drawer-mode">
+        <div class="section-header">
+          <h2>推荐组合套餐</h2>
+          <p>按主题自动搭配，帮你快速决策</p>
+        </div>
+        <div class="combo-grid">
+          <div
+            v-for="combo in comboRecommendations"
+            :key="`drawer-${combo.title}`"
+            class="combo-card"
+            @click="openComboDetail(combo)"
+          >
+            <h4>{{ combo.title }}</h4>
+            <p class="combo-desc">{{ combo.description }}</p>
+            <div class="combo-items">
+              <button
+                v-for="item in combo.items"
+                :key="`${combo.title}-${item.id}`"
+                type="button"
+                class="combo-item-chip"
+                @click.stop="openPackageDetail(item)"
+              >
+                {{ item.location }} · {{ getStyleName(item.style) }} · ¥{{
+                  item.price.toLocaleString()
+                }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </a-drawer>
+
     <!-- 页脚 -->
     <footer class="footer">
       <div class="footer-content">
@@ -457,7 +543,7 @@ import {
 } from '@/constants/package-hot-tags';
 import { useAuthStore } from '@/store/auth';
 import { message } from 'ant-design-vue';
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
@@ -466,10 +552,12 @@ const authStore = useAuthStore();
 // 状态管理
 const isScrolled = ref(false);
 const loading = ref(false);
+const searchInputKeyword = ref('');
 const searchKeyword = ref('');
 const packages = ref<Package[]>([]);
 const allPackages = ref<Package[]>([]);
 const detailModalVisible = ref(false);
+const recommendDrawerVisible = ref(false);
 const selectedPackage = ref<Package | null>(null);
 const favoritePackageIds = ref<Set<number>>(new Set());
 const favoriteLoading = ref<Set<number>>(new Set());
@@ -560,8 +648,8 @@ const hotTags = HOT_TAGS_CONFIG;
 
 const filters = reactive({
   region: undefined as 'domestic' | 'overseas' | undefined,
-  style: [] as string[],
-  location: [] as string[],
+  style: undefined as string | undefined,
+  location: undefined as string | undefined,
   minPrice: undefined as number | undefined,
   maxPrice: undefined as number | undefined,
   duration: undefined as number | undefined,
@@ -573,6 +661,20 @@ const pagination = reactive({
   page: 1,
   pageSize: 12,
   total: 0,
+});
+
+const isFilteringActive = computed(() => {
+  return (
+    Boolean(searchKeyword.value.trim()) ||
+    Boolean(filters.region) ||
+    Boolean(filters.style) ||
+    Boolean(filters.location) ||
+    filters.hotTags.length > 0 ||
+    filters.minPrice !== undefined ||
+    filters.maxPrice !== undefined ||
+    filters.duration !== undefined ||
+    filters.sortBy !== 'recommended'
+  );
 });
 
 const recommendedPackages = computed(() => {
@@ -775,9 +877,23 @@ const goToDashboard = () => {
 
 // 搜索和筛选
 const handleSearch = () => {
+  searchKeyword.value = searchInputKeyword.value.trim();
   pagination.page = 1;
   fetchPackages();
 };
+
+const handleClearSearch = () => {
+  searchInputKeyword.value = '';
+  searchKeyword.value = '';
+  resetFilters();
+};
+
+watch(searchInputKeyword, (value, oldValue) => {
+  // 兼容某些场景下 clear 图标事件不触发：输入从非空变为空时自动恢复浏览态
+  if (oldValue && !value && searchKeyword.value) {
+    handleClearSearch();
+  }
+});
 
 const handleFilterChange = () => {
   pagination.page = 1;
@@ -793,9 +909,9 @@ const handleRegionChange = () => {
     locationOptions.value = [...domesticLocations, ...overseasLocations];
   }
 
-  filters.location = filters.location.filter((location) =>
-    locationOptions.value.includes(location)
-  );
+  if (filters.location && !locationOptions.value.includes(filters.location)) {
+    filters.location = undefined;
+  }
 
   handleFilterChange();
 };
@@ -811,8 +927,8 @@ const toggleHotTag = (tagValue: HotTagKey) => {
 
 const resetFilters = () => {
   filters.region = undefined;
-  filters.style = [];
-  filters.location = [];
+  filters.style = undefined;
+  filters.location = undefined;
   filters.minPrice = undefined;
   filters.maxPrice = undefined;
   filters.duration = undefined;
@@ -846,8 +962,8 @@ const fetchPackages = async () => {
     //   page: pagination.page,
     //   pageSize: pagination.pageSize,
     //   region: filters.region,
-    //   styles: filters.style.length ? filters.style : undefined,
-    //   locations: filters.location.length ? filters.location : undefined,
+    //   style: filters.style,
+    //   location: filters.location,
     //   minPrice: filters.minPrice,
     //   maxPrice: filters.maxPrice,
     //   duration: filters.duration,
@@ -868,11 +984,11 @@ const fetchPackages = async () => {
     if (filters.region) {
       filtered = filtered.filter((p) => locationRegionMap.get(p.location) === filters.region);
     }
-    if (filters.style.length > 0) {
-      filtered = filtered.filter((p) => filters.style.includes(p.style));
+    if (filters.style) {
+      filtered = filtered.filter((p) => p.style === filters.style);
     }
-    if (filters.location.length > 0) {
-      filtered = filtered.filter((p) => filters.location.includes(p.location));
+    if (filters.location) {
+      filtered = filtered.filter((p) => p.location === filters.location);
     }
     if (filters.minPrice !== undefined) {
       filtered = filtered.filter((p) => p.price >= filters.minPrice!);
@@ -967,12 +1083,14 @@ const generateMockPackages = (): Package[] => {
     ],
   ];
 
-  for (let i = 1; i <= 30; i++) {
-    const location = locations[Math.floor(Math.random() * locations.length)];
-    const style = styles[Math.floor(Math.random() * styles.length)];
-    const duration = [1, 2, 3, 5, 7][Math.floor(Math.random() * 5)];
-    const basePrice = [2999, 3999, 4999, 5999, 6999, 8999, 12999][Math.floor(Math.random() * 7)];
-    const hasDiscount = Math.random() > 0.5;
+  for (let i = 1; i <= 60; i++) {
+    const location = locations[(i - 1) % locations.length];
+    const style = styles[(i - 1) % styles.length];
+    const durationOptions = [1, 2, 3, 5, 7];
+    const duration = durationOptions[(i - 1) % durationOptions.length];
+    const priceOptions = [2999, 3999, 4999, 5999, 6999, 8999, 12999];
+    const basePrice = priceOptions[(i - 1) % priceOptions.length];
+    const hasDiscount = i % 2 === 0;
     const imageIndex = (i - 1) % imageUrls.length;
     const detailImageIndex = (i - 1) % detailImageUrls.length;
 
@@ -1004,11 +1122,11 @@ const generateMockPackages = (): Package[] => {
         '视频花絮',
       ],
       excludes: ['往返交通', '住宿费用', '餐饮费用'],
-      maxPeople: [2, 4, 6][Math.floor(Math.random() * 3)],
+      maxPeople: [2, 4, 6][(i - 1) % 3],
       isPopular: i <= 3,
       isHot: i > 3 && i <= 6,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: `2026-01-${String(((i - 1) % 28) + 1).padStart(2, '0')}T10:00:00.000Z`,
+      updatedAt: `2026-02-${String(((i - 1) % 28) + 1).padStart(2, '0')}T10:00:00.000Z`,
     });
   }
 
@@ -1026,6 +1144,10 @@ const openComboDetail = (combo: { items: Package[] }) => {
   const first = combo.items?.[0];
   if (!first) return;
   openPackageDetail(first);
+};
+
+const openRecommendDrawer = () => {
+  recommendDrawerVisible.value = true;
 };
 
 const closePackageDetail = () => {
@@ -1287,6 +1409,16 @@ onMounted(() => {
           border-radius: 30px;
           padding-left: 45px;
         }
+
+        :deep(.ant-input-clear-icon) {
+          opacity: 0;
+          transition: opacity 0.2s ease;
+        }
+
+        &:hover :deep(.ant-input-clear-icon),
+        &:focus-within :deep(.ant-input-clear-icon) {
+          opacity: 1;
+        }
       }
 
       .search-icon {
@@ -1349,6 +1481,19 @@ onMounted(() => {
         margin: 0 5px;
       }
     }
+
+    .recommend-entry-btn {
+      height: 42px;
+      padding: 0 18px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #ff85a1 0%, #ff6f91 100%);
+      border: none;
+      box-shadow: 0 6px 14px rgba(255, 111, 145, 0.25);
+
+      &:hover {
+        background: linear-gradient(135deg, #ff7393 0%, #ff5f84 100%);
+      }
+    }
   }
 
   .hot-tags-row {
@@ -1375,6 +1520,19 @@ onMounted(() => {
       line-height: 42px;
     }
   }
+}
+
+.recommend-drawer {
+  :deep(.ant-drawer-header-title) {
+    font-weight: 700;
+    color: #333;
+  }
+}
+
+.drawer-subtitle {
+  margin: 0 0 14px;
+  color: #666;
+  font-size: 0.92rem;
 }
 
 .recommend-section {
@@ -1506,6 +1664,30 @@ onMounted(() => {
           border-color: #69b1ff;
         }
       }
+    }
+  }
+
+  &.drawer-mode {
+    padding: 0;
+    margin-top: 8px;
+
+    .section-header {
+      text-align: left;
+      margin-bottom: 14px;
+
+      h2 {
+        font-size: 1.35rem;
+      }
+    }
+
+    .recommend-grid {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .combo-grid {
+      grid-template-columns: 1fr;
+      gap: 12px;
     }
   }
 }
