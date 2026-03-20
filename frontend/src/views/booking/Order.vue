@@ -139,6 +139,12 @@
       </div>
     </div>
 
+    <div v-else-if="packageMissing" class="loading-state">
+      <div class="empty-icon">📦</div>
+      <p>请先在“套餐浏览”中选择一个套餐</p>
+      <a-button type="primary" @click="router.push('/booking/packages')">去选择套餐</a-button>
+    </div>
+
     <!-- 加载中 -->
     <div v-else class="loading-state">
       <a-spin size="large" />
@@ -159,9 +165,61 @@
           <div>人数：{{ successInfo?.numberOfPeople }} 人</div>
           <div>合计：¥{{ successInfo?.totalAmount?.toLocaleString() }}</div>
         </div>
+
+        <div v-if="successInfo?.paymentMethod === 'offline'" class="success-pay-note">
+          线下支付：请在预约当天到店支付，工作人员会核对订单信息后为您安排拍摄。
+        </div>
+        <div v-else class="success-pay-note">
+          在线支付：请选择下方“去支付”，系统将进行支付模拟（后端支付接口暂未接入）。
+        </div>
+
         <div class="success-actions">
           <a-button type="primary" @click="successModalVisible = false">知道了</a-button>
+          <a-button
+            v-if="successInfo?.paymentMethod !== 'offline'"
+            type="primary"
+            ghost
+            @click="openPaymentModal"
+          >
+            去支付
+          </a-button>
           <a-button @click="goToOrders">去订单管理</a-button>
+        </div>
+      </div>
+    </a-modal>
+
+    <!-- 在线支付（模拟） -->
+    <a-modal
+      v-model:open="paymentModalVisible"
+      title="在线支付（模拟）"
+      :footer="null"
+      :width="860"
+      @cancel="paymentModalVisible = false"
+    >
+      <div v-if="paymentInfo" class="payment-modal">
+        <div class="payment-header">
+          <div>
+            <div class="payment-title">
+              支付方式：{{ formatPayment(paymentInfo.paymentMethod) }}
+            </div>
+            <div class="payment-sub">订单号：{{ paymentInfo.orderNo }}</div>
+          </div>
+          <div class="payment-amount">应付：¥{{ paymentInfo.totalAmount.toLocaleString() }}</div>
+        </div>
+
+        <div class="payment-body">
+          <div class="payment-qr">
+            <div class="qr-box">二维码（模拟）</div>
+            <div class="qr-tip">如需真实支付，请接入后端支付/回调接口并生成真实二维码。</div>
+          </div>
+          <div class="payment-actions">
+            <a-button type="primary" :loading="paymentSubmitting" @click="mockPay">
+              模拟完成支付
+            </a-button>
+            <a-button @click="paymentModalVisible = false" :disabled="paymentSubmitting"
+              >稍后再说</a-button
+            >
+          </div>
         </div>
       </div>
     </a-modal>
@@ -174,6 +232,7 @@ import { message } from 'ant-design-vue';
 import type { FormInstance } from 'ant-design-vue';
 import { useRoute, useRouter } from 'vue-router';
 import { packagesApi, type Package } from '@/api/packages';
+import { ordersApi } from '@/api/orders';
 import { useAuthStore } from '@/store/auth';
 
 const route = useRoute();
@@ -201,10 +260,13 @@ const submitting = ref(false);
 
 const successModalVisible = ref(false);
 const successInfo = ref<{
+  orderId?: number;
   orderNo: string;
   packageName: string;
   numberOfPeople: number;
   totalAmount: number;
+  paymentMethod: string;
+  paymentStatus: string;
 } | null>(null);
 
 const orderForm = reactive({
@@ -218,10 +280,20 @@ const orderForm = reactive({
   remark: '',
 });
 
+const packageMissing = ref(false);
+
 const peopleOptions = computed(() => {
   const max = selectedPackage.value?.maxPeople ?? 1;
   return Array.from({ length: max }, (_, idx) => idx + 1);
 });
+
+const paymentModalVisible = ref(false);
+const paymentSubmitting = ref(false);
+const paymentInfo = ref<{
+  orderNo: string;
+  paymentMethod: string;
+  totalAmount: number;
+} | null>(null);
 
 const emailValidator = (_rule: any, value: string) => {
   if (!value) return Promise.resolve();
@@ -362,11 +434,14 @@ const generateMockPackageById = (id: number): Package => {
 };
 
 const loadSelectedPackage = async () => {
+  packageMissing.value = false;
   const idRaw = route.query.packageId;
-  const id = Number(idRaw);
+  let id = Number(idRaw);
+
+  // 不自动回填：必须先在“套餐浏览”选择套餐并带上 packageId 才能进入下单页
   if (!idRaw || Number.isNaN(id) || id <= 0) {
-    message.warning('缺少套餐信息，正在返回套餐列表');
-    router.push('/booking/packages');
+    packageMissing.value = true;
+    selectedPackage.value = null;
     return;
   }
 
@@ -414,6 +489,11 @@ const handleSubmit = async () => {
     const orderNo = `ORD-${Date.now()}`;
     const totalAmount = selectedPackage.value.price * orderForm.numberOfPeople;
 
+    const isOnlinePayment =
+      orderForm.paymentMethod === 'wechat' || orderForm.paymentMethod === 'alipay';
+    const paymentStatus = isOnlinePayment ? 'unpaid' : 'offline_pending';
+    const paymentNo = `PAY-${Date.now()}`;
+
     const order = {
       orderNo,
       packageId: selectedPackage.value.id,
@@ -430,6 +510,9 @@ const handleSubmit = async () => {
       paymentMethod: orderForm.paymentMethod,
       remark: orderForm.remark || undefined,
       totalAmount,
+      paymentStatus,
+      paymentNo,
+      paidAt: undefined as string | undefined,
       createdAt: new Date().toISOString(),
     };
 
@@ -438,11 +521,18 @@ const handleSubmit = async () => {
     history.unshift(order);
     sessionStorage.setItem(ORDER_HISTORY_KEY, JSON.stringify(history));
 
+    // 写入数据库订单
+    const createdOrder: any = await ordersApi.createOrder(order);
+    const orderData = createdOrder?.data || createdOrder;
+
     successInfo.value = {
+      orderId: orderData?.id,
       orderNo,
       packageName: order.packageName,
       numberOfPeople: order.numberOfPeople,
       totalAmount: order.totalAmount,
+      paymentMethod: order.paymentMethod,
+      paymentStatus: order.paymentStatus,
     };
     successModalVisible.value = true;
     message.success('预约提交成功');
@@ -453,6 +543,49 @@ const handleSubmit = async () => {
     message.error(e?.message || '提交失败，请稍后重试');
   } finally {
     submitting.value = false;
+  }
+};
+
+const openPaymentModal = () => {
+  if (!successInfo.value) return;
+  paymentInfo.value = {
+    orderNo: successInfo.value.orderNo,
+    paymentMethod: successInfo.value.paymentMethod,
+    totalAmount: successInfo.value.totalAmount,
+  };
+  paymentModalVisible.value = true;
+};
+
+const mockPay = async () => {
+  if (!paymentInfo.value) return;
+  paymentSubmitting.value = true;
+  try {
+    const raw = sessionStorage.getItem(ORDER_HISTORY_KEY);
+    const history = raw ? JSON.parse(raw) : [];
+    const idx = history.findIndex((x: any) => x.orderNo === paymentInfo.value?.orderNo);
+    if (idx !== -1) {
+      history[idx] = {
+        ...history[idx],
+        paymentStatus: 'paid',
+        paidAt: new Date().toISOString(),
+      };
+      sessionStorage.setItem(ORDER_HISTORY_KEY, JSON.stringify(history));
+    }
+
+    if (successInfo.value?.orderId) {
+      await ordersApi.updateOrderStatus(successInfo.value.orderId, '已支付');
+    }
+
+    if (successInfo.value) {
+      successInfo.value.paymentStatus = 'paid';
+    }
+
+    message.success('支付模拟完成：订单已标记为已支付');
+    paymentModalVisible.value = false;
+  } catch (e: any) {
+    message.error(e?.message || '支付失败，请稍后重试');
+  } finally {
+    paymentSubmitting.value = false;
   }
 };
 

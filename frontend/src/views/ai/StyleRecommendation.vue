@@ -20,6 +20,37 @@
               :maxlength="500"
               @change="saveStateToStorage"
             />
+            <!-- 智能输入辅助：快捷模板 + 关键词推荐 -->
+            <div class="input-assist">
+              <div class="assist-row">
+                <span class="assist-label">快捷模板：</span>
+                <div class="assist-chips">
+                  <button
+                    v-for="tpl in preferenceTemplates"
+                    :key="tpl.key"
+                    type="button"
+                    class="assist-chip"
+                    @click="applyTemplate(tpl.text)"
+                  >
+                    {{ tpl.label }}
+                  </button>
+                </div>
+              </div>
+              <div class="assist-row">
+                <span class="assist-label">可选关键词：</span>
+                <div class="assist-chips">
+                  <button
+                    v-for="kw in keywordSuggestions"
+                    :key="kw"
+                    type="button"
+                    class="assist-chip keyword"
+                    @click="appendKeyword(kw)"
+                  >
+                    {{ kw }}
+                  </button>
+                </div>
+              </div>
+            </div>
           </a-form-item>
 
           <!-- 预算 -->
@@ -227,6 +258,43 @@ const formData = reactive({
   occasions: [],
 });
 
+// 智能输入辅助：预设模板与关键词
+const preferenceTemplates = [
+  {
+    key: 'romantic_sea',
+    label: '浪漫海边',
+    text: '我喜欢清新唯美、略带梦幻感的海边风格，希望有金色夕阳、柔和海风和自然互动的画面，整体色调偏米白和暖金色，氛围轻松浪漫。',
+  },
+  {
+    key: 'art_city',
+    label: '文艺城市',
+    text: '我偏好有设计感和故事感的城市街拍风格，希望场景有老建筑、咖啡馆、小巷等，整体色调偏低饱和，画面有一点电影质感和文艺气息。',
+  },
+  {
+    key: 'vintage',
+    label: '复古典雅',
+    text: '我喜欢复古、略带仪式感的风格，希望有古典建筑、拱门、长廊等元素，服装可以偏礼服或旗袍，整体氛围优雅、有质感。',
+  },
+  {
+    key: 'minimal',
+    label: '极简高级',
+    text: '我偏好极简、干净的画面，希望背景简单、留白多，强调线条和光影，整体色调偏黑白灰或莫兰迪色，氛围冷静高级。',
+  },
+];
+
+const keywordSuggestions = [
+  '清新自然',
+  '电影感',
+  '法式浪漫',
+  'ins 风',
+  '复古胶片',
+  '高级灰',
+  '森系',
+  '港风',
+  '通透质感',
+  '氛围感灯光',
+];
+
 const loading = ref<boolean>(false);
 const result = ref<any>(null);
 const selectedRecommendation = ref<number | null>(null);
@@ -238,6 +306,24 @@ const selectedSpot = ref<{
   description?: string;
   reason?: string;
 } | null>(null);
+
+// 应用快捷模板
+const applyTemplate = (text: string) => {
+  formData.preferences = text;
+  saveStateToStorage();
+};
+
+// 追加关键词（避免重复，自动加分隔符）
+const appendKeyword = (keyword: string) => {
+  if (!keyword) return;
+  if (formData.preferences.includes(keyword)) {
+    message.info('该关键词已在描述中');
+    return;
+  }
+  const prefix = formData.preferences.trim() ? '；' : '';
+  formData.preferences = `${formData.preferences.trim()}${prefix}${keyword}`;
+  saveStateToStorage();
+};
 
 // 状态持久化的 key
 const STORAGE_KEY = 'style-recommendation-state';
@@ -516,6 +602,56 @@ onMounted(() => {
 
     &::after {
       content: ' ';
+    }
+  }
+}
+
+// 输入辅助样式
+.input-assist {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  .assist-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  .assist-label {
+    font-size: 12px;
+    color: #999;
+    flex-shrink: 0;
+    margin-top: 4px;
+  }
+
+  .assist-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .assist-chip {
+    border: none;
+    border-radius: 999px;
+    padding: 2px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    background: #f5f5f5;
+    color: #666;
+    transition: all 0.2s;
+    white-space: nowrap;
+
+    &:hover {
+      background: #ffebef;
+      color: #ff4d8a;
+      transform: translateY(-1px);
+    }
+
+    &.keyword {
+      background: #fafafa;
     }
   }
 }

@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
@@ -45,6 +46,21 @@ export class UsersService {
     });
   }
 
+  async setActive(id: number, isActive: boolean): Promise<any> {
+    return this.prisma.user.update({
+      where: { id },
+      data: { isActive },
+    });
+  }
+
+  async resetPassword(id: number, newPassword: string): Promise<any> {
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    return this.prisma.user.update({
+      where: { id },
+      data: { password: hashedPassword },
+    });
+  }
+
   async uploadAvatar(id: number, file: any): Promise<any> {
     if (!file) {
       throw new BadRequestException('未上传文件');
@@ -65,12 +81,15 @@ export class UsersService {
     const base64Avatar = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
 
     // 更新用户头像
-    // 注意：Prisma schema 中已有 avatar 字段，如果报错请运行 pnpm run prisma:generate
+    // 注意：
+    // - Prisma schema 中已有 avatar 字段（见 prisma/schema.prisma）
+    // - 如果本地 Prisma Client 类型还没有 avatar，可以先临时使用 any 绕过类型检查，
+    //   后续执行 `pnpm run prisma:generate` 重新生成客户端即可去掉 as any
     return this.prisma.user.update({
       where: { id },
       data: {
         avatar: base64Avatar,
-      },
+      } as any,
     });
   }
 }

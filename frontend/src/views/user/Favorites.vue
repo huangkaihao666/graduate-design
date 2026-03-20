@@ -122,12 +122,18 @@
           </section>
 
           <!-- 景点收藏 -->
-          <section class="favorites-section" v-if="spots.items.length">
+          <section class="favorites-section">
             <div class="section-header">
               <h2>📍 景点收藏</h2>
-              <span class="count-badge">{{ spots.pagination.total }} 个</span>
+              <span class="count-badge" v-if="spots.items.length"
+                >{{ spots.pagination.total }} 个</span
+              >
             </div>
-            <div class="card-grid spots-grid">
+            <div v-if="spots.items.length === 0" class="empty-section">
+              <span class="empty-icon">📭</span>
+              <p>暂无收藏的景点哦~</p>
+            </div>
+            <div v-else class="card-grid spots-grid">
               <div
                 v-for="item in spots.items"
                 :key="`spot-${item.id}`"
@@ -191,12 +197,18 @@
           </section>
 
           <!-- 行程收藏 -->
-          <section class="favorites-section" v-if="itineraries.items.length">
+          <section class="favorites-section">
             <div class="section-header">
               <h2>🗺️ 行程收藏</h2>
-              <span class="count-badge">{{ itineraries.pagination.total }} 个</span>
+              <span class="count-badge" v-if="itineraries.items.length"
+                >{{ itineraries.pagination.total }} 个</span
+              >
             </div>
-            <div class="card-grid itineraries-grid">
+            <div v-if="itineraries.items.length === 0" class="empty-section">
+              <span class="empty-icon">📭</span>
+              <p>暂无收藏的行程哦~</p>
+            </div>
+            <div v-else class="card-grid itineraries-grid">
               <div
                 v-for="item in itineraries.items"
                 :key="`itinerary-${item.id}`"
@@ -275,204 +287,219 @@
 
         <!-- 单一类型：复用对应 section -->
         <template v-else>
-          <section class="favorites-section" v-if="currentList.items.length">
+          <section class="favorites-section">
             <div class="section-header">
               <h2>{{ currentTitle }}</h2>
-              <span class="count-badge">{{ currentList.pagination.total }} 个</span>
+              <span class="count-badge" v-if="currentList.items.length"
+                >{{ currentList.pagination.total }} 个</span
+              >
             </div>
 
-            <!-- 套餐列表 -->
-            <div class="card-grid packages-grid" v-if="activeTab === 'packages'">
-              <div
-                v-for="item in currentList.items"
-                :key="`pkg-single-${item.id}`"
-                class="favorite-card package-card"
-              >
-                <a-button
-                  type="text"
-                  danger
-                  size="small"
-                  class="delete-btn"
-                  @click.stop="handleRemoveFavorite('packages', item.favoriteId || item.id)"
-                  :loading="removingIds.has(`pkg-single-${item.id}`)"
-                >
-                  🗑️
-                </a-button>
-                <div class="card-image" @click="openPackageDetail(item)">
-                  <a-image
-                    :src="item.coverImage"
-                    :alt="item.name"
-                    :preview="false"
-                    class="cover-image"
-                    :fallback="item.coverImage"
-                  />
-                  <div class="image-overlay">
-                    <span class="location-tag">📍 {{ item.location }}</span>
-                  </div>
-                  <div v-if="item.isPopular" class="card-badge">🔥 热门</div>
-                  <div v-if="item.isHot" class="card-badge hot">⭐ 推荐</div>
-                </div>
-                <div class="card-content">
-                  <div class="card-header">
-                    <h3 class="package-name">{{ item.name }}</h3>
-                    <div class="price-section">
-                      <span class="current-price">¥{{ item.price.toLocaleString() }}</span>
-                      <span v-if="item.originalPrice" class="original-price">
-                        ¥{{ item.originalPrice.toLocaleString() }}
-                      </span>
-                    </div>
-                  </div>
-                  <p class="package-desc">{{ item.description }}</p>
-                  <div class="package-meta">
-                    <span class="meta-item">
-                      <span class="meta-icon">📅</span>
-                      {{ item.duration }} 天
-                    </span>
-                    <span class="meta-item">
-                      <span class="meta-icon">👥</span>
-                      最多 {{ item.maxPeople }} 人
-                    </span>
-                    <span class="meta-item">
-                      <span class="meta-icon">🎨</span>
-                      {{ getStyleName(item.style) }}
-                    </span>
-                  </div>
-                  <div class="card-footer">
-                    <span class="favorite-time">收藏于 {{ formatTime(item.favoritedAt) }}</span>
-                    <a-button type="primary" @click.stop="handleBook(item)"> 立即预约 </a-button>
-                  </div>
-                </div>
-              </div>
+            <!-- 空状态提示 -->
+            <div v-if="currentList.items.length === 0" class="empty-section">
+              <span class="empty-icon">📭</span>
+              <p v-if="activeTab === 'spots'">暂无收藏的景点哦~</p>
+              <p v-else-if="activeTab === 'itineraries'">暂无收藏的行程哦~</p>
+              <p v-else>暂无收藏内容</p>
             </div>
 
-            <!-- 景点列表 -->
-            <div class="card-grid spots-grid" v-else-if="activeTab === 'spots'">
-              <div
-                v-for="item in currentList.items"
-                :key="`spot-single-${item.id}`"
-                class="favorite-card spot-card"
-                @click="openSpotDetail(item)"
-              >
-                <a-button
-                  type="text"
-                  danger
-                  size="small"
-                  class="delete-btn"
-                  @click.stop="handleRemoveFavorite('spots', item.id)"
-                  :loading="removingIds.has(`spot-single-${item.id}`)"
+            <!-- 有数据时显示列表 -->
+            <template v-else>
+              <!-- 套餐列表 -->
+              <div class="card-grid packages-grid" v-if="activeTab === 'packages'">
+                <div
+                  v-for="item in currentList.items"
+                  :key="`pkg-single-${item.id}`"
+                  class="favorite-card package-card"
                 >
-                  🗑️
-                </a-button>
-                <div class="spot-image">
-                  <a-image
-                    v-if="item.image"
-                    :src="item.image"
-                    :alt="item.name"
-                    :preview="true"
-                    class="spot-cover"
-                    :fallback="item.image"
-                  />
-                  <div v-else class="spot-placeholder">
-                    <span class="placeholder-icon">🏞️</span>
-                  </div>
-                  <div class="spot-overlay">
-                    <span class="spot-location">{{ item.location }}</span>
-                  </div>
-                </div>
-                <div class="spot-content">
-                  <h3 class="spot-name">{{ item.name }}</h3>
-                  <p class="spot-description" v-if="item.description">
-                    {{ item.description }}
-                  </p>
-                  <div class="spot-meta">
-                    <span v-if="item.recommendedStyle" class="meta-tag">
-                      🎨 {{ item.recommendedStyle }}
-                    </span>
-                    <span v-if="item.bestSeason" class="meta-tag"> 🌍 {{ item.bestSeason }} </span>
-                  </div>
-                  <div class="spot-footer">
-                    <span class="favorite-time">收藏于 {{ formatTime(item.favoritedAt) }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 行程列表 -->
-            <div class="card-grid itineraries-grid" v-else-if="activeTab === 'itineraries'">
-              <div
-                v-for="item in currentList.items"
-                :key="`itinerary-single-${item.id}`"
-                class="favorite-card itinerary-card"
-                @click="openItineraryDetail(item)"
-              >
-                <a-button
-                  type="text"
-                  danger
-                  size="small"
-                  class="delete-btn"
-                  @click.stop="handleRemoveFavorite('itineraries', item.id)"
-                  :loading="removingIds.has(`itinerary-single-${item.id}`)"
-                >
-                  🗑️
-                </a-button>
-                <div class="itinerary-header">
-                  <h3 class="itinerary-title">
-                    <span class="destination-icon">📍</span>
-                    {{ item.destination }}
-                  </h3>
-                  <div class="itinerary-meta">
-                    <span class="meta-badge">
-                      <span class="meta-icon">📅</span>
-                      {{ item.duration }} 天
-                    </span>
-                    <span class="meta-badge">
-                      <span class="meta-icon">🎨</span>
-                      {{ getStyleName(item.style) }}
-                    </span>
-                  </div>
-                </div>
-                <div class="itinerary-content">
-                  <p class="itinerary-overview" v-if="item.overview">
-                    {{ item.overview }}
-                  </p>
-                  <div
-                    v-if="item.dailySchedule && Array.isArray(item.dailySchedule)"
-                    class="itinerary-schedule"
+                  <a-button
+                    type="text"
+                    danger
+                    size="small"
+                    class="delete-btn"
+                    @click.stop="handleRemoveFavorite('packages', item.favoriteId || item.id)"
+                    :loading="removingIds.has(`pkg-single-${item.id}`)"
                   >
-                    <div class="schedule-preview">
-                      <span class="schedule-label">行程预览：</span>
-                      <div class="schedule-days">
-                        <span
-                          v-for="(day, index) in item.dailySchedule.slice(0, 3)"
-                          :key="index"
-                          class="day-tag"
-                        >
-                          第{{ day.day || index + 1 }}天
-                        </span>
-                        <span v-if="item.dailySchedule.length > 3" class="more-days">
-                          +{{ item.dailySchedule.length - 3 }}天
+                    🗑️
+                  </a-button>
+                  <div class="card-image" @click="openPackageDetail(item)">
+                    <a-image
+                      :src="item.coverImage"
+                      :alt="item.name"
+                      :preview="false"
+                      class="cover-image"
+                      :fallback="item.coverImage"
+                    />
+                    <div class="image-overlay">
+                      <span class="location-tag">📍 {{ item.location }}</span>
+                    </div>
+                    <div v-if="item.isPopular" class="card-badge">🔥 热门</div>
+                    <div v-if="item.isHot" class="card-badge hot">⭐ 推荐</div>
+                  </div>
+                  <div class="card-content">
+                    <div class="card-header">
+                      <h3 class="package-name">{{ item.name }}</h3>
+                      <div class="price-section">
+                        <span class="current-price">¥{{ item.price.toLocaleString() }}</span>
+                        <span v-if="item.originalPrice" class="original-price">
+                          ¥{{ item.originalPrice.toLocaleString() }}
                         </span>
                       </div>
                     </div>
+                    <p class="package-desc">{{ item.description }}</p>
+                    <div class="package-meta">
+                      <span class="meta-item">
+                        <span class="meta-icon">📅</span>
+                        {{ item.duration }} 天
+                      </span>
+                      <span class="meta-item">
+                        <span class="meta-icon">👥</span>
+                        最多 {{ item.maxPeople }} 人
+                      </span>
+                      <span class="meta-item">
+                        <span class="meta-icon">🎨</span>
+                        {{ getStyleName(item.style) }}
+                      </span>
+                    </div>
+                    <div class="card-footer">
+                      <span class="favorite-time">收藏于 {{ formatTime(item.favoritedAt) }}</span>
+                      <a-button type="primary" @click.stop="handleBook(item)"> 立即预约 </a-button>
+                    </div>
                   </div>
                 </div>
-                <div class="itinerary-footer">
-                  <span class="favorite-time">收藏于 {{ formatTime(item.favoritedAt) }}</span>
+              </div>
+
+              <!-- 景点列表 -->
+              <div class="card-grid spots-grid" v-else-if="activeTab === 'spots'">
+                <div
+                  v-for="item in currentList.items"
+                  :key="`spot-single-${item.id}`"
+                  class="favorite-card spot-card"
+                  @click="openSpotDetail(item)"
+                >
+                  <a-button
+                    type="text"
+                    danger
+                    size="small"
+                    class="delete-btn"
+                    @click.stop="handleRemoveFavorite('spots', item.id)"
+                    :loading="removingIds.has(`spot-single-${item.id}`)"
+                  >
+                    🗑️
+                  </a-button>
+                  <div class="spot-image">
+                    <a-image
+                      v-if="item.image"
+                      :src="item.image"
+                      :alt="item.name"
+                      :preview="true"
+                      class="spot-cover"
+                      :fallback="item.image"
+                    />
+                    <div v-else class="spot-placeholder">
+                      <span class="placeholder-icon">🏞️</span>
+                    </div>
+                    <div class="spot-overlay">
+                      <span class="spot-location">{{ item.location }}</span>
+                    </div>
+                  </div>
+                  <div class="spot-content">
+                    <h3 class="spot-name">{{ item.name }}</h3>
+                    <p class="spot-description" v-if="item.description">
+                      {{ item.description }}
+                    </p>
+                    <div class="spot-meta">
+                      <span v-if="item.recommendedStyle" class="meta-tag">
+                        🎨 {{ item.recommendedStyle }}
+                      </span>
+                      <span v-if="item.bestSeason" class="meta-tag">
+                        🌍 {{ item.bestSeason }}
+                      </span>
+                    </div>
+                    <div class="spot-footer">
+                      <span class="favorite-time">收藏于 {{ formatTime(item.favoritedAt) }}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div class="section-pagination">
-              <a-pagination
-                size="small"
-                :current="currentList.pagination.page"
-                :page-size="currentList.pagination.pageSize"
-                :total="currentList.pagination.total"
-                @change="(page, pageSize) => handlePageChange(activeTab as any, page, pageSize)"
-                :show-size-changer="true"
-                :page-size-options="['12', '24', '48']"
-              />
-            </div>
+              <!-- 行程列表 -->
+              <div class="card-grid itineraries-grid" v-else-if="activeTab === 'itineraries'">
+                <div
+                  v-for="item in currentList.items"
+                  :key="`itinerary-single-${item.id}`"
+                  class="favorite-card itinerary-card"
+                  @click="openItineraryDetail(item)"
+                >
+                  <a-button
+                    type="text"
+                    danger
+                    size="small"
+                    class="delete-btn"
+                    @click.stop="handleRemoveFavorite('itineraries', item.id)"
+                    :loading="removingIds.has(`itinerary-single-${item.id}`)"
+                  >
+                    🗑️
+                  </a-button>
+                  <div class="itinerary-header">
+                    <h3 class="itinerary-title">
+                      <span class="destination-icon">📍</span>
+                      {{ item.destination }}
+                    </h3>
+                    <div class="itinerary-meta">
+                      <span class="meta-badge">
+                        <span class="meta-icon">📅</span>
+                        {{ item.duration }} 天
+                      </span>
+                      <span class="meta-badge">
+                        <span class="meta-icon">🎨</span>
+                        {{ getStyleName(item.style) }}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="itinerary-content">
+                    <p class="itinerary-overview" v-if="item.overview">
+                      {{ item.overview }}
+                    </p>
+                    <div
+                      v-if="item.dailySchedule && Array.isArray(item.dailySchedule)"
+                      class="itinerary-schedule"
+                    >
+                      <div class="schedule-preview">
+                        <span class="schedule-label">行程预览：</span>
+                        <div class="schedule-days">
+                          <span
+                            v-for="(day, index) in item.dailySchedule.slice(0, 3)"
+                            :key="index"
+                            class="day-tag"
+                          >
+                            第{{ day.day || index + 1 }}天
+                          </span>
+                          <span v-if="item.dailySchedule.length > 3" class="more-days">
+                            +{{ item.dailySchedule.length - 3 }}天
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="itinerary-footer">
+                    <span class="favorite-time">收藏于 {{ formatTime(item.favoritedAt) }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="section-pagination">
+                <a-pagination
+                  size="small"
+                  :current="currentList.pagination.page"
+                  :page-size="currentList.pagination.pageSize"
+                  :total="currentList.pagination.total"
+                  @change="(page, pageSize) => handlePageChange(activeTab as any, page, pageSize)"
+                  :show-size-changer="true"
+                  :page-size-options="['12', '24', '48']"
+                />
+              </div>
+            </template>
           </section>
         </template>
       </div>
@@ -1599,6 +1626,28 @@ onMounted(() => {
 
   :deep(.ant-pagination) {
     font-size: 12px;
+  }
+}
+
+.empty-section {
+  padding: 40px 0;
+  text-align: center;
+  color: #999;
+  border-radius: 8px;
+  background: #fafafa;
+  margin-top: 12px;
+
+  .empty-icon {
+    font-size: 2.5rem;
+    display: block;
+    margin-bottom: 12px;
+    opacity: 0.6;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.95rem;
+    color: #888;
   }
 }
 

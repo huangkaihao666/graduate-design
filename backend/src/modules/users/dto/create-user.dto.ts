@@ -1,4 +1,10 @@
-import { IsEmail, IsString, IsNotEmpty, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsString,
+  IsNotEmpty,
+  MinLength,
+  IsOptional,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateUserDto {
@@ -30,4 +36,13 @@ export class CreateUserDto {
   @MinLength(6)
   @IsNotEmpty()
   password: string;
+
+  @ApiProperty({
+    description: '用户头像（Base64编码或URL）',
+    example: 'data:image/jpeg;base64,/9j/4AAQSkZJRg...',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  avatar?: string;
 }

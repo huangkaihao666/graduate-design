@@ -7,6 +7,10 @@ import {
   Delete,
   Put,
   ParseIntPipe,
+  UseInterceptors,
+  UploadedFile,
+  UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -14,9 +18,13 @@ import {
   ApiParam,
   ApiResponse,
   ApiBody,
+  ApiConsumes,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @ApiTags('Users')
 @Controller('users')
@@ -135,6 +143,36 @@ export class UsersController {
     return this.usersService.update(id, updateUserDto);
   }
 
+  @Put(':id/status')
+  @ApiOperation({
+    summary: '启用/禁用用户',
+    description: '根据 isActive 更新用户状态',
+  })
+  @ApiParam({ name: 'id', type: Number, description: '用户 ID' })
+  updateStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { isActive: boolean },
+  ) {
+    return this.usersService.setActive(id, Boolean(body?.isActive));
+  }
+
+  @Post(':id/reset-password')
+  @ApiOperation({
+    summary: '重置用户密码',
+    description: '管理员重置指定用户密码',
+  })
+  @ApiParam({ name: 'id', type: Number, description: '用户 ID' })
+  resetPassword(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { newPassword: string },
+  ) {
+    const nextPassword = body?.newPassword?.trim();
+    if (!nextPassword || nextPassword.length < 6) {
+      throw new BadRequestException('新密码至少 6 位');
+    }
+    return this.usersService.resetPassword(id, nextPassword);
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: '删除用户', description: '删除指定的用户' })
   @ApiParam({ name: 'id', type: Number, description: '用户 ID' })
@@ -158,5 +196,53 @@ export class UsersController {
   })
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.remove(id);
+  }
+
+  @Post(':id/avatar')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: '上传用户头像',
+    description: '上传用户头像图片文件',
+  })
+  @ApiParam({ name: 'id', type: Number, description: '用户 ID' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        avatar: {
+          type: 'string',
+          format: 'binary',
+          description: '头像图片文件',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: '头像上传成功',
+    schema: {
+      example: {
+        statusCode: 200,
+        message: 'Request successful',
+        data: {
+          id: 1,
+          name: '张三',
+          email: 'zhangsan@example.com',
+          avatar: 'data:image/jpeg;base64,...',
+          isActive: true,
+          createdAt: '2024-02-12T03:00:00.000Z',
+          updatedAt: '2024-02-12T03:00:01.000Z',
+        },
+      },
+    },
+  })
+  @UseInterceptors(FileInterceptor('avatar'))
+  async uploadAvatar(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() file: any,
+  ) {
+    return this.usersService.uploadAvatar(id, file);
   }
 }

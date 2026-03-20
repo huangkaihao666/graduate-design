@@ -10,7 +10,7 @@
       <!-- 菜单项 -->
       <nav class="sidebar-nav">
         <!-- AI 功能 -->
-        <div class="nav-group" v-if="authStore.isAuthenticated">
+        <div class="nav-group" v-if="authStore.isAuthenticated && !isAdmin">
           <div class="group-title" :class="{ collapsed: isCollapsed }">🤖 AI 功能</div>
           <router-link to="/ai/virtual-try-on" class="nav-link" active-class="active">
             <span class="icon">✨</span>
@@ -27,7 +27,7 @@
         </div>
 
         <!-- 预约模块 -->
-        <div class="nav-group">
+        <div class="nav-group" v-if="!isAdmin">
           <div class="group-title" :class="{ collapsed: isCollapsed }">💍 预约服务</div>
           <router-link to="/booking/packages" class="nav-link" active-class="active">
             <span class="icon">💐</span>
@@ -45,7 +45,7 @@
         </div>
 
         <!-- 用户中心 -->
-        <div class="nav-group" v-if="authStore.isAuthenticated">
+        <div class="nav-group" v-if="authStore.isAuthenticated && !isAdmin">
           <div class="group-title" :class="{ collapsed: isCollapsed }">👤 个人中心</div>
           <router-link to="/user/profile" class="nav-link" active-class="active">
             <span class="icon">👤</span>
@@ -67,26 +67,34 @@
 
         <!-- 管理员区域 -->
         <div class="nav-group" v-if="authStore.isAuthenticated && isAdmin">
-          <div class="group-title" :class="{ collapsed: isCollapsed }">⚙️ 管理后台</div>
-          <router-link to="/admin/dashboard" class="nav-link" active-class="active">
-            <span class="icon">📊</span>
+          <div class="group-title admin-title" :class="{ collapsed: isCollapsed }">ADMIN PANEL</div>
+          <router-link to="/admin/dashboard" class="nav-link admin-link" active-class="active">
+            <span class="icon"><DashboardOutlined /></span>
             <span v-if="!isCollapsed" class="label">数据看板</span>
           </router-link>
-          <router-link to="/admin/content/spots" class="nav-link" active-class="active">
-            <span class="icon">📍</span>
+          <router-link to="/admin/content/spots" class="nav-link admin-link" active-class="active">
+            <span class="icon"><EnvironmentOutlined /></span>
             <span v-if="!isCollapsed" class="label">景点管理</span>
           </router-link>
-          <router-link to="/admin/content/packages" class="nav-link" active-class="active">
-            <span class="icon">📋</span>
+          <router-link
+            to="/admin/content/packages"
+            class="nav-link admin-link"
+            active-class="active"
+          >
+            <span class="icon"><AppstoreOutlined /></span>
             <span v-if="!isCollapsed" class="label">套餐管理</span>
           </router-link>
-          <router-link to="/admin/content/styles" class="nav-link" active-class="active">
-            <span class="icon">🏷️</span>
+          <router-link to="/admin/content/styles" class="nav-link admin-link" active-class="active">
+            <span class="icon"><TagsOutlined /></span>
             <span v-if="!isCollapsed" class="label">风格标签</span>
           </router-link>
-          <router-link to="/admin/orders" class="nav-link" active-class="active">
-            <span class="icon">📑</span>
+          <router-link to="/admin/orders" class="nav-link admin-link" active-class="active">
+            <span class="icon"><FileTextOutlined /></span>
             <span v-if="!isCollapsed" class="label">订单管理</span>
+          </router-link>
+          <router-link to="/admin/users" class="nav-link admin-link" active-class="active">
+            <span class="icon"><TeamOutlined /></span>
+            <span v-if="!isCollapsed" class="label">用户管理</span>
           </router-link>
         </div>
       </nav>
@@ -97,6 +105,14 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useAuthStore } from '@/store/auth';
+import {
+  DashboardOutlined,
+  EnvironmentOutlined,
+  AppstoreOutlined,
+  TagsOutlined,
+  FileTextOutlined,
+  TeamOutlined,
+} from '@ant-design/icons-vue';
 
 const authStore = useAuthStore();
 const isCollapsed = ref(false);
@@ -170,6 +186,12 @@ const isAdmin = computed(() => {
         }
       }
 
+      .admin-title {
+        color: #4b5563;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+      }
+
       .nav-link {
         display: flex;
         align-items: center;
@@ -182,7 +204,15 @@ const isAdmin = computed(() => {
         border-left: 3px solid transparent;
 
         .icon {
-          font-size: 18px;
+          font-size: 14px;
+          width: 26px;
+          height: 26px;
+          border-radius: 6px;
+          border: 1px solid #d9d9d9;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          line-height: 1;
           flex-shrink: 0;
         }
 
@@ -202,6 +232,20 @@ const isAdmin = computed(() => {
           background: rgba(255, 117, 140, 0.08);
           border-left-color: #ff758c;
           font-weight: 500;
+        }
+      }
+
+      .admin-link {
+        .icon {
+          background: #f3f4f6;
+          border-color: #d1d5db;
+          color: #374151;
+        }
+
+        &.active .icon {
+          background: #ffe7ee;
+          border-color: #ffadc2;
+          color: #d6336c;
         }
       }
     }

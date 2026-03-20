@@ -41,6 +41,7 @@ const AdminSpots = () => import('../views/admin/content/Spots.vue');
 const AdminPackages = () => import('../views/admin/content/Packages.vue');
 const AdminStyles = () => import('../views/admin/content/Styles.vue');
 const AdminOrders = () => import('../views/admin/Orders.vue');
+const AdminUsers = () => import('../views/admin/Users.vue');
 
 // 路由配置
 const routes: RouteRecordRaw[] = [
@@ -195,6 +196,7 @@ const routes: RouteRecordRaw[] = [
   // 后台管理（管理员只）
   {
     path: '/admin',
+    redirect: '/admin/dashboard',
     meta: {
       requiresAuth: true,
       requiresAdmin: true,
@@ -241,6 +243,14 @@ const routes: RouteRecordRaw[] = [
           title: '订单管理',
         },
       },
+      {
+        path: 'users',
+        name: 'AdminUsers',
+        component: AdminUsers,
+        meta: {
+          title: '用户管理',
+        },
+      },
     ],
   },
 
@@ -279,9 +289,17 @@ router.beforeEach((to, from, next) => {
     }
   }
 
+  // 检查管理员权限
+  if (to.meta?.requiresAdmin) {
+    if (!authStore.isAdmin) {
+      next({ name: 'Dashboard' });
+      return;
+    }
+  }
+
   // 如果已登录用户访问登录页，重定向到控制台
   if (to.name === 'Login' && authStore.isAuthenticated) {
-    next({ name: 'Dashboard' });
+    next(authStore.isAdmin ? { name: 'AdminDashboard' } : { name: 'Dashboard' });
     return;
   }
 

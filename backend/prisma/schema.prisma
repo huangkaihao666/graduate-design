@@ -18,6 +18,7 @@ model User {
   email     String  @unique @db.VarChar(255)
   name      String  @db.VarChar(100)
   password  String  @db.VarChar(255)
+  avatar    String? @db.LongText
   isActive  Boolean @default(true)
   
   createdAt DateTime @default(now())
@@ -171,4 +172,35 @@ model Favorite {
   @@index([userId])
   @@index([packageId])
   @@index([createdAt])
+}
+
+/// 预约订单模型
+model BookingOrder {
+  id             Int      @id @default(autoincrement()) @db.UnsignedInt
+  orderNo        String   @unique @db.VarChar(64)
+  packageId      Int      @db.UnsignedInt
+  packageName    String   @db.VarChar(255)
+  location       String   @db.VarChar(100)
+  style          String   @db.VarChar(100)
+  duration       Int      @db.UnsignedInt
+  unitPrice      Int      @db.UnsignedInt
+  numberOfPeople Int      @db.UnsignedInt
+  shootingDate   String   @db.VarChar(40)
+  contactName    String   @db.VarChar(100)
+  phone          String   @db.VarChar(40)
+  email          String?  @db.VarChar(255)
+  paymentMethod  String   @db.VarChar(30)
+  remark         String?  @db.Text
+  totalAmount    Int      @db.UnsignedInt
+  paymentStatus  String   @db.VarChar(30) // unpaid / paid / offline_pending / cancelled / completed
+  paymentNo      String?  @db.VarChar(64)
+  paidAt         DateTime?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("booking_orders")
+  @@index([location])
+  @@index([createdAt])
+  @@index([paymentStatus])
 }

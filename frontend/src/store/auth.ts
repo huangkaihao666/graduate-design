@@ -11,6 +11,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   // 计算属性
   const isAuthenticated = computed(() => !!accessToken.value);
+  const isAdmin = computed(() => user.value?.role === 'admin');
 
   // 从本地存储恢复 token
   const initializeAuth = () => {
@@ -67,6 +68,26 @@ export const useAuthStore = defineStore('auth', () => {
     } finally {
       loading.value = false;
     }
+  };
+
+  // 本地管理员登录（用于管理端演示）
+  const loginAsAdminLocal = () => {
+    const adminUser = {
+      id: 0,
+      name: '系统管理员',
+      email: 'admin',
+      role: 'admin',
+    };
+    const adminToken = 'local-admin-token';
+    const adminRefreshToken = 'local-admin-refresh-token';
+
+    user.value = adminUser;
+    accessToken.value = adminToken;
+    refreshToken.value = adminRefreshToken;
+
+    localStorage.setItem('accessToken', adminToken);
+    localStorage.setItem('refreshToken', adminRefreshToken);
+    localStorage.setItem('user', JSON.stringify(adminUser));
   };
 
   // 注册
@@ -149,10 +170,12 @@ export const useAuthStore = defineStore('auth', () => {
 
     // 计算属性
     isAuthenticated,
+    isAdmin,
 
     // 方法
     initializeAuth,
     login,
+    loginAsAdminLocal,
     register,
     refreshAccessToken,
     getProfile,

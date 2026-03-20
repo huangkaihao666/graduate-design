@@ -30,7 +30,13 @@
         <div class="auth-right">
           <div class="form-header">
             <h2>{{ isLogin ? '欢迎登录' : '创建账号' }}</h2>
-            <p>{{ isLogin ? '登录以管理您的旅拍计划' : '开启您的浪漫旅拍之旅' }}</p>
+            <p>
+              {{
+                isLogin
+                  ? '登录以管理您的旅拍计划（管理员：admin / 123456）'
+                  : '开启您的浪漫旅拍之旅'
+              }}
+            </p>
           </div>
 
           <a-form layout="vertical" class="auth-form">
@@ -43,7 +49,7 @@
             </a-form-item>
 
             <a-form-item name="email">
-              <a-input v-model:value="formState.email" placeholder="邮箱地址" size="large">
+              <a-input v-model:value="formState.email" placeholder="邮箱地址/账号" size="large">
                 <template #prefix>
                   <MailOutlined class="input-icon" />
                 </template>
@@ -141,6 +147,12 @@ const handleSubmit = async () => {
 
   try {
     if (isLogin.value) {
+      if (formState.email.trim() === 'admin' && formState.password === '123456') {
+        authStore.loginAsAdminLocal();
+        message.success('管理员登录成功');
+        router.push('/admin/dashboard');
+        return;
+      }
       await authStore.login({
         email: formState.email,
         password: formState.password,

@@ -7,6 +7,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AiModule } from './modules/ai/ai.module';
 import { FavoritesModule } from './modules/favorites/favorites.module';
+import { OrdersModule } from './modules/orders/orders.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { FavoritesModule } from './modules/favorites/favorites.module';
     AuthModule,
     AiModule,
     FavoritesModule,
+    OrdersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
