@@ -3,53 +3,103 @@
     <div class="header">
       <h1>风格标签管理</h1>
       <a-space>
-        <a-input v-model:value="newStyle" placeholder="输入新风格标签" style="width: 220px" />
-        <a-button type="primary" @click="addStyle">新增标签</a-button>
+        <a-input v-model:value="newName" placeholder="新标签名称（中文）" style="width: 220px" />
+        <a-input
+          v-model:value="newKey"
+          placeholder="key（英文，如 romantic）"
+          style="width: 200px"
+        />
+        <a-button type="primary" :loading="creating" @click="addStyle">新增标签</a-button>
       </a-space>
     </div>
 
     <a-card :bordered="false">
-      <div class="tag-list">
-        <div v-for="item in styles" :key="item.id" class="tag-item">
-          <a-tag :color="item.enabled ? 'purple' : 'default'">{{ item.name }}</a-tag>
-          <a-space>
-            <a @click="item.enabled = !item.enabled">{{ item.enabled ? '停用' : '启用' }}</a>
-            <a @click="removeStyle(item.id)">删除</a>
-          </a-space>
+      <a-spin :spinning="loading">
+        <div class="tag-list">
+          <div v-for="item in styles" :key="item.id" class="tag-item">
+            <a-tag :color="item.enabled ? 'purple' : 'default'"
+              >{{ item.name }}（{{ item.key }}）</a-tag
+            >
+            <a-space>
+              <a @click="toggleEnabled(item)">{{ item.enabled ? '停用' : '启用' }}</a>
+              <a @click="removeStyle(item.id)">删除</a>
+            </a-space>
+          </div>
         </div>
-      </div>
+      </a-spin>
     </a-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { styleTagsApi, type StyleTag } from '@/api/styleTags';
 import { message } from 'ant-design-vue';
+import { onMounted, ref } from 'vue';
 
-type StyleTag = { id: number; name: string; enabled: boolean };
-const newStyle = ref('');
-const styles = ref<StyleTag[]>([
-  { id: 1, name: '浪漫梦幻', enabled: true },
-  { id: 2, name: '艺术文艺', enabled: true },
-  { id: 3, name: '极简现代', enabled: true },
-  { id: 4, name: '冒险活力', enabled: false },
-]);
+const newName = ref('');
+const newKey = ref('');
+const styles = ref<StyleTag[]>([]);
+const loading = ref(false);
+const creating = ref(false);
 
-const addStyle = () => {
-  const name = newStyle.value.trim();
+const load = async () => {
+  loading.value = true;
+  try {
+    styles.value = await styleTagsApi.listAdmin();
+  } catch (e: any) {
+    message.error(e?.message || '加载失败');
+  } finally {
+    loading.value = false;
+  }
+};
+
+const addStyle = async () => {
+  const name = newName.value.trim();
+  let key = newKey.value.trim();
   if (!name) {
     message.warning('请输入标签名称');
     return;
   }
-  styles.value.unshift({ id: Date.now(), name, enabled: true });
-  newStyle.value = '';
-  message.success('风格标签已新增');
+  if (!key) {
+    key = `tag_${Date.now()}`;
+  }
+  creating.value = true;
+  try {
+    await styleTagsApi.create({ key, name, enabled: true });
+    newName.value = '';
+    newKey.value = '';
+    message.success('风格标签已新增');
+    await load();
+  } catch (e: any) {
+    message.error(e?.message || '新增失败');
+  } finally {
+    creating.value = false;
+  }
 };
 
-const removeStyle = (id: number) => {
-  styles.value = styles.value.filter((x) => x.id !== id);
-  message.success('风格标签已删除');
+const toggleEnabled = async (item: StyleTag) => {
+  try {
+    await styleTagsApi.update(item.id, { enabled: !item.enabled });
+    item.enabled = !item.enabled;
+    message.success('已更新');
+  } catch (e: any) {
+    message.error(e?.message || '操作失败');
+  }
 };
+
+const removeStyle = async (id: number) => {
+  try {
+    await styleTagsApi.remove(id);
+    message.success('风格标签已删除');
+    await load();
+  } catch (e: any) {
+    message.error(e?.message || '删除失败');
+  }
+};
+
+onMounted(() => {
+  load();
+});
 </script>
 
 <style scoped lang="less">

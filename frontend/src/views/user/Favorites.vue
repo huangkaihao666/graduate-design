@@ -17,7 +17,7 @@
         </a-tabs>
 
         <div class="right-tools">
-          <a-button type="default" size="small" @click="refresh" :loading="loading">
+          <a-button type="default" size="small" :loading="loading" @click="refresh">
             刷新
           </a-button>
         </div>
@@ -41,7 +41,7 @@
         <!-- 全部：三类分段展示 -->
         <template v-if="activeTab === 'all'">
           <!-- 套餐收藏 -->
-          <section class="favorites-section" v-if="packages.items.length">
+          <section v-if="packages.items.length" class="favorites-section">
             <div class="section-header">
               <h2>💐 套餐收藏</h2>
               <span class="count-badge">{{ packages.pagination.total }} 个</span>
@@ -57,8 +57,8 @@
                   danger
                   size="small"
                   class="delete-btn"
-                  @click.stop="handleRemoveFavorite('packages', item.favoriteId || item.id)"
                   :loading="removingIds.has(`pkg-${item.favoriteId || item.id}`)"
+                  @click.stop="handleRemoveFavorite('packages', item.favoriteId || item.id)"
                 >
                   🗑️
                 </a-button>
@@ -114,9 +114,9 @@
                 :current="packages.pagination.page"
                 :page-size="packages.pagination.pageSize"
                 :total="packages.pagination.total"
-                @change="(page, pageSize) => handlePageChange('packages', page, pageSize)"
                 :show-size-changer="true"
                 :page-size-options="['12', '24', '48']"
+                @change="(page, pageSize) => handlePageChange('packages', page, pageSize)"
               />
             </div>
           </section>
@@ -125,7 +125,7 @@
           <section class="favorites-section">
             <div class="section-header">
               <h2>📍 景点收藏</h2>
-              <span class="count-badge" v-if="spots.items.length"
+              <span v-if="spots.items.length" class="count-badge"
                 >{{ spots.pagination.total }} 个</span
               >
             </div>
@@ -145,8 +145,8 @@
                   danger
                   size="small"
                   class="delete-btn"
-                  @click.stop="handleRemoveFavorite('spots', item.id)"
                   :loading="removingIds.has(`spot-${item.id}`)"
+                  @click.stop="handleRemoveFavorite('spots', item.id)"
                 >
                   🗑️
                 </a-button>
@@ -168,7 +168,7 @@
                 </div>
                 <div class="spot-content">
                   <h3 class="spot-name">{{ item.name }}</h3>
-                  <p class="spot-description" v-if="item.description">
+                  <p v-if="item.description" class="spot-description">
                     {{ item.description }}
                   </p>
                   <div class="spot-meta">
@@ -189,9 +189,9 @@
                 :current="spots.pagination.page"
                 :page-size="spots.pagination.pageSize"
                 :total="spots.pagination.total"
-                @change="(page, pageSize) => handlePageChange('spots', page, pageSize)"
                 :show-size-changer="true"
                 :page-size-options="['12', '24', '48']"
+                @change="(page, pageSize) => handlePageChange('spots', page, pageSize)"
               />
             </div>
           </section>
@@ -200,7 +200,7 @@
           <section class="favorites-section">
             <div class="section-header">
               <h2>🗺️ 行程收藏</h2>
-              <span class="count-badge" v-if="itineraries.items.length"
+              <span v-if="itineraries.items.length" class="count-badge"
                 >{{ itineraries.pagination.total }} 个</span
               >
             </div>
@@ -220,8 +220,8 @@
                   danger
                   size="small"
                   class="delete-btn"
-                  @click.stop="handleRemoveFavorite('itineraries', item.id)"
                   :loading="removingIds.has(`itinerary-${item.id}`)"
+                  @click.stop="handleRemoveFavorite('itineraries', item.id)"
                 >
                   🗑️
                 </a-button>
@@ -242,7 +242,7 @@
                   </div>
                 </div>
                 <div class="itinerary-content">
-                  <p class="itinerary-overview" v-if="item.overview">
+                  <p v-if="item.overview" class="itinerary-overview">
                     {{ item.overview }}
                   </p>
                   <div
@@ -277,9 +277,9 @@
                 :current="itineraries.pagination.page"
                 :page-size="itineraries.pagination.pageSize"
                 :total="itineraries.pagination.total"
-                @change="(page, pageSize) => handlePageChange('itineraries', page, pageSize)"
                 :show-size-changer="true"
                 :page-size-options="['12', '24', '48']"
+                @change="(page, pageSize) => handlePageChange('itineraries', page, pageSize)"
               />
             </div>
           </section>
@@ -290,7 +290,7 @@
           <section class="favorites-section">
             <div class="section-header">
               <h2>{{ currentTitle }}</h2>
-              <span class="count-badge" v-if="currentList.items.length"
+              <span v-if="currentList.items.length" class="count-badge"
                 >{{ currentList.pagination.total }} 个</span
               >
             </div>
@@ -306,7 +306,7 @@
             <!-- 有数据时显示列表 -->
             <template v-else>
               <!-- 套餐列表 -->
-              <div class="card-grid packages-grid" v-if="activeTab === 'packages'">
+              <div v-if="activeTab === 'packages'" class="card-grid packages-grid">
                 <div
                   v-for="item in currentList.items"
                   :key="`pkg-single-${item.id}`"
@@ -317,8 +317,8 @@
                     danger
                     size="small"
                     class="delete-btn"
-                    @click.stop="handleRemoveFavorite('packages', item.favoriteId || item.id)"
                     :loading="removingIds.has(`pkg-single-${item.id}`)"
+                    @click.stop="handleRemoveFavorite('packages', item.favoriteId || item.id)"
                   >
                     🗑️
                   </a-button>
@@ -370,7 +370,7 @@
               </div>
 
               <!-- 景点列表 -->
-              <div class="card-grid spots-grid" v-else-if="activeTab === 'spots'">
+              <div v-else-if="activeTab === 'spots'" class="card-grid spots-grid">
                 <div
                   v-for="item in currentList.items"
                   :key="`spot-single-${item.id}`"
@@ -382,8 +382,8 @@
                     danger
                     size="small"
                     class="delete-btn"
-                    @click.stop="handleRemoveFavorite('spots', item.id)"
                     :loading="removingIds.has(`spot-single-${item.id}`)"
+                    @click.stop="handleRemoveFavorite('spots', item.id)"
                   >
                     🗑️
                   </a-button>
@@ -405,7 +405,7 @@
                   </div>
                   <div class="spot-content">
                     <h3 class="spot-name">{{ item.name }}</h3>
-                    <p class="spot-description" v-if="item.description">
+                    <p v-if="item.description" class="spot-description">
                       {{ item.description }}
                     </p>
                     <div class="spot-meta">
@@ -424,7 +424,7 @@
               </div>
 
               <!-- 行程列表 -->
-              <div class="card-grid itineraries-grid" v-else-if="activeTab === 'itineraries'">
+              <div v-else-if="activeTab === 'itineraries'" class="card-grid itineraries-grid">
                 <div
                   v-for="item in currentList.items"
                   :key="`itinerary-single-${item.id}`"
@@ -436,8 +436,8 @@
                     danger
                     size="small"
                     class="delete-btn"
-                    @click.stop="handleRemoveFavorite('itineraries', item.id)"
                     :loading="removingIds.has(`itinerary-single-${item.id}`)"
+                    @click.stop="handleRemoveFavorite('itineraries', item.id)"
                   >
                     🗑️
                   </a-button>
@@ -458,7 +458,7 @@
                     </div>
                   </div>
                   <div class="itinerary-content">
-                    <p class="itinerary-overview" v-if="item.overview">
+                    <p v-if="item.overview" class="itinerary-overview">
                       {{ item.overview }}
                     </p>
                     <div
@@ -494,9 +494,9 @@
                   :current="currentList.pagination.page"
                   :page-size="currentList.pagination.pageSize"
                   :total="currentList.pagination.total"
-                  @change="(page, pageSize) => handlePageChange(activeTab as any, page, pageSize)"
                   :show-size-changer="true"
                   :page-size-options="['12', '24', '48']"
+                  @change="(page, pageSize) => handlePageChange(activeTab as any, page, pageSize)"
                 />
               </div>
             </template>
@@ -866,6 +866,7 @@ const generateMockPackageById = (id: number): Package | null => {
 
   return {
     id,
+    spotId: id,
     name: `${location}${duration}日${getStyleName(style)}旅拍套餐`,
     description: `精选${location}最美景点，专业摄影师全程跟拍，${duration}天${duration > 1 ? '深度' : ''}体验，为您打造难忘的旅拍回忆。包含专业化妆、精美服装、后期精修等服务。`,
     price: hasDiscount ? Math.floor(basePrice * 0.8) : basePrice,
@@ -951,17 +952,22 @@ const fetchPackages = async () => {
 
       for (const favorite of favoritesData.items) {
         console.log('[Favorites] 处理收藏记录:', favorite);
-        // TODO: 如果有真实的套餐API，应该调用 packagesApi.getPackageDetail(favorite.packageId)
-        // 目前使用模拟数据
-        const pkg = generateMockPackageById(favorite.packageId);
-        if (pkg) {
+        try {
+          const pkg = await packagesApi.getPackageDetail(favorite.packageId);
           favoritePackages.push({
             ...pkg,
             favoritedAt: favorite.createdAt,
-            favoriteId: favorite.id, // 保存收藏记录的ID，用于删除操作
+            favoriteId: favorite.id,
           });
-        } else {
-          console.warn('[Favorites] 无法生成套餐数据，packageId:', favorite.packageId);
+        } catch {
+          const fallback = generateMockPackageById(favorite.packageId);
+          if (fallback) {
+            favoritePackages.push({
+              ...fallback,
+              favoritedAt: favorite.createdAt,
+              favoriteId: favorite.id,
+            });
+          }
         }
       }
 

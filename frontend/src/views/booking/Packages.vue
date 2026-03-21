@@ -535,7 +535,8 @@
 
 <script setup lang="ts">
 import { favoritesApi } from '@/api/favorites';
-import { type Package } from '@/api/packages';
+import { packagesApi, type Package, type PackageListResponse } from '@/api/packages';
+import { styleTagsApi } from '@/api/styleTags';
 import {
   HOT_TAGS_CONFIG,
   matchPackageByHotTag,
@@ -614,14 +615,28 @@ const locationRegionMap = new Map<string, 'domestic' | 'overseas'>();
 domesticLocations.forEach((location) => locationRegionMap.set(location, 'domestic'));
 overseasLocations.forEach((location) => locationRegionMap.set(location, 'overseas'));
 
-// 风格名称映射
-const styleMap: Record<string, string> = {
+const baseStyleMap: Record<string, string> = {
   romantic: '浪漫梦幻',
   artistic: '艺术文艺',
   bohemian: '波西米亚',
   minimalist: '极简现代',
   classical: '古典优雅',
   adventure: '冒险活力',
+};
+
+const loadedStyleMap = ref<Record<string, string>>({ ...baseStyleMap });
+
+const loadStyleTags = async () => {
+  try {
+    const tags = await styleTagsApi.getPublic();
+    const next = { ...baseStyleMap };
+    tags.forEach((t) => {
+      if (t.enabled) next[t.key] = t.name;
+    });
+    loadedStyleMap.value = next;
+  } catch {
+    /* 保持默认映射 */
+  }
 };
 
 const locationOptions = ref<string[]>([...domesticLocations, ...overseasLocations]);
@@ -632,7 +647,7 @@ const locationSelectOptions = computed(() =>
   }))
 );
 const styleSelectOptions = computed(() =>
-  Object.entries(styleMap).map(([value, label]) => ({
+  Object.entries(loadedStyleMap.value).map(([value, label]) => ({
     label,
     value,
   }))
@@ -753,7 +768,7 @@ const comboRecommendations = computed(() => {
 });
 
 const getStyleName = (style: string) => {
-  return styleMap[style] || style;
+  return loadedStyleMap.value[style] || style;
 };
 
 const safeReadJSON = (raw: string | null) => {
@@ -957,27 +972,9 @@ const handlePageSizeChange = (_current: number, size: number) => {
 const fetchPackages = async () => {
   loading.value = true;
   try {
-    // TODO: 对接真实 API
-    // const response = await packagesApi.getPackages({
-    //   page: pagination.page,
-    //   pageSize: pagination.pageSize,
-    //   region: filters.region,
-    //   style: filters.style,
-    //   location: filters.location,
-    //   minPrice: filters.minPrice,
-    //   maxPrice: filters.maxPrice,
-    //   duration: filters.duration,
-    //   sortBy: filters.sortBy,
-    //   keyword: searchKeyword.value || undefined,
-    // });
-    // packages.value = response.data.items;
-    // pagination.total = response.data.pagination.total;
-
-    // 模拟数据
-    await new Promise((resolve) => window.setTimeout(resolve, 500));
-    if (allPackages.value.length === 0) {
-      allPackages.value = generateMockPackages();
-    }
+    const response: PackageListResponse = await packagesApi.getPackages();
+    const list = response.items ?? [];
+    allPackages.value = list;
     let filtered = [...allPackages.value];
 
     // 应用筛选
@@ -1047,90 +1044,6 @@ const fetchPackages = async () => {
   } finally {
     loading.value = false;
   }
-};
-
-// 生成模拟数据
-const generateMockPackages = (): Package[] => {
-  const locations = [...domesticLocations, ...overseasLocations];
-  const styles = ['romantic', 'artistic', 'bohemian', 'minimalist', 'classical', 'adventure'];
-  const mockPackages: Package[] = [];
-
-  // 预设的图片URL数组（如果无法访问，可以替换为本地图片路径，如：'/images/package-1.jpg'）
-  const imageUrls = [
-    'https://images.unsplash.com/photo-1519741497674-611481863552?w=600&h=400&fit=crop&auto=format&q=80',
-    'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=600&h=400&fit=crop&auto=format&q=80',
-    'https://images.unsplash.com/photo-1581338834647-b0fb40704e21?w=600&h=400&fit=crop&auto=format&q=80',
-    'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=600&h=400&fit=crop&auto=format&q=80',
-    'https://images.unsplash.com/photo-1519741497674-611481863552?w=600&h=400&fit=crop&auto=format&q=80',
-    'https://images.unsplash.com/photo-1519741497674-611481863552?w=600&h=400&fit=crop&auto=format&q=80',
-  ];
-
-  const detailImageUrls = [
-    [
-      'https://images.unsplash.com/photo-1519741497674-611481863552?w=800&h=600&fit=crop&auto=format&q=80',
-      'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=800&h=600&fit=crop&auto=format&q=80',
-      'https://images.unsplash.com/photo-1581338834647-b0fb40704e21?w=800&h=600&fit=crop&auto=format&q=80',
-    ],
-    [
-      'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=800&h=600&fit=crop&auto=format&q=80',
-      'https://images.unsplash.com/photo-1519741497674-611481863552?w=800&h=600&fit=crop&auto=format&q=80',
-      'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=800&h=600&fit=crop&auto=format&q=80',
-    ],
-    [
-      'https://images.unsplash.com/photo-1581338834647-b0fb40704e21?w=800&h=600&fit=crop&auto=format&q=80',
-      'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=800&h=600&fit=crop&auto=format&q=80',
-      'https://images.unsplash.com/photo-1519741497674-611481863552?w=800&h=600&fit=crop&auto=format&q=80',
-    ],
-  ];
-
-  for (let i = 1; i <= 60; i++) {
-    const location = locations[(i - 1) % locations.length];
-    const style = styles[(i - 1) % styles.length];
-    const durationOptions = [1, 2, 3, 5, 7];
-    const duration = durationOptions[(i - 1) % durationOptions.length];
-    const priceOptions = [2999, 3999, 4999, 5999, 6999, 8999, 12999];
-    const basePrice = priceOptions[(i - 1) % priceOptions.length];
-    const hasDiscount = i % 2 === 0;
-    const imageIndex = (i - 1) % imageUrls.length;
-    const detailImageIndex = (i - 1) % detailImageUrls.length;
-
-    mockPackages.push({
-      id: i,
-      name: `${location}${duration}日${getStyleName(style)}旅拍套餐`,
-      description: `精选${location}最美景点，专业摄影师全程跟拍，${duration}天${duration > 1 ? '深度' : ''}体验，为您打造难忘的旅拍回忆。包含专业化妆、精美服装、后期精修等服务。`,
-      price: hasDiscount ? Math.floor(basePrice * 0.8) : basePrice,
-      originalPrice: hasDiscount ? basePrice : undefined,
-      duration,
-      location,
-      style,
-      // 使用预设的图片URL（如果无法访问，可以替换为本地图片路径，如：'/images/package-1.jpg'）
-      coverImage: imageUrls[imageIndex],
-      images: detailImageUrls[detailImageIndex],
-      features: [
-        '专业摄影师全程跟拍',
-        '精美婚纱礼服提供',
-        '专业化妆造型服务',
-        '精修照片30张以上',
-        '视频花絮制作',
-      ],
-      includes: [
-        '专业摄影师服务',
-        '化妆造型服务',
-        '精美婚纱礼服',
-        '景点门票',
-        '精修照片30张',
-        '视频花絮',
-      ],
-      excludes: ['往返交通', '住宿费用', '餐饮费用'],
-      maxPeople: [2, 4, 6][(i - 1) % 3],
-      isPopular: i <= 3,
-      isHot: i > 3 && i <= 6,
-      createdAt: `2026-01-${String(((i - 1) % 28) + 1).padStart(2, '0')}T10:00:00.000Z`,
-      updatedAt: `2026-02-${String(((i - 1) % 28) + 1).padStart(2, '0')}T10:00:00.000Z`,
-    });
-  }
-
-  return mockPackages;
 };
 
 // 套餐详情
@@ -1235,7 +1148,8 @@ const handleToggleFavorite = async (pkg: Package) => {
   }
 };
 
-onMounted(() => {
+onMounted(async () => {
+  await loadStyleTags();
   authStore.initializeAuth();
   window.addEventListener('scroll', handleScroll);
   updateBehaviorProfile();

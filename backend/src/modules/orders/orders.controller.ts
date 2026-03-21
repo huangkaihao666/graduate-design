@@ -8,6 +8,7 @@ import {
   Post,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Prisma } from '@prisma/client';
 import { OrdersService } from './orders.service';
 
 @ApiTags('Orders')
@@ -17,11 +18,11 @@ export class OrdersController {
 
   @Post()
   @ApiOperation({ summary: '创建预约订单' })
-  create(@Body() body: any) {
+  create(@Body() body: Record<string, unknown>) {
     return this.ordersService.create({
       ...body,
-      paidAt: body.paidAt ? new Date(body.paidAt) : null,
-    });
+      paidAt: body.paidAt ? new Date(body.paidAt as string | Date) : null,
+    } as Prisma.BookingOrderCreateInput);
   }
 
   @Get()

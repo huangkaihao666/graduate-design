@@ -6,7 +6,7 @@
       <p>填写下单信息后提交预约，我们会为您安排专业团队跟进</p>
     </div>
 
-    <div class="content-grid" v-if="selectedPackage">
+    <div v-if="selectedPackage" class="content-grid">
       <!-- 左侧：下单表单 -->
       <div class="left-panel">
         <div class="package-card">
@@ -37,12 +37,12 @@
         </div>
 
         <a-form
+          ref="orderFormRef"
           layout="vertical"
           :model="orderForm"
           :rules="orderRules"
-          ref="orderFormRef"
-          @finish="handleSubmit"
           class="order-form"
+          @finish="handleSubmit"
         >
           <a-form-item label="预约人姓名" name="contactName">
             <a-input v-model:value="orderForm.contactName" placeholder="请输入您的姓名" />
@@ -95,7 +95,7 @@
               <a-button type="primary" html-type="submit" :loading="submitting" class="submit-btn">
                 {{ submitting ? '提交中...' : '提交预约' }}
               </a-button>
-              <a-button html-type="button" @click="handleReset" :disabled="submitting"
+              <a-button html-type="button" :disabled="submitting" @click="handleReset"
                 >重置</a-button
               >
             </a-space>
@@ -216,7 +216,7 @@
             <a-button type="primary" :loading="paymentSubmitting" @click="mockPay">
               模拟完成支付
             </a-button>
-            <a-button @click="paymentModalVisible = false" :disabled="paymentSubmitting"
+            <a-button :disabled="paymentSubmitting" @click="paymentModalVisible = false"
               >稍后再说</a-button
             >
           </div>
@@ -400,6 +400,7 @@ const generateMockPackageById = (id: number): Package => {
 
   return {
     id,
+    spotId: id,
     name: `${location}${duration}日${getStyleName(style)}旅拍套餐`,
     description: `精选${location}最美景点，专业摄影师全程跟拍，${duration}天体验，为您打造难忘的旅拍回忆。`,
     price: hasDiscount ? Math.floor(basePrice * 0.8) : basePrice,
@@ -447,22 +448,18 @@ const loadSelectedPackage = async () => {
 
   orderForm.packageId = id;
 
-  // 默认先用 mock 展示，避免后端接口尚未实现时产生 404/网络错误影响用户体验。
-  selectedPackage.value = generateMockPackageById(id);
-
-  // 若你后端已经实现了 /packages/:id，可通过环境变量打开真实请求。
-  const useRealPackagesApi = import.meta.env.VITE_ENABLE_REAL_PACKAGES_API === 'true';
-  if (!useRealPackagesApi) {
-    restoreStateFromStorage();
-    return;
-  }
-
+  selectedPackage.value = null;
   try {
     const pkg = await packagesApi.getPackageDetail(id);
     selectedPackage.value = pkg;
   } catch (e) {
-    // 失败就继续使用 mock，不打断页面展示
-    console.warn('获取套餐详情失败，已使用 mock：', e);
+    console.warn('获取套餐详情失败，已使用本地模拟数据：', e);
+    selectedPackage.value = generateMockPackageById(id);
+  }
+
+  if (!selectedPackage.value) {
+    packageMissing.value = true;
+    return;
   }
 
   // 恢复表单状态（如果上次就是同一个 packageId）

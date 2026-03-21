@@ -80,7 +80,13 @@ instance.interceptors.response.use(
 
     // 其他错误信息
     if (error.response?.status === 400) {
-      message.error(error.response?.data?.message || '请求参数错误');
+      const raw = error.response?.data?.message;
+      const text = Array.isArray(raw)
+        ? raw.join('; ')
+        : typeof raw === 'string' && raw.trim()
+          ? raw
+          : '请求参数错误';
+      message.error(text);
     } else if (error.response?.status === 403) {
       message.error('权限不足');
     } else if (error.response?.status === 404) {

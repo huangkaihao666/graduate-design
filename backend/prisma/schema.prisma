@@ -153,6 +153,74 @@ model ItineraryPlanningHistory {
 
 // ============ 收藏功能数据模型 ============
 
+/// 旅拍套餐（与用户端套餐列表、订单 packageId 一致）
+model TravelPackage {
+  id            Int      @id @default(autoincrement()) @db.UnsignedInt
+  name          String   @db.VarChar(255)
+  description   String?  @db.Text
+  price         Int      @db.UnsignedInt
+  originalPrice Int?     @db.UnsignedInt
+  duration      Int      @db.UnsignedInt
+  /// 目的地（城市）：与景点 spot.city 保持一致，由 spotId 同步写入
+  location      String   @db.VarChar(100)
+  /// 删除景点时下架/草稿套餐会置空；仅已上架套餐会阻止删景点
+  spotId        Int?     @db.UnsignedInt
+  spot          Spot?    @relation(fields: [spotId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  /// 风格 key，如 romantic / artistic，与 StyleTag.key 对齐便于筛选
+  style         String   @db.VarChar(50)
+  coverImage    String?  @db.LongText
+  images        Json?
+  features      Json?
+  includes      Json?
+  excludes      Json?
+  maxPeople     Int      @default(2) @db.UnsignedInt
+  isPopular     Boolean  @default(false)
+  isHot         Boolean  @default(false)
+  /// draft | published | offline
+  status        String   @default("draft") @db.VarChar(20)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  favorites Favorite[]
+
+  @@map("travel_packages")
+  @@index([status])
+  @@index([location])
+  @@index([spotId])
+  @@index([style])
+}
+
+/// 景点（后台管理；套餐「目的地」必须引用景点，location = city）
+model Spot {
+  id          Int      @id @default(autoincrement()) @db.UnsignedInt
+  name        String   @db.VarChar(255)
+  city        String   @db.VarChar(100)
+  category    String   @db.VarChar(100)
+  recommended Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  packages TravelPackage[]
+
+  @@map("spots")
+}
+
+/// 风格标签（后台管理 + 套餐筛选）
+model StyleTag {
+  id        Int     @id @default(autoincrement()) @db.UnsignedInt
+  key       String  @unique @db.VarChar(50)
+  name      String  @db.VarChar(100)
+  enabled   Boolean @default(true)
+  sortOrder Int     @default(0) @db.UnsignedInt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("style_tags")
+}
+
 /// 收藏模型（套餐收藏）
 model Favorite {
   id        Int      @id @default(autoincrement()) @db.UnsignedInt
@@ -161,8 +229,9 @@ model Favorite {
   userId    Int      @db.UnsignedInt
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  // 收藏内容（套餐ID，存储为JSON以便后续扩展）
+  // 收藏内容（套餐ID，与 TravelPackage 一致）
   packageId Int      @db.UnsignedInt
+  package   TravelPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

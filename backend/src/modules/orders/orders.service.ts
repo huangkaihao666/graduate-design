@@ -1,21 +1,22 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class OrdersService {
   constructor(private prisma: PrismaService) {}
 
-  async create(data: any) {
-    return (this.prisma as any).bookingOrder.create({ data });
+  create(data: Prisma.BookingOrderCreateInput) {
+    return this.prisma.bookingOrder.create({ data });
   }
 
-  async findAll() {
-    return (this.prisma as any).bookingOrder.findMany({
+  findAll() {
+    return this.prisma.bookingOrder.findMany({
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async updateStatus(id: number, status: string) {
+  updateStatus(id: number, status: string) {
     const nextPaymentStatus =
       status === '已支付'
         ? 'paid'
@@ -25,7 +26,7 @@ export class OrdersService {
             ? 'cancelled'
             : 'unpaid';
 
-    return (this.prisma as any).bookingOrder.update({
+    return this.prisma.bookingOrder.update({
       where: { id },
       data: {
         paymentStatus: nextPaymentStatus,
@@ -37,22 +38,37 @@ export class OrdersService {
   async getDashboardStats() {
     const [totalOrders, paidOrders, completedOrders, usersCount] =
       await Promise.all([
-        (this.prisma as any).bookingOrder.count(),
-        (this.prisma as any).bookingOrder.count({
+        this.prisma.bookingOrder.count(),
+        this.prisma.bookingOrder.count({
           where: { paymentStatus: 'paid' },
         }),
-        (this.prisma as any).bookingOrder.count({
+        this.prisma.bookingOrder.count({
           where: { paymentStatus: 'completed' },
         }),
         this.prisma.user.count(),
       ]);
 
-    const locationGroups = await (this.prisma as any).bookingOrder.groupBy({
+    const locationGroups = await this.prisma.bookingOrder.groupBy({
       by: ['location'],
       _count: { location: true },
       orderBy: { _count: { location: 'desc' } },
       take: 5,
     });
+
+    const orderStatusRows = await this.prisma.bookingOrder.findMany({
+      select: { paymentStatus: true },
+    });
+    const statusCount: Record<string, number> = {};
+    for (const row of orderStatusRows) {
+      const s = row.paymentStatus;
+      statusCount[s] = (statusCount[s] || 0) + 1;
+    }
+    const orderByStatus = Object.entries(statusCount).map(
+      ([status, count]) => ({
+        status,
+        count,
+      }),
+    );
 
     return {
       totalOrders,
@@ -64,6 +80,7 @@ export class OrdersService {
         name: x.location,
         count: x._count.location,
       })),
+      orderByStatus,
     };
   }
 }

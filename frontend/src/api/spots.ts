@@ -1,0 +1,33 @@
+import { httpClient } from './client';
+
+export interface Spot {
+  id: number;
+  name: string;
+  city: string;
+  category: string;
+  recommended: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+function unwrap<T>(res: unknown): T {
+  const r = res as { data?: T };
+  return (r?.data ?? res) as T;
+}
+
+export const spotsApi = {
+  /** 用户端 / 无需登录 */
+  getPublic: () => httpClient.get<Spot[]>('/spots/public').then((res) => unwrap<Spot[]>(res)),
+
+  list: () => httpClient.get<Spot[]>('/spots').then((res) => unwrap<Spot[]>(res)),
+
+  create: (body: { name: string; city: string; category: string; recommended?: boolean }) =>
+    httpClient.post<Spot>('/spots', body).then((res) => unwrap<Spot>(res)),
+
+  update: (
+    id: number,
+    body: Partial<{ name: string; city: string; category: string; recommended: boolean }>
+  ) => httpClient.patch<Spot>(`/spots/${id}`, body).then((res) => unwrap<Spot>(res)),
+
+  remove: (id: number) => httpClient.delete(`/spots/${id}`).then((res) => unwrap(res)),
+};
