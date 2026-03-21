@@ -52,6 +52,8 @@ export default [
         sessionStorage: 'readonly',
         window: 'readonly',
         document: 'readonly',
+        fetch: 'readonly',
+        File: 'readonly',
         /** DOM 类型（script setup 中 ref<HTMLElement> 等） */
         HTMLElement: 'readonly',
         HTMLDivElement: 'readonly',
@@ -93,6 +95,7 @@ export default [
         sessionStorage: 'readonly',
         window: 'readonly',
         document: 'readonly',
+        fetch: 'readonly',
         FormData: 'readonly',
         Blob: 'readonly',
         File: 'readonly',

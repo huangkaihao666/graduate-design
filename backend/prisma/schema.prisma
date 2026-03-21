@@ -226,12 +226,21 @@ model Photographer {
   id               Int     @id @default(autoincrement()) @db.UnsignedInt
   name             String  @db.VarChar(100)
   title            String? @db.VarChar(100)
-  avatar           String? @db.VarChar(1024)
+  /// Base64 data URL 可能很长，与 users.avatar 一致使用 LongText
+  avatar           String? @db.LongText
   /// 拍摄风格说明
   shootingStyle    String  @db.Text
   /// 从业年限（年）
   yearsExperience  Int     @default(0) @db.UnsignedInt
   bio              String? @db.Text
+  /// 性别（如：男、女、其他，可空）
+  gender           String? @db.VarChar(20)
+  /// 年龄（周岁，可空）
+  age              Int?    @db.UnsignedTinyInt
+  /// 擅长题材（如：婚纱、旅拍、亲子，可多行或逗号分隔）
+  specialtyTopics  String? @db.Text
+  /// 资质与获奖说明
+  awards           String? @db.Text
   /// 优秀作品图片 URL 列表
   portfolioImages  Json
   sortOrder        Int     @default(0) @db.UnsignedInt

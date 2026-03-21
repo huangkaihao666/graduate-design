@@ -2,7 +2,9 @@
   <div class="photographers-page">
     <div class="page-header">
       <h1>本店摄影师</h1>
-      <p class="subtitle">了解每位老师的拍摄风格、从业年限与代表作品，选择与您契合的摄影师。</p>
+      <p class="subtitle">
+        了解每位老师的擅长题材、资质与拍摄风格、从业年限与代表作品，选择与您契合的摄影师。
+      </p>
     </div>
 
     <a-spin :spinning="loading">
@@ -37,6 +39,10 @@
             <div>
               <h2>{{ selected.name }}</h2>
               <a-tag color="magenta">{{ selected.title || '本店摄影师' }}</a-tag>
+              <div class="hero-meta-line">
+                <span v-if="selected.gender" class="meta-chip">{{ selected.gender }}</span>
+                <span v-if="selected.age != null" class="meta-chip">{{ selected.age }} 岁</span>
+              </div>
               <div class="hero-stat">
                 <span class="label">从业年限</span>
                 <strong>{{ selected.yearsExperience }}</strong>
@@ -44,6 +50,19 @@
               </div>
             </div>
           </div>
+
+          <a-card
+            v-if="selected.specialtyTopics"
+            title="擅长题材"
+            :bordered="false"
+            class="detail-card"
+          >
+            <p class="body-text">{{ selected.specialtyTopics }}</p>
+          </a-card>
+
+          <a-card v-if="selected.awards" title="资质与获奖" :bordered="false" class="detail-card">
+            <p class="body-text">{{ selected.awards }}</p>
+          </a-card>
 
           <a-card title="拍摄风格" :bordered="false" class="detail-card">
             <p class="body-text">{{ selected.shootingStyle }}</p>
@@ -230,6 +249,22 @@ onMounted(() => {
 
   .hero-avatar {
     border: 3px solid #ffe0e8;
+  }
+
+  .hero-meta-line {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .meta-chip {
+    display: inline-block;
+    padding: 2px 10px;
+    font-size: 13px;
+    color: #6b7280;
+    background: #f3f4f6;
+    border-radius: 999px;
   }
 
   .hero-stat {

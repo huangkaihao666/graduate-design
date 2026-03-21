@@ -8,7 +8,7 @@
       <a-space wrap>
         <a-input-search
           v-model:value="keyword"
-          placeholder="按姓名、头衔搜索"
+          placeholder="按姓名、头衔、题材等搜索"
           allow-clear
           style="width: 240px"
           @search="() => {}"
@@ -85,7 +85,19 @@
           </div>
         </div>
         <a-descriptions bordered :column="1" size="small" class="view-desc">
+          <a-descriptions-item v-if="viewRow.gender" label="性别">{{
+            viewRow.gender
+          }}</a-descriptions-item>
+          <a-descriptions-item v-if="viewRow.age != null" label="年龄">{{
+            viewRow.age
+          }}</a-descriptions-item>
           <a-descriptions-item label="拍摄风格">{{ viewRow.shootingStyle }}</a-descriptions-item>
+          <a-descriptions-item v-if="viewRow.specialtyTopics" label="擅长题材">{{
+            viewRow.specialtyTopics
+          }}</a-descriptions-item>
+          <a-descriptions-item v-if="viewRow.awards" label="资质与获奖">{{
+            viewRow.awards
+          }}</a-descriptions-item>
           <a-descriptions-item v-if="viewRow.bio" label="个人简介">{{
             viewRow.bio
           }}</a-descriptions-item>
@@ -133,8 +145,76 @@
             </a-form-item>
           </a-col>
         </a-row>
-        <a-form-item label="头像 URL">
-          <a-input v-model:value="form.avatar" placeholder="https://..." />
+        <a-form-item label="头像">
+          <div class="upload-row">
+            <a-upload
+              accept="image/*"
+              :show-upload-list="false"
+              :custom-request="handleAvatarUpload"
+            >
+              <a-button :loading="uploadingAvatar">
+                <template #icon><UploadOutlined /></template>
+                从本机选择并上传
+              </a-button>
+            </a-upload>
+            <span class="upload-hint">支持常见图片格式，单张不超过 5MB</span>
+          </div>
+          <div v-if="form.avatar" class="avatar-preview">
+            <a-image
+              :src="form.avatar"
+              :width="96"
+              :height="96"
+              style="object-fit: cover; border-radius: 8px"
+            />
+            <a-button type="link" danger size="small" @click="form.avatar = ''">清除头像</a-button>
+          </div>
+          <a-input
+            v-model:value="form.avatar"
+            placeholder="或直接粘贴图片链接（与上传二选一或补充）"
+            allow-clear
+            class="avatar-url-fallback"
+          />
+        </a-form-item>
+        <a-row :gutter="16">
+          <a-col :span="8">
+            <a-form-item label="性别">
+              <a-select
+                v-model:value="form.gender"
+                allow-clear
+                placeholder="可选"
+                style="width: 100%"
+              >
+                <a-select-option value="男">男</a-select-option>
+                <a-select-option value="女">女</a-select-option>
+                <a-select-option value="其他">其他</a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="8">
+            <a-form-item label="年龄（周岁）">
+              <a-input-number
+                v-model:value="form.age"
+                :min="18"
+                :max="80"
+                placeholder="可选"
+                style="width: 100%"
+              />
+            </a-form-item>
+          </a-col>
+        </a-row>
+        <a-form-item label="擅长题材">
+          <a-textarea
+            v-model:value="form.specialtyTopics"
+            :rows="2"
+            placeholder="如：婚纱旅拍、亲子、商业形象；可用顿号或换行分隔"
+          />
+        </a-form-item>
+        <a-form-item label="资质与获奖">
+          <a-textarea
+            v-model:value="form.awards"
+            :rows="3"
+            placeholder="如：协会会员、比赛奖项、平台认证等"
+          />
         </a-form-item>
         <a-form-item label="拍摄风格" required>
           <a-textarea
@@ -168,11 +248,39 @@
         <a-form-item label="个人简介">
           <a-textarea v-model:value="form.bio" :rows="3" placeholder="可选" />
         </a-form-item>
-        <a-form-item label="优秀作品图片 URL">
+        <a-form-item label="优秀作品">
+          <div class="upload-row">
+            <a-upload
+              accept="image/*"
+              multiple
+              :show-upload-list="false"
+              :custom-request="handlePortfolioUpload"
+            >
+              <a-button :loading="uploadingPortfolio">
+                <template #icon><UploadOutlined /></template>
+                从本机选择作品图上传
+              </a-button>
+            </a-upload>
+            <span class="upload-hint">可多次选择添加多张，单张不超过 5MB</span>
+          </div>
+          <div v-if="portfolioUrls.length" class="portfolio-edit-grid">
+            <div v-for="(url, idx) in portfolioUrls" :key="idx" class="portfolio-edit-item">
+              <a-image
+                :src="url"
+                :width="104"
+                :height="104"
+                style="object-fit: cover; border-radius: 8px"
+              />
+              <a-button type="link" danger size="small" @click="removePortfolioAt(idx)"
+                >删除</a-button
+              >
+            </div>
+          </div>
           <a-textarea
             v-model:value="form.portfolioText"
-            :rows="5"
-            placeholder="每行一个图片链接；前台展示建议至少一张"
+            :rows="3"
+            placeholder="可选：每行一个图片链接（与上方本地上传的地址会合并保存）"
+            class="portfolio-url-extra"
           />
         </a-form-item>
       </a-form>
@@ -183,14 +291,17 @@
 <script setup lang="ts">
 import { photographersApi, type PhotographerAdmin } from '@/api/photographers';
 import { getApiErrorMessage } from '@/utils/apiError';
-import { PlusOutlined, ReloadOutlined } from '@ant-design/icons-vue';
+import { PlusOutlined, ReloadOutlined, UploadOutlined } from '@ant-design/icons-vue';
 import { message, Modal } from 'ant-design-vue';
+import type { UploadProps } from 'ant-design-vue';
 import { computed, onMounted, reactive, ref } from 'vue';
 
 const columns = [
   { title: '头像', key: 'avatar', width: 72 },
   { title: '姓名', dataIndex: 'name', key: 'name', width: 110 },
   { title: '头衔', dataIndex: 'title', key: 'title', ellipsis: true, width: 120 },
+  { title: '性别', dataIndex: 'gender', key: 'gender', width: 64 },
+  { title: '年龄', dataIndex: 'age', key: 'age', width: 64 },
   { title: '拍摄风格', key: 'shootingStyle', ellipsis: true },
   { title: '从业年限', dataIndex: 'yearsExperience', key: 'yearsExperience', width: 90 },
   { title: '作品数', key: 'portfolioCount', width: 80 },
@@ -209,6 +320,11 @@ const editingId = ref<number | null>(null);
 const viewOpen = ref(false);
 const viewRow = ref<PhotographerAdmin | null>(null);
 
+const uploadingAvatar = ref(false);
+const uploadingPortfolio = ref(false);
+/** 作品图地址列表（本地上传 + 可与下方文本框合并） */
+const portfolioUrls = ref<string[]>([]);
+
 const form = reactive({
   name: '',
   title: '',
@@ -216,6 +332,11 @@ const form = reactive({
   shootingStyle: '',
   yearsExperience: 0,
   bio: '',
+  gender: undefined as string | undefined,
+  age: undefined as number | undefined,
+  specialtyTopics: '',
+  awards: '',
+  /** 可选：手动输入的链接，提交时与 portfolioUrls 合并 */
   portfolioText: '',
   sortOrder: 0,
   enabled: true,
@@ -225,9 +346,11 @@ const filteredRows = computed(() => {
   const q = keyword.value.trim().toLowerCase();
   if (!q) return rows.value;
   return rows.value.filter((r) => {
-    const a = (r.name || '').toLowerCase();
-    const b = (r.title || '').toLowerCase();
-    return a.includes(q) || b.includes(q);
+    const hay = [r.name, r.title, r.gender, r.specialtyTopics, r.awards, r.shootingStyle]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    return hay.includes(q);
   });
 });
 
@@ -238,9 +361,52 @@ const resetForm = () => {
   form.shootingStyle = '';
   form.yearsExperience = 0;
   form.bio = '';
+  form.gender = undefined;
+  form.age = undefined;
+  form.specialtyTopics = '';
+  form.awards = '';
   form.portfolioText = '';
   form.sortOrder = 0;
   form.enabled = true;
+  portfolioUrls.value = [];
+};
+
+const handleAvatarUpload: UploadProps['customRequest'] = async (options) => {
+  const { file, onSuccess, onError } = options;
+  const raw = file as File;
+  uploadingAvatar.value = true;
+  try {
+    const { url } = await photographersApi.uploadImage(raw);
+    form.avatar = url;
+    onSuccess?.(url);
+    message.success('头像已上传');
+  } catch (e: unknown) {
+    onError?.(e as Error);
+    message.error(getApiErrorMessage(e));
+  } finally {
+    uploadingAvatar.value = false;
+  }
+};
+
+const handlePortfolioUpload: UploadProps['customRequest'] = async (options) => {
+  const { file, onSuccess, onError } = options;
+  const raw = file as File;
+  uploadingPortfolio.value = true;
+  try {
+    const { url } = await photographersApi.uploadImage(raw);
+    portfolioUrls.value.push(url);
+    onSuccess?.(url);
+    message.success('作品图已添加');
+  } catch (e: unknown) {
+    onError?.(e as Error);
+    message.error(getApiErrorMessage(e));
+  } finally {
+    uploadingPortfolio.value = false;
+  }
+};
+
+const removePortfolioAt = (idx: number) => {
+  portfolioUrls.value.splice(idx, 1);
 };
 
 const load = async () => {
@@ -255,11 +421,26 @@ const load = async () => {
   }
 };
 
-const parsePortfolio = (): string[] => {
+const parsePortfolioExtraLines = (): string[] => {
   return form.portfolioText
     .split(/\r?\n/)
     .map((s) => s.trim())
     .filter(Boolean);
+};
+
+/** 合并本地上传 + 手动输入的链接，去重 */
+const buildPortfolioImages = (): string[] => {
+  const fromUpload = [...portfolioUrls.value];
+  const fromText = parsePortfolioExtraLines();
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const u of [...fromUpload, ...fromText]) {
+    if (u && !seen.has(u)) {
+      seen.add(u);
+      out.push(u);
+    }
+  }
+  return out;
 };
 
 const openView = (r: PhotographerAdmin) => {
@@ -281,7 +462,12 @@ const openEdit = (r: PhotographerAdmin) => {
   form.shootingStyle = r.shootingStyle;
   form.yearsExperience = r.yearsExperience;
   form.bio = r.bio || '';
-  form.portfolioText = (r.portfolioImages || []).join('\n');
+  form.gender = r.gender;
+  form.age = r.age;
+  form.specialtyTopics = r.specialtyTopics || '';
+  form.awards = r.awards || '';
+  portfolioUrls.value = [...(r.portfolioImages || [])];
+  form.portfolioText = '';
   form.sortOrder = r.sortOrder;
   form.enabled = r.enabled;
   modalOpen.value = true;
@@ -290,7 +476,7 @@ const openEdit = (r: PhotographerAdmin) => {
 const submit = async () => {
   const name = form.name.trim();
   const shootingStyle = form.shootingStyle.trim();
-  const portfolioImages = parsePortfolio();
+  const portfolioImages = buildPortfolioImages();
   if (!name || !shootingStyle) {
     message.warning('请填写姓名与拍摄风格');
     return;
@@ -305,6 +491,10 @@ const submit = async () => {
         shootingStyle,
         yearsExperience: form.yearsExperience,
         bio: form.bio.trim() || null,
+        gender: form.gender?.trim() || null,
+        age: form.age ?? null,
+        specialtyTopics: form.specialtyTopics.trim() || null,
+        awards: form.awards.trim() || null,
         portfolioImages,
         sortOrder: form.sortOrder,
         enabled: form.enabled,
@@ -318,6 +508,10 @@ const submit = async () => {
         shootingStyle,
         yearsExperience: form.yearsExperience,
         bio: form.bio.trim() || undefined,
+        gender: form.gender?.trim() || undefined,
+        age: form.age,
+        specialtyTopics: form.specialtyTopics.trim() || undefined,
+        awards: form.awards.trim() || undefined,
         portfolioImages,
         sortOrder: form.sortOrder,
         enabled: form.enabled,
@@ -440,5 +634,47 @@ onMounted(() => {
 .view-pf-img {
   border-radius: 8px;
   overflow: hidden;
+}
+
+.upload-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.upload-hint {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.avatar-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.avatar-url-fallback {
+  margin-top: 8px;
+}
+
+.portfolio-edit-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.portfolio-edit-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.portfolio-url-extra {
+  margin-top: 8px;
 }
 </style>

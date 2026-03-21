@@ -1,6 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import type { AvatarUploadFile } from '../users/users.service';
 
 function asStringArray(v: unknown): string[] {
   if (Array.isArray(v)) {
@@ -17,6 +22,10 @@ type PhotographerRow = {
   shootingStyle: string;
   yearsExperience: number;
   bio: string | null;
+  gender: string | null;
+  age: number | null;
+  specialtyTopics: string | null;
+  awards: string | null;
   portfolioImages: unknown;
   sortOrder: number;
   enabled: boolean;
@@ -28,6 +37,24 @@ type PhotographerRow = {
 export class PhotographersService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * 管理员上传图片：转 data URL 写入库（与头像 Base64 方案一致）
+   */
+  buildDataUrlFromImage(file: AvatarUploadFile | undefined): { url: string } {
+    if (!file) {
+      throw new BadRequestException('请选择图片文件');
+    }
+    if (!file.mimetype.startsWith('image/')) {
+      throw new BadRequestException('只能上传图片文件');
+    }
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      throw new BadRequestException('图片大小不能超过 5MB');
+    }
+    const url = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+    return { url };
+  }
+
   private mapPublic(row: PhotographerRow) {
     return {
       id: row.id,
@@ -37,6 +64,10 @@ export class PhotographersService {
       shootingStyle: row.shootingStyle,
       yearsExperience: row.yearsExperience,
       bio: row.bio ?? undefined,
+      gender: row.gender ?? undefined,
+      age: row.age ?? undefined,
+      specialtyTopics: row.specialtyTopics ?? undefined,
+      awards: row.awards ?? undefined,
       portfolioImages: asStringArray(row.portfolioImages),
       sortOrder: row.sortOrder,
     };
@@ -80,6 +111,10 @@ export class PhotographersService {
     shootingStyle: string;
     yearsExperience?: number;
     bio?: string;
+    gender?: string;
+    age?: number;
+    specialtyTopics?: string;
+    awards?: string;
     portfolioImages?: string[];
     sortOrder?: number;
     enabled?: boolean;
@@ -95,6 +130,10 @@ export class PhotographersService {
         shootingStyle: data.shootingStyle,
         yearsExperience: data.yearsExperience ?? 0,
         bio: data.bio,
+        gender: data.gender,
+        age: data.age,
+        specialtyTopics: data.specialtyTopics,
+        awards: data.awards,
         portfolioImages: portfolioImages as unknown as Prisma.InputJsonValue,
         sortOrder: data.sortOrder ?? 0,
         enabled: data.enabled ?? true,
@@ -111,6 +150,10 @@ export class PhotographersService {
       shootingStyle: string;
       yearsExperience: number;
       bio: string | null;
+      gender: string | null;
+      age: number | null;
+      specialtyTopics: string | null;
+      awards: string | null;
       portfolioImages: string[];
       sortOrder: number;
       enabled: boolean;
@@ -127,6 +170,12 @@ export class PhotographersService {
       patch.yearsExperience = data.yearsExperience;
     }
     if (data.bio !== undefined) patch.bio = data.bio;
+    if (data.gender !== undefined) patch.gender = data.gender;
+    if (data.age !== undefined) patch.age = data.age;
+    if (data.specialtyTopics !== undefined) {
+      patch.specialtyTopics = data.specialtyTopics;
+    }
+    if (data.awards !== undefined) patch.awards = data.awards;
     if (data.portfolioImages !== undefined) {
       patch.portfolioImages =
         data.portfolioImages as unknown as Prisma.InputJsonValue;

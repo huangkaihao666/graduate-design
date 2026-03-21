@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -94,7 +94,7 @@ export class UsersService {
   async uploadAvatar(
     id: number,
     file: AvatarUploadFile | undefined,
-  ): Promise<Prisma.User> {
+  ): Promise<User> {
     if (!file) {
       throw new BadRequestException('未上传文件');
     }
