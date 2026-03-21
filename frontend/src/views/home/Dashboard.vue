@@ -69,9 +69,9 @@
 </template>
 
 <script setup lang="ts">
+import { message, Modal } from 'ant-design-vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../store/auth';
-import { message, Modal } from 'ant-design-vue';
 
 const router = useRouter();
 const authStore = useAuthStore();

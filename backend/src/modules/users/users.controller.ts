@@ -22,7 +22,7 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { UsersService } from './users.service';
+import { UsersService, type AvatarUploadFile } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -241,7 +241,7 @@ export class UsersController {
   @UseInterceptors(FileInterceptor('avatar'))
   async uploadAvatar(
     @Param('id', ParseIntPipe) id: number,
-    @UploadedFile() file: any,
+    @UploadedFile() file: AvatarUploadFile | undefined,
   ) {
     return this.usersService.uploadAvatar(id, file);
   }

@@ -10,7 +10,7 @@
       <!-- 菜单项 -->
       <nav class="sidebar-nav">
         <!-- AI 功能 -->
-        <div class="nav-group" v-if="authStore.isAuthenticated && !isAdmin">
+        <div v-if="authStore.isAuthenticated && !isAdmin" class="nav-group">
           <div class="group-title" :class="{ collapsed: isCollapsed }">🤖 AI 功能</div>
           <router-link to="/ai/virtual-try-on" class="nav-link" active-class="active">
             <span class="icon">✨</span>
@@ -27,11 +27,15 @@
         </div>
 
         <!-- 预约模块 -->
-        <div class="nav-group" v-if="!isAdmin">
+        <div v-if="!isAdmin" class="nav-group">
           <div class="group-title" :class="{ collapsed: isCollapsed }">💍 预约服务</div>
           <router-link to="/booking/packages" class="nav-link" active-class="active">
             <span class="icon">💐</span>
             <span v-if="!isCollapsed" class="label">套餐浏览</span>
+          </router-link>
+          <router-link to="/booking/photographers" class="nav-link" active-class="active">
+            <span class="icon">📷</span>
+            <span v-if="!isCollapsed" class="label">本店摄影师</span>
           </router-link>
           <router-link
             v-if="authStore.isAuthenticated"
@@ -45,7 +49,7 @@
         </div>
 
         <!-- 用户中心 -->
-        <div class="nav-group" v-if="authStore.isAuthenticated && !isAdmin">
+        <div v-if="authStore.isAuthenticated && !isAdmin" class="nav-group">
           <div class="group-title" :class="{ collapsed: isCollapsed }">👤 个人中心</div>
           <router-link to="/user/profile" class="nav-link" active-class="active">
             <span class="icon">👤</span>
@@ -66,7 +70,7 @@
         </div>
 
         <!-- 管理员区域 -->
-        <div class="nav-group" v-if="authStore.isAuthenticated && isAdmin">
+        <div v-if="authStore.isAuthenticated && isAdmin" class="nav-group">
           <div class="group-title admin-title" :class="{ collapsed: isCollapsed }">ADMIN PANEL</div>
           <router-link to="/admin/dashboard" class="nav-link admin-link" active-class="active">
             <span class="icon"><DashboardOutlined /></span>
@@ -87,6 +91,14 @@
           <router-link to="/admin/content/styles" class="nav-link admin-link" active-class="active">
             <span class="icon"><TagsOutlined /></span>
             <span v-if="!isCollapsed" class="label">风格标签</span>
+          </router-link>
+          <router-link
+            to="/admin/content/photographers"
+            class="nav-link admin-link"
+            active-class="active"
+          >
+            <span class="icon"><CameraOutlined /></span>
+            <span v-if="!isCollapsed" class="label">摄影师</span>
           </router-link>
           <router-link to="/admin/orders" class="nav-link admin-link" active-class="active">
             <span class="icon"><FileTextOutlined /></span>
@@ -110,6 +122,7 @@ import {
   EnvironmentOutlined,
   AppstoreOutlined,
   TagsOutlined,
+  CameraOutlined,
   FileTextOutlined,
   TeamOutlined,
 } from '@ant-design/icons-vue';

@@ -1,20 +1,20 @@
 import {
-  Controller,
-  Post,
   Body,
-  UseGuards,
+  Controller,
   Get,
+  Post,
   Request,
+  UseGuards,
 } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { JwtAuthGuard } from './jwt-auth.guard';
-import { CreateUserDto } from '../users/dto/create-user.dto';
 import {
-  ApiTags,
+  ApiBearerAuth,
   ApiOperation,
   ApiResponse,
-  ApiBearerAuth,
+  ApiTags,
 } from '@nestjs/swagger';
+import { CreateUserDto } from '../users/dto/create-user.dto';
+import { AuthService } from './auth.service';
+import { JwtAuthGuard } from './jwt-auth.guard';
 
 @ApiTags('Auth')
 @Controller('auth')

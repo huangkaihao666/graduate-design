@@ -86,6 +86,7 @@ const imageUrls = [
 
 async function main() {
   await prisma.favorite.deleteMany();
+  await prisma.photographer.deleteMany();
   await prisma.travelPackage.deleteMany();
   await prisma.styleTag.deleteMany();
   await prisma.spot.deleteMany();
@@ -192,9 +193,51 @@ async function main() {
 
   await prisma.travelPackage.createMany({ data: packagesData });
 
+  await prisma.photographer.createMany({
+    data: [
+      {
+        name: '陈映',
+        title: '首席摄影师',
+        avatar: imageUrls[0],
+        shootingStyle:
+          '纪实与唯美结合，擅长自然光人像与海边、古镇情绪片，注重抓拍真实互动瞬间。',
+        yearsExperience: 10,
+        bio: '从业十年，服务新人超过 800 对，作品多次入选行业年鉴。相信最好的照片来自放松的状态与真诚的笑。',
+        portfolioImages: [imageUrls[0], imageUrls[1], imageUrls[2], imageUrls[3]],
+        sortOrder: 0,
+        enabled: true,
+      },
+      {
+        name: '林溪',
+        title: '艺术总监',
+        avatar: imageUrls[1],
+        shootingStyle:
+          '偏文艺胶片感与电影叙事构图，适合喜欢故事感与氛围感的新人。',
+        yearsExperience: 7,
+        bio: '摄影与美术双背景，擅长用光影与留白讲述两个人的旅程。',
+        portfolioImages: [imageUrls[2], imageUrls[3], imageUrls[0]],
+        sortOrder: 1,
+        enabled: true,
+      },
+      {
+        name: '周远',
+        title: '资深旅拍摄影师',
+        avatar: imageUrls[2],
+        shootingStyle:
+          '户外冒险与轻婚纱结合，擅长山地、公路与日落黄金时刻大片。',
+        yearsExperience: 6,
+        bio: '曾驻云南、川西多地创作，熟悉各地最佳机位与光线节奏。',
+        portfolioImages: [imageUrls[3], imageUrls[0], imageUrls[1]],
+        sortOrder: 2,
+        enabled: true,
+      },
+    ],
+  });
+
   const spotCount = await prisma.spot.count();
+  const phCount = await prisma.photographer.count();
   console.log(
-    `Seed OK: styleTags=6, spots=${spotCount}, packages=${packagesData.length}`,
+    `Seed OK: styleTags=6, spots=${spotCount}, packages=${packagesData.length}, photographers=${phCount}`,
   );
 }
 

@@ -6,7 +6,8 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['eslint.config.mjs'],
+    // scripts 下独立运行的 .mjs 不在 TS project 内，避免 lint-staged 解析失败
+    ignores: ['eslint.config.mjs', 'scripts/**'],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,

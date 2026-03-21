@@ -28,6 +28,7 @@ import ItineraryPlanning from '../views/plan/ItineraryPlanning.vue';
 // 预约模块 (延迟加载)
 const Packages = () => import('../views/booking/Packages.vue');
 const Order = () => import('../views/booking/Order.vue');
+const Photographers = () => import('../views/booking/Photographers.vue');
 
 // 用户中心 (延迟加载)
 const UserProfile = () => import('../views/user/Profile.vue');
@@ -40,6 +41,7 @@ const AdminDashboard = () => import('../views/admin/Dashboard.vue');
 const AdminSpots = () => import('../views/admin/content/Spots.vue');
 const AdminPackages = () => import('../views/admin/content/Packages.vue');
 const AdminStyles = () => import('../views/admin/content/Styles.vue');
+const AdminPhotographers = () => import('../views/admin/content/Photographers.vue');
 const AdminOrders = () => import('../views/admin/Orders.vue');
 const AdminUsers = () => import('../views/admin/Users.vue');
 
@@ -138,6 +140,15 @@ const routes: RouteRecordRaw[] = [
         },
       },
       {
+        path: 'photographers',
+        name: 'Photographers',
+        component: Photographers,
+        meta: {
+          title: '本店摄影师',
+          layout: 'default',
+        },
+      },
+      {
         path: 'order',
         name: 'Order',
         component: Order,
@@ -233,6 +244,14 @@ const routes: RouteRecordRaw[] = [
         component: AdminStyles,
         meta: {
           title: '风格标签管理',
+        },
+      },
+      {
+        path: 'content/photographers',
+        name: 'AdminPhotographers',
+        component: AdminPhotographers,
+        meta: {
+          title: '摄影师管理',
         },
       },
       {

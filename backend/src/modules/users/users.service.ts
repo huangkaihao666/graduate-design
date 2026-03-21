@@ -1,7 +1,33 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
-import * as bcrypt from 'bcrypt';
+
+/**
+ * 只查询当前数据库里已存在的列。
+ * 若 Prisma schema 与数据库不同步（例如 schema 多了未迁移的字段），
+ * 不带 select 的 findUnique 会触发 P2022，JWT 等接口会 500。
+ */
+const userTableSelect = {
+  id: true,
+  email: true,
+  name: true,
+  password: true,
+  avatar: true,
+  isActive: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.UserSelect;
+
+type UserTableRow = Prisma.UserGetPayload<{ select: typeof userTableSelect }>;
+
+/** 与 multer 内存上传字段一致（避免 Express.Multer 在 ESLint 中解析失败） */
+export type AvatarUploadFile = {
+  mimetype: string;
+  size: number;
+  buffer: Buffer;
+};
 
 @Injectable()
 export class UsersService {
@@ -18,18 +44,22 @@ export class UsersService {
   }
 
   async findAll(): Promise<any[]> {
-    return this.prisma.user.findMany();
-  }
-
-  async findOne(id: number): Promise<any | null> {
-    return this.prisma.user.findUnique({
-      where: { id },
+    return this.prisma.user.findMany({
+      select: userTableSelect,
     });
   }
 
-  async findByEmail(email: string): Promise<any | null> {
+  async findOne(id: number): Promise<UserTableRow | null> {
+    return this.prisma.user.findUnique({
+      where: { id },
+      select: userTableSelect,
+    });
+  }
+
+  async findByEmail(email: string): Promise<UserTableRow | null> {
     return this.prisma.user.findUnique({
       where: { email },
+      select: userTableSelect,
     });
   }
 
@@ -61,7 +91,10 @@ export class UsersService {
     });
   }
 
-  async uploadAvatar(id: number, file: any): Promise<any> {
+  async uploadAvatar(
+    id: number,
+    file: AvatarUploadFile | undefined,
+  ): Promise<Prisma.User> {
     if (!file) {
       throw new BadRequestException('未上传文件');
     }
@@ -80,16 +113,11 @@ export class UsersService {
     // 将文件转换为Base64
     const base64Avatar = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
 
-    // 更新用户头像
-    // 注意：
-    // - Prisma schema 中已有 avatar 字段（见 prisma/schema.prisma）
-    // - 如果本地 Prisma Client 类型还没有 avatar，可以先临时使用 any 绕过类型检查，
-    //   后续执行 `pnpm run prisma:generate` 重新生成客户端即可去掉 as any
     return this.prisma.user.update({
       where: { id },
       data: {
         avatar: base64Avatar,
-      } as any,
+      },
     });
   }
 }

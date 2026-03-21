@@ -20,7 +20,7 @@ model User {
   password  String  @db.VarChar(255)
   avatar    String? @db.LongText
   isActive  Boolean @default(true)
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -41,7 +41,7 @@ model Post {
   title     String  @db.VarChar(255)
   content   String  @db.LongText
   published Boolean @default(false)
-  
+
   authorId  Int     @db.UnsignedInt
   author    User    @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
@@ -57,12 +57,12 @@ model Post {
 /// AI 虚拍历史记录
 model VirtualTryOnHistory {
   id                    Int     @id @default(autoincrement()) @db.UnsignedInt
-  
+
   // 输入参数
   imageUrl              String  @db.LongText
   style                 String  @db.VarChar(50)
   preferences           Json?                              // 存储 preferences 对象的 JSON
-  
+
   // 输出结果
   modifiedImageUrl      String? @db.LongText
   virtualAdvice         String? @db.Text
@@ -71,15 +71,15 @@ model VirtualTryOnHistory {
   dressAdvice           String? @db.Text
   shootingTips          Json?                              // 存储数组的 JSON
   previewDescription    String? @db.Text
-  
+
   // 用户关联（可选）
   userId                Int?    @db.UnsignedInt
   user                  User?   @relation("VirtualTryOnHistories", fields: [userId], references: [id], onDelete: SetNull)
-  
+
   // 元数据
   status                String  @default("success") @db.VarChar(50) // success, failed
   errorMessage          String? @db.Text
-  
+
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
@@ -92,24 +92,24 @@ model VirtualTryOnHistory {
 /// AI 风格推荐历史记录
 model StyleRecommendationHistory {
   id                    Int     @id @default(autoincrement()) @db.UnsignedInt
-  
+
   // 输入参数
   preferences           String  @db.Text
   budget                Int?    @db.UnsignedInt
   occasions             Json?                              // 存储数组的 JSON
-  
+
   // 输出结果
   recommendedStyles     Json?                              // 存储推荐风格数组的 JSON
   personalizedAdvice    String? @db.Text
-  
+
   // 用户关联（可选）
   userId                Int?    @db.UnsignedInt
   user                  User?   @relation("StyleRecommendationHistories", fields: [userId], references: [id], onDelete: SetNull)
-  
+
   // 元数据
   status                String  @default("success") @db.VarChar(50) // success, failed
   errorMessage          String? @db.Text
-  
+
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
@@ -121,27 +121,27 @@ model StyleRecommendationHistory {
 /// AI 行程规划历史记录
 model ItineraryPlanningHistory {
   id                    Int     @id @default(autoincrement()) @db.UnsignedInt
-  
+
   // 输入参数
   destination           String  @db.VarChar(255)
   duration              Int     @db.UnsignedInt
   style                 String  @db.VarChar(50)
   interests             Json?                              // 存储数组的 JSON
-  
+
   // 输出结果
   overview              String? @db.Text
   dailySchedule         Json?                              // 存储日程数组的 JSON
   packingList           Json?                              // 存储打包清单数组的 JSON
   localTips             String? @db.Text
-  
+
   // 用户关联（可选）
   userId                Int?    @db.UnsignedInt
   user                  User?   @relation("ItineraryPlanningHistories", fields: [userId], references: [id], onDelete: SetNull)
-  
+
   // 元数据
   status                String  @default("success") @db.VarChar(50) // success, failed
   errorMessage          String? @db.Text
-  
+
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
@@ -221,18 +221,41 @@ model StyleTag {
   @@map("style_tags")
 }
 
+/// 本店摄影师（用户端展示 + 后台维护）
+model Photographer {
+  id               Int     @id @default(autoincrement()) @db.UnsignedInt
+  name             String  @db.VarChar(100)
+  title            String? @db.VarChar(100)
+  avatar           String? @db.VarChar(1024)
+  /// 拍摄风格说明
+  shootingStyle    String  @db.Text
+  /// 从业年限（年）
+  yearsExperience  Int     @default(0) @db.UnsignedInt
+  bio              String? @db.Text
+  /// 优秀作品图片 URL 列表
+  portfolioImages  Json
+  sortOrder        Int     @default(0) @db.UnsignedInt
+  enabled          Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("photographers")
+  @@index([enabled, sortOrder])
+}
+
 /// 收藏模型（套餐收藏）
 model Favorite {
   id        Int      @id @default(autoincrement()) @db.UnsignedInt
-  
+
   // 用户关联
   userId    Int      @db.UnsignedInt
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   // 收藏内容（套餐ID，与 TravelPackage 一致）
   packageId Int      @db.UnsignedInt
   package   TravelPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

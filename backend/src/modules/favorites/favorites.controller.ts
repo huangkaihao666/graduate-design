@@ -19,6 +19,56 @@ export class FavoritesController {
   constructor(private readonly favoritesService: FavoritesService) {}
 
   /**
+   * 批量获取收藏的套餐 ID（须放在 packages/:packageId/* 等动态路由之前，避免被误匹配）
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('packages/ids')
+  async getFavoritePackageIds(@Req() req: any) {
+    try {
+      const raw = req.user?.sub;
+      if (raw === undefined || raw === null) {
+        return {
+          statusCode: 200,
+          message: '未登录',
+          data: {
+            packageIds: [],
+          },
+        };
+      }
+      const userId = Number(raw);
+      if (!Number.isFinite(userId) || userId <= 0) {
+        return {
+          statusCode: 200,
+          message: '未登录',
+          data: {
+            packageIds: [],
+          },
+        };
+      }
+
+      const packageIds =
+        await this.favoritesService.getFavoritePackageIds(userId);
+
+      return {
+        statusCode: 200,
+        message: '获取收藏套餐ID列表成功',
+        data: {
+          packageIds,
+        },
+      };
+    } catch (error: any) {
+      console.error('[Favorites Controller] 获取收藏套餐ID列表失败:', error);
+      throw new HttpException(
+        {
+          statusCode: error.status || 400,
+          message: error.message || '获取收藏套餐ID列表失败',
+        },
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
    * 添加收藏
    */
   @UseGuards(JwtAuthGuard)
@@ -228,47 +278,6 @@ export class FavoritesController {
         {
           statusCode: error.status || 400,
           message: error.message || '获取收藏列表失败',
-        },
-        error.status || HttpStatus.BAD_REQUEST,
-      );
-    }
-  }
-
-  /**
-   * 批量检查收藏状态（获取用户收藏的所有套餐ID）
-   */
-  @UseGuards(JwtAuthGuard)
-  @Get('packages/ids')
-  async getFavoritePackageIds(@Req() req: any) {
-    try {
-      const userId = req.user?.sub ? parseInt(req.user.sub, 10) : undefined;
-
-      if (!userId) {
-        return {
-          statusCode: 200,
-          message: '未登录',
-          data: {
-            packageIds: [],
-          },
-        };
-      }
-
-      const packageIds =
-        await this.favoritesService.getFavoritePackageIds(userId);
-
-      return {
-        statusCode: 200,
-        message: '获取收藏套餐ID列表成功',
-        data: {
-          packageIds,
-        },
-      };
-    } catch (error: any) {
-      console.error('[Favorites Controller] 获取收藏套餐ID列表失败:', error);
-      throw new HttpException(
-        {
-          statusCode: error.status || 400,
-          message: error.message || '获取收藏套餐ID列表失败',
         },
         error.status || HttpStatus.BAD_REQUEST,
       );
