@@ -75,8 +75,14 @@ export const aiApi = {
 
   /**
    * 获取当前用户的 AI 生成历史
+   * @param subjectRole 仅 type=virtual-try-on 时有效：female | male | couple
    */
-  getHistory: (params: { type?: AiHistoryType; page?: number; pageSize?: number }) =>
+  getHistory: (params: {
+    type?: AiHistoryType;
+    page?: number;
+    pageSize?: number;
+    subjectRole?: VirtualTryOnSubjectRole;
+  }) =>
     httpClient.get('/ai/history', {
       params,
     }),

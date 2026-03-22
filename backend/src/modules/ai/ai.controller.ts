@@ -17,6 +17,7 @@ import type {
   ItineraryPlanningRequest,
   StyleRecommendationRequest,
   VirtualTryOnRequest,
+  VirtualTryOnSubjectRole,
 } from './ai.service';
 import { AiService } from './ai.service';
 @Controller('ai')
@@ -224,6 +225,7 @@ export class AiController {
       | 'all' = 'all',
     @Query('page') page: string = '1',
     @Query('pageSize') pageSize: string = '10',
+    @Query('subjectRole') subjectRole?: string,
   ) {
     try {
       const userId = req.user?.sub ? parseInt(req.user.sub, 10) : undefined;
@@ -241,6 +243,15 @@ export class AiController {
       const pageNum = Number.isNaN(Number(page)) ? 1 : Number(page);
       const sizeNum = Number.isNaN(Number(pageSize)) ? 10 : Number(pageSize);
 
+      let vtoRole: VirtualTryOnSubjectRole | undefined;
+      if (
+        subjectRole === 'female' ||
+        subjectRole === 'male' ||
+        subjectRole === 'couple'
+      ) {
+        vtoRole = subjectRole;
+      }
+
       let data: unknown;
 
       if (type === 'virtual-try-on') {
@@ -248,6 +259,7 @@ export class AiController {
           userId,
           pageNum,
           sizeNum,
+          vtoRole,
         );
       } else if (type === 'style-recommendation') {
         data = await this.aiService.getStyleRecommendationHistoriesByUser(

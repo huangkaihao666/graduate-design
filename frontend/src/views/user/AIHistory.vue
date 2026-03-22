@@ -23,6 +23,15 @@
         </div>
       </div>
 
+      <!-- 虚拍历史：按出镜方式分子类 -->
+      <div v-if="activeTab === 'virtual-try-on'" class="vto-sub-tabs">
+        <a-radio-group v-model:value="vtoRole" size="small" button-style="solid">
+          <a-radio-button value="female">女生</a-radio-button>
+          <a-radio-button value="male">男生</a-radio-button>
+          <a-radio-button value="couple">双人</a-radio-button>
+        </a-radio-group>
+      </div>
+
       <!-- 加载中 -->
       <div v-if="loading" class="loading-state">
         <div class="spinner"></div>
@@ -40,82 +49,88 @@
       <div v-else class="history-content">
         <!-- 全部：三类分段展示 -->
         <template v-if="activeTab === 'all'">
-          <section class="history-section" v-if="virtualTryOn.items.length">
-            <div class="section-header">
-              <h2>🤖 虚拍历史</h2>
-              <span class="count-badge">{{ virtualTryOn.pagination.total }} 条</span>
-            </div>
-            <div class="card-grid">
-              <div v-for="item in virtualTryOn.items" :key="`vto-${item.id}`" class="history-card">
-                <div class="card-type-tag vto">虚拍</div>
-                <a-button
-                  type="text"
-                  danger
-                  size="small"
-                  class="delete-btn"
-                  @click.stop="handleDelete('virtual-try-on', item.id)"
-                  :loading="deletingIds.has(`vto-${item.id}`)"
-                >
-                  🗑️
-                </a-button>
+          <template v-for="slot in vtoAllSlots" :key="slot.role">
+            <section class="history-section" v-if="slot.list.items.length">
+              <div class="section-header">
+                <h2>{{ slot.icon }} {{ slot.title }}</h2>
+                <span class="count-badge">{{ slot.list.pagination.total }} 条</span>
+              </div>
+              <div class="card-grid">
                 <div
-                  class="card-body"
-                  @click="openVirtualTryOnDetail(item)"
-                  :data-item-id="item.id"
+                  v-for="item in slot.list.items"
+                  :key="`vto-${slot.role}-${item.id}`"
+                  class="history-card"
                 >
-                  <div class="card-main">
-                    <div class="thumb" v-if="getImageUrl(item)">
-                      <a-image
-                        :src="getImageUrl(item)!"
-                        alt="预览"
-                        :preview="true"
-                        class="thumb-image"
-                        @error="(e: any) => handleImageError(e, item)"
-                      />
-                      <div class="no-image-placeholder" style="display: none">
-                        <span class="placeholder-text">图片已过期</span>
+                  <div class="card-type-tag vto">虚拍·{{ slot.shortLabel }}</div>
+                  <a-button
+                    type="text"
+                    danger
+                    size="small"
+                    class="delete-btn"
+                    @click.stop="handleDelete('virtual-try-on', item.id)"
+                    :loading="deletingIds.has(`vto-${item.id}`)"
+                  >
+                    🗑️
+                  </a-button>
+                  <div
+                    class="card-body"
+                    @click="openVirtualTryOnDetail(item)"
+                    :data-item-id="item.id"
+                  >
+                    <div class="card-main">
+                      <div class="thumb" v-if="getImageUrl(item)">
+                        <a-image
+                          :src="getImageUrl(item)!"
+                          alt="预览"
+                          :preview="true"
+                          class="thumb-image"
+                          @error="(e: any) => handleImageError(e, item)"
+                        />
+                        <div class="no-image-placeholder" style="display: none">
+                          <span class="placeholder-text">图片已过期</span>
+                        </div>
+                      </div>
+                      <div v-else class="thumb no-image-placeholder">
+                        <span class="placeholder-text">暂无图片</span>
+                      </div>
+                      <div class="meta">
+                        <div class="meta-title">
+                          风格：<span class="highlight">{{ getStyleName(item.style) }}</span>
+                        </div>
+                        <div class="meta-row" v-if="item.preferences">
+                          <span class="preferences-label">个性化偏好：</span>
+                          <span class="preferences-value">{{
+                            formatPreferences(item.preferences)
+                          }}</span>
+                        </div>
+                        <div class="meta-row" v-else>
+                          <span class="preferences-label">个性化偏好：</span>
+                          <span class="preferences-value">无</span>
+                        </div>
                       </div>
                     </div>
-                    <div v-else class="thumb no-image-placeholder">
-                      <span class="placeholder-text">暂无图片</span>
+                    <div class="card-footer">
+                      <span class="time">
+                        {{ formatTime(item.createdAt) }}
+                      </span>
+                      <span class="status success">成功</span>
                     </div>
-                    <div class="meta">
-                      <div class="meta-title">
-                        风格：<span class="highlight">{{ getStyleName(item.style) }}</span>
-                      </div>
-                      <div class="meta-row" v-if="item.preferences">
-                        <span class="preferences-label">个性化偏好：</span>
-                        <span class="preferences-value">{{
-                          formatPreferences(item.preferences)
-                        }}</span>
-                      </div>
-                      <div class="meta-row" v-else>
-                        <span class="preferences-label">个性化偏好：</span>
-                        <span class="preferences-value">无</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="card-footer">
-                    <span class="time">
-                      {{ formatTime(item.createdAt) }}
-                    </span>
-                    <span class="status success">成功</span>
                   </div>
                 </div>
               </div>
-            </div>
-            <div class="section-pagination">
-              <a-pagination
-                size="small"
-                :current="virtualTryOn.pagination.page"
-                :page-size="virtualTryOn.pagination.pageSize"
-                :total="virtualTryOn.pagination.total"
-                @change="(page, pageSize) => handlePageChange('virtual-try-on', page, pageSize)"
-                :show-size-changer="true"
-                :page-size-options="['5', '10', '20']"
-              />
-            </div>
-          </section>
+              <div class="section-pagination">
+                <a-pagination
+                  size="small"
+                  :current="slot.list.pagination.page"
+                  :page-size="slot.list.pagination.pageSize"
+                  :total="slot.list.pagination.total"
+                  @change="(page, pageSize) => handlePageChangeVto(slot.role, page, pageSize)"
+                  :show-size-changer="true"
+                  :page-size-options="['5', '10', '20']"
+                />
+              </div>
+            </section>
+          </template>
 
           <section class="history-section" v-if="styleRecommendation.items.length">
             <div class="section-header">
@@ -249,26 +264,37 @@
 
         <!-- 单一类型：复用对应 section -->
         <template v-else>
-          <section class="history-section" v-if="currentList.items.length">
+          <section class="history-section" v-if="showSingleTypeSection">
             <div class="section-header">
               <h2>{{ currentTitle }}</h2>
               <span class="count-badge">{{ currentList.pagination.total }} 条</span>
             </div>
 
-            <div class="card-grid" v-if="activeTab === 'virtual-try-on'">
+            <div
+              v-if="activeTab === 'virtual-try-on' && !currentList.items.length"
+              class="vto-tab-empty"
+            >
+              <p>当前「{{ vtoSubjectLabel }}」出镜方式下暂无虚拍记录</p>
+              <small>完成虚拍并保存历史后，将显示在此处</small>
+            </div>
+
+            <div
+              class="card-grid"
+              v-if="activeTab === 'virtual-try-on' && currentList.items.length"
+            >
               <div
                 v-for="item in currentList.items"
-                :key="`vto-single-${item.id}`"
+                :key="`vto-single-${vtoRole}-${item.id}`"
                 class="history-card"
               >
-                <div class="card-type-tag vto">虚拍</div>
+                <div class="card-type-tag vto">虚拍·{{ vtoSubjectLabel }}</div>
                 <a-button
                   type="text"
                   danger
                   size="small"
                   class="delete-btn"
                   @click.stop="handleDelete('virtual-try-on', item.id)"
-                  :loading="deletingIds.has(`vto-single-${item.id}`)"
+                  :loading="deletingIds.has(`vto-${item.id}`)"
                 >
                   🗑️
                 </a-button>
@@ -412,7 +438,7 @@
               </div>
             </div>
 
-            <div class="section-pagination">
+            <div class="section-pagination" v-if="currentList.pagination.total > 0">
               <a-pagination
                 size="small"
                 :current="currentList.pagination.page"
@@ -740,7 +766,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, onMounted } from 'vue';
+import { computed, reactive, ref, onMounted, watch } from 'vue';
 import { message, Modal } from 'ant-design-vue';
 import { aiApi, AiHistoryType } from '@/api/ai';
 import { TRAVEL_STYLE_LABELS } from '@/constants/travel-style-labels';
@@ -749,7 +775,10 @@ import {
   VTO_HAIRSTYLE_LABELS,
   VTO_MAKEUP_LABELS,
 } from '@/constants/virtual-tryon-preferences';
-import { VTO_SUBJECT_LABELS } from '@/constants/virtual-tryon-subject';
+import {
+  VTO_SUBJECT_LABELS,
+  type VirtualTryOnSubjectRole,
+} from '@/constants/virtual-tryon-subject';
 
 type Pagination = {
   total: number;
@@ -768,6 +797,7 @@ type VirtualTryOnHistory = {
   modifiedImageUrl?: string | null;
   style: string;
   preferences?: {
+    subjectRole?: string;
     makeup?: string;
     hairstyle?: string;
     dress?: string;
@@ -801,6 +831,8 @@ type ItineraryPlanningHistory = {
 
 const loading = ref(false);
 const activeTab = ref<AiHistoryType>('all');
+/** 虚拍「虚拍历史」标签下的子类：女生 / 男生 / 双人 */
+const vtoRole = ref<VirtualTryOnSubjectRole>('female');
 const virtualTryOnModalVisible = ref(false);
 const selectedVirtualTryOn = ref<VirtualTryOnHistory | null>(null);
 const styleRecommendationModalVisible = ref(false);
@@ -810,6 +842,19 @@ const selectedItineraryPlanning = ref<ItineraryPlanningHistory | null>(null);
 const deletingIds = ref<Set<string>>(new Set());
 
 const virtualTryOn = reactive<ListWithPagination<VirtualTryOnHistory>>({
+  items: [],
+  pagination: { total: 0, page: 1, pageSize: 5 },
+});
+
+const virtualTryOnFemale = reactive<ListWithPagination<VirtualTryOnHistory>>({
+  items: [],
+  pagination: { total: 0, page: 1, pageSize: 5 },
+});
+const virtualTryOnMale = reactive<ListWithPagination<VirtualTryOnHistory>>({
+  items: [],
+  pagination: { total: 0, page: 1, pageSize: 5 },
+});
+const virtualTryOnCouple = reactive<ListWithPagination<VirtualTryOnHistory>>({
   items: [],
   pagination: { total: 0, page: 1, pageSize: 5 },
 });
@@ -826,17 +871,52 @@ const itineraryPlanning = reactive<ListWithPagination<ItineraryPlanningHistory>>
 
 const hasAnyData = computed(() => {
   return (
-    virtualTryOn.items.length > 0 ||
+    virtualTryOnFemale.items.length > 0 ||
+    virtualTryOnMale.items.length > 0 ||
+    virtualTryOnCouple.items.length > 0 ||
     styleRecommendation.items.length > 0 ||
     itineraryPlanning.items.length > 0
   );
 });
+
+/** 「全部记录」里虚拍按女生/男生/双人分三段 */
+const vtoAllSlots = computed(() => [
+  {
+    role: 'female' as VirtualTryOnSubjectRole,
+    title: '女生虚拍',
+    shortLabel: '女生',
+    icon: '👰',
+    list: virtualTryOnFemale,
+  },
+  {
+    role: 'male' as VirtualTryOnSubjectRole,
+    title: '男生虚拍',
+    shortLabel: '男生',
+    icon: '🤵',
+    list: virtualTryOnMale,
+  },
+  {
+    role: 'couple' as VirtualTryOnSubjectRole,
+    title: '双人虚拍',
+    shortLabel: '双人',
+    icon: '💑',
+    list: virtualTryOnCouple,
+  },
+]);
+
+const vtoSubjectLabel = computed(() => VTO_SUBJECT_LABELS[vtoRole.value] || '');
 
 const currentList = computed(() => {
   if (activeTab.value === 'virtual-try-on') return virtualTryOn;
   if (activeTab.value === 'style-recommendation') return styleRecommendation;
   if (activeTab.value === 'itinerary-planning') return itineraryPlanning;
   return virtualTryOn;
+});
+
+/** 单一类型标签页：虚拍始终显示区块（便于切换子类）；其余类型无数据则整块不展示 */
+const showSingleTypeSection = computed(() => {
+  if (activeTab.value === 'virtual-try-on') return true;
+  return currentList.value.items.length > 0;
 });
 
 const currentTitle = computed(() => {
@@ -1215,56 +1295,70 @@ const showImagePlaceholder = (target: any, item: VirtualTryOnHistory) => {
   }, 0);
 };
 
+const unwrapHistoryData = (response: any) => response?.data?.data || response?.data || response;
+
 const fetchHistory = async (type: AiHistoryType, page?: number, pageSize?: number) => {
   loading.value = true;
   try {
-    const params: { type?: AiHistoryType; page?: number; pageSize?: number } = {};
-    if (type !== 'all') {
-      params.type = type;
-    } else {
-      params.type = 'all';
-    }
-    if (page) params.page = page;
-    if (pageSize) params.pageSize = pageSize;
-
-    const response: any = await aiApi.getHistory(params);
-    // 兼容后端多层 data 包裹：{ statusCode, message, data: { statusCode, message, data: {...实际数据} } }
-    const data = response?.data?.data || response?.data || response;
-
-    console.log('[AIHistory] 历史接口返回原始数据:', response);
-    console.log('[AIHistory] 解析后的数据对象:', data);
-
     if (type === 'all') {
-      if (data.virtualTryOn) {
-        virtualTryOn.items = data.virtualTryOn.items || [];
-        virtualTryOn.pagination = data.virtualTryOn.pagination || virtualTryOn.pagination;
-        // 调试：打印第一条记录的数据结构
-        if (virtualTryOn.items.length > 0) {
-          const firstItem = virtualTryOn.items[0];
-          console.log('[AIHistory] 虚拍历史第一条记录:', {
-            id: firstItem.id,
-            hasModifiedImageUrl: !!firstItem.modifiedImageUrl,
-            modifiedImageUrlType: firstItem.modifiedImageUrl?.substring(0, 50),
-            hasImageUrl: !!firstItem.imageUrl,
-            imageUrlType: firstItem.imageUrl?.substring(0, 50),
-            selectedUrl: getImageUrl(firstItem),
-          });
-        }
-      }
-      if (data.styleRecommendation) {
-        styleRecommendation.items = data.styleRecommendation.items || [];
-        styleRecommendation.pagination =
-          data.styleRecommendation.pagination || styleRecommendation.pagination;
-      }
-      if (data.itineraryPlanning) {
-        itineraryPlanning.items = data.itineraryPlanning.items || [];
-        itineraryPlanning.pagination =
-          data.itineraryPlanning.pagination || itineraryPlanning.pagination;
-      }
+      const [resF, resM, resC, resSr, resIp] = await Promise.all([
+        aiApi.getHistory({
+          type: 'virtual-try-on',
+          subjectRole: 'female',
+          page: virtualTryOnFemale.pagination.page,
+          pageSize: virtualTryOnFemale.pagination.pageSize,
+        }),
+        aiApi.getHistory({
+          type: 'virtual-try-on',
+          subjectRole: 'male',
+          page: virtualTryOnMale.pagination.page,
+          pageSize: virtualTryOnMale.pagination.pageSize,
+        }),
+        aiApi.getHistory({
+          type: 'virtual-try-on',
+          subjectRole: 'couple',
+          page: virtualTryOnCouple.pagination.page,
+          pageSize: virtualTryOnCouple.pagination.pageSize,
+        }),
+        aiApi.getHistory({
+          type: 'style-recommendation',
+          page: styleRecommendation.pagination.page,
+          pageSize: styleRecommendation.pagination.pageSize,
+        }),
+        aiApi.getHistory({
+          type: 'itinerary-planning',
+          page: itineraryPlanning.pagination.page,
+          pageSize: itineraryPlanning.pagination.pageSize,
+        }),
+      ]);
+
+      const dataF = unwrapHistoryData(resF);
+      const dataM = unwrapHistoryData(resM);
+      const dataC = unwrapHistoryData(resC);
+      const dataSr = unwrapHistoryData(resSr);
+      const dataIp = unwrapHistoryData(resIp);
+
+      virtualTryOnFemale.items = dataF.items || [];
+      virtualTryOnFemale.pagination = dataF.pagination || virtualTryOnFemale.pagination;
+      virtualTryOnMale.items = dataM.items || [];
+      virtualTryOnMale.pagination = dataM.pagination || virtualTryOnMale.pagination;
+      virtualTryOnCouple.items = dataC.items || [];
+      virtualTryOnCouple.pagination = dataC.pagination || virtualTryOnCouple.pagination;
+
+      styleRecommendation.items = dataSr.items || [];
+      styleRecommendation.pagination = dataSr.pagination || styleRecommendation.pagination;
+      itineraryPlanning.items = dataIp.items || [];
+      itineraryPlanning.pagination = dataIp.pagination || itineraryPlanning.pagination;
     } else if (type === 'virtual-try-on') {
+      const response: any = await aiApi.getHistory({
+        type: 'virtual-try-on',
+        subjectRole: vtoRole.value,
+        page: page ?? virtualTryOn.pagination.page,
+        pageSize: pageSize ?? virtualTryOn.pagination.pageSize,
+      });
+      const data = unwrapHistoryData(response);
       virtualTryOn.items = data.items || [];
       virtualTryOn.pagination = data.pagination || virtualTryOn.pagination;
-      // 调试：打印第一条记录的数据结构
       if (virtualTryOn.items.length > 0) {
         const firstItem = virtualTryOn.items[0];
         console.log('[AIHistory] 虚拍历史第一条记录:', {
@@ -1276,18 +1370,48 @@ const fetchHistory = async (type: AiHistoryType, page?: number, pageSize?: numbe
           selectedUrl: getImageUrl(firstItem),
         });
       }
-    } else if (type === 'style-recommendation') {
-      styleRecommendation.items = data.items || [];
-      styleRecommendation.pagination = data.pagination || styleRecommendation.pagination;
-    } else if (type === 'itinerary-planning') {
-      itineraryPlanning.items = data.items || [];
-      itineraryPlanning.pagination = data.pagination || itineraryPlanning.pagination;
+    } else {
+      const params: {
+        type: AiHistoryType;
+        page?: number;
+        pageSize?: number;
+      } = {
+        type,
+      };
+      if (page) params.page = page;
+      if (pageSize) params.pageSize = pageSize;
+
+      const response: any = await aiApi.getHistory(params);
+      const data = unwrapHistoryData(response);
+
+      if (type === 'style-recommendation') {
+        styleRecommendation.items = data.items || [];
+        styleRecommendation.pagination = data.pagination || styleRecommendation.pagination;
+      } else if (type === 'itinerary-planning') {
+        itineraryPlanning.items = data.items || [];
+        itineraryPlanning.pagination = data.pagination || itineraryPlanning.pagination;
+      }
     }
   } catch (error: any) {
     message.error(error?.message || '获取历史记录失败');
   } finally {
     loading.value = false;
   }
+};
+
+/** 「全部记录」里某一类虚拍分页变化 */
+const handlePageChangeVto = (role: VirtualTryOnSubjectRole, page: number, pageSize: number) => {
+  if (role === 'female') {
+    virtualTryOnFemale.pagination.page = page;
+    virtualTryOnFemale.pagination.pageSize = pageSize;
+  } else if (role === 'male') {
+    virtualTryOnMale.pagination.page = page;
+    virtualTryOnMale.pagination.pageSize = pageSize;
+  } else {
+    virtualTryOnCouple.pagination.page = page;
+    virtualTryOnCouple.pagination.pageSize = pageSize;
+  }
+  fetchHistory('all');
 };
 
 const handleTabChange = (key: string) => {
@@ -1386,7 +1510,7 @@ const handleDelete = async (
               ? 'sr'
               : 'ip'
           : type === 'virtual-try-on'
-            ? 'vto-single'
+            ? 'vto'
             : type === 'style-recommendation'
               ? 'sr-single'
               : 'ip-single';
@@ -1414,6 +1538,13 @@ const handleDelete = async (
     },
   });
 };
+
+/** 虚拍「虚拍历史」标签下切换女生/男生/双人时重新拉取 */
+watch(vtoRole, () => {
+  if (activeTab.value !== 'virtual-try-on') return;
+  virtualTryOn.pagination.page = 1;
+  fetchHistory('virtual-try-on', 1, virtualTryOn.pagination.pageSize);
+});
 
 onMounted(() => {
   fetchHistory('all');
@@ -1469,6 +1600,30 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.vto-sub-tabs {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.vto-tab-empty {
+  padding: 24px 12px 32px;
+  text-align: center;
+  color: #888;
+
+  p {
+    margin: 0;
+    font-size: 15px;
+  }
+
+  small {
+    display: block;
+    margin-top: 8px;
+    font-size: 12px;
+    color: #aaa;
+  }
 }
 
 .loading-state {

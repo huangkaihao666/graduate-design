@@ -82,6 +82,7 @@
               :key="style.id"
               class="style-card"
               :class="{ active: selectedStyle === style.id }"
+              :title="style.id === 'minimalist' ? minimalistDetailForRole : undefined"
               @click="
                 () => {
                   selectedStyle = style.id;
@@ -271,7 +272,13 @@
 
 <script setup lang="ts">
 import { aiApi, VirtualTryOnRequest } from '@/api/ai';
-import { TRAVEL_STYLE_LABELS } from '@/constants/travel-style-labels';
+import {
+  TRAVEL_STYLE_CARD_DESCRIPTIONS,
+  TRAVEL_STYLE_DETAIL_MINIMALIST_COUPLE,
+  TRAVEL_STYLE_DETAIL_MINIMALIST_FEMALE,
+  TRAVEL_STYLE_DETAIL_MINIMALIST_MALE,
+  TRAVEL_STYLE_LABELS,
+} from '@/constants/travel-style-labels';
 import { getVtoPreferencesForStyle } from '@/constants/virtual-tryon-preferences';
 import {
   VTO_SUBJECT_LABELS,
@@ -304,6 +311,13 @@ const availableStyles = ref<any[]>([]);
 const authStore = useAuthStore();
 
 const travelStyleLabel = computed(() => TRAVEL_STYLE_LABELS[selectedStyle.value] || '当前风格');
+
+/** 韩式简约卡片悬停：随出镜方式切换完整说明 */
+const minimalistDetailForRole = computed(() => {
+  if (subjectRole.value === 'male') return TRAVEL_STYLE_DETAIL_MINIMALIST_MALE;
+  if (subjectRole.value === 'couple') return TRAVEL_STYLE_DETAIL_MINIMALIST_COUPLE;
+  return TRAVEL_STYLE_DETAIL_MINIMALIST_FEMALE;
+});
 
 const makeupOptions = computed(
   () => getVtoPreferencesForStyle(selectedStyle.value, subjectRole.value).makeup
@@ -415,37 +429,37 @@ onMounted(async () => {
       {
         id: 'minimalist',
         name: TRAVEL_STYLE_LABELS.minimalist,
-        description: '干净清透、线条利落，偏棚拍与仪式主纱质感',
+        description: TRAVEL_STYLE_CARD_DESCRIPTIONS.minimalist,
         icon: '⬜',
       },
       {
         id: 'classical',
         name: TRAVEL_STYLE_LABELS.classical,
-        description: '东方韵味与工笔写意，适合园林、旗袍与国风场景',
+        description: TRAVEL_STYLE_CARD_DESCRIPTIONS.classical,
         icon: '👑',
       },
       {
         id: 'bohemian',
         name: TRAVEL_STYLE_LABELS.bohemian,
-        description: '阳光沙滩、轻盈纱裙，偏海岛度假与松弛氛围',
+        description: TRAVEL_STYLE_CARD_DESCRIPTIONS.bohemian,
         icon: '🌻',
       },
       {
         id: 'romantic',
         name: TRAVEL_STYLE_LABELS.romantic,
-        description: '自然光、草坪与绿植，清新柔美、森系婚礼感',
+        description: TRAVEL_STYLE_CARD_DESCRIPTIONS.romantic,
         icon: '✨',
       },
       {
         id: 'adventure',
         name: TRAVEL_STYLE_LABELS.adventure,
-        description: '公路、山野、雪山雪景与开阔天际，动感与旅拍大片感',
+        description: TRAVEL_STYLE_CARD_DESCRIPTIONS.adventure,
         icon: '⛰️',
       },
       {
         id: 'artistic',
         name: TRAVEL_STYLE_LABELS.artistic,
-        description: '古镇街巷与人文旅拍，强调情绪、构图与故事感',
+        description: TRAVEL_STYLE_CARD_DESCRIPTIONS.artistic,
         icon: '🎨',
       },
     ];

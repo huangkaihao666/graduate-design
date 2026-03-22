@@ -1,4 +1,5 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { Prisma, type VirtualTryOnHistory } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import axios from 'axios';
 
@@ -83,6 +84,74 @@ export class AiService {
   }
 
   /**
+   * 韩式简约：女生单人 / 男生单人 / 男女双人 三套文案（与前端展示、图生图提示一致）
+   */
+  private getMinimalistStyleAdvice(subjectRole: VirtualTryOnSubjectRole) {
+    if (subjectRole === 'male') {
+      return {
+        style: 'minimalist',
+        virtualAdvice:
+          '男生单人：3:4竖版，浅灰米白极简纯色背景，均匀柔和漫射光，画面低饱和通透干净，附细腻胶片颗粒，沉稳又高级。多款西装造型任选：经典黑色戗驳领西装，版型挺括，搭丝质领结，绅士稳重；深灰平驳领修身西装，色调柔和，配简约领带，内敛有质感；黑色休闲单排扣西装，面料柔软，领口微开不系领带，随性松弛。发型干净清爽，无刻意雕琢感，站姿放松自然，或单手插袋、或自然垂臂，面部光影柔和，表情温和淡然，极简背景凸显利落身形，满是韩系简约绅士格调。',
+        makeupAdvice:
+          '男士妆面自然修容、匀净肤色，眉形整洁，唇色裸色或豆沙；避免厚重底妆，保持清爽质感。',
+        hairstyleAdvice:
+          '短发或侧分油头，线条利落；发丝干净不油塌，无夸张造型。',
+        dressAdvice:
+          '可选黑色戗驳领西装+丝质领结、深灰平驳领修身西装+简约领带、黑色休闲单排扣西装微开领；版型挺括或柔软松弛二选一，与偏好一致。',
+        shootingTips: [
+          '3:4 竖构图，纯色浅灰/米白背景，均匀漫射光',
+          '站姿放松：单手插袋、自然垂臂、微侧身',
+          '低饱和、细腻胶片颗粒，面部光影柔和',
+          '突出身形线条与西装质感，韩系简约绅士画报风',
+        ],
+        previewDescription:
+          '呈现韩系简约新郎：浅灰米白极简背景、漫射柔光、低饱和胶片感，西装挺括或休闲松弛，神态温和淡然。',
+      };
+    }
+    if (subjectRole === 'couple') {
+      return {
+        style: 'minimalist',
+        virtualAdvice:
+          '男女双人：3:4竖版，浅灰米白极简纯色背景，柔和漫射光铺满画面，低饱和温柔色调，细腻胶片质感，氛围治愈高级。新娘多款简约缎面婚纱随心搭，配轻薄头纱，素雅干净；新郎多款简约西装适配，利落沉稳。两人自然互动，或轻拥依偎、或并肩对视、或牵手浅笑，肢体松弛无摆拍感，表情温柔缱绻，眼神满是甜蜜。无多余道具装饰，新娘婚纱的温润缎面与新郎西装的利落线条相互映衬，光影均匀细腻，聚焦两人间的温柔情愫，极简构图+韩系画报质感，定格高级又治愈的甜蜜瞬间。',
+        makeupAdvice:
+          '双人均清透低饱和妆面：新娘伪素颜感、豆沙或奶茶唇；新郎自然修容、眉形整洁，气色干净。',
+        hairstyleAdvice:
+          '新娘低盘或披肩配轻薄头纱；新郎短发侧分或服帖造型，与西装风格统一。',
+        dressAdvice:
+          '新娘缎面简约婚纱与轻薄头纱；新郎黑色或深灰简约西装、领结或领带任选，线条利落成对。',
+        shootingTips: [
+          '3:4 竖版，浅灰米白背景，漫射光均匀、无杂乱阴影',
+          '互动自然：轻拥依偎、并肩对视、牵手浅笑，避免僵硬摆拍',
+          '无多余道具，缎面与西装线条呼应，极简构图',
+          '低饱和、细腻胶片、韩系画报质感，甜蜜治愈氛围',
+        ],
+        previewDescription:
+          '双人韩式简约：极简背景、漫射柔光、低饱和胶片感，缎面婚纱与西装线条映衬，依偎对视自然甜蜜。',
+      };
+    }
+    // female
+    return {
+      style: 'minimalist',
+      virtualAdvice:
+        '女生单人：3:4竖版，纯色浅灰米白极简背景，柔和漫射光打造通透低饱和画面，自带细腻胶片质感，韩式画报风拉满。多款简约缎面婚纱可选：法式方领款利落显颈线，A字裙摆垂坠高级；深V心形领款温柔妩媚，修身裙摆勾勒曲线；圆领简约款干净纯粹，无多余装饰更显松弛；立领长袖款文艺复古，宽松伞裙氛围感十足。搭配轻薄短头纱，妆容清透伪素颜，低盘发散落碎发，或侧身静立、或轻提裙摆，眼神温婉松弛，嘴角含淡笑，光影柔化轮廓，缎面泛细腻光泽，尽显温柔治愈的高级感。',
+      makeupAdvice:
+        '清透伪素颜：底妆轻薄透亮，眼妆裸粉或大地色，唇色豆沙/奶茶，强调肌肤质感与温柔气色。',
+      hairstyleAdvice:
+        '低盘髻或低马尾，额前自然碎发；搭配轻薄短头纱，线条干净不厚重。',
+      dressAdvice:
+        '缎面简约婚纱：可选法式方领+A字垂坠、深V心形修身、圆领松弛款、立领长袖伞裙等，与偏好选项一致。',
+      shootingTips: [
+        '3:4 竖构图，纯色浅灰/米白极简背景，柔和漫射光',
+        '姿态：侧身静立、轻提裙摆、眼神温婉，嘴角淡笑',
+        '光影柔化轮廓，突出缎面细腻光泽与颈线',
+        '画面通透低饱和，细腻胶片质感，韩式画报风',
+      ],
+      previewDescription:
+        '女生韩式简约：浅灰米白背景、漫射柔光、缎面婚纱与轻纱，低盘碎发，温婉松弛，温柔治愈高级感。',
+    };
+  }
+
+  /**
    * AI 虚拍 - 生成虚拍建议和修改后的图片效果（基于风格模板）
    */
   async generateVirtualTryOn(request: VirtualTryOnRequest): Promise<any> {
@@ -91,7 +160,7 @@ export class AiService {
       romantic: {
         style: 'romantic',
         virtualAdvice:
-          '森系草坪风格强调自然光、草坪与绿植，清新柔美，适合森系婚礼与户外仪式。',
+          '虚拍画幅统一为 3:4 竖版。森系草坪风格强调自然光、草坪与绿植，清新柔美，适合森系婚礼与户外仪式。',
         makeupAdvice:
           '建议使用柔和的粉色系妆容，强调眼影的层次感，打造温柔的眼神。',
         hairstyleAdvice: '推荐盘发或半扎造型，配以精致的头饰，展现温婉气质。',
@@ -109,7 +178,7 @@ export class AiService {
       artistic: {
         style: 'artistic',
         virtualAdvice:
-          '纪实故事风格强调旅拍人文与情绪表达，适合古镇街巷与有故事感的场景。',
+          '虚拍画幅统一为 3:4 竖版。纪实故事风格强调旅拍人文与情绪表达，适合古镇街巷与有故事感的场景。',
         makeupAdvice:
           '可以尝试大胆的色彩搭配，如酒红色或深紫色眼影，打造艺术感十足的妆容。',
         hairstyleAdvice: '推荐蓬松的长卷发或创意编发，彰显艺术气质。',
@@ -127,7 +196,7 @@ export class AiService {
       bohemian: {
         style: 'bohemian',
         virtualAdvice:
-          '海岛松弛风格强调阳光、沙滩与度假感，轻盈纱裙与松弛姿态，适合海岛旅拍。',
+          '虚拍画幅统一为 3:4 竖版。海岛松弛风格强调阳光、沙滩与度假感，轻盈纱裙与松弛姿态，适合海岛旅拍。',
         makeupAdvice:
           '建议使用自然的棕色系妆容，配以浓密的眉毛和少量的眼线，展现自然美感。',
         hairstyleAdvice: '推荐飘逸的长卷发或编织发型，配以花卉或羽毛装饰。',
@@ -142,44 +211,30 @@ export class AiService {
         previewDescription:
           '修改后的图片将呈现海岛松弛的度假氛围，光线明亮、色彩清透，人物状态自然舒展。',
       },
-      minimalist: {
-        style: 'minimalist',
-        virtualAdvice:
-          '韩式简约风格强调干净清透与利落线条，偏棚拍主纱与高级感妆容。',
-        makeupAdvice: '建议使用简洁的妆容，强调肌肤质感，眼妆清淡但有神采。',
-        hairstyleAdvice: '推荐贴头皮或简约的发型，露出脸部线条。',
-        dressAdvice: '选择设计简洁的婚纱，注重剪裁和质感，避免繁复装饰。',
-        shootingTips: [
-          '使用纯色或单一纹理的背景',
-          '强调构图中的几何形状和对称性',
-          '控制画面元素，避免视觉混乱',
-          '使用高饱和度的光线，营造干净利落的效果',
-          '后期处理保持简洁，避免过度修饰',
-        ],
-        previewDescription:
-          '修改后的图片将呈现韩式简约的干净质感，肤色通透、背景简洁，突出人物与主纱线条。',
-      },
       classical: {
         style: 'classical',
         virtualAdvice:
-          '国风典雅风格融合东方韵味与工笔写意，适合园林、旗袍与国风礼仪场景。',
-        makeupAdvice: '建议使用经典的棕色系妆容，强调眼型和唇型的精致感。',
-        hairstyleAdvice: '推荐盘发或优雅的发型，可配以古典风格的发饰。',
-        dressAdvice: '选择经典设计的婚纱，注重优雅的剪裁和精致的细节。',
+          '虚拍画幅统一为 3:4 竖版。新中式国风典雅（棚拍向）：背景以室内为主，推荐纯色正红背景，简洁无杂乱道具；整体色彩以正红与暖棕为基底，服饰金绣点缀。突出人物与礼服层次。人物表情要求自然、松弛，男女均可面向镜头微笑，避免僵硬、木讷或证件照感。',
+        makeupAdvice:
+          '妆面以正红与暖棕为基调：唇妆正红或豆沙红，眼妆大地/棕红晕染，腮红暖棕或微醺红；肤质通透，眉形干净，喜庆而不俗气。',
+        hairstyleAdvice:
+          '盘发、发髻或中式编发，可配金钗、流苏；发色与暖棕、正红服饰协调。',
+        dressAdvice:
+          '新娘秀禾、龙凤褂、改良旗袍或新中式红裙；新郎中山装、长衫或暖棕/黑色新中式男装配红领带或盘扣细节，与纯色红背景形成层次。',
         shootingTips: [
-          '选择具有历史感的建筑或场景作为背景',
-          '使用正式的姿态和构图',
-          '强调细节和质感，如蕾丝或珍珠',
-          '使用柔和的光线营造贵族气质',
-          '后期处理采用低饱和度和暖色调',
+          '场景优先室内影棚式纯色正红背景，避免室外园林抢戏（若虚拍需统一为室内红幕效果）',
+          '画幅 3:4 竖构图，人物占比适中，头顶与脚下留白',
+          '柔光均匀打亮面部，减少生硬阴影，突出微笑与眼神',
+          '引导面向镜头微笑、自然对视或轻靠，禁止僵硬立正、面无表情',
+          '后期在正红与暖棕基调上微调对比，保持肤色自然',
         ],
         previewDescription:
-          '修改后的图片将呈现国风典雅的东方气质，色调温润、细节精致，场景与服饰呼应。',
+          '室内纯色正红背景下的新中式婚照：3:4 竖版，正红与暖棕基调，人物表情自然亲切、可含微笑，东方喜庆氛围。',
       },
       adventure: {
         style: 'adventure',
         virtualAdvice:
-          '旷野自由风格强调公路、山野、雪山垭口与开阔天际，动感与风感，适合川西、公路与雪山雪景旅拍大片。',
+          '虚拍画幅统一为 3:4 竖版。旷野自由风格强调公路、山野、雪山垭口与开阔天际，动感与风感，适合川西、公路与雪山雪景旅拍大片。',
         makeupAdvice:
           '可使用活力暖色妆面，或雪山场景下的冰感冷调高光与腮红，注意雪地反射下的曝光与肤质表现。',
         hairstyleAdvice:
@@ -198,10 +253,13 @@ export class AiService {
       },
     };
 
-    // 获取对应风格的建议
-    const advice = styleAdvice[request.style] || styleAdvice.romantic;
+    // 获取对应风格的建议（韩式简约按出镜方式分三套文案）
     const subjectRole: VirtualTryOnSubjectRole =
       request.subjectRole || 'female';
+    const advice =
+      request.style === 'minimalist'
+        ? this.getMinimalistStyleAdvice(subjectRole)
+        : styleAdvice[request.style] || styleAdvice.romantic;
 
     const subjectVirtualPrefix: Record<VirtualTryOnSubjectRole, string> = {
       female: '【新娘/女生单人】',
@@ -236,16 +294,39 @@ export class AiService {
   }
 
   /**
-   * 构图与姿态：用户反馈希望背景更多、人物不要僵硬站姿
+   * 全风格统一画幅：3:4 竖版（与产品侧「竖版婚照」一致）
+   */
+  private buildVirtualTryOnAspectRatioPrompt(): string {
+    return (
+      ` 【画幅统一】无论何种拍摄风格，输出须为 3:4 竖版竖构图（高:宽=4:3 的竖向画面），禁止横向宽幅、正方形或 16:9 电影画幅。` +
+      ` English: always 3:4 portrait vertical aspect ratio for all styles.`
+    );
+  }
+
+  /**
+   * 构图与姿态：用户反馈希望背景更多、人物不要僵硬站姿（在 3:4 竖版内取景）
    */
   private buildVirtualTryOnCompositionPrompt(): string {
     return (
-      ` 【构图与背景】采用环境人像/中远景，人物以全身或大半身（约膝盖以上）为主，在画面中占比适中（约三分之一至一半画面高度），` +
+      ` 【构图与背景】在 3:4 竖版画幅内采用环境人像/中远景，人物以全身或大半身（约膝盖以上）为主，在画面中占比适中（约三分之一至一半画面高度），` +
       `多保留天空、地面、地平线、建筑、树木或自然景物，背景层次清晰、透气，像旅拍大片；避免大头贴、胸口以上特写或人物撑满画面。` +
       ` 【姿态】自然放松的婚礼/旅拍纪实感：可轻微侧身、行走、回眸、手部自然摆放或与服装/环境轻互动，肩颈与手臂舒展；` +
       `避免僵硬直立正对镜头、双手紧贴裤缝、木讷证件照式站姿。` +
-      ` Framing: environmental portrait, medium-wide shot, full body or 3/4 body visible, generous background and sky/ground; ` +
+      ` Framing: within 3:4 vertical frame, environmental portrait, medium-wide shot, full body or 3/4 body visible, generous background and sky/ground; ` +
       `subject not oversized in frame. Pose: relaxed candid, natural movement, soft posture, not stiff standing portrait.`
+    );
+  }
+
+  /**
+   * 新中式（classical）：室内纯红背景 + 3:4 竖版 + 正红暖棕 + 表情自然可微笑（不与「室外大环境」构图块冲突）
+   */
+  private buildClassicalNeoChineseCompositionPrompt(): string {
+    return (
+      ` 【新中式构图专用】背景为室内影棚效果：纯色正红背景，简洁无窗景外景，无杂乱道具（画幅仍遵循全风格统一的 3:4 竖版）。` +
+      `整体色彩以正红与暖棕为基底，服装金绣或配饰可做点缀，避免画面发灰发冷。` +
+      ` 【表情与姿态】人物表情必须自然、松弛、有亲和力：男女均可面向镜头微笑，眼神柔和，嘴角自然上扬；禁止僵硬面瘫、目光呆滞、过度拘谨的站姿。` +
+      `可并肩轻靠、自然挽手或微侧身，肩背放松，像真实喜拍而非证件照。` +
+      ` English: 3:4 vertical, indoor solid crimson red backdrop, warm red and brown palette, soft even lighting, natural genuine smiles facing camera, relaxed posture, not stiff portrait.`
     );
   }
 
@@ -321,33 +402,33 @@ export class AiService {
       // 根据风格生成相应的提示词（女生/双人偏婚纱叙事）
       const stylePrompts: Record<string, string> = {
         romantic:
-          '生成森系草坪风格的高级婚纱摄影照片，自然光、草坪绿植、清新柔美，高保真，森系婚礼感',
+          '3:4竖版，生成森系草坪风格的高级婚纱摄影照片，自然光、草坪绿植、清新柔美，高保真，森系婚礼感',
         artistic:
-          '生成纪实故事风格的高级婚纱摄影照片，古镇街巷与人文旅拍，情绪与构图，高保真，电影叙事感',
+          '3:4竖版，生成纪实故事风格的高级婚纱摄影照片，古镇街巷与人文旅拍，情绪与构图，高保真，电影叙事感',
         bohemian:
-          '生成海岛松弛风格的高级婚纱摄影照片，阳光沙滩、轻盈纱裙、度假松弛感，高保真',
+          '3:4竖版，生成海岛松弛风格的高级婚纱摄影照片，阳光沙滩、轻盈纱裙、度假松弛感，高保真',
         minimalist:
-          '生成韩式简约风格的高级婚纱摄影照片，干净清透、线条利落、棚拍主纱质感，高保真',
+          '韩式简约新娘单人婚纱照，3:4竖版，纯色浅灰米白极简背景，柔和漫射光通透低饱和，细腻胶片质感韩式画报风。缎面婚纱可选法式方领A字垂坠、深V心形修身、圆领松弛、立领长袖伞裙；轻薄短头纱，清透伪素颜妆，低盘碎发，侧身静立或轻提裙摆，温婉淡笑，缎面光泽，温柔治愈高级感。高保真',
         classical:
-          '生成国风典雅风格的高级婚纱摄影照片，东方韵味、园林旗袍与国风场景，高保真',
+          '新中式国风新娘单人婚纱照，3:4竖版，室内纯色正红背景无室外，色彩正红与暖棕为基底，秀禾龙凤褂或改良旗袍金饰刺绣，柔光均匀。表情自然亲切可面向镜头微笑，眼神温柔，避免僵硬。高保真',
         adventure:
-          '生成旷野自由风格的高级婚纱摄影照片，可含公路山野或雪山雪景垭口远景、开阔天际、高原旅拍大片感，高保真',
+          '3:4竖版，生成旷野自由风格的高级婚纱摄影照片，可含公路山野或雪山雪景垭口远景、开阔天际、高原旅拍大片感，高保真',
       };
 
       /** 男生单人：避免「婚纱/纱裙」等新娘向词汇，强调西装/男装与环境，利于与偏好一致 */
       const stylePromptsMale: Record<string, string> = {
         romantic:
-          '生成森系草坪风格的新郎婚礼人像照片，自然光、草坪绿植，男士西装或礼服造型，清新利落，高保真',
+          '3:4竖版，生成森系草坪风格的新郎婚礼人像照片，自然光、草坪绿植，男士西装或礼服造型，清新利落，高保真',
         artistic:
-          '生成纪实故事风格的新郎婚礼人像照片，古镇街巷与人文旅拍，男士西装或大衣，情绪与构图，高保真，电影叙事感',
+          '3:4竖版，生成纪实故事风格的新郎婚礼人像照片，古镇街巷与人文旅拍，男士西装或大衣，情绪与构图，高保真，电影叙事感',
         bohemian:
-          '生成海岛松弛风格的新郎婚礼人像照片，阳光沙滩，男士浅色西装或亚麻休闲正装，度假松弛感，高保真',
+          '3:4竖版，生成海岛松弛风格的新郎婚礼人像照片，阳光沙滩，男士浅色西装或亚麻休闲正装，度假松弛感，高保真',
         minimalist:
-          '生成韩式简约风格的新郎婚礼人像照片，干净清透、线条利落，棚拍男士西装质感，高保真',
+          '韩式简约新郎单人婚礼人像，3:4竖版，浅灰米白极简纯色背景，均匀柔和漫射光，低饱和通透干净，细腻胶片颗粒。西装可选黑色戗驳领+丝质领结、深灰平驳领修身+简约领带、黑色休闲单排扣微开领无领带。发型清爽，站姿放松，单手插袋或自然垂臂，面部光影柔和，表情温和淡然，韩系简约绅士格调。高保真',
         classical:
-          '生成国风典雅风格的新郎婚礼人像照片，东方韵味，园林或中式场景，男士长衫/中山装/新中式男装，高保真',
+          '新中式国风新郎单人，3:4竖版，室内纯色正红背景，正红暖棕色调，中山装长衫或新中式男装。表情自然微笑可面向镜头，神态放松，避免僵硬。高保真',
         adventure:
-          '生成旷野自由风格的新郎婚礼人像照片，可含公路山野或雪山垭口远景，男士大衣/皮衣/西装叠穿，高原旅拍大片感，高保真',
+          '3:4竖版，生成旷野自由风格的新郎婚礼人像照片，可含公路山野或雪山垭口远景，男士大衣/皮衣/西装叠穿，高原旅拍大片感，高保真',
       };
 
       const subjectTail: Record<VirtualTryOnSubjectRole, string> = {
@@ -358,17 +439,34 @@ export class AiService {
           '。画面为新郎与新娘双人合影，男女同框出镜，婚纱与西装或礼服搭配，亲密放松的互动与走位，避免呆板并排立正',
       };
 
+      /** 双人合影：韩式简约使用用户提供的完整画报向描述（含新郎新娘造型） */
+      const stylePromptsCouple: Partial<Record<string, string>> = {
+        minimalist:
+          '韩式简约男女双人婚纱照，3:4竖版，浅灰米白极简纯色背景，柔和漫射光铺满，低饱和温柔色调，细腻胶片质感治愈高级。新娘缎面婚纱+轻薄头纱素雅干净，新郎简约西装利落沉稳。轻拥依偎、并肩对视、牵手浅笑，肢体松弛无摆拍，表情温柔缱绻。无多余道具，缎面与西装线条映衬，极简构图韩系画报，甜蜜瞬间。高保真',
+        classical:
+          '新中式国风男女双人婚纱照，3:4竖版，室内纯色正红背景，正红与暖棕为色彩基底，新娘秀禾龙凤褂或红裙旗袍，新郎中山装或新中式男装金饰细节。两人表情自然，可面向镜头微笑，并肩或轻靠，亲密放松，避免僵硬摆拍。高保真',
+      };
+
       const basePrompt =
-        subjectRole === 'male'
-          ? stylePromptsMale[style] ||
-            '生成高级新郎婚礼人像照片，男士西装或礼服造型，高保真，专业级别'
-          : stylePrompts[style] || '生成高级婚纱摄影照片，高保真，专业级别';
-      const compositionBlock = this.buildVirtualTryOnCompositionPrompt();
+        subjectRole === 'couple'
+          ? stylePromptsCouple[style] ||
+            stylePrompts[style] ||
+            '3:4竖版，生成高级婚纱摄影照片，高保真，专业级别'
+          : subjectRole === 'male'
+            ? stylePromptsMale[style] ||
+              '3:4竖版，生成高级新郎婚礼人像照片，男士西装或礼服造型，高保真，专业级别'
+            : stylePrompts[style] ||
+              '3:4竖版，生成高级婚纱摄影照片，高保真，专业级别';
+      const aspectRatioBlock = this.buildVirtualTryOnAspectRatioPrompt();
+      const compositionBlock =
+        style === 'classical'
+          ? this.buildClassicalNeoChineseCompositionPrompt()
+          : this.buildVirtualTryOnCompositionPrompt();
       const editBlock = this.buildVirtualTryOnImageEditPrompt(
         subjectRole,
         preferenceLabels,
       );
-      const prompt = `${basePrompt}${subjectTail[subjectRole]}${compositionBlock}${editBlock}`;
+      const prompt = `${aspectRatioBlock}${basePrompt}${subjectTail[subjectRole]}${compositionBlock}${editBlock}`;
 
       const volcesRequest: VolcesImageRequest = {
         model: this.volcesModel,
@@ -793,13 +891,15 @@ export class AiService {
         {
           id: 'minimalist',
           name: '韩式简约',
-          description: '干净清透、线条利落，偏棚拍与仪式主纱质感',
+          description:
+            '3:4竖版，浅灰/米白极简背景，新郎黑西装+领结，新娘缎面婚纱+轻纱；漫射光、低饱和、依偎互动，韩式画报胶片感',
           icon: '⬜',
         },
         {
           id: 'classical',
           name: '国风典雅',
-          description: '东方韵味与工笔写意，适合园林、旗袍与国风场景',
+          description:
+            '新中式：室内纯色正红背景，3:4竖版，正红与暖棕为基底；自然微笑，避免僵硬',
           icon: '👑',
         },
         {
@@ -995,26 +1095,74 @@ export class AiService {
   }
 
   /**
+   * $queryRaw 在 MySQL 驱动下常把整型列返回为 BigInt，JSON 序列化会抛错，需转为 number
+   */
+  private normalizeVirtualTryOnRawRows(rows: any[]): VirtualTryOnHistory[] {
+    return rows.map((row) => ({
+      ...row,
+      id: Number(row.id),
+      userId: row.userId != null ? Number(row.userId) : null,
+    })) as VirtualTryOnHistory[];
+  }
+
+  /**
    * 获取当前用户的虚拍历史记录（按创建时间倒序，支持分页）
+   * @param subjectRole 可选：female | male | couple，不传则返回全部（MySQL JSON 用原生 SQL 筛选）
    */
   async getVirtualTryOnHistoriesByUser(
     userId: number,
     page: number = 1,
     pageSize: number = 10,
+    subjectRole?: VirtualTryOnSubjectRole,
   ) {
     const skip = (page - 1) * pageSize;
 
-    const [items, total] = await this.prisma.$transaction([
-      this.prisma.virtualTryOnHistory.findMany({
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: pageSize,
-      }),
-      this.prisma.virtualTryOnHistory.count({
-        where: { userId },
-      }),
-    ]);
+    if (!subjectRole) {
+      const [items, total] = await this.prisma.$transaction([
+        this.prisma.virtualTryOnHistory.findMany({
+          where: { userId },
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: pageSize,
+        }),
+        this.prisma.virtualTryOnHistory.count({
+          where: { userId },
+        }),
+      ]);
+      return {
+        items,
+        pagination: {
+          total,
+          page,
+          pageSize,
+        },
+      };
+    }
+
+    /** preferences.subjectRole 缺省或空 → 视为女生（兼容旧数据） */
+    const roleSql =
+      subjectRole === 'female'
+        ? Prisma.sql`COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(preferences, '$.subjectRole')), ''), 'female') = 'female'`
+        : subjectRole === 'male'
+          ? Prisma.sql`JSON_UNQUOTE(JSON_EXTRACT(preferences, '$.subjectRole')) = 'male'`
+          : Prisma.sql`JSON_UNQUOTE(JSON_EXTRACT(preferences, '$.subjectRole')) = 'couple'`;
+
+    const rawItems = await this.prisma.$queryRaw<any[]>`
+      SELECT * FROM virtual_try_on_histories
+      WHERE userId = ${userId}
+      AND ${roleSql}
+      ORDER BY createdAt DESC
+      LIMIT ${pageSize} OFFSET ${skip}
+    `;
+
+    const countRow = await this.prisma.$queryRaw<[{ count: bigint }]>`
+      SELECT COUNT(*) AS count FROM virtual_try_on_histories
+      WHERE userId = ${userId}
+      AND ${roleSql}
+    `;
+    const total = Number(countRow[0].count);
+
+    const items = this.normalizeVirtualTryOnRawRows(rawItems);
 
     return {
       items,
