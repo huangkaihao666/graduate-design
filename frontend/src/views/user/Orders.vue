@@ -8,7 +8,7 @@
     <div class="toolbar">
       <a-input
         v-model:value="keyword"
-        placeholder="搜索订单编号 / 手机号 / 套餐名称"
+        placeholder="搜索订单编号 / 手机号 / 套餐名称 / 摄影师"
         allow-clear
         class="search-input"
       />
@@ -44,6 +44,7 @@
 
           <div class="order-card-meta">
             <div class="meta-item">套餐：{{ o.packageName }}</div>
+            <div v-if="o.photographerName" class="meta-item">摄影师：{{ o.photographerName }}</div>
             <div class="meta-item">人数：{{ o.numberOfPeople }} 人</div>
             <div class="meta-item">联系人：{{ o.contactName }}（{{ o.phone }}）</div>
             <div class="meta-item">支付方式：{{ formatPayment(o.paymentMethod) }}</div>
@@ -54,8 +55,12 @@
             <div class="created-at">提交时间：{{ formatDate(o.createdAt) }}</div>
             <div class="order-actions">
               <a-button type="text" @click="openDetail(o)">查看详情</a-button>
-              <a-button v-if="canMockPay(o)" type="text" @click.stop="mockPay(o.orderNo)">
-                模拟支付
+              <a-button
+                v-if="canCheckOnlinePayment(o)"
+                type="text"
+                @click.stop="confirmDemoPaid(o.orderNo)"
+              >
+                确认已支付
               </a-button>
               <a-popconfirm
                 title="确认删除该订单吗？"
@@ -99,6 +104,10 @@
             </div>
             <div class="detail-row">
               <span class="k">行程天数</span><span class="v">{{ activeOrder.duration }} 天</span>
+            </div>
+            <div v-if="activeOrder.photographerName" class="detail-row">
+              <span class="k">指定摄影师</span
+              ><span class="v">{{ activeOrder.photographerName }}</span>
             </div>
             <div class="detail-row">
               <span class="k">单价</span
@@ -163,11 +172,14 @@ import { computed, onMounted, ref } from 'vue';
 import { message } from 'ant-design-vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/store/auth';
+import { paymentsApi } from '@/api/payments';
 
 type PaymentMethod = 'wechat' | 'alipay' | 'offline' | string;
 
 interface BookingOrder {
   orderNo: string;
+  /** 服务端订单主键，用于发起 prepay */
+  orderId?: number;
   packageId: number;
   packageName: string;
   location: string;
@@ -184,6 +196,8 @@ interface BookingOrder {
   paymentNo?: string;
   paidAt?: string;
   remark?: string;
+  photographerId?: number;
+  photographerName?: string;
   totalAmount: number;
   createdAt: string;
 }
@@ -291,29 +305,33 @@ const closeDetail = () => {
   activeOrder.value = null;
 };
 
-const canMockPay = (o: BookingOrder) => {
+const canCheckOnlinePayment = (o: BookingOrder) => {
   const onlineMethods = ['wechat', 'alipay'];
   return onlineMethods.includes(o.paymentMethod as string) && o.paymentStatus === 'unpaid';
 };
 
-const mockPay = (orderNo: string) => {
+/** 与预约页二维码弹窗一致：演示流程下直接标记服务端已支付 */
+const confirmDemoPaid = async (orderNo: string) => {
   const raw = sessionStorage.getItem(STORAGE_KEY);
   const history = raw ? parseOrders(raw) : [];
   const idx = history.findIndex((x: any) => x.orderNo === orderNo);
   if (idx === -1) {
-    message.error('订单不存在，无法支付');
+    message.error('订单不存在');
     return;
   }
-
-  history[idx] = {
-    ...history[idx],
-    paymentStatus: 'paid',
-    paidAt: new Date().toISOString(),
-  };
-
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(history));
-  orders.value = history as BookingOrder[];
-  message.success('支付模拟完成：订单已标记为已支付');
+  try {
+    await paymentsApi.demoComplete({ orderNo });
+    history[idx] = {
+      ...history[idx],
+      paymentStatus: 'paid',
+      paidAt: new Date().toISOString(),
+    };
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+    orders.value = history as BookingOrder[];
+    message.success('已标记为支付成功');
+  } catch {
+    message.error('操作失败，请检查网络或稍后重试');
+  }
 };
 
 const filteredOrders = computed(() => {
@@ -323,7 +341,8 @@ const filteredOrders = computed(() => {
     return (
       (o.orderNo || '').toLowerCase().includes(kw) ||
       (o.phone || '').toLowerCase().includes(kw) ||
-      (o.packageName || '').toLowerCase().includes(kw)
+      (o.packageName || '').toLowerCase().includes(kw) ||
+      (o.photographerName || '').toLowerCase().includes(kw)
     );
   });
 });

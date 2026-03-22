@@ -1,6 +1,7 @@
 import { authApi } from './auth';
 import { httpClient } from './client';
 import { ordersApi } from './orders';
+import { paymentsApi } from './payments';
 import { packagesApi } from './packages';
 import { photographersApi } from './photographers';
 import { spotsApi } from './spots';
@@ -11,6 +12,7 @@ import { usersApi } from './users';
 export * from './auth';
 export * from './client';
 export * from './orders';
+export * from './payments';
 export * from './packages';
 export * from './photographers';
 export * from './spots';
@@ -22,6 +24,7 @@ export {
   httpClient,
   ordersApi,
   packagesApi,
+  paymentsApi,
   photographersApi,
   spotsApi,
   styleTagsApi,
@@ -36,6 +39,7 @@ export const api = {
   photographers: photographersApi,
   users: usersApi,
   orders: ordersApi,
+  payments: paymentsApi,
   spots: spotsApi,
   styleTags: styleTagsApi,
 };

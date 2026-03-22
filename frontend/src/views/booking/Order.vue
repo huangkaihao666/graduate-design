@@ -60,8 +60,51 @@
             <a-input v-model:value="orderForm.email" placeholder="请输入邮箱（可选）" />
           </a-form-item>
 
-          <a-form-item label="拍摄日期" name="shootingDate">
-            <a-input v-model:value="orderForm.shootingDate" type="date" />
+          <a-form-item label="指定摄影师（可选）">
+            <a-select
+              v-model:value="selectedPhotographerId"
+              placeholder="暂不指定，由门店安排"
+              allow-clear
+              :loading="photographersLoading"
+              style="width: 100%"
+              @change="onPhotographerSelectChange"
+            >
+              <a-select-option v-for="p in photographerPublicList" :key="p.id" :value="p.id">
+                {{ p.name }}{{ p.title ? ` · ${p.title}` : '' }}
+              </a-select-option>
+            </a-select>
+            <div v-if="selectedPhotographerName" class="photographer-hint">
+              当前已选：<strong>{{ selectedPhotographerName }}</strong>
+              <span v-if="route.query.photographerId" class="hint-tag"
+                >（来自本店摄影师/套餐页）</span
+              >
+            </div>
+          </a-form-item>
+
+          <a-form-item label="拍摄日期" name="shootingDate" :rules="shootingDateRules">
+            <a-select
+              v-if="restrictShootingDateToPhotographerSchedule"
+              v-model:value="orderForm.shootingDate"
+              placeholder="请选择摄影师可约日期（仅档期内的日期可选）"
+              show-search
+              :filter-option="filterScheduleDateOption"
+              style="width: 100%"
+              @change="onShootingDateFieldChange"
+            >
+              <a-select-option v-for="d in photographerAvailableDatesSorted" :key="d" :value="d">
+                {{ formatShootingDateLabel(d) }}
+              </a-select-option>
+            </a-select>
+            <a-input v-else v-model:value="orderForm.shootingDate" type="date" />
+            <div v-if="photographerScheduleNote" class="schedule-tip">
+              档期说明：{{ photographerScheduleNote }}
+            </div>
+            <div
+              v-else-if="selectedPhotographerId && !restrictShootingDateToPhotographerSchedule"
+              class="schedule-tip muted"
+            >
+              该摄影师暂未配置可约日期列表，可自由选择拍摄日；建议备注或与客服确认。
+            </div>
           </a-form-item>
 
           <a-form-item label="预约人数" name="numberOfPeople">
@@ -113,6 +156,11 @@
             <span class="value">{{ selectedPackage.name }}</span>
           </div>
 
+          <div v-if="selectedPhotographerName" class="summary-row">
+            <span class="label">指定摄影师</span>
+            <span class="value">{{ selectedPhotographerName }}</span>
+          </div>
+
           <div class="summary-row">
             <span class="label">预约人数</span>
             <span class="value">{{ orderForm.numberOfPeople }} 人</span>
@@ -132,7 +180,7 @@
 
           <div class="summary-tips">
             <p>
-              温馨提示：当前订单提交为前端模拟（后端订单接口未实现）。您提交后可在本页看到订单编号。
+              温馨提示：订单提交后将写入服务器；在线支付请使用微信/支付宝扫码，支付结果以系统查询为准。
             </p>
           </div>
         </div>
@@ -162,6 +210,9 @@
         <div class="success-order-no">订单编号：{{ successInfo?.orderNo }}</div>
         <div class="success-summary">
           <div>套餐：{{ successInfo?.packageName }}</div>
+          <div v-if="successInfo?.photographerName">
+            摄影师：{{ successInfo?.photographerName }}
+          </div>
           <div>人数：{{ successInfo?.numberOfPeople }} 人</div>
           <div>合计：¥{{ successInfo?.totalAmount?.toLocaleString() }}</div>
         </div>
@@ -170,7 +221,7 @@
           线下支付：请在预约当天到店支付，工作人员会核对订单信息后为您安排拍摄。
         </div>
         <div v-else class="success-pay-note">
-          在线支付：请选择下方“去支付”，系统将进行支付模拟（后端支付接口暂未接入）。
+          在线支付：请选择下方「去支付」，使用微信/支付宝扫码完成付款；支付成功后订单将自动更新。
         </div>
 
         <div class="success-actions">
@@ -179,6 +230,7 @@
             v-if="successInfo?.paymentMethod !== 'offline'"
             type="primary"
             ghost
+            :loading="paymentPrepLoading"
             @click="openPaymentModal"
           >
             去支付
@@ -188,10 +240,10 @@
       </div>
     </a-modal>
 
-    <!-- 在线支付（模拟） -->
+    <!-- 在线支付：后端生成真实二维码 -->
     <a-modal
       v-model:open="paymentModalVisible"
-      title="在线支付（模拟）"
+      title="在线支付"
       :footer="null"
       :width="860"
       @cancel="paymentModalVisible = false"
@@ -203,18 +255,28 @@
               支付方式：{{ formatPayment(paymentInfo.paymentMethod) }}
             </div>
             <div class="payment-sub">订单号：{{ paymentInfo.orderNo }}</div>
+            <div v-if="paymentInfo.mode" class="payment-mode">
+              {{
+                paymentInfo.mode === 'wechat_native'
+                  ? '微信官方 Native 支付'
+                  : '演示落地页（未配置微信证书时）'
+              }}
+            </div>
           </div>
           <div class="payment-amount">应付：¥{{ paymentInfo.totalAmount.toLocaleString() }}</div>
         </div>
 
         <div class="payment-body">
-          <div class="payment-qr">
-            <div class="qr-box">二维码（模拟）</div>
-            <div class="qr-tip">如需真实支付，请接入后端支付/回调接口并生成真实二维码。</div>
+          <div v-if="paymentInfo.qrCodeDataUrl" class="payment-qr">
+            <img :src="paymentInfo.qrCodeDataUrl" alt="支付二维码" class="qr-img" />
+            <div class="qr-tip">
+              演示流程：无需真实付款，点击下方「我已完成支付」即可标记为已支付。
+            </div>
           </div>
+          <p v-if="paymentInfo.hint" class="payment-hint">{{ paymentInfo.hint }}</p>
           <div class="payment-actions">
-            <a-button type="primary" :loading="paymentSubmitting" @click="mockPay">
-              模拟完成支付
+            <a-button type="primary" :loading="paymentSubmitting" @click="refreshPaymentStatus">
+              我已完成支付
             </a-button>
             <a-button :disabled="paymentSubmitting" @click="paymentModalVisible = false"
               >稍后再说</a-button
@@ -228,11 +290,13 @@
 
 <script setup lang="ts">
 import { ordersApi } from '@/api/orders';
+import { paymentsApi } from '@/api/payments';
 import { packagesApi, type Package } from '@/api/packages';
+import { photographersApi, type PhotographerPublic } from '@/api/photographers';
 import { useAuthStore } from '@/store/auth';
 import type { FormInstance } from 'ant-design-vue';
 import { message } from 'ant-design-vue';
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 const route = useRoute();
@@ -250,6 +314,13 @@ const styleMap: Record<string, string> = {
 
 const getStyleName = (style: string) => styleMap[style] || style;
 
+const formatPayment = (method: string) => {
+  if (method === 'wechat') return '微信支付';
+  if (method === 'alipay') return '支付宝';
+  if (method === 'offline') return '线下支付';
+  return method || '-';
+};
+
 // sessionStorage 的状态持久化（避免用户切路由丢失表单）
 const STORAGE_KEY = 'online-order-state';
 const ORDER_HISTORY_KEY = 'online-order-history';
@@ -263,11 +334,19 @@ const successInfo = ref<{
   orderId?: number;
   orderNo: string;
   packageName: string;
+  photographerName?: string;
   numberOfPeople: number;
   totalAmount: number;
   paymentMethod: string;
   paymentStatus: string;
 } | null>(null);
+
+const selectedPhotographerId = ref<number | null>(null);
+const selectedPhotographerName = ref('');
+const photographerPublicList = ref<PhotographerPublic[]>([]);
+const photographersLoading = ref(false);
+/** 用于读取 availableDates / scheduleNote（优先列表，否则单次详情） */
+const photographerScheduleDetail = ref<PhotographerPublic | null>(null);
 
 const orderForm = reactive({
   packageId: 0,
@@ -287,12 +366,113 @@ const peopleOptions = computed(() => {
   return Array.from({ length: max }, (_, idx) => idx + 1);
 });
 
+/** 当前摄影师档期日期（YYYY-MM-DD，已排序） */
+const photographerAvailableDatesSorted = computed(() => {
+  const raw = photographerScheduleDetail.value?.availableDates;
+  if (!raw?.length) return [];
+  const re = /^\d{4}-\d{2}-\d{2}$/;
+  return [...raw]
+    .filter((x) => re.test(String(x).trim()))
+    .map((x) => String(x).trim())
+    .sort();
+});
+
+/** 已选摄影师且在后台配置了可约日期时，拍摄日仅限这些日期 */
+const restrictShootingDateToPhotographerSchedule = computed(
+  () => !!selectedPhotographerId.value && photographerAvailableDatesSorted.value.length > 0
+);
+
+const photographerScheduleNote = computed(() => {
+  if (!selectedPhotographerId.value) return '';
+  return (photographerScheduleDetail.value?.scheduleNote || '').trim();
+});
+
+const formatShootingDateLabel = (iso: string) => {
+  const t = String(iso).trim();
+  const re = /^\d{4}-\d{2}-\d{2}$/;
+  if (!re.test(t)) return iso;
+  const d = new Date(`${t}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return t;
+  const w = ['日', '一', '二', '三', '四', '五', '六'][d.getDay()];
+  return `${t}（周${w}）`;
+};
+
+const filterScheduleDateOption = (input: string, option: any) => {
+  const val = option?.value as string | undefined;
+  if (!val) return false;
+  const q = input.trim().toLowerCase();
+  if (!q) return true;
+  return val.includes(q) || formatShootingDateLabel(val).toLowerCase().includes(q);
+};
+
+const shootingDateRules = computed(() => {
+  const list = [{ required: true, message: '请选择拍摄日期', trigger: 'change' }];
+  if (restrictShootingDateToPhotographerSchedule.value) {
+    list.push({
+      validator: async (_rule: unknown, value: string) => {
+        if (!value) return Promise.reject('请选择拍摄日期');
+        if (!photographerAvailableDatesSorted.value.includes(value)) {
+          return Promise.reject('所选日期不在该摄影师可约档期内，请从下拉中选择可约日期');
+        }
+        return Promise.resolve();
+      },
+      trigger: 'change',
+    });
+  }
+  return list;
+});
+
+/** 同步摄影师详情（含档期），供列表未包含该摄影师时使用 */
+const refreshPhotographerScheduleDetail = async () => {
+  const id = selectedPhotographerId.value;
+  if (!id) {
+    photographerScheduleDetail.value = null;
+    return;
+  }
+  const fromList = photographerPublicList.value.find((x) => x.id === id);
+  if (fromList) {
+    photographerScheduleDetail.value = fromList;
+    return;
+  }
+  try {
+    photographerScheduleDetail.value = await photographersApi.getPublicOne(id);
+  } catch {
+    photographerScheduleDetail.value = null;
+  }
+};
+
+/** 会话恢复或切换摄影师后，若当前拍摄日不在档期内则清空并提示 */
+const ensureShootingDateMatchesSchedule = () => {
+  if (!restrictShootingDateToPhotographerSchedule.value) return;
+  const d = orderForm.shootingDate?.trim();
+  if (!d) return;
+  if (!photographerAvailableDatesSorted.value.includes(d)) {
+    orderForm.shootingDate = '';
+    message.warning('当前拍摄日期不在该摄影师可约档期内，请重新选择可约日期。');
+  }
+};
+
+const onShootingDateFieldChange = () => {
+  if (!restrictShootingDateToPhotographerSchedule.value) return;
+  const d = orderForm.shootingDate?.trim();
+  if (d && !photographerAvailableDatesSorted.value.includes(d)) {
+    message.warning('所选日期不在该摄影师可约档期内，请从列表中选择。');
+  }
+};
+
 const paymentModalVisible = ref(false);
 const paymentSubmitting = ref(false);
+const paymentPrepLoading = ref(false);
+let paymentPollTimer: ReturnType<typeof setInterval> | null = null;
+
 const paymentInfo = ref<{
   orderNo: string;
   paymentMethod: string;
   totalAmount: number;
+  mode?: 'wechat_native' | 'landing';
+  qrCodeDataUrl?: string;
+  codeUrl?: string;
+  hint?: string;
 } | null>(null);
 
 const emailValidator = (_rule: any, value: string) => {
@@ -313,7 +493,6 @@ const orderRules = {
     },
   ],
   email: [{ validator: emailValidator, trigger: 'blur' }],
-  shootingDate: [{ required: true, message: '请选择拍摄日期', trigger: 'change' }],
   numberOfPeople: [{ required: true, message: '请选择预约人数', trigger: 'change' }],
   paymentMethod: [{ required: true, message: '请选择支付方式', trigger: 'change' }],
   remark: [{ max: 300, message: '备注最多300字', trigger: 'blur' }],
@@ -332,6 +511,8 @@ const saveStateToStorage = () => {
         numberOfPeople: orderForm.numberOfPeople,
         paymentMethod: orderForm.paymentMethod,
         remark: orderForm.remark,
+        photographerId: selectedPhotographerId.value ?? undefined,
+        photographerName: selectedPhotographerName.value || undefined,
       })
     );
   } catch (e) {
@@ -352,6 +533,11 @@ const restoreStateFromStorage = () => {
       orderForm.numberOfPeople = state.numberOfPeople ?? 1;
       orderForm.paymentMethod = state.paymentMethod || 'wechat';
       orderForm.remark = state.remark || '';
+      const pid = state.photographerId != null ? Number(state.photographerId) : NaN;
+      if (!Number.isNaN(pid) && pid > 0) {
+        selectedPhotographerId.value = pid;
+        selectedPhotographerName.value = String(state.photographerName || '');
+      }
     }
   } catch (e) {
     console.warn('恢复订单状态失败：', e);
@@ -434,6 +620,77 @@ const generateMockPackageById = (id: number): Package => {
   };
 };
 
+/** URL 中带 photographerId 时优先拉取（覆盖会话里恢复的摄影师） */
+const applyPhotographerFromUrl = async () => {
+  const raw = route.query.photographerId;
+  const id = Number(raw);
+  if (!raw || Number.isNaN(id) || id <= 0) {
+    return;
+  }
+  try {
+    const p = await photographersApi.getPublicOne(id);
+    selectedPhotographerId.value = p.id;
+    selectedPhotographerName.value = p.name;
+    photographerScheduleDetail.value = p;
+  } catch {
+    selectedPhotographerId.value = null;
+    selectedPhotographerName.value = '';
+    photographerScheduleDetail.value = null;
+    message.warning('未找到所选摄影师或已下架，请重新选择');
+  }
+};
+
+const loadPhotographersList = async () => {
+  photographersLoading.value = true;
+  try {
+    photographerPublicList.value = await photographersApi.getPublic();
+  } catch {
+    photographerPublicList.value = [];
+  } finally {
+    photographersLoading.value = false;
+  }
+};
+
+const onPhotographerSelectChange = async (val: number | string | undefined) => {
+  if (val == null || val === '') {
+    selectedPhotographerId.value = null;
+    selectedPhotographerName.value = '';
+    photographerScheduleDetail.value = null;
+    const q = { ...route.query } as Record<string, string | string[] | undefined>;
+    delete q.photographerId;
+    router.replace({ path: route.path, query: q });
+    saveStateToStorage();
+    return;
+  }
+  const id = typeof val === 'string' ? Number(val) : Number(val);
+  if (Number.isNaN(id) || id <= 0) {
+    selectedPhotographerId.value = null;
+    selectedPhotographerName.value = '';
+    return;
+  }
+  let name = photographerPublicList.value.find((x) => x.id === id)?.name;
+  if (!name) {
+    try {
+      const p = await photographersApi.getPublicOne(id);
+      name = p.name;
+    } catch {
+      message.error('获取摄影师信息失败');
+      selectedPhotographerId.value = null;
+      selectedPhotographerName.value = '';
+      return;
+    }
+  }
+  selectedPhotographerId.value = id;
+  selectedPhotographerName.value = name || '';
+  router.replace({
+    path: route.path,
+    query: { ...route.query, photographerId: String(id) },
+  });
+  await refreshPhotographerScheduleDetail();
+  ensureShootingDateMatchesSchedule();
+  saveStateToStorage();
+};
+
 const loadSelectedPackage = async () => {
   packageMissing.value = false;
   const idRaw = route.query.packageId;
@@ -443,10 +700,21 @@ const loadSelectedPackage = async () => {
   if (!idRaw || Number.isNaN(id) || id <= 0) {
     packageMissing.value = true;
     selectedPackage.value = null;
+    selectedPhotographerId.value = null;
+    selectedPhotographerName.value = '';
+    photographerScheduleDetail.value = null;
     return;
   }
 
   orderForm.packageId = id;
+  selectedPhotographerId.value = null;
+  selectedPhotographerName.value = '';
+  photographerScheduleDetail.value = null;
+
+  restoreStateFromStorage();
+  await applyPhotographerFromUrl();
+  await loadPhotographersList();
+  await refreshPhotographerScheduleDetail();
 
   selectedPackage.value = null;
   try {
@@ -462,8 +730,26 @@ const loadSelectedPackage = async () => {
     return;
   }
 
-  // 恢复表单状态（如果上次就是同一个 packageId）
-  restoreStateFromStorage();
+  // 若会话恢复了摄影师但 URL 无 photographerId，补全姓名（列表可能晚于恢复）
+  if (selectedPhotographerId.value && !selectedPhotographerName.value) {
+    const fromList = photographerPublicList.value.find(
+      (x) => x.id === selectedPhotographerId.value
+    );
+    if (fromList) {
+      selectedPhotographerName.value = fromList.name;
+    } else {
+      try {
+        const p = await photographersApi.getPublicOne(selectedPhotographerId.value);
+        selectedPhotographerName.value = p.name;
+        photographerScheduleDetail.value = p;
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  await refreshPhotographerScheduleDetail();
+  ensureShootingDateMatchesSchedule();
 };
 
 const handleReset = () => {
@@ -474,6 +760,12 @@ const handleReset = () => {
   orderForm.numberOfPeople = 1;
   orderForm.paymentMethod = 'wechat';
   orderForm.remark = '';
+  selectedPhotographerId.value = null;
+  selectedPhotographerName.value = '';
+  photographerScheduleDetail.value = null;
+  const q = { ...route.query } as Record<string, string | string[] | undefined>;
+  delete q.photographerId;
+  router.replace({ path: route.path, query: q });
   sessionStorage.removeItem(STORAGE_KEY);
   orderFormRef.value?.resetFields();
 };
@@ -506,6 +798,8 @@ const handleSubmit = async () => {
       email: orderForm.email || undefined,
       paymentMethod: orderForm.paymentMethod,
       remark: orderForm.remark || undefined,
+      photographerId: selectedPhotographerId.value ?? undefined,
+      photographerName: selectedPhotographerName.value || undefined,
       totalAmount,
       paymentStatus,
       paymentNo,
@@ -522,10 +816,25 @@ const handleSubmit = async () => {
     const createdOrder: any = await ordersApi.createOrder(order);
     const orderData = createdOrder?.data || createdOrder;
 
+    if (orderData?.id) {
+      try {
+        const rawAfter = sessionStorage.getItem(ORDER_HISTORY_KEY);
+        const histAfter = rawAfter ? JSON.parse(rawAfter) : [];
+        const hi = histAfter.findIndex((x: any) => x.orderNo === orderNo);
+        if (hi !== -1) {
+          histAfter[hi] = { ...histAfter[hi], orderId: orderData.id };
+          sessionStorage.setItem(ORDER_HISTORY_KEY, JSON.stringify(histAfter));
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+
     successInfo.value = {
       orderId: orderData?.id,
       orderNo,
       packageName: order.packageName,
+      photographerName: order.photographerName,
       numberOfPeople: order.numberOfPeople,
       totalAmount: order.totalAmount,
       paymentMethod: order.paymentMethod,
@@ -543,23 +852,18 @@ const handleSubmit = async () => {
   }
 };
 
-const openPaymentModal = () => {
-  if (!successInfo.value) return;
-  paymentInfo.value = {
-    orderNo: successInfo.value.orderNo,
-    paymentMethod: successInfo.value.paymentMethod,
-    totalAmount: successInfo.value.totalAmount,
-  };
-  paymentModalVisible.value = true;
+const stopPaymentPoll = () => {
+  if (paymentPollTimer) {
+    clearInterval(paymentPollTimer);
+    paymentPollTimer = null;
+  }
 };
 
-const mockPay = async () => {
-  if (!paymentInfo.value) return;
-  paymentSubmitting.value = true;
+const syncLocalOrderHistoryPaid = (orderNo: string) => {
   try {
     const raw = sessionStorage.getItem(ORDER_HISTORY_KEY);
     const history = raw ? JSON.parse(raw) : [];
-    const idx = history.findIndex((x: any) => x.orderNo === paymentInfo.value?.orderNo);
+    const idx = history.findIndex((x: any) => x.orderNo === orderNo);
     if (idx !== -1) {
       history[idx] = {
         ...history[idx],
@@ -568,19 +872,87 @@ const mockPay = async () => {
       };
       sessionStorage.setItem(ORDER_HISTORY_KEY, JSON.stringify(history));
     }
+  } catch {
+    /* ignore */
+  }
+};
 
-    if (successInfo.value?.orderId) {
-      await ordersApi.updateOrderStatus(successInfo.value.orderId, '已支付');
+const startPaymentPoll = () => {
+  stopPaymentPoll();
+  const orderNo = successInfo.value?.orderNo;
+  if (!orderNo) return;
+  paymentPollTimer = setInterval(async () => {
+    try {
+      const st = await paymentsApi.getStatus(orderNo);
+      if (st.paid) {
+        stopPaymentPoll();
+        if (successInfo.value) {
+          successInfo.value.paymentStatus = 'paid';
+        }
+        syncLocalOrderHistoryPaid(orderNo);
+        message.success('支付成功');
+        paymentModalVisible.value = false;
+      }
+    } catch {
+      /* 轮询失败忽略 */
     }
+  }, 2500);
+};
 
+const openPaymentModal = async () => {
+  if (!successInfo.value?.orderId) {
+    message.error('缺少订单信息，无法发起支付');
+    return;
+  }
+  paymentPrepLoading.value = true;
+  try {
+    const ch = successInfo.value.paymentMethod === 'alipay' ? 'alipay' : 'wechat';
+    const data = await paymentsApi.prepay({
+      orderId: successInfo.value.orderId,
+      channel: ch,
+    });
+    paymentInfo.value = {
+      orderNo: successInfo.value.orderNo,
+      paymentMethod: successInfo.value.paymentMethod,
+      totalAmount: successInfo.value.totalAmount,
+      mode: data.mode,
+      qrCodeDataUrl: data.qrCodeDataUrl,
+      codeUrl: data.codeUrl,
+      hint: data.hint,
+    };
+    // 进入支付页后不再保留「预约提交成功」弹窗，避免关闭支付弹窗时再次出现
+    successModalVisible.value = false;
+    paymentModalVisible.value = true;
+    startPaymentPoll();
+  } catch (e: unknown) {
+    const msg =
+      e && typeof e === 'object' && 'message' in e
+        ? String((e as { message?: string }).message)
+        : '获取支付二维码失败';
+    message.error(msg);
+  } finally {
+    paymentPrepLoading.value = false;
+  }
+};
+
+const refreshPaymentStatus = async () => {
+  if (!successInfo.value?.orderNo) return;
+  paymentSubmitting.value = true;
+  try {
+    await paymentsApi.demoComplete({ orderNo: successInfo.value.orderNo });
     if (successInfo.value) {
       successInfo.value.paymentStatus = 'paid';
     }
-
-    message.success('支付模拟完成：订单已标记为已支付');
+    syncLocalOrderHistoryPaid(successInfo.value.orderNo);
+    message.success('支付成功');
     paymentModalVisible.value = false;
-  } catch (e: any) {
-    message.error(e?.message || '支付失败，请稍后重试');
+    stopPaymentPoll();
+  } catch (e: unknown) {
+    const msg =
+      e && typeof e === 'object' && 'message' in e
+        ? String((e as { message?: string }).message)
+        : '操作失败';
+    message.error(msg);
   } finally {
     paymentSubmitting.value = false;
   }
@@ -600,6 +972,8 @@ watch(
     orderForm.numberOfPeople,
     orderForm.paymentMethod,
     orderForm.remark,
+    selectedPhotographerId.value,
+    selectedPhotographerName.value,
   ],
   () => saveStateToStorage(),
   { deep: false }
@@ -615,9 +989,32 @@ watch(
   }
 );
 
+watch(
+  () => [route.query.packageId, route.query.photographerId],
+  () => {
+    void loadSelectedPackage();
+  }
+);
+
+watch(restrictShootingDateToPhotographerSchedule, (restricted) => {
+  if (restricted) {
+    ensureShootingDateMatchesSchedule();
+  }
+});
+
+watch(paymentModalVisible, (open) => {
+  if (!open) {
+    stopPaymentPoll();
+  }
+});
+
 onMounted(() => {
   authStore.initializeAuth();
   loadSelectedPackage();
+});
+
+onUnmounted(() => {
+  stopPaymentPoll();
 });
 </script>
 
@@ -751,6 +1148,34 @@ onMounted(() => {
   }
 }
 
+.photographer-hint {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.5;
+
+  strong {
+    color: #ff5c8a;
+  }
+
+  .hint-tag {
+    color: #94a3b8;
+    font-size: 12px;
+  }
+}
+
+.schedule-tip {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.5;
+
+  &.muted {
+    color: #94a3b8;
+    font-size: 12px;
+  }
+}
+
 .submit-btn {
   height: 44px;
   min-width: 160px;
@@ -835,6 +1260,79 @@ onMounted(() => {
   .success-actions {
     display: flex;
     gap: 10px;
+    flex-wrap: wrap;
+  }
+}
+
+.payment-modal {
+  .payment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .payment-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #333;
+  }
+
+  .payment-sub {
+    font-size: 13px;
+    color: #64748b;
+    margin-top: 6px;
+  }
+
+  .payment-mode {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 4px;
+  }
+
+  .payment-amount {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: #ff5c8a;
+    white-space: nowrap;
+  }
+
+  .payment-qr {
+    text-align: center;
+    margin-bottom: 16px;
+  }
+
+  .qr-img {
+    width: 280px;
+    height: 280px;
+    object-fit: contain;
+    border: 1px solid #f0f0f0;
+    border-radius: 12px;
+    background: #fff;
+  }
+
+  .qr-tip {
+    margin-top: 10px;
+    font-size: 13px;
+    color: #64748b;
+  }
+
+  .payment-hint {
+    font-size: 13px;
+    color: #475569;
+    line-height: 1.6;
+    margin-bottom: 16px;
+    padding: 12px;
+    background: #f8fafc;
+    border-radius: 8px;
+  }
+
+  .payment-actions {
+    display: flex;
+    gap: 12px;
     flex-wrap: wrap;
   }
 }

@@ -75,6 +75,15 @@ const routes: RouteRecordRaw[] = [
       layout: 'none',
     },
   },
+  {
+    path: '/payment/scan',
+    name: 'PaymentScan',
+    component: () => import('../views/payment/PaymentScan.vue'),
+    meta: {
+      title: '支付确认',
+      layout: 'none',
+    },
+  },
 
   // 用户控制台
   {

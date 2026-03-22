@@ -10,6 +10,31 @@ export class OrdersService {
     return this.prisma.bookingOrder.create({ data });
   }
 
+  findById(id: number) {
+    return this.prisma.bookingOrder.findUnique({ where: { id } });
+  }
+
+  findByOrderNo(orderNo: string) {
+    return this.prisma.bookingOrder.findUnique({ where: { orderNo } });
+  }
+
+  updatePaymentNo(id: number, paymentNo: string) {
+    return this.prisma.bookingOrder.update({
+      where: { id },
+      data: { paymentNo },
+    });
+  }
+
+  markPaidByOrderNo(orderNo: string) {
+    return this.prisma.bookingOrder.update({
+      where: { orderNo },
+      data: {
+        paymentStatus: 'paid',
+        paidAt: new Date(),
+      },
+    });
+  }
+
   findAll() {
     return this.prisma.bookingOrder.findMany({
       orderBy: { createdAt: 'desc' },
