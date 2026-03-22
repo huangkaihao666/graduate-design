@@ -485,6 +485,14 @@
                 getStyleName(selectedVirtualTryOn.style)
               }}</span>
             </div>
+            <div v-if="selectedVirtualTryOn.preferences?.subjectRole" class="info-item">
+              <span class="info-label">出镜方式：</span>
+              <span class="info-value">{{
+                VTO_SUBJECT_LABELS[
+                  selectedVirtualTryOn.preferences.subjectRole as keyof typeof VTO_SUBJECT_LABELS
+                ] || selectedVirtualTryOn.preferences.subjectRole
+              }}</span>
+            </div>
             <div class="info-item">
               <span class="info-label">生成时间：</span>
               <span class="info-value">{{ formatTime(selectedVirtualTryOn.createdAt) }}</span>
@@ -735,6 +743,13 @@
 import { computed, reactive, ref, onMounted } from 'vue';
 import { message, Modal } from 'ant-design-vue';
 import { aiApi, AiHistoryType } from '@/api/ai';
+import { TRAVEL_STYLE_LABELS } from '@/constants/travel-style-labels';
+import {
+  VTO_DRESS_LABELS,
+  VTO_HAIRSTYLE_LABELS,
+  VTO_MAKEUP_LABELS,
+} from '@/constants/virtual-tryon-preferences';
+import { VTO_SUBJECT_LABELS } from '@/constants/virtual-tryon-subject';
 
 type Pagination = {
   total: number;
@@ -836,33 +851,27 @@ const formatTime = (time: string) => {
 };
 
 // 风格映射：英文转中文
-const styleMap: Record<string, string> = {
-  romantic: '浪漫梦幻',
-  artistic: '艺术文艺',
-  bohemian: '波西米亚',
-  minimalist: '极简现代',
-  classical: '古典优雅',
-  adventure: '冒险活力',
-};
+const styleMap: Record<string, string> = { ...TRAVEL_STYLE_LABELS };
 
-// 妆容映射：英文转中文
+// 妆容 / 发型 / 服装：新版虚拍偏好 + 旧版兼容
 const makeupMap: Record<string, string> = {
+  ...VTO_MAKEUP_LABELS,
   natural: '自然清透',
   romantic: '浪漫烟熏',
   elegant: '典雅气质',
   vintage: '复古优雅',
 };
 
-// 发型映射：英文转中文
 const hairstyleMap: Record<string, string> = {
+  ...VTO_HAIRSTYLE_LABELS,
   updo: '盘发',
   loose: '飘逸长卷',
   'half-up': '半扎',
   sleek: '贴头皮',
 };
 
-// 服装映射：英文转中文
 const dressMap: Record<string, string> = {
+  ...VTO_DRESS_LABELS,
   romantic: '浪漫蓬裙',
   minimalist: '简约修身',
   vintage: '复古婚纱',
@@ -889,6 +898,10 @@ const getDressName = (dress: string): string => {
 const formatPreferences = (preferences: any): string => {
   if (!preferences) return '无';
   const parts: string[] = [];
+  if (preferences.subjectRole) {
+    const sub = preferences.subjectRole as keyof typeof VTO_SUBJECT_LABELS;
+    parts.push(`出镜: ${VTO_SUBJECT_LABELS[sub] || preferences.subjectRole}`);
+  }
   if (preferences.makeup) parts.push(`妆容: ${getMakeupName(preferences.makeup)}`);
   if (preferences.hairstyle) parts.push(`发型: ${getHairstyleName(preferences.hairstyle)}`);
   if (preferences.dress) parts.push(`服装: ${getDressName(preferences.dress)}`);

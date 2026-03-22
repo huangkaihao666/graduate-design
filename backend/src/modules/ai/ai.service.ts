@@ -2,10 +2,24 @@ import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import axios from 'axios';
 
+/** 虚拍出镜：女生（新娘）/ 男生（新郎）/ 双人合影 */
+export type VirtualTryOnSubjectRole = 'female' | 'male' | 'couple';
+
 export interface VirtualTryOnRequest {
   imageUrl: string;
   style: string;
+  /** 默认 female，与前端「出镜方式」一致 */
+  subjectRole?: VirtualTryOnSubjectRole;
   preferences?: {
+    makeup?: string;
+    hairstyle?: string;
+    dress?: string;
+  };
+  /**
+   * 与 preferences 各字段对应的展示文案（中文），用于火山图生图 prompt，
+   * 避免仅传 code 导致模型无法落实发型/服装。
+   */
+  preferenceLabels?: {
     makeup?: string;
     hairstyle?: string;
     dress?: string;
@@ -77,7 +91,7 @@ export class AiService {
       romantic: {
         style: 'romantic',
         virtualAdvice:
-          '浪漫梦幻风格强调柔和的光线和优雅的气质，适合营造温暖而梦幻的氛围。',
+          '森系草坪风格强调自然光、草坪与绿植，清新柔美，适合森系婚礼与户外仪式。',
         makeupAdvice:
           '建议使用柔和的粉色系妆容，强调眼影的层次感，打造温柔的眼神。',
         hairstyleAdvice: '推荐盘发或半扎造型，配以精致的头饰，展现温婉气质。',
@@ -90,11 +104,12 @@ export class AiService {
           '使用低饱和度的滤镜后期处理',
         ],
         previewDescription:
-          '修改后的图片将呈现出柔和、梦幻的视觉效果，整体色调偏暖，光线柔和，营造出温暖而优雅的婚礼氛围。',
+          '修改后的图片将呈现森系草坪的清新感，自然光充足，绿意与纱裙呼应，氛围温柔治愈。',
       },
       artistic: {
         style: 'artistic',
-        virtualAdvice: '艺术文艺风格体现创意和个性，追求构图的创意性和艺术感。',
+        virtualAdvice:
+          '纪实故事风格强调旅拍人文与情绪表达，适合古镇街巷与有故事感的场景。',
         makeupAdvice:
           '可以尝试大胆的色彩搭配，如酒红色或深紫色眼影，打造艺术感十足的妆容。',
         hairstyleAdvice: '推荐蓬松的长卷发或创意编发，彰显艺术气质。',
@@ -107,12 +122,12 @@ export class AiService {
           '融入环境元素，讲述故事',
         ],
         previewDescription:
-          '修改后的图片将展现出艺术感十足的效果，构图独特，色调对比度高，充满创意和个性。',
+          '修改后的图片将呈现纪实故事感，构图讲究叙事，色调克制而有层次，像一页旅拍画册。',
       },
       bohemian: {
         style: 'bohemian',
         virtualAdvice:
-          '波西米亚风格强调自由奔放和异域风情，适合自然光和户外场景。',
+          '海岛松弛风格强调阳光、沙滩与度假感，轻盈纱裙与松弛姿态，适合海岛旅拍。',
         makeupAdvice:
           '建议使用自然的棕色系妆容，配以浓密的眉毛和少量的眼线，展现自然美感。',
         hairstyleAdvice: '推荐飘逸的长卷发或编织发型，配以花卉或羽毛装饰。',
@@ -125,12 +140,12 @@ export class AiService {
           '使用温暖的色调后期处理',
         ],
         previewDescription:
-          '修改后的图片将呈现出充满异域风情的效果，自然光充足，色调温暖，充满生活气息和自由感。',
+          '修改后的图片将呈现海岛松弛的度假氛围，光线明亮、色彩清透，人物状态自然舒展。',
       },
       minimalist: {
         style: 'minimalist',
         virtualAdvice:
-          '极简现代风格强调简洁大气和线条感，追求视觉上的纯净和舒适。',
+          '韩式简约风格强调干净清透与利落线条，偏棚拍主纱与高级感妆容。',
         makeupAdvice: '建议使用简洁的妆容，强调肌肤质感，眼妆清淡但有神采。',
         hairstyleAdvice: '推荐贴头皮或简约的发型，露出脸部线条。',
         dressAdvice: '选择设计简洁的婚纱，注重剪裁和质感，避免繁复装饰。',
@@ -142,12 +157,12 @@ export class AiService {
           '后期处理保持简洁，避免过度修饰',
         ],
         previewDescription:
-          '修改后的图片将展现出极简现代的美感，画面干净利落，色调简洁，强调线条和空间感。',
+          '修改后的图片将呈现韩式简约的干净质感，肤色通透、背景简洁，突出人物与主纱线条。',
       },
       classical: {
         style: 'classical',
         virtualAdvice:
-          '古典优雅风格融合传统元素和现代审美，营造庄重而典雅的氛围。',
+          '国风典雅风格融合东方韵味与工笔写意，适合园林、旗袍与国风礼仪场景。',
         makeupAdvice: '建议使用经典的棕色系妆容，强调眼型和唇型的精致感。',
         hairstyleAdvice: '推荐盘发或优雅的发型，可配以古典风格的发饰。',
         dressAdvice: '选择经典设计的婚纱，注重优雅的剪裁和精致的细节。',
@@ -159,29 +174,46 @@ export class AiService {
           '后期处理采用低饱和度和暖色调',
         ],
         previewDescription:
-          '修改后的图片将呈现出古典优雅的气质，画面庄重典雅，色调沉着冷静，充满贵族范儿。',
+          '修改后的图片将呈现国风典雅的东方气质，色调温润、细节精致，场景与服饰呼应。',
       },
       adventure: {
         style: 'adventure',
-        virtualAdvice: '冒险活力风格充满能量和青春气息，适合展现自信和活力。',
+        virtualAdvice:
+          '旷野自由风格强调公路、山野、雪山垭口与开阔天际，动感与风感，适合川西、公路与雪山雪景旅拍大片。',
         makeupAdvice:
-          '建议使用鲜艳的色彩搭配，如橙红色或珊瑚色，打造充满活力的妆容。',
-        hairstyleAdvice: '推荐蓬松的长卷发或活力感十足的短发。',
-        dressAdvice: '选择设计感强、颜色鲜艳的婚纱，彰显个性和活力。',
+          '可使用活力暖色妆面，或雪山场景下的冰感冷调高光与腮红，注意雪地反射下的曝光与肤质表现。',
+        hairstyleAdvice:
+          '推荐蓬松长卷、利落短发或搭配毛绒针织帽/防风造型，雪山风大时便于固定与保暖感呈现。',
+        dressAdvice:
+          '可选择长拖尾、斗篷、皮衣混搭或耐寒披肩款婚纱，雪山远景时注意层次与与环境冷暖对比。',
         shootingTips: [
-          '选择开阔的户外场景，如海边或山地',
-          '捕捉动态的运动瞬间',
-          '使用鲜艳的色彩和高对比度的光线',
-          '鼓励自信和夸张的姿态',
-          '使用高饱和度的滤镜，营造充满活力的效果',
+          '选择开阔户外：公路、草甸、垭口，或雪山与雪景远景，注意天空与积雪的曝光',
+          '捕捉动态瞬间：行走、回眸、风吹纱裙，雪山前宜留白构图突出主峰',
+          '利用侧光或黄金时刻增强立体感，雪地可适当降低曝光补偿避免过曝',
+          '鼓励自信、舒展的姿态，远景人物与雪山比例可参考环境人像',
+          '后期可强化冷暖对比（蓝天白雪与人物暖调）或电影感青橙色调',
         ],
         previewDescription:
-          '修改后的图片将展现出充满活力的效果，色彩鲜艳，充满能量，展现出青春和自信的气质。',
+          '修改后的图片将呈现旷野自由的张力：或公路旷野、或雪山垭口雪景，视野开阔、动感十足，像电影感旅拍大片。',
       },
     };
 
     // 获取对应风格的建议
     const advice = styleAdvice[request.style] || styleAdvice.romantic;
+    const subjectRole: VirtualTryOnSubjectRole =
+      request.subjectRole || 'female';
+
+    const subjectVirtualPrefix: Record<VirtualTryOnSubjectRole, string> = {
+      female: '【新娘/女生单人】',
+      male: '【新郎/男生单人】',
+      couple: '【新郎新娘双人合影】',
+    };
+
+    const mergedAdvice = {
+      ...advice,
+      virtualAdvice: `${subjectVirtualPrefix[subjectRole]} ${advice.virtualAdvice}`,
+      subjectRole,
+    };
 
     // 调用火山引擎 API 生成处理后的图片
     let modifiedImageUrl = request.imageUrl;
@@ -189,6 +221,8 @@ export class AiService {
       modifiedImageUrl = await this.generateModifiedImage(
         request.imageUrl,
         request.style,
+        subjectRole,
+        request.preferenceLabels,
       );
     } catch (imageError) {
       console.error('[AI Service] 生成修改图片时出错:', imageError);
@@ -196,9 +230,72 @@ export class AiService {
     }
 
     return {
-      ...advice,
+      ...mergedAdvice,
       modifiedImageUrl,
     };
+  }
+
+  /**
+   * 构图与姿态：用户反馈希望背景更多、人物不要僵硬站姿
+   */
+  private buildVirtualTryOnCompositionPrompt(): string {
+    return (
+      ` 【构图与背景】采用环境人像/中远景，人物以全身或大半身（约膝盖以上）为主，在画面中占比适中（约三分之一至一半画面高度），` +
+      `多保留天空、地面、地平线、建筑、树木或自然景物，背景层次清晰、透气，像旅拍大片；避免大头贴、胸口以上特写或人物撑满画面。` +
+      ` 【姿态】自然放松的婚礼/旅拍纪实感：可轻微侧身、行走、回眸、手部自然摆放或与服装/环境轻互动，肩颈与手臂舒展；` +
+      `避免僵硬直立正对镜头、双手紧贴裤缝、木讷证件照式站姿。` +
+      ` Framing: environmental portrait, medium-wide shot, full body or 3/4 body visible, generous background and sky/ground; ` +
+      `subject not oversized in frame. Pose: relaxed candid, natural movement, soft posture, not stiff standing portrait.`
+    );
+  }
+
+  /**
+   * 根据用户选择的妆容/发型/服装文案，拼接「必须重绘」说明（强化男生单人，避免沿用原图发型与服装）
+   */
+  private buildVirtualTryOnImageEditPrompt(
+    subjectRole: VirtualTryOnSubjectRole,
+    labels?: VirtualTryOnRequest['preferenceLabels'],
+  ): string {
+    const mk = labels?.makeup?.trim();
+    const hs = labels?.hairstyle?.trim();
+    const dr = labels?.dress?.trim();
+    if (!mk && !hs && !dr) return '';
+
+    const parts: string[] = [];
+    if (mk) parts.push(`妆容「${mk}」`);
+    if (hs) parts.push(`发型「${hs}」`);
+    if (dr) parts.push(`服装「${dr}」`);
+    const zhList = parts.join('，');
+
+    const enMk = mk || 'unchanged makeup';
+    const enHs = hs || 'unchanged hairstyle';
+    const enDr = dr || 'unchanged outfit';
+
+    if (subjectRole === 'male') {
+      return (
+        ` 【图生图硬性要求-新郎/男生单人】` +
+        `参考图仅用于保持同一人面部身份与五官相似度；` +
+        `必须彻底重绘头发造型（含帽子、发际线、分缝、长度与蓬松度）与全身着装（含外套、大衣、西装、衬衫、配饰），` +
+        `严格按用户选择落实：${zhList}。` +
+        `严禁沿用参考图中的发型、帽子与衣物款式；若原图为长发而用户选择短发/背头/戴帽，输出须体现该造型。` +
+        ` Image edit for solo groom: preserve facial identity only; completely redraw hair (including hats) and full outfit to match: makeup "${enMk}", hairstyle "${enHs}", clothing "${enDr}". ` +
+        `Do NOT keep the reference photo's original hairstyle, hat, or garments.`
+      );
+    }
+
+    if (subjectRole === 'couple') {
+      return (
+        ` 【图生图硬性要求-双人合影】参考图用于人物身份；须按用户选择调整妆容、发型与服装（男女造型均需落实），` +
+        `用户选择：${zhList}。勿完整沿用原图婚纱/西装与发型。` +
+        ` Couple edit: apply styling per user (${enMk} / ${enHs} / ${enDr}); replace outfits and hairstyles; do not copy original wardrobe from reference.`
+      );
+    }
+
+    return (
+      ` 【图生图硬性要求-新娘/女生】参考图仅保留面部身份；须按用户选择更换妆容、发型与婚纱/礼服：${zhList}。` +
+      `勿沿用原图发型与裙装款式。` +
+      ` Bridal edit: keep face identity; replace makeup, hair, dress per user (${enMk} / ${enHs} / ${enDr}); do not preserve original hair and dress from reference.`
+    );
   }
 
   /**
@@ -207,6 +304,8 @@ export class AiService {
   private async generateModifiedImage(
     imageUrl: string,
     style: string,
+    subjectRole: VirtualTryOnSubjectRole = 'female',
+    preferenceLabels?: VirtualTryOnRequest['preferenceLabels'],
   ): Promise<string> {
     try {
       // 如果是 Base64 格式，直接使用（火山引擎支持 Base64）
@@ -216,26 +315,60 @@ export class AiService {
       console.log('[AI Service] 处理图片 URL:', {
         isBase64: imageUrl.startsWith('data:'),
         style,
+        subjectRole,
       });
 
-      // 根据风格生成相应的提示词
+      // 根据风格生成相应的提示词（女生/双人偏婚纱叙事）
       const stylePrompts: Record<string, string> = {
         romantic:
-          '生成浪漫梦幻风格的高级婚纱摄影照片，柔和光线，优雅气质，细节精致，高保真，工作室灯光',
+          '生成森系草坪风格的高级婚纱摄影照片，自然光、草坪绿植、清新柔美，高保真，森系婚礼感',
         artistic:
-          '生成艺术文艺风格的高级婚纱摄影照片，创意构图，艺术感，细节丰富，高保真，前沿摄影',
+          '生成纪实故事风格的高级婚纱摄影照片，古镇街巷与人文旅拍，情绪与构图，高保真，电影叙事感',
         bohemian:
-          '生成波西米亚风格的高级婚纱摄影照片，自由奔放，异域风情，自然光，高保真，充满生活气息',
+          '生成海岛松弛风格的高级婚纱摄影照片，阳光沙滩、轻盈纱裙、度假松弛感，高保真',
         minimalist:
-          '生成极简现代风格的高级婚纱摄影照片，简洁大气，强调线条和留白，高保真，现代美学',
+          '生成韩式简约风格的高级婚纱摄影照片，干净清透、线条利落、棚拍主纱质感，高保真',
         classical:
-          '生成古典优雅风格的高级婚纱摄影照片，庄重典雅，融合传统元素，高保真，气质优雅',
+          '生成国风典雅风格的高级婚纱摄影照片，东方韵味、园林旗袍与国风场景，高保真',
         adventure:
-          '生成冒险活力风格的高级婚纱摄影照片，充满能量，展现青春活力，自然光，高保真，动感十足',
+          '生成旷野自由风格的高级婚纱摄影照片，可含公路山野或雪山雪景垭口远景、开阔天际、高原旅拍大片感，高保真',
       };
 
-      const prompt =
-        stylePrompts[style] || '生成高级婚纱摄影照片，高保真，专业级别';
+      /** 男生单人：避免「婚纱/纱裙」等新娘向词汇，强调西装/男装与环境，利于与偏好一致 */
+      const stylePromptsMale: Record<string, string> = {
+        romantic:
+          '生成森系草坪风格的新郎婚礼人像照片，自然光、草坪绿植，男士西装或礼服造型，清新利落，高保真',
+        artistic:
+          '生成纪实故事风格的新郎婚礼人像照片，古镇街巷与人文旅拍，男士西装或大衣，情绪与构图，高保真，电影叙事感',
+        bohemian:
+          '生成海岛松弛风格的新郎婚礼人像照片，阳光沙滩，男士浅色西装或亚麻休闲正装，度假松弛感，高保真',
+        minimalist:
+          '生成韩式简约风格的新郎婚礼人像照片，干净清透、线条利落，棚拍男士西装质感，高保真',
+        classical:
+          '生成国风典雅风格的新郎婚礼人像照片，东方韵味，园林或中式场景，男士长衫/中山装/新中式男装，高保真',
+        adventure:
+          '生成旷野自由风格的新郎婚礼人像照片，可含公路山野或雪山垭口远景，男士大衣/皮衣/西装叠穿，高原旅拍大片感，高保真',
+      };
+
+      const subjectTail: Record<VirtualTryOnSubjectRole, string> = {
+        female:
+          '。画面主体为新娘/女性单人，婚礼婚纱或礼服造型，人物与场景共同入镜',
+        male: '。画面主体为新郎/男性单人，婚礼西装、礼服或中式男装，人物与场景共同入镜',
+        couple:
+          '。画面为新郎与新娘双人合影，男女同框出镜，婚纱与西装或礼服搭配，亲密放松的互动与走位，避免呆板并排立正',
+      };
+
+      const basePrompt =
+        subjectRole === 'male'
+          ? stylePromptsMale[style] ||
+            '生成高级新郎婚礼人像照片，男士西装或礼服造型，高保真，专业级别'
+          : stylePrompts[style] || '生成高级婚纱摄影照片，高保真，专业级别';
+      const compositionBlock = this.buildVirtualTryOnCompositionPrompt();
+      const editBlock = this.buildVirtualTryOnImageEditPrompt(
+        subjectRole,
+        preferenceLabels,
+      );
+      const prompt = `${basePrompt}${subjectTail[subjectRole]}${compositionBlock}${editBlock}`;
 
       const volcesRequest: VolcesImageRequest = {
         model: this.volcesModel,
@@ -251,7 +384,15 @@ export class AiService {
       console.log('[AI Service] 调用火山引擎 API 生成虚拍图片:', {
         model: this.volcesModel,
         style,
-        prompt,
+        subjectRole,
+        hasPreferenceLabels: !!(
+          preferenceLabels?.makeup ||
+          preferenceLabels?.hairstyle ||
+          preferenceLabels?.dress
+        ),
+        promptLength: prompt.length,
+        promptPreview:
+          prompt.substring(0, 400) + (prompt.length > 400 ? '...' : ''),
         imageUrlPrefix: imageUrl.substring(0, 50) + '...',
         apiUrl: this.volcesApiUrl,
       });
@@ -370,12 +511,12 @@ export class AiService {
    */
   private generateStyledPlaceholder(style: string): string {
     const styleInfo: Record<string, { name: string; color: string }> = {
-      romantic: { name: '浪漫梦幻', color: '#ff758c' },
-      artistic: { name: '艺术文艺', color: '#9b59b6' },
-      bohemian: { name: '波西米亚', color: '#e67e22' },
-      minimalist: { name: '极简现代', color: '#34495e' },
-      classical: { name: '古典优雅', color: '#c0504d' },
-      adventure: { name: '冒险活力', color: '#27ae60' },
+      romantic: { name: '森系草坪', color: '#ff758c' },
+      artistic: { name: '纪实故事', color: '#9b59b6' },
+      bohemian: { name: '海岛松弛', color: '#e67e22' },
+      minimalist: { name: '韩式简约', color: '#34495e' },
+      classical: { name: '国风典雅', color: '#c0504d' },
+      adventure: { name: '旷野自由', color: '#27ae60' },
     };
 
     const info = styleInfo[style] || { name: '虚拍效果', color: '#ff758c' };
@@ -650,40 +791,40 @@ export class AiService {
     return {
       styles: [
         {
-          id: 'romantic',
-          name: '浪漫梦幻',
-          description: '注重柔和光线和浪漫氛围的风格',
-          icon: '✨',
-        },
-        {
-          id: 'artistic',
-          name: '艺术文艺',
-          description: '强调艺术感和创意构图的风格',
-          icon: '🎨',
-        },
-        {
-          id: 'bohemian',
-          name: '波西米亚',
-          description: '自由奔放、充满异域风情的风格',
-          icon: '🌻',
-        },
-        {
           id: 'minimalist',
-          name: '极简现代',
-          description: '简洁大气、注重线条和留白的风格',
+          name: '韩式简约',
+          description: '干净清透、线条利落，偏棚拍与仪式主纱质感',
           icon: '⬜',
         },
         {
           id: 'classical',
-          name: '古典优雅',
-          description: '庄重典雅、融合传统元素的风格',
+          name: '国风典雅',
+          description: '东方韵味与工笔写意，适合园林、旗袍与国风场景',
           icon: '👑',
         },
         {
+          id: 'bohemian',
+          name: '海岛松弛',
+          description: '阳光沙滩、轻盈纱裙，偏海岛度假与松弛氛围',
+          icon: '🌻',
+        },
+        {
+          id: 'romantic',
+          name: '森系草坪',
+          description: '自然光、草坪与绿植，清新柔美、森系婚礼感',
+          icon: '✨',
+        },
+        {
           id: 'adventure',
-          name: '冒险活力',
-          description: '充满能量、展现青春活力的风格',
+          name: '旷野自由',
+          description: '公路、山野、雪山雪景与开阔天际，动感与旅拍大片感',
           icon: '⛰️',
+        },
+        {
+          id: 'artistic',
+          name: '纪实故事',
+          description: '古镇街巷与人文旅拍，强调情绪、构图与故事感',
+          icon: '🎨',
         },
       ],
     };
@@ -760,11 +901,20 @@ export class AiService {
         }
       }
 
+      const prefObj =
+        data.preferences && typeof data.preferences === 'object'
+          ? { ...data.preferences }
+          : {};
+      if (data.subjectRole) {
+        (prefObj as Record<string, unknown>).subjectRole = data.subjectRole;
+      }
+
       return await this.prisma.virtualTryOnHistory.create({
         data: {
           imageUrl: data.imageUrl,
           style: data.style,
-          preferences: data.preferences || undefined,
+          preferences:
+            Object.keys(prefObj).length > 0 ? (prefObj as object) : undefined,
           modifiedImageUrl: modifiedImageUrl,
           virtualAdvice: result?.virtualAdvice || undefined,
           makeupAdvice: result?.makeupAdvice || undefined,

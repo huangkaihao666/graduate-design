@@ -1,9 +1,20 @@
 import { httpClient } from './client';
+import type { VirtualTryOnSubjectRole } from '@/constants/virtual-tryon-subject';
+
+export type { VirtualTryOnSubjectRole } from '@/constants/virtual-tryon-subject';
 
 export interface VirtualTryOnRequest {
   imageUrl: string;
   style: string;
+  /** 出镜方式：女生（新娘）/ 男生（新郎）/ 双人合影，默认 female */
+  subjectRole?: VirtualTryOnSubjectRole;
   preferences?: {
+    makeup?: string;
+    hairstyle?: string;
+    dress?: string;
+  };
+  /** 与 preferences 对应的中文文案，供后端图生图 prompt 使用 */
+  preferenceLabels?: {
     makeup?: string;
     hairstyle?: string;
     dress?: string;

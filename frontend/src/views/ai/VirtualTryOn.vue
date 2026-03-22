@@ -3,15 +3,38 @@
     <!-- 页面标题 -->
     <div class="page-header">
       <h1>🤖 AI 虚拍生成</h1>
-      <p>上传生活照，AI 为您生成高保真婚纱大片</p>
+      <p>支持新娘、新郎单人或双人合影；上传照片后，AI 按所选风格生成高保真婚礼大片</p>
     </div>
 
     <div class="content-grid">
       <!-- 左侧：上传和配置 -->
       <div class="left-panel">
+        <!-- 出镜方式 -->
+        <div class="subject-section">
+          <h2>第 1 步：选择出镜方式</h2>
+          <div class="subject-grid">
+            <div
+              v-for="s in subjectOptions"
+              :key="s.value"
+              class="subject-card"
+              :class="{ active: subjectRole === s.value }"
+              @click="
+                () => {
+                  subjectRole = s.value;
+                  saveStateToStorage();
+                }
+              "
+            >
+              <div class="subject-short">{{ s.short }}</div>
+              <div class="subject-label">{{ s.label }}</div>
+              <div class="subject-desc">{{ s.desc }}</div>
+            </div>
+          </div>
+        </div>
+
         <!-- 图片上传 -->
         <div class="upload-section">
-          <h2>第 1 步：上传照片</h2>
+          <h2>第 2 步：上传照片</h2>
           <div
             class="upload-area"
             :class="{ active: dragActive }"
@@ -23,7 +46,12 @@
             <div v-if="!uploadedImage" class="upload-placeholder">
               <span class="upload-icon">📸</span>
               <p>拖拽照片到此或点击选择</p>
-              <small>支持 JPG、PNG 格式，文件大小不超过 10MB</small>
+              <div class="upload-hints">
+                <small>支持 JPG、PNG 格式，文件大小不超过 10MB</small>
+                <small v-if="subjectRole === 'couple'" class="upload-tip-couple">
+                  双人模式建议上传「两人同框」照片，效果更自然。
+                </small>
+              </div>
               <input
                 ref="fileInput"
                 type="file"
@@ -47,7 +75,7 @@
 
         <!-- 风格选择 -->
         <div class="style-section">
-          <h2>第 2 步：选择风格</h2>
+          <h2>第 3 步：选择风格</h2>
           <div class="style-grid">
             <div
               v-for="style in availableStyles"
@@ -68,9 +96,12 @@
           </div>
         </div>
 
-        <!-- 个性化偏好 -->
+        <!-- 个性化偏好（随第 2 步拍摄风格联动） -->
         <div class="preferences-section">
-          <h2>第 3 步：个性化偏好（可选）</h2>
+          <h2>第 4 步：个性化偏好（可选）</h2>
+          <p class="pref-style-hint">
+            以下选项会随第 3 步所选「{{ travelStyleLabel }}」变化，可任选一项或留空。
+          </p>
           <a-form layout="vertical">
             <a-form-item label="妆容风格">
               <a-select
@@ -79,10 +110,9 @@
                 allow-clear
                 @change="saveStateToStorage"
               >
-                <a-select-option value="natural">自然清透</a-select-option>
-                <a-select-option value="romantic">浪漫烟熏</a-select-option>
-                <a-select-option value="elegant">典雅气质</a-select-option>
-                <a-select-option value="vintage">复古优雅</a-select-option>
+                <a-select-option v-for="opt in makeupOptions" :key="opt.value" :value="opt.value">
+                  {{ opt.label }}
+                </a-select-option>
               </a-select>
             </a-form-item>
 
@@ -93,10 +123,13 @@
                 allow-clear
                 @change="saveStateToStorage"
               >
-                <a-select-option value="updo">盘发</a-select-option>
-                <a-select-option value="loose">飘逸长卷</a-select-option>
-                <a-select-option value="half-up">半扎</a-select-option>
-                <a-select-option value="sleek">贴头皮</a-select-option>
+                <a-select-option
+                  v-for="opt in hairstyleOptions"
+                  :key="opt.value"
+                  :value="opt.value"
+                >
+                  {{ opt.label }}
+                </a-select-option>
               </a-select>
             </a-form-item>
 
@@ -107,10 +140,9 @@
                 allow-clear
                 @change="saveStateToStorage"
               >
-                <a-select-option value="romantic">浪漫蓬裙</a-select-option>
-                <a-select-option value="minimalist">简约修身</a-select-option>
-                <a-select-option value="vintage">复古婚纱</a-select-option>
-                <a-select-option value="modern">现代设计</a-select-option>
+                <a-select-option v-for="opt in dressOptions" :key="opt.value" :value="opt.value">
+                  {{ opt.label }}
+                </a-select-option>
               </a-select>
             </a-form-item>
           </a-form>
@@ -147,6 +179,9 @@
           <!-- 结果概览 -->
           <div class="result-summary">
             <h2>{{ result.style }} - 虚拍效果</h2>
+            <div v-if="result.subjectRole" class="result-subject">
+              出镜方式：{{ VTO_SUBJECT_LABELS[result.subjectRole] || result.subjectRole }}
+            </div>
             <div class="result-time">生成时间：{{ formatTime(result.timestamp) }}</div>
           </div>
 
@@ -221,7 +256,10 @@
 
           <!-- 操作按钮 -->
           <div class="result-actions">
-            <a-button type="primary" @click="handleSaveHistory"> 💾 保存到历史 </a-button>
+            <p v-if="authStore.isAuthenticated" class="auto-save-hint">
+              已自动保存到「AI 生成历史」
+            </p>
+            <p v-else class="auto-save-hint guest">登录后将自动保存生成记录到「AI 生成历史」</p>
             <a-button @click="handleReset">🔄 重新生成</a-button>
             <a-button type="text" danger @click="handleDownload"> ⬇️ 下载建议 </a-button>
           </div>
@@ -233,15 +271,24 @@
 
 <script setup lang="ts">
 import { aiApi, VirtualTryOnRequest } from '@/api/ai';
+import { TRAVEL_STYLE_LABELS } from '@/constants/travel-style-labels';
+import { getVtoPreferencesForStyle } from '@/constants/virtual-tryon-preferences';
+import {
+  VTO_SUBJECT_LABELS,
+  VTO_SUBJECT_OPTIONS,
+  type VirtualTryOnSubjectRole,
+} from '@/constants/virtual-tryon-subject';
 import { useAuthStore } from '@/store/auth';
 import { message } from 'ant-design-vue';
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 
 // 状态管理
 const uploadedImage = ref<string>('');
 const uploadedFileName = ref<string>('');
 const dragActive = ref<boolean>(false);
-const selectedStyle = ref<string>('romantic');
+const selectedStyle = ref<string>('minimalist');
+const subjectRole = ref<VirtualTryOnSubjectRole>('female');
+const subjectOptions = VTO_SUBJECT_OPTIONS;
 const generating = ref<boolean>(false);
 const result = ref<any>(null);
 const lastRequest = ref<VirtualTryOnRequest | null>(null);
@@ -256,6 +303,44 @@ const preferences = reactive({
 const availableStyles = ref<any[]>([]);
 const authStore = useAuthStore();
 
+const travelStyleLabel = computed(() => TRAVEL_STYLE_LABELS[selectedStyle.value] || '当前风格');
+
+const makeupOptions = computed(
+  () => getVtoPreferencesForStyle(selectedStyle.value, subjectRole.value).makeup
+);
+const hairstyleOptions = computed(
+  () => getVtoPreferencesForStyle(selectedStyle.value, subjectRole.value).hairstyle
+);
+const dressOptions = computed(
+  () => getVtoPreferencesForStyle(selectedStyle.value, subjectRole.value).dress
+);
+
+/** 根据 value 解析下拉项中文 label，供后端图生图 prompt 使用 */
+function resolveVtoPrefLabel(
+  options: { value: string; label: string }[],
+  value: string | undefined
+): string | undefined {
+  if (!value) return undefined;
+  return options.find((o) => o.value === value)?.label;
+}
+
+/** 若当前偏好不在当前风格+出镜方式对应的列表中则清空（恢复 session 后也会调用） */
+function pruneInvalidVtoPreferences() {
+  const g = getVtoPreferencesForStyle(selectedStyle.value, subjectRole.value);
+  const mk = new Set(g.makeup.map((o) => o.value));
+  const hs = new Set(g.hairstyle.map((o) => o.value));
+  const dr = new Set(g.dress.map((o) => o.value));
+  if (preferences.makeup && !mk.has(preferences.makeup)) preferences.makeup = undefined;
+  if (preferences.hairstyle && !hs.has(preferences.hairstyle)) preferences.hairstyle = undefined;
+  if (preferences.dress && !dr.has(preferences.dress)) preferences.dress = undefined;
+}
+
+/** 切换主风格或出镜方式时，若原偏好不在新列表中则清空，避免脏值 */
+watch([selectedStyle, subjectRole], () => {
+  pruneInvalidVtoPreferences();
+  saveStateToStorage();
+});
+
 // 状态持久化的 key（仅当前浏览器会话内有效）
 const STORAGE_KEY = 'virtual-try-on-state';
 
@@ -265,6 +350,7 @@ const saveStateToStorage = () => {
     const state = {
       uploadedImage: uploadedImage.value,
       uploadedFileName: uploadedFileName.value,
+      subjectRole: subjectRole.value,
       selectedStyle: selectedStyle.value,
       preferences: { ...preferences },
       result: result.value,
@@ -284,12 +370,15 @@ const restoreStateFromStorage = () => {
       const state = JSON.parse(savedState);
       uploadedImage.value = state.uploadedImage || '';
       uploadedFileName.value = state.uploadedFileName || '';
-      selectedStyle.value = state.selectedStyle || 'romantic';
+      const sr = state.subjectRole as VirtualTryOnSubjectRole | undefined;
+      subjectRole.value = sr === 'male' || sr === 'couple' || sr === 'female' ? sr : 'female';
+      selectedStyle.value = state.selectedStyle || 'minimalist';
       if (state.preferences) {
         preferences.makeup = state.preferences.makeup;
         preferences.hairstyle = state.preferences.hairstyle;
         preferences.dress = state.preferences.dress;
       }
+      pruneInvalidVtoPreferences();
       result.value = state.result || null;
       lastRequest.value = state.lastRequest || null;
       console.log('[VirtualTryOn] 已恢复页面状态');
@@ -301,6 +390,7 @@ const restoreStateFromStorage = () => {
 
 // 获取可用风格列表
 onMounted(async () => {
+  authStore.initializeAuth();
   // 先恢复保存的状态（确保返回页面后仍可展示之前结果）
   restoreStateFromStorage();
 
@@ -323,40 +413,40 @@ onMounted(async () => {
     // 如果 API 失败，使用默认风格列表
     availableStyles.value = [
       {
-        id: 'romantic',
-        name: '浪漫梦幻',
-        description: '注重柔和光线和浪漫氛围的风格',
-        icon: '✨',
-      },
-      {
-        id: 'artistic',
-        name: '艺术文艺',
-        description: '强调艺术感和创意构图的风格',
-        icon: '🎨',
-      },
-      {
-        id: 'bohemian',
-        name: '波西米亚',
-        description: '自由奔放、充满异域风情的风格',
-        icon: '🌻',
-      },
-      {
         id: 'minimalist',
-        name: '极简现代',
-        description: '简洁大气、注重线条和留白的风格',
+        name: TRAVEL_STYLE_LABELS.minimalist,
+        description: '干净清透、线条利落，偏棚拍与仪式主纱质感',
         icon: '⬜',
       },
       {
         id: 'classical',
-        name: '古典优雅',
-        description: '庄重典雅、融合传统元素的风格',
+        name: TRAVEL_STYLE_LABELS.classical,
+        description: '东方韵味与工笔写意，适合园林、旗袍与国风场景',
         icon: '👑',
       },
       {
+        id: 'bohemian',
+        name: TRAVEL_STYLE_LABELS.bohemian,
+        description: '阳光沙滩、轻盈纱裙，偏海岛度假与松弛氛围',
+        icon: '🌻',
+      },
+      {
+        id: 'romantic',
+        name: TRAVEL_STYLE_LABELS.romantic,
+        description: '自然光、草坪与绿植，清新柔美、森系婚礼感',
+        icon: '✨',
+      },
+      {
         id: 'adventure',
-        name: '冒险活力',
-        description: '充满能量、展现青春活力的风格',
+        name: TRAVEL_STYLE_LABELS.adventure,
+        description: '公路、山野、雪山雪景与开阔天际，动感与旅拍大片感',
         icon: '⛰️',
+      },
+      {
+        id: 'artistic',
+        name: TRAVEL_STYLE_LABELS.artistic,
+        description: '古镇街巷与人文旅拍，强调情绪、构图与故事感',
+        icon: '🎨',
       },
     ];
   }
@@ -433,10 +523,16 @@ const handleGenerate = async () => {
     const request: VirtualTryOnRequest = {
       imageUrl: uploadedImage.value, // 使用用户上传的图片，而不是固定的 URL
       style: selectedStyle.value,
+      subjectRole: subjectRole.value,
       preferences: {
         makeup: preferences.makeup,
         hairstyle: preferences.hairstyle,
         dress: preferences.dress,
+      },
+      preferenceLabels: {
+        makeup: resolveVtoPrefLabel(makeupOptions.value, preferences.makeup),
+        hairstyle: resolveVtoPrefLabel(hairstyleOptions.value, preferences.hairstyle),
+        dress: resolveVtoPrefLabel(dressOptions.value, preferences.dress),
       },
     };
     lastRequest.value = request;
@@ -444,10 +540,26 @@ const handleGenerate = async () => {
     const response = await aiApi.virtualTryOn(request);
     // 处理嵌套的响应结构，取最内层的 data
     result.value = response.data?.data || response.data;
-    message.success('虚拍建议生成成功！');
 
     // 生成成功后持久化（保存生成结果与最后一次请求）
     saveStateToStorage();
+
+    // 登录用户：自动写入服务端「AI 生成历史」
+    if (authStore.isAuthenticated && result.value && lastRequest.value) {
+      try {
+        await aiApi.saveHistory({
+          type: 'virtual-try-on',
+          input: { ...lastRequest.value },
+          output: result.value,
+        });
+        message.success('虚拍建议生成成功，已保存到生成历史');
+      } catch (saveErr: any) {
+        console.error('[VirtualTryOn] 自动保存历史失败:', saveErr);
+        message.warning('生成成功，但保存到历史失败，请稍后重试或检查网络');
+      }
+    } else {
+      message.success('虚拍建议生成成功！');
+    }
   } catch (error: any) {
     message.error(error.message || '生成失败，请重试');
     console.error('虚拍生成错误:', error);
@@ -456,49 +568,12 @@ const handleGenerate = async () => {
   }
 };
 
-// 保存到历史
-const handleSaveHistory = async () => {
-  if (!result.value || !lastRequest.value) {
-    message.warning('请先生成虚拍建议');
-    return;
-  }
-
-  if (!authStore.isAuthenticated) {
-    message.warning('请先登录后再保存历史记录');
-    return;
-  }
-
-  try {
-    console.log('[VirtualTryOn] 手动保存历史记录...', {
-      type: 'virtual-try-on',
-      hasInput: !!lastRequest.value,
-      hasOutput: !!result.value,
-    });
-    const saveResponse = await aiApi.saveHistory({
-      type: 'virtual-try-on',
-      input: { ...lastRequest.value },
-      output: result.value,
-    });
-    console.log('[VirtualTryOn] 手动保存成功:', saveResponse);
-    message.success('已保存到历史记录');
-    // 保存成功后也同步一下本地状态（不改变结果，只是确保回到页面仍然在）
-    saveStateToStorage();
-  } catch (error: any) {
-    console.error('[VirtualTryOn] 手动保存失败:', error);
-    console.error('[VirtualTryOn] 错误详情:', {
-      message: error?.message,
-      statusCode: error?.statusCode,
-      data: error?.data,
-    });
-    message.error(error?.message || '保存失败，请检查是否已登录');
-  }
-};
-
 // 重新生成
 const handleReset = () => {
   uploadedImage.value = '';
   uploadedFileName.value = '';
-  selectedStyle.value = 'romantic';
+  subjectRole.value = 'female';
+  selectedStyle.value = 'minimalist';
   preferences.makeup = undefined;
   preferences.hairstyle = undefined;
   preferences.dress = undefined;
@@ -785,6 +860,7 @@ const showResultImagePlaceholder = (target: any) => {
   gap: 30px;
 }
 
+.subject-section,
 .upload-section,
 .style-section,
 .preferences-section {
@@ -793,6 +869,80 @@ const showResultImagePlaceholder = (target: any) => {
     font-weight: 600;
     margin-bottom: 15px;
     color: #333;
+  }
+
+  .pref-style-hint {
+    font-size: 13px;
+    color: #64748b;
+    margin: -8px 0 16px;
+    line-height: 1.55;
+  }
+}
+
+.subject-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.subject-card {
+  padding: 14px 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+
+  &:hover {
+    border-color: #ff758c;
+    background: #fffafb;
+  }
+
+  &.active {
+    border-color: #ff758c;
+    background: #fff5f7;
+    box-shadow: 0 4px 12px rgba(255, 92, 138, 0.15);
+  }
+
+  .subject-short {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: #ff5c8a;
+    margin-bottom: 6px;
+  }
+
+  .subject-label {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #1f2937;
+  }
+
+  .subject-desc {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 8px;
+    line-height: 1.45;
+  }
+}
+
+.upload-hints {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  align-items: center;
+
+  small {
+    color: #999;
+  }
+
+  .upload-tip-couple {
+    color: #ea580c;
+    font-weight: 500;
   }
 }
 
@@ -1033,6 +1183,12 @@ const showResultImagePlaceholder = (target: any) => {
     font-size: 1.3rem;
   }
 
+  .result-subject {
+    font-size: 0.9rem;
+    opacity: 0.95;
+    margin-bottom: 6px;
+  }
+
   .result-time {
     font-size: 0.85rem;
     opacity: 0.9;
@@ -1072,6 +1228,18 @@ const showResultImagePlaceholder = (target: any) => {
   gap: 10px;
   margin-top: 20px;
   flex-wrap: wrap;
+  align-items: center;
+
+  .auto-save-hint {
+    flex: 1 0 100%;
+    margin: 0 0 4px;
+    font-size: 13px;
+    color: #64748b;
+
+    &.guest {
+      color: #94a3b8;
+    }
+  }
 
   button {
     flex: 1;
