@@ -72,6 +72,26 @@
             <p class="body-text">{{ selected.bio }}</p>
           </a-card>
 
+          <a-card title="档期" :bordered="false" class="detail-card">
+            <p v-if="selected.scheduleNote" class="body-text schedule-note">
+              {{ selected.scheduleNote }}
+            </p>
+            <div v-if="displayDates.length" class="date-tags">
+              <a-tag v-for="d in displayDates" :key="d" color="pink">{{ d }}</a-tag>
+            </div>
+            <a-empty
+              v-if="!selected.scheduleNote && !displayDates.length"
+              description="档期未配置，预约时可在备注中说明期望时间"
+            />
+          </a-card>
+
+          <div class="book-bar">
+            <a-button type="primary" size="large" class="book-btn" @click="bookPhotographer">
+              预约该摄影师
+            </a-button>
+            <span class="book-hint">将跳转至套餐选择，下单时可关联本摄影师</span>
+          </div>
+
           <a-card title="过往优秀作品" :bordered="false" class="detail-card">
             <div v-if="selected.portfolioImages?.length" class="portfolio-grid">
               <div v-for="(url, idx) in selected.portfolioImages" :key="idx" class="pf-item">
@@ -88,12 +108,24 @@
 
 <script setup lang="ts">
 import { photographersApi, type PhotographerPublic } from '@/api/photographers';
+import { PENDING_PHOTOGRAPHER_BOOKING_KEY } from '@/constants/booking';
+import { useAuthStore } from '@/store/auth';
 import { message } from 'ant-design-vue';
-import { onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
+
+const authStore = useAuthStore();
+const router = useRouter();
 
 const loading = ref(false);
 const list = ref<PhotographerPublic[]>([]);
 const selected = ref<PhotographerPublic | null>(null);
+
+const displayDates = computed(() => {
+  const raw = selected.value?.availableDates;
+  if (!raw?.length) return [];
+  return [...raw].sort();
+});
 
 const load = async () => {
   loading.value = true;
@@ -115,6 +147,17 @@ const select = (p: PhotographerPublic) => {
   selected.value = p;
 };
 
+const bookPhotographer = () => {
+  if (!selected.value) return;
+  if (!authStore.isAuthenticated) {
+    sessionStorage.setItem(PENDING_PHOTOGRAPHER_BOOKING_KEY, String(selected.value.id));
+    message.warning('请先登录后再预约');
+    router.push('/login');
+    return;
+  }
+  router.push(`/booking/packages?photographerId=${selected.value.id}`);
+};
+
 watch(list, (rows) => {
   if (!rows.length) {
     selected.value = null;
@@ -126,6 +169,7 @@ watch(list, (rows) => {
 });
 
 onMounted(() => {
+  authStore.initializeAuth();
   load();
 });
 </script>
@@ -319,5 +363,36 @@ onMounted(() => {
   width: 100%;
   height: 160px;
   object-fit: cover;
+}
+
+.schedule-note {
+  margin-bottom: 12px;
+}
+
+.date-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.book-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  margin-bottom: 16px;
+  padding: 16px;
+  background: linear-gradient(135deg, #fff5f8 0%, #ffffff 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 92, 138, 0.2);
+}
+
+.book-btn {
+  min-width: 160px;
+}
+
+.book-hint {
+  font-size: 13px;
+  color: #6b7280;
 }
 </style>

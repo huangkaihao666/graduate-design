@@ -77,6 +77,8 @@ export class PhotographersController {
       specialtyTopics?: string;
       awards?: string;
       portfolioImages?: string[];
+      availableDates?: string[];
+      scheduleNote?: string;
       sortOrder?: number;
       enabled?: boolean;
     },
@@ -103,6 +105,8 @@ export class PhotographersController {
       specialtyTopics: string | null;
       awards: string | null;
       portfolioImages: string[];
+      availableDates: string[];
+      scheduleNote: string | null;
       sortOrder: number;
       enabled: boolean;
     }>,

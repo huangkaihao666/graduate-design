@@ -29,15 +29,36 @@
                   <a-menu-item key="profile">
                     <router-link to="/user/profile">个人资料</router-link>
                   </a-menu-item>
-                  <a-menu-item key="orders">
-                    <router-link to="/user/orders">订单管理</router-link>
-                  </a-menu-item>
-                  <a-menu-item key="favorites">
-                    <router-link to="/user/favorites">我的收藏</router-link>
-                  </a-menu-item>
-                  <a-menu-item key="ai-history">
-                    <router-link to="/user/ai-history">AI 历史</router-link>
-                  </a-menu-item>
+
+                  <!-- 普通用户 -->
+                  <template v-if="!authStore.isAdmin">
+                    <a-menu-item key="orders">
+                      <router-link to="/user/orders">订单管理</router-link>
+                    </a-menu-item>
+                    <a-menu-item key="favorites">
+                      <router-link to="/user/favorites">我的收藏</router-link>
+                    </a-menu-item>
+                    <a-menu-item key="ai-history">
+                      <router-link to="/user/ai-history">AI 历史</router-link>
+                    </a-menu-item>
+                  </template>
+
+                  <!-- 系统管理员 -->
+                  <template v-else>
+                    <a-menu-item key="admin-spots">
+                      <router-link to="/admin/content/spots">景点管理</router-link>
+                    </a-menu-item>
+                    <a-menu-item key="admin-packages">
+                      <router-link to="/admin/content/packages">套餐管理</router-link>
+                    </a-menu-item>
+                    <a-menu-item key="admin-orders">
+                      <router-link to="/admin/orders">订单管理</router-link>
+                    </a-menu-item>
+                    <a-menu-item key="admin-users">
+                      <router-link to="/admin/users">用户管理</router-link>
+                    </a-menu-item>
+                  </template>
+
                   <a-divider style="margin: 4px 0" />
                   <a-menu-item key="logout">
                     <span @click="handleLogout">退出登录</span>

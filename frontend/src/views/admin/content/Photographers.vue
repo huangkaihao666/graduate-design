@@ -101,6 +101,12 @@
           <a-descriptions-item v-if="viewRow.bio" label="个人简介">{{
             viewRow.bio
           }}</a-descriptions-item>
+          <a-descriptions-item v-if="(viewRow.availableDates || []).length" label="可预约日期">{{
+            (viewRow.availableDates || []).join('、')
+          }}</a-descriptions-item>
+          <a-descriptions-item v-if="viewRow.scheduleNote" label="档期说明">{{
+            viewRow.scheduleNote
+          }}</a-descriptions-item>
           <a-descriptions-item label="排序">{{ viewRow.sortOrder }}</a-descriptions-item>
           <a-descriptions-item label="前台展示">{{
             viewRow.enabled ? '是' : '否'
@@ -248,6 +254,20 @@
         <a-form-item label="个人简介">
           <a-textarea v-model:value="form.bio" :rows="3" placeholder="可选" />
         </a-form-item>
+        <a-form-item label="可预约日期">
+          <a-textarea
+            v-model:value="form.availableDatesText"
+            :rows="4"
+            placeholder="每行一个日期，格式 YYYY-MM-DD，例如：&#10;2026-04-01&#10;2026-04-05"
+          />
+        </a-form-item>
+        <a-form-item label="档期说明">
+          <a-textarea
+            v-model:value="form.scheduleNote"
+            :rows="2"
+            placeholder="例如：每周二店休；节假日可约；具体时段以客服确认为准"
+          />
+        </a-form-item>
         <a-form-item label="优秀作品">
           <div class="upload-row">
             <a-upload
@@ -338,6 +358,9 @@ const form = reactive({
   awards: '',
   /** 可选：手动输入的链接，提交时与 portfolioUrls 合并 */
   portfolioText: '',
+  /** 每行一个 YYYY-MM-DD */
+  availableDatesText: '',
+  scheduleNote: '',
   sortOrder: 0,
   enabled: true,
 });
@@ -366,6 +389,8 @@ const resetForm = () => {
   form.specialtyTopics = '';
   form.awards = '';
   form.portfolioText = '';
+  form.availableDatesText = '';
+  form.scheduleNote = '';
   form.sortOrder = 0;
   form.enabled = true;
   portfolioUrls.value = [];
@@ -443,6 +468,27 @@ const buildPortfolioImages = (): string[] => {
   return out;
 };
 
+/** 解析可预约日期：每行一个，支持逗号分隔 */
+const parseAvailableDatesInput = (): string[] => {
+  const lines = form.availableDatesText.split(/\r?\n/).flatMap((line) => {
+    const t = line.trim();
+    if (!t) return [];
+    return t
+      .split(/[,，]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  });
+  const re = /^\d{4}-\d{2}-\d{2}$/;
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const s of lines) {
+    if (!re.test(s) || seen.has(s)) continue;
+    seen.add(s);
+    out.push(s);
+  }
+  return out.sort();
+};
+
 const openView = (r: PhotographerAdmin) => {
   viewRow.value = { ...r };
   viewOpen.value = true;
@@ -468,6 +514,8 @@ const openEdit = (r: PhotographerAdmin) => {
   form.awards = r.awards || '';
   portfolioUrls.value = [...(r.portfolioImages || [])];
   form.portfolioText = '';
+  form.availableDatesText = (r.availableDates || []).join('\n');
+  form.scheduleNote = r.scheduleNote || '';
   form.sortOrder = r.sortOrder;
   form.enabled = r.enabled;
   modalOpen.value = true;
@@ -477,6 +525,7 @@ const submit = async () => {
   const name = form.name.trim();
   const shootingStyle = form.shootingStyle.trim();
   const portfolioImages = buildPortfolioImages();
+  const availableDates = parseAvailableDatesInput();
   if (!name || !shootingStyle) {
     message.warning('请填写姓名与拍摄风格');
     return;
@@ -496,6 +545,8 @@ const submit = async () => {
         specialtyTopics: form.specialtyTopics.trim() || null,
         awards: form.awards.trim() || null,
         portfolioImages,
+        availableDates,
+        scheduleNote: form.scheduleNote.trim() || null,
         sortOrder: form.sortOrder,
         enabled: form.enabled,
       });
@@ -513,6 +564,8 @@ const submit = async () => {
         specialtyTopics: form.specialtyTopics.trim() || undefined,
         awards: form.awards.trim() || undefined,
         portfolioImages,
+        availableDates,
+        scheduleNote: form.scheduleNote.trim() || undefined,
         sortOrder: form.sortOrder,
         enabled: form.enabled,
       });

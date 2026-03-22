@@ -25,11 +25,11 @@
               <p>拖拽照片到此或点击选择</p>
               <small>支持 JPG、PNG 格式，文件大小不超过 10MB</small>
               <input
+                ref="fileInput"
                 type="file"
                 accept="image/jpeg,image/png"
-                @change="handleFileUpload"
-                ref="fileInput"
                 style="display: none"
+                @change="handleFileUpload"
               />
             </div>
             <div v-else class="image-preview">
@@ -123,8 +123,8 @@
           block
           :loading="generating"
           :disabled="!uploadedImage || !selectedStyle"
-          @click="handleGenerate"
           class="generate-btn"
+          @click="handleGenerate"
         >
           {{ generating ? '正在生成虚拍建议...' : '✨ 生成虚拍建议' }}
         </a-button>
@@ -232,10 +232,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
-import { message } from 'ant-design-vue';
 import { aiApi, VirtualTryOnRequest } from '@/api/ai';
 import { useAuthStore } from '@/store/auth';
+import { message } from 'ant-design-vue';
+import { onMounted, reactive, ref } from 'vue';
 
 // 状态管理
 const uploadedImage = ref<string>('');

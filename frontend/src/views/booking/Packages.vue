@@ -52,6 +52,20 @@
       </div>
     </div>
 
+    <!-- 从「本店摄影师」跳转：携带 photographerId -->
+    <div v-if="pendingPhotographer" class="photographer-booking-banner">
+      <a-alert type="info" show-icon closable @close="clearPendingPhotographer">
+        <template #message>
+          <span class="photographer-banner-title"
+            >已选择摄影师：{{ pendingPhotographer.name }}</span
+          >
+        </template>
+        <template #description>
+          请从下方选择套餐后点击「立即预约」，下单页将关联该摄影师。
+        </template>
+      </a-alert>
+    </div>
+
     <!-- 筛选栏 -->
     <div class="filters-section">
       <div class="filters-content">
@@ -536,7 +550,9 @@
 <script setup lang="ts">
 import { favoritesApi } from '@/api/favorites';
 import { packagesApi, type Package, type PackageListResponse } from '@/api/packages';
+import { photographersApi } from '@/api/photographers';
 import { styleTagsApi } from '@/api/styleTags';
+import { PENDING_PHOTOGRAPHER_BOOKING_KEY } from '@/constants/booking';
 import {
   HOT_TAGS_CONFIG,
   matchPackageByHotTag,
@@ -545,10 +561,37 @@ import {
 import { useAuthStore } from '@/store/auth';
 import { message } from 'ant-design-vue';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
+const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+
+/** 从「本店摄影师」页跳转时 URL 携带 photographerId */
+const pendingPhotographer = ref<{ id: number; name: string } | null>(null);
+
+const syncPhotographerFromRoute = async () => {
+  const raw = route.query.photographerId;
+  const id = Number(raw);
+  if (!raw || Number.isNaN(id) || id <= 0) {
+    pendingPhotographer.value = null;
+    return;
+  }
+  try {
+    const p = await photographersApi.getPublicOne(id);
+    pendingPhotographer.value = { id: p.id, name: p.name };
+  } catch {
+    pendingPhotographer.value = null;
+    message.warning('未找到所选摄影师或已下架');
+  }
+};
+
+const clearPendingPhotographer = () => {
+  pendingPhotographer.value = null;
+  const q = { ...route.query } as Record<string, string | string[] | undefined>;
+  delete q.photographerId;
+  router.replace({ path: route.path, query: q });
+};
 
 // 状态管理
 const isScrolled = ref(false);
@@ -1076,7 +1119,12 @@ const handleBook = (pkg: Package) => {
     return;
   }
 
-  router.push(`/booking/order?packageId=${pkg.id}`);
+  const pid = pendingPhotographer.value?.id;
+  if (pid) {
+    router.push(`/booking/order?packageId=${pkg.id}&photographerId=${pid}`);
+  } else {
+    router.push(`/booking/order?packageId=${pkg.id}`);
+  }
 };
 
 // 加载收藏状态
@@ -1148,9 +1196,25 @@ const handleToggleFavorite = async (pkg: Package) => {
   }
 };
 
+watch(
+  () => route.query.photographerId,
+  () => {
+    void syncPhotographerFromRoute();
+  }
+);
+
 onMounted(async () => {
   await loadStyleTags();
   authStore.initializeAuth();
+  const pending = sessionStorage.getItem(PENDING_PHOTOGRAPHER_BOOKING_KEY);
+  if (pending && authStore.isAuthenticated) {
+    sessionStorage.removeItem(PENDING_PHOTOGRAPHER_BOOKING_KEY);
+    await router.replace({
+      path: route.path,
+      query: { ...route.query, photographerId: pending },
+    });
+  }
+  await syncPhotographerFromRoute();
   window.addEventListener('scroll', handleScroll);
   updateBehaviorProfile();
   fetchPackages();
@@ -1164,6 +1228,20 @@ onMounted(async () => {
   background-color: #fff;
   width: 100%;
   overflow-x: hidden;
+}
+
+.photographer-booking-banner {
+  max-width: 1200px;
+  margin: 0 auto 16px;
+  padding: 0 24px;
+
+  @media (max-width: 768px) {
+    padding: 0 16px;
+  }
+}
+
+.photographer-banner-title {
+  font-weight: 600;
 }
 
 // 导航栏

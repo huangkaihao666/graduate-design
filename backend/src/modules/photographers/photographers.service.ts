@@ -14,6 +14,21 @@ function asStringArray(v: unknown): string[] {
   return [];
 }
 
+/** 档期日期：去重、排序、过滤非法格式 */
+function normalizeDateStrings(v: unknown): string[] {
+  const raw = asStringArray(v);
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const re = /^\d{4}-\d{2}-\d{2}$/;
+  for (const s of raw) {
+    const t = s.trim();
+    if (!re.test(t) || seen.has(t)) continue;
+    seen.add(t);
+    out.push(t);
+  }
+  return out.sort();
+}
+
 type PhotographerRow = {
   id: number;
   name: string;
@@ -27,6 +42,8 @@ type PhotographerRow = {
   specialtyTopics: string | null;
   awards: string | null;
   portfolioImages: unknown;
+  availableDates: unknown;
+  scheduleNote: string | null;
   sortOrder: number;
   enabled: boolean;
   createdAt: Date;
@@ -69,6 +86,8 @@ export class PhotographersService {
       specialtyTopics: row.specialtyTopics ?? undefined,
       awards: row.awards ?? undefined,
       portfolioImages: asStringArray(row.portfolioImages),
+      availableDates: normalizeDateStrings(row.availableDates),
+      scheduleNote: row.scheduleNote ?? undefined,
       sortOrder: row.sortOrder,
     };
   }
@@ -116,12 +135,15 @@ export class PhotographersService {
     specialtyTopics?: string;
     awards?: string;
     portfolioImages?: string[];
+    availableDates?: string[];
+    scheduleNote?: string;
     sortOrder?: number;
     enabled?: boolean;
   }) {
     const portfolioImages = data.portfolioImages?.length
       ? data.portfolioImages
       : [];
+    const availableDates = normalizeDateStrings(data.availableDates ?? []);
     return this.prisma.photographer.create({
       data: {
         name: data.name,
@@ -135,6 +157,8 @@ export class PhotographersService {
         specialtyTopics: data.specialtyTopics,
         awards: data.awards,
         portfolioImages: portfolioImages as unknown as Prisma.InputJsonValue,
+        availableDates: availableDates as unknown as Prisma.InputJsonValue,
+        scheduleNote: data.scheduleNote,
         sortOrder: data.sortOrder ?? 0,
         enabled: data.enabled ?? true,
       },
@@ -155,6 +179,8 @@ export class PhotographersService {
       specialtyTopics: string | null;
       awards: string | null;
       portfolioImages: string[];
+      availableDates: string[];
+      scheduleNote: string | null;
       sortOrder: number;
       enabled: boolean;
     }>,
@@ -180,6 +206,12 @@ export class PhotographersService {
       patch.portfolioImages =
         data.portfolioImages as unknown as Prisma.InputJsonValue;
     }
+    if (data.availableDates !== undefined) {
+      patch.availableDates = normalizeDateStrings(
+        data.availableDates,
+      ) as unknown as Prisma.InputJsonValue;
+    }
+    if (data.scheduleNote !== undefined) patch.scheduleNote = data.scheduleNote;
     if (data.sortOrder !== undefined) patch.sortOrder = data.sortOrder;
     if (data.enabled !== undefined) patch.enabled = data.enabled;
 

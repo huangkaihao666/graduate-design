@@ -17,6 +17,10 @@ export interface PhotographerPublic {
   /** 资质与获奖 */
   awards?: string;
   portfolioImages: string[];
+  /** 可预约日期 YYYY-MM-DD */
+  availableDates?: string[];
+  /** 档期说明 */
+  scheduleNote?: string;
   sortOrder: number;
 }
 
@@ -77,6 +81,8 @@ export const photographersApi = {
     specialtyTopics?: string;
     awards?: string;
     portfolioImages?: string[];
+    availableDates?: string[];
+    scheduleNote?: string;
     sortOrder?: number;
     enabled?: boolean;
   }) => httpClient.post<unknown>('/photographers', body).then((res) => unwrap(res)),
@@ -95,6 +101,8 @@ export const photographersApi = {
       specialtyTopics: string | null;
       awards: string | null;
       portfolioImages: string[];
+      availableDates: string[];
+      scheduleNote: string | null;
       sortOrder: number;
       enabled: boolean;
     }>

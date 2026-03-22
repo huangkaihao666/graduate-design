@@ -21,8 +21,11 @@
         :loading="loading"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
-            <a-tag :color="statusColorMap[record.status]">{{ record.status }}</a-tag>
+          <template v-if="column.key === 'photographerName'">
+            {{ record.photographerName || '—' }}
+          </template>
+          <template v-else-if="column.key === 'status'">
+            <a-tag :color="statusColorMap[record.status as OrderStatus]">{{ record.status }}</a-tag>
           </template>
           <template v-else-if="column.key === 'actions'">
             <a-space>
@@ -48,6 +51,7 @@ type AdminOrder = {
   orderNo: string;
   user: string;
   packageName: string;
+  photographerName?: string;
   amount: number;
   status: OrderStatus;
   createdAt: string;
@@ -61,6 +65,7 @@ const columns = [
   { title: '订单号', dataIndex: 'orderNo', key: 'orderNo' },
   { title: '用户', dataIndex: 'user', key: 'user' },
   { title: '套餐', dataIndex: 'packageName', key: 'packageName' },
+  { title: '摄影师', dataIndex: 'photographerName', key: 'photographerName', ellipsis: true },
   {
     title: '金额',
     dataIndex: 'amount',
@@ -100,6 +105,7 @@ const normalizeOrders = (raw: any): AdminOrder[] => {
     orderNo: item.orderNo,
     user: item.contactName || '-',
     packageName: item.packageName || '-',
+    photographerName: item.photographerName || '',
     amount: Number(item.totalAmount || 0),
     status: statusMap[item.paymentStatus] || '待支付',
     createdAt: item.createdAt ? String(item.createdAt).replace('T', ' ').slice(0, 16) : '-',

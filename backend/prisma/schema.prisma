@@ -243,6 +243,10 @@ model Photographer {
   awards           String? @db.Text
   /// 优秀作品图片 URL 列表
   portfolioImages  Json
+  /// 可预约日期（ISO 日期字符串 YYYY-MM-DD 数组，JSON）
+  availableDates   Json    @default("[]")
+  /// 档期说明（如：每周二店休、节假日可约等）
+  scheduleNote     String? @db.Text
   sortOrder        Int     @default(0) @db.UnsignedInt
   enabled          Boolean @default(true)
 
@@ -292,6 +296,9 @@ model BookingOrder {
   email          String?  @db.VarChar(255)
   paymentMethod  String   @db.VarChar(30)
   remark         String?  @db.Text
+  /// 用户指定的摄影师（可选）
+  photographerId   Int?    @db.UnsignedInt
+  photographerName String? @db.VarChar(100)
   totalAmount    Int      @db.UnsignedInt
   paymentStatus  String   @db.VarChar(30) // unpaid / paid / offline_pending / cancelled / completed
   paymentNo      String?  @db.VarChar(64)

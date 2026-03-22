@@ -288,11 +288,33 @@ export class AiService {
 
       // 处理响应 - 火山引擎返回格式: { data: [{ url: "..." }] }
       if (Array.isArray(response.data?.data) && response.data.data.length > 0) {
-        const generatedUrl = response.data.data[0]?.url;
+        const first = response.data.data[0];
+        const generatedUrl = first?.url;
+        const b64 = first?.b64_json;
+
+        if (typeof b64 === 'string' && b64.length > 0) {
+          console.log(
+            '[AI Service] 火山引擎返回 b64_json，直接作为 data URL 使用',
+          );
+          return `data:image/png;base64,${b64}`;
+        }
+
         if (generatedUrl) {
           console.log(
             '[AI Service] 火山引擎 API 返回成功，图片 URL:',
-            generatedUrl,
+            generatedUrl.substring(0, 80) + '...',
+          );
+          // 服务端拉取并转 base64，避免浏览器访问 ark-content CDN 出现 ERR_CONNECTION_RESET
+          const inlined = await this.convertImageUrlToBase64(generatedUrl);
+          if (inlined) {
+            console.log(
+              '[AI Service] 已将生成图转为 data URL，长度:',
+              inlined.length,
+            );
+            return inlined;
+          }
+          console.warn(
+            '[AI Service] 服务端下载生成图失败，仍返回原始 URL（前端可能无法加载）',
           );
           return generatedUrl;
         }
@@ -300,11 +322,13 @@ export class AiService {
 
       // 备用检查 image_url 字段（兼容其他格式）
       if (response.data?.data?.image_url) {
+        const u = response.data.data.image_url;
         console.log(
           '[AI Service] 火山引擎 API 返回成功，图片 URL:',
-          response.data.data.image_url,
+          String(u).substring(0, 80),
         );
-        return response.data.data.image_url;
+        const inlined = await this.convertImageUrlToBase64(u);
+        return inlined || u;
       }
 
       console.error(
@@ -677,11 +701,19 @@ export class AiService {
         return imageUrl;
       }
 
-      // 如果是外部URL，下载并转换为base64
+      // 如果是外部URL，由服务端下载再转 base64（避免浏览器直连火山 CDN 被防火墙/连接重置）
       if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
         const response = await axios.get(imageUrl, {
           responseType: 'arraybuffer',
-          timeout: 10000, // 10秒超时
+          timeout: 90000,
+          maxContentLength: 50 * 1024 * 1024,
+          maxBodyLength: 50 * 1024 * 1024,
+          headers: {
+            Accept: 'image/*,*/*;q=0.8',
+            'User-Agent':
+              'Mozilla/5.0 (compatible; GraduateDesignBackend/1.0; +https://localhost)',
+          },
+          validateStatus: (s) => s >= 200 && s < 400,
         });
 
         const buffer = Buffer.from(response.data);
