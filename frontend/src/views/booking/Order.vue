@@ -235,7 +235,7 @@
           >
             去支付
           </a-button>
-          <a-button @click="goToOrders">去订单管理</a-button>
+          <a-button @click="goToOrders">去我的订单</a-button>
         </div>
       </div>
     </a-modal>
@@ -293,6 +293,7 @@ import { ordersApi } from '@/api/orders';
 import { paymentsApi } from '@/api/payments';
 import { packagesApi, type Package } from '@/api/packages';
 import { photographersApi, type PhotographerPublic } from '@/api/photographers';
+import { TRAVEL_STYLE_LABELS } from '@/constants/travel-style-labels';
 import { useAuthStore } from '@/store/auth';
 import type { FormInstance } from 'ant-design-vue';
 import { message } from 'ant-design-vue';
@@ -303,14 +304,7 @@ const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 
-const styleMap: Record<string, string> = {
-  romantic: '浪漫梦幻',
-  artistic: '艺术文艺',
-  bohemian: '波西米亚',
-  minimalist: '极简现代',
-  classical: '古典优雅',
-  adventure: '冒险活力',
-};
+const styleMap: Record<string, string> = { ...TRAVEL_STYLE_LABELS };
 
 const getStyleName = (style: string) => styleMap[style] || style;
 
@@ -324,6 +318,22 @@ const formatPayment = (method: string) => {
 // sessionStorage 的状态持久化（避免用户切路由丢失表单）
 const STORAGE_KEY = 'online-order-state';
 const ORDER_HISTORY_KEY = 'online-order-history';
+
+/** 订单历史用 localStorage，关闭浏览器后仍保留；若仅有旧版 session 数据则迁移一次 */
+const readOrderHistoryRaw = (): string | null => {
+  let raw = localStorage.getItem(ORDER_HISTORY_KEY);
+  if (!raw) {
+    raw = sessionStorage.getItem(ORDER_HISTORY_KEY);
+    if (raw) {
+      localStorage.setItem(ORDER_HISTORY_KEY, raw);
+      sessionStorage.removeItem(ORDER_HISTORY_KEY);
+    }
+  }
+  return raw;
+};
+const writeOrderHistoryRaw = (json: string) => {
+  localStorage.setItem(ORDER_HISTORY_KEY, json);
+};
 
 const orderFormRef = ref<FormInstance>();
 const selectedPackage = ref<Package | null>(null);
@@ -807,10 +817,10 @@ const handleSubmit = async () => {
       createdAt: new Date().toISOString(),
     };
 
-    const raw = sessionStorage.getItem(ORDER_HISTORY_KEY);
+    const raw = readOrderHistoryRaw();
     const history = raw ? JSON.parse(raw) : [];
     history.unshift(order);
-    sessionStorage.setItem(ORDER_HISTORY_KEY, JSON.stringify(history));
+    writeOrderHistoryRaw(JSON.stringify(history));
 
     // 写入数据库订单
     const createdOrder: any = await ordersApi.createOrder(order);
@@ -818,12 +828,12 @@ const handleSubmit = async () => {
 
     if (orderData?.id) {
       try {
-        const rawAfter = sessionStorage.getItem(ORDER_HISTORY_KEY);
+        const rawAfter = readOrderHistoryRaw();
         const histAfter = rawAfter ? JSON.parse(rawAfter) : [];
         const hi = histAfter.findIndex((x: any) => x.orderNo === orderNo);
         if (hi !== -1) {
           histAfter[hi] = { ...histAfter[hi], orderId: orderData.id };
-          sessionStorage.setItem(ORDER_HISTORY_KEY, JSON.stringify(histAfter));
+          writeOrderHistoryRaw(JSON.stringify(histAfter));
         }
       } catch {
         /* ignore */
@@ -861,7 +871,7 @@ const stopPaymentPoll = () => {
 
 const syncLocalOrderHistoryPaid = (orderNo: string) => {
   try {
-    const raw = sessionStorage.getItem(ORDER_HISTORY_KEY);
+    const raw = readOrderHistoryRaw();
     const history = raw ? JSON.parse(raw) : [];
     const idx = history.findIndex((x: any) => x.orderNo === orderNo);
     if (idx !== -1) {
@@ -870,7 +880,7 @@ const syncLocalOrderHistoryPaid = (orderNo: string) => {
         paymentStatus: 'paid',
         paidAt: new Date().toISOString(),
       };
-      sessionStorage.setItem(ORDER_HISTORY_KEY, JSON.stringify(history));
+      writeOrderHistoryRaw(JSON.stringify(history));
     }
   } catch {
     /* ignore */

@@ -1,7 +1,7 @@
 <template>
   <div class="orders-container">
     <div class="page-header">
-      <h1>📦 订单管理</h1>
+      <h1>📦 我的订单</h1>
       <p>查看您的预约订单，并进行详情查看/删除操作</p>
     </div>
 
@@ -171,6 +171,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { message } from 'ant-design-vue';
 import { useRouter } from 'vue-router';
+import { TRAVEL_STYLE_LABELS } from '@/constants/travel-style-labels';
 import { useAuthStore } from '@/store/auth';
 import { paymentsApi } from '@/api/payments';
 
@@ -204,6 +205,21 @@ interface BookingOrder {
 
 const STORAGE_KEY = 'online-order-history';
 
+const readOrderHistoryStorage = (): string | null => {
+  let raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) {
+    raw = sessionStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      localStorage.setItem(STORAGE_KEY, raw);
+      sessionStorage.removeItem(STORAGE_KEY);
+    }
+  }
+  return raw;
+};
+const writeOrderHistoryStorage = (json: string) => {
+  localStorage.setItem(STORAGE_KEY, json);
+};
+
 const router = useRouter();
 const authStore = useAuthStore();
 
@@ -214,14 +230,7 @@ const orders = ref<BookingOrder[]>([]);
 const detailVisible = ref(false);
 const activeOrder = ref<BookingOrder | null>(null);
 
-const styleMap: Record<string, string> = {
-  romantic: '浪漫梦幻',
-  artistic: '艺术文艺',
-  bohemian: '波西米亚',
-  minimalist: '极简现代',
-  classical: '古典优雅',
-  adventure: '冒险活力',
-};
+const styleMap: Record<string, string> = { ...TRAVEL_STYLE_LABELS };
 
 const getStyleName = (style: string) => styleMap[style] || style;
 
@@ -260,7 +269,7 @@ const parseOrders = (raw: string | null): BookingOrder[] => {
 const loadOrders = async () => {
   loading.value = true;
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const raw = readOrderHistoryStorage();
     const list = parseOrders(raw);
     // 兜底：确保字段类型正确
     orders.value = list.map((o) => ({
@@ -279,7 +288,7 @@ const loadOrders = async () => {
 };
 
 const saveOrdersToStorage = (next: BookingOrder[]) => {
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  writeOrderHistoryStorage(JSON.stringify(next));
   orders.value = next;
 };
 
@@ -290,6 +299,7 @@ const deleteOrder = (orderNo: string) => {
 };
 
 const clearAllOrders = () => {
+  localStorage.removeItem(STORAGE_KEY);
   sessionStorage.removeItem(STORAGE_KEY);
   orders.value = [];
   message.success('已清空所有订单');
@@ -312,7 +322,7 @@ const canCheckOnlinePayment = (o: BookingOrder) => {
 
 /** 与预约页二维码弹窗一致：演示流程下直接标记服务端已支付 */
 const confirmDemoPaid = async (orderNo: string) => {
-  const raw = sessionStorage.getItem(STORAGE_KEY);
+  const raw = readOrderHistoryStorage();
   const history = raw ? parseOrders(raw) : [];
   const idx = history.findIndex((x: any) => x.orderNo === orderNo);
   if (idx === -1) {
@@ -326,7 +336,7 @@ const confirmDemoPaid = async (orderNo: string) => {
       paymentStatus: 'paid',
       paidAt: new Date().toISOString(),
     };
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+    writeOrderHistoryStorage(JSON.stringify(history));
     orders.value = history as BookingOrder[];
     message.success('已标记为支付成功');
   } catch {
