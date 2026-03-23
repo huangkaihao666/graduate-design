@@ -1,125 +1,250 @@
+// ============ 辩论室底部投票栏 ============
+
+// ── 投票栏容器 ────────────────────────────────────────────────
 .vote-bar {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 16px;
-  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
   z-index: 100;
+  transition: all 0.3s ease;
+}
 
-  &.vote-bar-minimized {
-    left: auto;
-    right: 16px;
-    bottom: 16px;
-    width: auto;
-    padding: 8px;
-    border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+// ── 收起态（常驻条） ──────────────────────────────────────────
+.vote-bar-minimized {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(99, 102, 241, 0.15);
+  box-shadow: 0 -4px 24px rgba(99, 102, 241, 0.1);
+  padding: 8px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+
+  .vote-hint-text {
+    font-size: 13px;
+    color: #6366F1;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    .hint-icon {
+      font-size: 16px;
+      animation: voteHintBounce 1.5s ease-in-out infinite;
+    }
   }
 
-  .vote-bar-content {
-    max-width: 1200px;
-    margin: 0 auto;
+  @keyframes voteHintBounce {
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(-3px); }
+  }
 
-    .vote-question {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
+  .viewer-count {
+    font-size: 12px;
+    color: #94A3B8;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
 
-      .question-text {
-        color: white;
-        font-size: 16px;
-        font-weight: 600;
+  .expand-btn {
+    border-radius: 8px !important;
+    background: linear-gradient(135deg, #6366F1, #8B5CF6) !important;
+    border: none !important;
+    font-weight: 600 !important;
+    font-size: 12px !important;
+    height: 30px !important;
+    padding: 0 14px !important;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35) !important;
+    transition: all 0.2s ease !important;
 
-        .vote-summary {
-          color: rgba(255, 255, 255, 0.9);
-          font-size: 13px;
-          font-weight: 500;
-          margin-left: 6px;
-        }
-      }
-
-      .viewer-count {
-        color: rgba(255, 255, 255, 0.9);
-        font-size: 14px;
-        display: flex;
-        align-items: center;
-        gap: 4px;
-      }
-
-      .vote-actions {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-
-        .ant-btn {
-          color: rgba(255, 255, 255, 0.9);
-        }
-      }
-    }
-
-    .vote-buttons {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-
-      .vote-button {
-        flex: 1;
-        min-width: 150px;
-        height: 56px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        border: 2px solid rgba(255, 255, 255, 0.3);
-        background: rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(10px);
-        transition: all 0.3s;
-
-        &:hover:not(:disabled) {
-          border-color: white;
-          background: rgba(255, 255, 255, 0.2);
-          transform: translateY(-2px);
-        }
-
-        &.voted {
-          background: white;
-          border-color: white;
-
-          .vote-label {
-            color: #667eea;
-            font-weight: 600;
-          }
-        }
-
-        &:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-
-        .vote-label {
-          color: white;
-          font-size: 16px;
-        }
-      }
+    &:hover {
+      transform: translateY(-1px) !important;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.5) !important;
     }
   }
 }
 
-@media (max-width: 768px) {
-  .vote-bar {
-    .vote-bar-content {
-      .vote-buttons {
-        .vote-button {
-          min-width: 120px;
-          height: 48px;
+// ── 展开态（投票面板） ────────────────────────────────────────
+.vote-bar-expanded {
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(16px);
+  border-top: 2px solid #6366F1;
+  box-shadow: 0 -8px 40px rgba(99, 102, 241, 0.15);
+  padding: 20px 24px;
+  animation: voteBarExpand 0.3s ease-out;
 
-          .vote-label {
-            font-size: 14px;
-          }
+  @keyframes voteBarExpand {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .vote-bar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+
+    .vote-question {
+      font-size: 15px;
+      font-weight: 700;
+      color: #1E1B4B;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+
+      .vote-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #6366F1, #8B5CF6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 14px;
+      }
+    }
+
+    .vote-bar-close {
+      border: none !important;
+      background: #F1F5F9 !important;
+      color: #64748B !important;
+      border-radius: 8px !important;
+      font-size: 13px !important;
+      height: 30px !important;
+      padding: 0 12px !important;
+      transition: all 0.2s ease !important;
+
+      &:hover {
+        background: #E2E8F0 !important;
+        color: #374151 !important;
+      }
+    }
+  }
+
+  // 进度条区域
+  .vote-progress-section {
+    margin-bottom: 14px;
+
+    .vote-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+
+      .vote-label {
+        font-size: 12px;
+        font-weight: 600;
+
+        &.label-a {
+          color: #F97316;
+        }
+
+        &.label-b {
+          color: #10B981;
+        }
+
+        .label-count {
+          margin-left: 4px;
+          font-size: 11px;
+          font-weight: 400;
+          opacity: 0.8;
         }
       }
     }
+
+    .vote-progress-bar {
+      height: 10px;
+      border-radius: 6px;
+      overflow: hidden;
+      background: #F1F5F9;
+      display: flex;
+
+      .progress-a {
+        background: linear-gradient(90deg, #F97316, #FB923C);
+        transition: width 0.5s ease;
+        border-radius: 6px 0 0 6px;
+        min-width: 2%;
+      }
+
+      .progress-b {
+        flex: 1;
+        background: linear-gradient(90deg, #10B981, #34D399);
+        transition: width 0.5s ease;
+        border-radius: 0 6px 6px 0;
+      }
+    }
+  }
+
+  // 投票按钮行
+  .vote-actions {
+    display: flex;
+    gap: 12px;
+
+    .vote-btn {
+      flex: 1;
+      height: 42px !important;
+      border-radius: 10px !important;
+      font-size: 14px !important;
+      font-weight: 700 !important;
+      border: 2px solid transparent !important;
+      transition: all 0.25s ease !important;
+
+      &.vote-btn-a {
+        background: linear-gradient(135deg, #FFF7ED, #FFEDD5) !important;
+        color: #F97316 !important;
+        border-color: rgba(249, 115, 22, 0.3) !important;
+
+        &:hover:not(:disabled) {
+          background: linear-gradient(135deg, #F97316, #FB923C) !important;
+          color: #fff !important;
+          border-color: #F97316 !important;
+          transform: translateY(-2px) !important;
+          box-shadow: 0 6px 16px rgba(249, 115, 22, 0.4) !important;
+        }
+
+        &.voted {
+          background: linear-gradient(135deg, #F97316, #FB923C) !important;
+          color: #fff !important;
+          border-color: #F97316 !important;
+          box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4) !important;
+        }
+      }
+
+      &.vote-btn-b {
+        background: linear-gradient(135deg, #ECFDF5, #D1FAE5) !important;
+        color: #10B981 !important;
+        border-color: rgba(16, 185, 129, 0.3) !important;
+
+        &:hover:not(:disabled) {
+          background: linear-gradient(135deg, #10B981, #34D399) !important;
+          color: #fff !important;
+          border-color: #10B981 !important;
+          transform: translateY(-2px) !important;
+          box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4) !important;
+        }
+
+        &.voted {
+          background: linear-gradient(135deg, #10B981, #34D399) !important;
+          color: #fff !important;
+          border-color: #10B981 !important;
+          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4) !important;
+        }
+      }
+    }
+  }
+
+  // 已投票提示
+  .already-voted-hint {
+    margin-top: 10px;
+    text-align: center;
+    font-size: 12px;
+    color: #94A3B8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
   }
 }

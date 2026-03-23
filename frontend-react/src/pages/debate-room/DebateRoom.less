@@ -1,48 +1,54 @@
+// ============ 辩论室页面 ============
+
 .debate-room {
   min-height: 100vh;
-  background: #f5f7fa;
-  padding-bottom: 100px; // 为底部投票条留空间
+  background: #F1F5F9;
+  padding-bottom: 100px;
 
   .back-button {
     position: fixed;
-    top: 20px;
+    top: 72px;
     left: 20px;
     z-index: 999;
-    background: white;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    background: rgba(255, 255, 255, 0.92) !important;
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(99, 102, 241, 0.12) !important;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08) !important;
+    border-radius: 10px !important;
+    color: #6366F1 !important;
+    font-weight: 500;
 
     &:hover {
-      background: #f7fafc;
+      background: #EEF2FF !important;
+      border-color: #6366F1 !important;
     }
   }
 
-  // 桌面版三栏布局
+  // 三栏布局（桌面）
   .debate-room-desktop {
     display: grid;
-    grid-template-columns: 300px 1fr 320px;
-    gap: 16px;
+    grid-template-columns: 290px 1fr 310px;
+    gap: 14px;
     height: calc(100vh - 100px);
-    padding: 16px;
-    padding-top: 70px;
+    padding: 14px 16px;
+    padding-top: 68px;
 
     .left-panel,
     .center-panel,
     .right-panel {
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+      background: #fff;
+      border-radius: 16px;
+      border: 1px solid rgba(99, 102, 241, 0.08);
+      box-shadow: 0 2px 12px rgba(99, 102, 241, 0.06);
       overflow: hidden;
     }
 
-    .left-panel {
-      .owner-controls {
-        padding: 16px;
-        border-top: 1px solid #e2e8f0;
-      }
+    @media (max-width: 1200px) {
+      grid-template-columns: 260px 1fr 280px;
     }
 
     @media (max-width: 1024px) {
-      grid-template-columns: 280px 1fr 280px;
+      grid-template-columns: 240px 1fr 260px;
     }
 
     @media (max-width: 768px) {
@@ -50,11 +56,11 @@
     }
   }
 
-  // 移动版 Tab 布局
+  // 移动端 Tab 布局
   .debate-room-mobile {
     display: none;
-    padding: 16px;
-    padding-top: 70px;
+    padding: 12px;
+    padding-top: 64px;
 
     @media (max-width: 768px) {
       display: block;
@@ -67,25 +73,24 @@
       :global(.ant-tabs-content) {
         height: calc(100% - 46px);
       }
+
+      :global(.ant-tabs-nav) {
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(8px);
+        border-radius: 12px;
+        margin-bottom: 12px;
+      }
     }
   }
 
   .debate-room-loading {
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
     height: 100vh;
-    font-size: 18px;
-    color: #718096;
-  }
-}
-
-// 平板适配
-@media (max-width: 1024px) and (min-width: 769px) {
-  .debate-room {
-    .debate-room-desktop {
-      grid-template-columns: 260px 1fr 260px;
-      gap: 12px;
-    }
+    gap: 16px;
+    color: #64748B;
+    font-size: 15px;
   }
 }

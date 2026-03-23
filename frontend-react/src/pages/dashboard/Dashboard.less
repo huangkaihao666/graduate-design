@@ -1,29 +1,36 @@
-.dashboard-container {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+// ============ 仪表盘页面样式 ============
 
-  .dashboard-welcome {
-    margin-bottom: 24px;
+.dashboard-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px;
+
+  :global(.ant-card) {
+    border-radius: 16px !important;
+    border-color: rgba(99, 102, 241, 0.1) !important;
+    box-shadow: 0 2px 12px rgba(99, 102, 241, 0.06) !important;
   }
+}
+
+.dashboard-welcome {
+  margin-bottom: 16px;
 
   .welcome-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    justify-content: space-between;
 
     h2 {
-      margin: 0;
-      color: #000;
+      font-size: 20px;
+      font-weight: 800;
+      color: #1E1B4B;
+      margin: 0 0 4px;
     }
 
     p {
-      margin: 8px 0 0 0;
-      color: rgba(0, 0, 0, 0.45);
+      font-size: 14px;
+      color: #94A3B8;
+      margin: 0;
     }
-  }
-
-  .dashboard-footer {
-    margin-top: 24px;
   }
 }

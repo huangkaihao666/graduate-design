@@ -1,184 +1,260 @@
+// ============ 辩论舞台（中间主内容区） ============
+
 .debate-stage {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #ffffff;
+  background: #fff;
+}
 
-  .stage-header {
+// ── 头部 ──────────────────────────────────────────────────────
+.stage-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+  border-bottom: 1px solid rgba(99, 102, 241, 0.08);
+  background: linear-gradient(180deg, #F8FAFF 0%, #fff 100%);
+  flex-shrink: 0;
+
+  h2 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: #1E1B4B;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 160px;
+  }
+
+  .stage-header-center {
+    flex: 1;
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
     align-items: center;
-    padding: 16px 24px;
-    border-bottom: 1px solid #e2e8f0;
+    gap: 2px;
+    padding: 0 12px;
+    min-width: 0;
 
-    h2 {
-      margin: 0;
-      font-size: 20px;
-      font-weight: 600;
-      color: #1a202c;
+    .round-phase {
+      font-size: 13px;
+      font-weight: 700;
+      color: #6366F1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
-    .stage-header-center {
-      flex: 1;
+    .speaking-hint {
+      font-size: 11px;
+      color: #94A3B8;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .round-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 12px;
+    background: linear-gradient(135deg, #6366F1, #8B5CF6);
+    color: #fff;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+  }
+}
+
+// ── 消息区 ────────────────────────────────────────────────────
+.messages-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+
+  // 滚动条
+  &::-webkit-scrollbar {
+    width: 5px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #C7D2FE;
+    border-radius: 3px;
+
+    &:hover {
+      background: #818CF8;
+    }
+  }
+}
+
+// 轮次分隔线
+.round-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 16px 0 20px;
+
+  .round-divider-line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #C7D2FE, transparent);
+  }
+
+  .round-divider-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 12px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.08));
+    color: #6366F1;
+    font-size: 12px;
+    font-weight: 700;
+    border: 1px solid rgba(99, 102, 241, 0.15);
+  }
+}
+
+// 消息条目
+.message-item {
+  margin-bottom: 20px;
+  animation: debateMsgIn 0.35s ease-out;
+
+  @keyframes debateMsgIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  // 消息头部（头像 + 名称 + 时间）
+  .message-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+
+    .message-meta {
       display: flex;
       flex-direction: column;
-      align-items: center;
       gap: 2px;
-      padding: 0 12px;
-      min-width: 0;
 
-      .round-phase {
-        font-size: 13px;
-        font-weight: 600;
-        color: #4a5568;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      .speaking-hint {
-        font-size: 12px;
-        color: #718096;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-    }
-
-    .round-badge {
-      padding: 4px 12px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border-radius: 12px;
-      font-size: 12px;
-      font-weight: 600;
-    }
-  }
-
-  .messages-container {
-    flex: 1;
-    overflow-y: auto;
-    padding: 24px;
-    
-    .round-divider {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      margin: 12px 0 20px;
-
-      .round-divider-badge {
-        padding: 2px 10px;
-        border-radius: 999px;
-        background: rgba(102, 126, 234, 0.12);
-        color: #4c51bf;
-        font-size: 12px;
+      .agent-name {
         font-weight: 700;
-      }
-
-      .round-divider-text {
-        font-size: 13px;
-        font-weight: 600;
-        color: #718096;
-      }
-    }
-
-    .message-item {
-      margin-bottom: 24px;
-      animation: fadeInUp 0.3s ease;
-
-      .message-header {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 12px;
-
-        .message-meta {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-
-          .agent-name {
-            font-weight: 600;
-            color: #2d3748;
-            font-size: 16px;
-          }
-
-          .message-time {
-            font-size: 12px;
-            color: #a0aec0;
-          }
-        }
-      }
-
-      .message-content {
-        padding: 16px;
-        background: #f7fafc;
-        border-radius: 12px;
-        line-height: 1.8;
-        color: #4a5568;
-        position: relative;
-        border-left: 3px solid #667eea;
-        overflow-wrap: anywhere;
-
-        .answer-text {
-          white-space: pre-wrap;
-        }
-
-        .reasoning-wrap {
-          margin-top: 12px;
-        }
-
-        .reasoning-text {
-          white-space: pre-wrap;
-          color: #718096;
-          font-size: 13px;
-          line-height: 1.7;
-        }
-
-        .typing-cursor {
-          display: inline-block;
-          animation: blink 1s infinite;
-          color: #667eea;
-          font-weight: bold;
-        }
-      }
-    }
-
-    .typing-indicator {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px;
-      background: #edf2f7;
-      border-radius: 8px;
-      margin-bottom: 16px;
-
-      .typing-text {
-        color: #718096;
+        color: #1E1B4B;
         font-size: 14px;
-        font-style: italic;
       }
+
+      .message-time {
+        font-size: 11px;
+        color: #94A3B8;
+      }
+    }
+  }
+
+  // 消息气泡
+  .message-content {
+    padding: 14px 16px;
+    border-radius: 0 14px 14px 14px;
+    line-height: 1.85;
+    color: #374151;
+    position: relative;
+    border-left: 3px solid #6366F1;
+    background: #F8FAFF;
+    overflow-wrap: anywhere;
+    transition: border-color 0.2s ease;
+
+    // Agent A - 橙色
+    &.agent-a-bubble {
+      border-left-color: #F97316;
+      background: #FFFAF5;
+    }
+
+    // Agent B - 绿色
+    &.agent-b-bubble {
+      border-left-color: #10B981;
+      background: #F0FDF7;
+    }
+
+    // Agent C - 蓝色
+    &.agent-c-bubble {
+      border-left-color: #3B82F6;
+      background: #F0F7FF;
+    }
+
+    .answer-text {
+      white-space: pre-wrap;
+      font-size: 14px;
+    }
+
+    .reasoning-wrap {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed #E2E8F0;
+    }
+
+    .reasoning-text {
+      white-space: pre-wrap;
+      color: #94A3B8;
+      font-size: 12.5px;
+      line-height: 1.7;
+    }
+
+    // 打字光标
+    .typing-cursor {
+      display: inline-block;
+      animation: cursorBlink 0.9s infinite;
+      color: #6366F1;
+      font-weight: 700;
+      margin-left: 1px;
     }
   }
 }
 
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
+// 输入中指示器
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(99, 102, 241, 0.05);
+  border: 1px solid rgba(99, 102, 241, 0.1);
+  border-radius: 10px;
+  margin-bottom: 14px;
+  animation: debateMsgIn 0.3s ease-out;
+
+  .typing-dots {
+    display: flex;
+    gap: 4px;
+
+    span {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #818CF8;
+      animation: typingBounce 1.2s ease-in-out infinite;
+
+      &:nth-child(2) { animation-delay: 0.2s; }
+      &:nth-child(3) { animation-delay: 0.4s; }
+    }
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+
+  .typing-text {
+    color: #6366F1;
+    font-size: 13px;
+    font-style: italic;
+    font-weight: 500;
   }
 }
 
-@keyframes blink {
-  0%, 50% {
-    opacity: 1;
-  }
-  51%, 100% {
-    opacity: 0;
-  }
+@keyframes typingBounce {
+  0%, 100% { transform: translateY(0); opacity: 0.5; }
+  50%       { transform: translateY(-5px); opacity: 1; }
+}
+
+@keyframes cursorBlink {
+  0%, 45% { opacity: 1; }
+  55%, 100% { opacity: 0; }
 }

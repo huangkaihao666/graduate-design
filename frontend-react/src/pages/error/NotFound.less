@@ -1,6 +1,38 @@
+// ============ 404 页面样式 ============
+
 .notfound-container {
-  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 60vh;
+  padding: 40px 20px;
+
+  :global(.ant-result-title) {
+    font-size: 64px !important;
+    font-weight: 900 !important;
+    background: linear-gradient(135deg, #6366F1, #8B5CF6) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
+  }
+
+  :global(.ant-result-subtitle) {
+    font-size: 16px !important;
+    color: #64748B !important;
+  }
+
+  :global(.ant-btn-primary) {
+    background: linear-gradient(135deg, #6366F1, #8B5CF6) !important;
+    border: none !important;
+    border-radius: 10px !important;
+    font-weight: 700 !important;
+    height: 42px !important;
+    padding: 0 24px !important;
+    box-shadow: 0 3px 12px rgba(99, 102, 241, 0.35) !important;
+
+    &:hover {
+      transform: translateY(-1px) !important;
+      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5) !important;
+    }
+  }
 }

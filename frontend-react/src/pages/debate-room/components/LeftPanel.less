@@ -1,142 +1,266 @@
+// ============ 辩论室左侧面板 ============
+
 .left-panel-content {
   height: 100%;
   overflow-y: auto;
   padding: 16px;
-  background: #f5f7fa;
+  background: #fff;
 
-  .case-info-card {
-    margin-bottom: 16px;
+  // 滚动条
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
 
-    .case-title {
-      font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 12px;
-      color: #1a202c;
-    }
+  &::-webkit-scrollbar-thumb {
+    background: #C7D2FE;
+    border-radius: 2px;
+  }
+}
 
-    .case-description {
-      color: #4a5568;
-      line-height: 1.6;
-      margin-bottom: 12px;
-    }
+// ── 案件信息卡 ────────────────────────────────────────────────
+.case-info-card {
+  background: #F8FAFF;
+  border: 1px solid rgba(99, 102, 241, 0.1);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 14px;
 
-    .case-image {
+  .case-title {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    color: #1E1B4B;
+    line-height: 1.5;
+  }
+
+  .case-description {
+    font-size: 13px;
+    color: #64748B;
+    line-height: 1.7;
+    margin-bottom: 12px;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .case-image {
+    width: 100%;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 8px;
+    border: 1px solid #E2E8F0;
+
+    img {
       width: 100%;
-      border-radius: 8px;
-      overflow: hidden;
-
-      img {
-        width: 100%;
-        height: auto;
-        display: block;
-      }
+      height: auto;
+      display: block;
     }
   }
+}
 
-  .round-indicator {
-    margin-bottom: 16px;
+// ── 轮次进度卡 ────────────────────────────────────────────────
+.round-indicator {
+  background: #F8FAFF;
+  border: 1px solid rgba(99, 102, 241, 0.1);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
 
-    .round-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
+  .round-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
 
-      .round-label {
-        font-weight: 500;
-        color: #4a5568;
-      }
-
-      .round-tag {
-        font-weight: 600;
-      }
+    .round-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #374151;
     }
 
-    .round-labels {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 8px;
+    .round-tag {
       font-size: 12px;
-      color: #a0aec0;
-
-      span {
-        &.active {
-          color: #667eea;
-          font-weight: 600;
-        }
-      }
+      font-weight: 700;
+      padding: 2px 10px;
+      background: linear-gradient(135deg, #6366F1, #8B5CF6);
+      color: #fff;
+      border-radius: 10px;
     }
   }
 
-  .agents-card {
-    margin-bottom: 16px;
+  .round-progress-bar {
+    height: 6px;
+    border-radius: 3px;
+    background: #E2E8F0;
+    overflow: hidden;
+    margin-bottom: 8px;
 
-    .agents-list {
-      .agent-item {
-        display: flex;
-        gap: 12px;
-        padding: 12px;
-        background: #f7fafc;
-        border-radius: 8px;
-        margin-bottom: 12px;
-        transition: all 0.3s;
-
-        &:hover {
-          background: #edf2f7;
-          transform: translateX(2px);
-        }
-
-        .agent-avatar {
-          flex-shrink: 0;
-        }
-
-        .agent-info {
-          flex: 1;
-
-          .agent-name {
-            font-weight: 600;
-            color: #2d3748;
-            margin-bottom: 4px;
-          }
-
-          .agent-personality {
-            font-size: 12px;
-            color: #718096;
-            margin-bottom: 8px;
-          }
-
-          .agent-support {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 4px;
-
-            .support-label {
-              font-size: 12px;
-              color: #a0aec0;
-            }
-
-            .support-value {
-              font-size: 14px;
-              font-weight: 600;
-              color: #667eea;
-            }
-          }
-        }
-      }
+    .round-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #6366F1, #8B5CF6);
+      border-radius: 3px;
+      transition: width 0.5s ease;
     }
   }
 
-  .owner-card {
-    .owner-info {
+  .round-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #94A3B8;
+
+    span {
+      &.active {
+        color: #6366F1;
+        font-weight: 700;
+      }
+    }
+  }
+}
+
+// ── Agents 列表卡 ─────────────────────────────────────────────
+.agents-card {
+  background: #F8FAFF;
+  border: 1px solid rgba(99, 102, 241, 0.1);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+
+  .agents-card-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #374151;
+    margin-bottom: 12px;
+  }
+
+  .agents-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    .agent-item {
       display: flex;
-      align-items: center;
-      gap: 8px;
+      gap: 10px;
+      padding: 10px 12px;
+      background: #fff;
+      border-radius: 10px;
+      border: 1px solid rgba(99, 102, 241, 0.08);
+      transition: all 0.2s ease;
 
-      .owner-name {
-        color: #4a5568;
-        font-size: 14px;
+      &:hover {
+        border-color: #C7D2FE;
+        transform: translateX(3px);
+      }
+
+      .agent-avatar {
+        flex-shrink: 0;
+      }
+
+      .agent-info {
+        flex: 1;
+        min-width: 0;
+
+        .agent-name {
+          font-weight: 700;
+          color: #1E1B4B;
+          font-size: 13px;
+          margin-bottom: 2px;
+        }
+
+        .agent-personality {
+          font-size: 11px;
+          color: #94A3B8;
+          margin-bottom: 6px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .agent-support {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 4px;
+
+          .support-label {
+            font-size: 11px;
+            color: #94A3B8;
+          }
+
+          .support-value {
+            font-size: 13px;
+            font-weight: 700;
+            color: #6366F1;
+          }
+        }
+
+        // 支持率进度条
+        .support-bar {
+          height: 3px;
+          background: #E2E8F0;
+          border-radius: 2px;
+          overflow: hidden;
+
+          .support-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #6366F1, #8B5CF6);
+            border-radius: 2px;
+            transition: width 0.5s ease;
+          }
+        }
       }
     }
+  }
+}
+
+// ── 发起人信息卡 ──────────────────────────────────────────────
+.owner-card {
+  background: #F8FAFF;
+  border: 1px solid rgba(99, 102, 241, 0.1);
+  border-radius: 14px;
+  padding: 12px 16px;
+
+  .owner-card-title {
+    font-size: 12px;
+    color: #94A3B8;
+    font-weight: 600;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .owner-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .owner-name {
+      color: #374151;
+      font-size: 13px;
+      font-weight: 600;
+    }
+  }
+}
+
+// ── 案件主控制区（仅案件拥有者可见） ─────────────────────────
+.owner-controls {
+  padding-top: 14px;
+  border-top: 1px solid rgba(99, 102, 241, 0.08);
+  margin-top: 14px;
+
+  .control-title {
+    font-size: 12px;
+    color: #94A3B8;
+    font-weight: 600;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .control-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
 }

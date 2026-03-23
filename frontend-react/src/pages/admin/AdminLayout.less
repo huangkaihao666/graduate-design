@@ -1,77 +1,188 @@
+// ============ 管理后台布局样式 ============
+
+// ── 整体外壳 ──────────────────────────────────────────────────
 .admin-shell {
   min-height: 100vh;
-  background: radial-gradient(1200px 700px at 10% 0%, rgba(102, 126, 234, 0.18) 0%, rgba(255, 255, 255, 0) 55%),
-    radial-gradient(1000px 700px at 90% 0%, rgba(118, 75, 162, 0.16) 0%, rgba(255, 255, 255, 0) 55%),
-    linear-gradient(180deg, #f8fafc 0%, #ffffff 60%);
+  background: #F0F2F8;
 }
 
+// ── 顶部导航 ──────────────────────────────────────────────────
 .admin-header {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 18px !important;
-  height: 64px !important;
-  background: rgba(255, 255, 255, 0.86) !important;
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(226, 232, 240, 1);
+  background: #1E1B4B !important;
+  padding: 0 24px !important;
+  height: 56px !important;
+  line-height: 56px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3) !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 100 !important;
+
+  .admin-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+
+    &:hover {
+      opacity: 0.85;
+    }
+
+    .admin-logo {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #6366F1, #8B5CF6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 16px;
+    }
+
+    .admin-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: -0.3px;
+    }
+  }
+
+  // 右侧按钮组
+  :global(.ant-btn) {
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    height: 34px !important;
+    font-size: 13px !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+    color: rgba(255, 255, 255, 0.8) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+
+    &:hover {
+      border-color: rgba(255, 255, 255, 0.5) !important;
+      color: #fff !important;
+      background: rgba(255, 255, 255, 0.15) !important;
+    }
+  }
+
+  :global(.ant-btn-dangerous) {
+    background: rgba(239, 68, 68, 0.15) !important;
+    border-color: rgba(239, 68, 68, 0.4) !important;
+    color: #FCA5A5 !important;
+
+    &:hover {
+      background: rgba(239, 68, 68, 0.3) !important;
+      border-color: #EF4444 !important;
+      color: #fff !important;
+    }
+  }
 }
 
-.admin-header-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  user-select: none;
-}
-
-.admin-logo {
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
-  box-shadow: 0 10px 22px rgba(102, 126, 234, 0.22);
-  font-size: 18px;
-}
-
-.admin-title {
-  font-weight: 950;
-  color: #0f172a;
-  letter-spacing: 0.2px;
-}
-
+// ── 侧边栏 ────────────────────────────────────────────────────
 .admin-sider {
-  background: rgba(255, 255, 255, 0.92) !important;
-  border-right: 1px solid rgba(226, 232, 240, 1);
+  background: #fff !important;
+  border-right: 1px solid rgba(99, 102, 241, 0.1) !important;
+  box-shadow: 2px 0 12px rgba(99, 102, 241, 0.05) !important;
+  padding-top: 12px !important;
+
+  :global(.ant-menu) {
+    border-right: none !important;
+    padding: 0 8px !important;
+  }
+
+  :global(.ant-menu-item) {
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    color: #64748B !important;
+    margin: 2px 0 !important;
+    height: 44px !important;
+    line-height: 44px !important;
+
+    &:hover {
+      color: #6366F1 !important;
+      background: #EEF2FF !important;
+    }
+  }
+
+  :global(.ant-menu-item-selected) {
+    background: linear-gradient(135deg, #EEF2FF, #F5F0FF) !important;
+    color: #6366F1 !important;
+    font-weight: 700 !important;
+
+    &::after {
+      display: none !important;
+    }
+  }
+
+  :global(.ant-menu-item .anticon) {
+    font-size: 16px !important;
+  }
 }
 
-.admin-sider :global(.ant-layout-sider-children) {
-  padding: 10px 10px;
-}
-
-.admin-sider :global(.ant-menu) {
-  border-right: none;
-  background: transparent;
-}
-
-.admin-sider :global(.ant-menu-item) {
-  border-radius: 12px;
-  margin: 6px 0;
-}
-
+// ── 内容区 ────────────────────────────────────────────────────
 .admin-content {
-  background: transparent !important;
+  background: #F0F2F8 !important;
+  overflow: auto !important;
 }
 
 .admin-content-inner {
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 18px 16px 40px;
-}
+  min-height: 100%;
+  padding: 0;
 
+  // 所有卡片对齐主题
+  :global(.ant-card) {
+    border-radius: 14px !important;
+    border-color: rgba(99, 102, 241, 0.1) !important;
+    box-shadow: 0 2px 12px rgba(99, 102, 241, 0.05) !important;
+  }
+
+  :global(.ant-card-head) {
+    background: linear-gradient(90deg, #FAFBFF, #F8F8FF) !important;
+    border-bottom-color: rgba(99, 102, 241, 0.08) !important;
+    font-weight: 700 !important;
+    color: #1E1B4B !important;
+  }
+
+  // 统计卡片
+  :global(.ant-statistic-title) {
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    color: #64748B !important;
+  }
+
+  :global(.ant-statistic-content) {
+    font-size: 28px !important;
+    font-weight: 900 !important;
+    color: #1E1B4B !important;
+  }
+
+  // Table
+  :global(.ant-table-thead > tr > th) {
+    background: #F8FAFC !important;
+    color: #374151 !important;
+    font-weight: 700 !important;
+    border-bottom-color: #E2E8F0 !important;
+  }
+
+  :global(.ant-table-tbody > tr:hover > td) {
+    background: #EEF2FF !important;
+  }
+
+  // Button
+  :global(.ant-btn-primary) {
+    background: linear-gradient(135deg, #6366F1, #8B5CF6) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: 700 !important;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3) !important;
+  }
+
+  // Tag
+  :global(.ant-tag) {
+    border-radius: 6px !important;
+    font-weight: 600 !important;
+  }
+}

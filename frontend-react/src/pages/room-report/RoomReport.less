@@ -1,157 +1,272 @@
+// ============ 结案报告页面样式 ============
+
 .room-report-page {
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 24px 16px 80px;
+  padding: 24px 20px 60px;
+
+  // 返回按钮
+  :global(.ant-btn-text) {
+    color: #6366F1 !important;
+    font-weight: 600 !important;
+    padding-left: 0 !important;
+    margin-bottom: 16px;
+
+    &:hover {
+      color: #4F46E5 !important;
+      background: transparent !important;
+    }
+  }
 }
 
+// ── Hero 头部区域 ──────────────────────────────────────────────
 .room-report-hero {
-  background: radial-gradient(1200px 500px at 10% 0%, rgba(102, 126, 234, 0.25) 0%, rgba(255, 255, 255, 0) 55%),
-    radial-gradient(900px 500px at 90% 0%, rgba(118, 75, 162, 0.22) 0%, rgba(255, 255, 255, 0) 55%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.9) 100%);
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 18px 18px 14px;
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
+  background: linear-gradient(135deg, #F0F0FF 0%, #EEF2FF 40%, #F5F0FF 100%);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 20px;
+  padding: 28px 32px;
+  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '⚖️';
+    position: absolute;
+    right: 24px;
+    top: 20px;
+    font-size: 64px;
+    opacity: 0.08;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .room-report-title {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 800;
+      color: #1E1B4B;
+      letter-spacing: -0.5px;
+    }
+
+    :global(.ant-tag) {
+      font-size: 13px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-weight: 600;
+    }
+  }
+
+  .room-report-sub {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    font-size: 13px;
+    color: #64748B;
+
+    span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+  }
+
+  // Agent 芯片行
+  .agent-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 4px;
+
+    .agent-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      border-radius: 999px;
+      padding: 4px 12px 4px 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #374151;
+
+      .name {
+        font-weight: 700;
+      }
+    }
+  }
 }
 
-.room-report-title {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.room-report-title h1 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 800;
-  color: #0f172a;
-  line-height: 1.25;
-}
-
-.room-report-sub {
-  margin-top: 8px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 14px;
-  color: #475569;
-  font-size: 13px;
-}
-
+// ── 报告主内容 grid ────────────────────────────────────────────
 .room-report-grid {
-  margin-top: 16px;
   display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
-  gap: 14px;
-}
+  grid-template-columns: 1fr 360px;
+  gap: 20px;
+  align-items: start;
 
-@media (max-width: 900px) {
-  .room-report-grid {
+  @media (max-width: 900px) {
     grid-template-columns: 1fr;
   }
 }
 
+// ── 报告卡片通用 ──────────────────────────────────────────────
 .report-card {
-  border-radius: 14px !important;
+  border-radius: 16px !important;
+  border: 1px solid rgba(99, 102, 241, 0.12) !important;
+  box-shadow: 0 2px 16px rgba(99, 102, 241, 0.06) !important;
   overflow: hidden;
+
+  :global(.ant-card-head) {
+    background: linear-gradient(90deg, #FAFBFF, #F8F8FF) !important;
+    border-bottom: 1px solid rgba(99, 102, 241, 0.1) !important;
+    font-weight: 700 !important;
+    color: #1E1B4B !important;
+    font-size: 14px !important;
+    padding: 0 16px !important;
+    min-height: 48px !important;
+  }
+
+  :global(.ant-card-body) {
+    padding: 16px !important;
+  }
+
+  // Collapse 样式
+  :global(.ant-collapse) {
+    border-color: rgba(99, 102, 241, 0.12) !important;
+    border-radius: 10px !important;
+    overflow: hidden;
+
+    :global(.ant-collapse-header) {
+      font-weight: 600 !important;
+      color: #374151 !important;
+      background: #FAFBFF !important;
+    }
+  }
 }
 
-.agent-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.agent-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  background: rgba(15, 23, 42, 0.04);
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 999px;
-}
-
-.agent-chip .name {
-  font-weight: 600;
-  color: #0f172a;
-}
-
+// ── 辩论内容文本 ──────────────────────────────────────────────
 .advice-raw {
+  font-size: 14px;
+  line-height: 1.8;
+  color: #374151;
   white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  color: #0f172a;
-  line-height: 1.7;
+  word-break: break-word;
 }
 
 .advice-reasoning {
+  font-size: 12px;
+  line-height: 1.7;
+  color: #94A3B8;
   white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  color: #475569;
-  line-height: 1.65;
+  word-break: break-word;
+  background: #F8FAFC;
+  padding: 10px 12px;
+  border-radius: 8px;
 }
 
+// ── 胜者区域 ─────────────────────────────────────────────────
 .winner-wrap {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 16px;
+  padding: 12px 0;
+
+  .winner-main {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+
+    .winner-name {
+      font-size: 16px;
+      font-weight: 800;
+      color: #1E1B4B;
+    }
+
+    .winner-meta {
+      margin-top: 4px;
+      font-size: 12px;
+      color: #94A3B8;
+    }
+  }
+
+  // 圆形进度条主题色
+  :global(.ant-progress-circle-path) {
+    stroke: #6366F1 !important;
+  }
+
+  :global(.ant-progress-text) {
+    color: #6366F1 !important;
+    font-weight: 700 !important;
+  }
 }
 
-.winner-main {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.winner-name {
-  font-size: 16px;
-  font-weight: 800;
-  color: #0f172a;
-}
-
-.winner-meta {
-  color: #475569;
-  font-size: 13px;
-  margin-top: 2px;
-}
-
+// ── 排名列表 ──────────────────────────────────────────────────
 .rank-list {
-  display: grid;
-  gap: 10px;
-}
-
-.rank-item {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 10px;
-  align-items: center;
-}
-
-.rank-left {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
+  flex-direction: column;
+  gap: 12px;
+
+  .rank-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    background: #F8FAFC;
+    border-radius: 10px;
+    border: 1px solid #E2E8F0;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: #EEF2FF;
+      border-color: rgba(99, 102, 241, 0.2);
+    }
+
+    .rank-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+
+      .label {
+        font-weight: 800;
+        font-size: 15px;
+        min-width: 30px;
+      }
+
+      .agent {
+        font-size: 13px;
+        font-weight: 600;
+        color: #374151;
+      }
+    }
+  }
 }
 
-.rank-left .label {
-  font-weight: 700;
-  width: 42px;
-}
-
-.rank-left .agent {
-  color: #0f172a;
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
+// ── 分享区域 ─────────────────────────────────────────────────
 .share-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: flex-end;
-}
+  gap: 12px;
 
+  :global(.ant-btn) {
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+  }
+
+  :global(.ant-btn-primary) {
+    background: linear-gradient(135deg, #6366F1, #8B5CF6) !important;
+    border: none !important;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3) !important;
+
+    &:hover {
+      transform: translateY(-1px) !important;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.45) !important;
+    }
+  }
+}

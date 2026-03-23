@@ -1,12 +1,18 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { flushSync } from 'react-dom'
-import { Form, Input, Button, Card, Tabs, message, Divider, Space, Typography, Tooltip } from 'antd'
-import { LockOutlined, MailOutlined, UserOutlined, EyeInvisibleOutlined, EyeOutlined, BgColorsOutlined } from '@ant-design/icons'
+import { Form, Input, Button, Tabs, message, Typography } from 'antd'
+import {
+  LockOutlined,
+  MailOutlined,
+  UserOutlined,
+  EyeInvisibleOutlined,
+  EyeOutlined,
+  ArrowRightOutlined,
+} from '@ant-design/icons'
 import type { TabsProps } from 'antd'
 import * as authApi from '@/api/auth'
 import { useAuthStore } from '@/store'
-import { useUIStore } from '@/store'
 import './Auth.less'
 
 const { Title, Text } = Typography
@@ -23,10 +29,40 @@ interface RegisterFormData {
   confirmPassword: string
 }
 
+// 三个 Agent 角色信息
+const AGENTS = [
+  {
+    id: 'A',
+    name: '直言现实者',
+    emoji: '⚡',
+    color: '#F97316',
+    bg: 'rgba(249,115,22,0.15)',
+    desc: '逻辑解构，直击要害',
+    tags: ['博弈论', '谬误识别', '社会学'],
+  },
+  {
+    id: 'B',
+    name: '共情辅导师',
+    emoji: '💚',
+    color: '#10B981',
+    bg: 'rgba(16,185,129,0.15)',
+    desc: '情感支持，疗愈成长',
+    tags: ['心理学', '非暴力沟通', 'NLP'],
+  },
+  {
+    id: 'C',
+    name: '理性律师',
+    emoji: '⚖️',
+    color: '#3B82F6',
+    bg: 'rgba(59,130,246,0.15)',
+    desc: '法律分析，客观事实',
+    tags: ['民法', '劳动法', '合同法'],
+  },
+]
+
 const Auth: React.FC = () => {
   const navigate = useNavigate()
   const { login } = useAuthStore()
-  const { themeMode, setThemeMode } = useUIStore()
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState('login')
   const [loginForm] = Form.useForm<LoginFormData>()
@@ -40,10 +76,7 @@ const Auth: React.FC = () => {
         email: values.email,
         password: values.password,
       })
-      // 拦截器已提取 data，所以这里的 response 就是 LoginResponse
       const loginData = response as any
-
-      // 保存双 Token 和用户信息，使用 flushSync 确保同步更新
       flushSync(() => {
         login({
           user: loginData.user,
@@ -51,12 +84,9 @@ const Auth: React.FC = () => {
           refreshToken: loginData.refreshToken,
         })
       })
-
-      message.success('登录成功！')
-      // 导航到 dashboard
-      navigate('/dashboard', { replace: true })
-    } catch (error) {
-      console.error('Login error:', error)
+      message.success('欢迎回来！')
+      navigate('/cases', { replace: true })
+    } catch {
       message.error('登录失败，请检查邮箱和密码')
     } finally {
       setLoading(false)
@@ -69,7 +99,6 @@ const Auth: React.FC = () => {
       message.error('两次输入的密码不一致')
       return
     }
-
     setLoading(true)
     try {
       const response = await authApi.register({
@@ -77,9 +106,7 @@ const Auth: React.FC = () => {
         email: values.email,
         password: values.password,
       })
-      // 拦截器已提取 data，所以这里的 response 就是 LoginResponse
       const loginData = response as any
-      // 保存双 Token 和用户信息，使用 flushSync 确保同步更新
       flushSync(() => {
         login({
           user: loginData.user,
@@ -87,33 +114,24 @@ const Auth: React.FC = () => {
           refreshToken: loginData.refreshToken,
         })
       })
-      message.success('注册成功！')
-      // 导航到 dashboard
-      navigate('/dashboard', { replace: true })
-    } catch (error) {
-      console.error('Register error:', error)
+      message.success('注册成功，欢迎加入！')
+      navigate('/cases', { replace: true })
+    } catch {
       message.error('注册失败，请检查输入信息')
     } finally {
       setLoading(false)
     }
   }
 
-  // 密码验证规则
   const validatePassword = (password: string) => {
-    const hasUpperCase = /[A-Z]/.test(password)
-    const hasLowerCase = /[a-z]/.test(password)
-    const hasNumber = /\d/.test(password)
-
-    if (!hasUpperCase || !hasLowerCase || !hasNumber) {
-      return '密码需要包含大小写字母和数字'
-    }
-    if (password.length < 8) {
-      return '密码至少需要8个字符'
+    if (password.length < 8) return '密码至少需要 8 个字符'
+    if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password)) {
+      return '密码需包含大小写字母和数字'
     }
     return ''
   }
 
-  const items: TabsProps['items'] = [
+  const tabItems: TabsProps['items'] = [
     {
       key: 'login',
       label: '登录',
@@ -124,21 +142,17 @@ const Auth: React.FC = () => {
           layout="vertical"
           autoComplete="off"
           className="auth-form"
+          size="large"
         >
           <Form.Item
             name="email"
             label="邮箱"
             rules={[
               { required: true, message: '请输入邮箱' },
-              { type: 'email', message: '请输入有效的邮箱' },
+              { type: 'email', message: '请输入有效的邮箱地址' },
             ]}
           >
-            <Input
-              prefix={<MailOutlined />}
-              placeholder="请输入邮箱地址"
-              size="large"
-              allowClear
-            />
+            <Input prefix={<MailOutlined className="input-icon" />} placeholder="your@email.com" />
           </Form.Item>
 
           <Form.Item
@@ -147,22 +161,21 @@ const Auth: React.FC = () => {
             rules={[{ required: true, message: '请输入密码' }]}
           >
             <Input.Password
-              prefix={<LockOutlined />}
+              prefix={<LockOutlined className="input-icon" />}
               placeholder="请输入密码"
-              size="large"
               iconRender={(visible) => (visible ? <EyeOutlined /> : <EyeInvisibleOutlined />)}
-              allowClear
             />
           </Form.Item>
 
-          <Form.Item>
+          <Form.Item style={{ marginBottom: 0 }}>
             <Button
               type="primary"
               htmlType="submit"
-              size="large"
               loading={loading}
               block
-              className="auth-button"
+              className="auth-submit-btn"
+              icon={<ArrowRightOutlined />}
+              iconPosition="end"
             >
               登录
             </Button>
@@ -180,22 +193,17 @@ const Auth: React.FC = () => {
           layout="vertical"
           autoComplete="off"
           className="auth-form"
+          size="large"
         >
           <Form.Item
             name="name"
             label="用户名"
             rules={[
               { required: true, message: '请输入用户名' },
-              { min: 2, message: '用户名至少2个字符' },
-              { max: 100, message: '用户名不超过100个字符' },
+              { min: 2, message: '用户名至少 2 个字符' },
             ]}
           >
-            <Input
-              prefix={<UserOutlined />}
-              placeholder="请输入用户名"
-              size="large"
-              allowClear
-            />
+            <Input prefix={<UserOutlined className="input-icon" />} placeholder="请输入用户名" />
           </Form.Item>
 
           <Form.Item
@@ -203,38 +211,31 @@ const Auth: React.FC = () => {
             label="邮箱"
             rules={[
               { required: true, message: '请输入邮箱' },
-              { type: 'email', message: '请输入有效的邮箱' },
+              { type: 'email', message: '请输入有效的邮箱地址' },
             ]}
           >
-            <Input
-              prefix={<MailOutlined />}
-              placeholder="请输入邮箱地址"
-              size="large"
-              allowClear
-            />
+            <Input prefix={<MailOutlined className="input-icon" />} placeholder="your@email.com" />
           </Form.Item>
 
           <Form.Item
             name="password"
             label="密码"
+            tooltip="密码需至少 8 位，包含大小写字母和数字"
             rules={[
               { required: true, message: '请输入密码' },
               {
                 validator: (_, value) => {
                   if (!value) return Promise.resolve()
-                  const error = validatePassword(value)
-                  return error ? Promise.reject(new Error(error)) : Promise.resolve()
+                  const err = validatePassword(value)
+                  return err ? Promise.reject(new Error(err)) : Promise.resolve()
                 },
               },
             ]}
-            tooltip="密码需要至少8个字符，包含大小写字母和数字"
           >
             <Input.Password
-              prefix={<LockOutlined />}
-              placeholder="请设置密码（大小写字母+数字）"
-              size="large"
+              prefix={<LockOutlined className="input-icon" />}
+              placeholder="至少 8 位，含大小写字母和数字"
               iconRender={(visible) => (visible ? <EyeOutlined /> : <EyeInvisibleOutlined />)}
-              allowClear
             />
           </Form.Item>
 
@@ -246,38 +247,36 @@ const Auth: React.FC = () => {
               { required: true, message: '请确认密码' },
               ({ getFieldValue }) => ({
                 validator(_, value) {
-                  if (!value || getFieldValue('password') === value) {
-                    return Promise.resolve()
-                  }
+                  if (!value || getFieldValue('password') === value) return Promise.resolve()
                   return Promise.reject(new Error('两次输入的密码不一致'))
                 },
               }),
             ]}
+            style={{ marginBottom: 0 }}
           >
             <Input.Password
-              prefix={<LockOutlined />}
+              prefix={<LockOutlined className="input-icon" />}
               placeholder="请再次输入密码"
-              size="large"
               iconRender={(visible) => (visible ? <EyeOutlined /> : <EyeInvisibleOutlined />)}
-              allowClear
             />
           </Form.Item>
 
-          <Form.Item>
+          <Form.Item style={{ marginTop: 24, marginBottom: 0 }}>
             <Button
               type="primary"
               htmlType="submit"
-              size="large"
               loading={loading}
               block
-              className="auth-button"
+              className="auth-submit-btn"
+              icon={<ArrowRightOutlined />}
+              iconPosition="end"
             >
-              注册
+              创建账号
             </Button>
           </Form.Item>
 
-          <Text type="secondary" className="terms">
-            注册即表示同意我们的服务条款和隐私政策
+          <Text type="secondary" className="auth-terms">
+            注册即表示同意平台服务条款与隐私政策
           </Text>
         </Form>
       ),
@@ -285,87 +284,98 @@ const Auth: React.FC = () => {
   ]
 
   return (
-    <div className={`auth-container ${themeMode}`}>
-      <div className="auth-background">
-        <div className="bg-blur" />
-        <div className="floating-shapes">
-          <div className="shape shape-1" />
-          <div className="shape shape-2" />
-          <div className="shape shape-3" />
-        </div>
+    <div className="auth-page">
+      {/* 动态背景 */}
+      <div className="auth-bg">
+        <div className="auth-bg-orb orb-1" />
+        <div className="auth-bg-orb orb-2" />
+        <div className="auth-bg-orb orb-3" />
+        <div className="auth-bg-grid" />
       </div>
 
-      <div className="auth-content">
-        {/* 左侧品牌区域 */}
+      <div className="auth-wrapper">
+        {/* ── 左侧：品牌展示区 ── */}
         <div className="auth-brand">
-          <div className="brand-logo">
-            <div className="logo-icon">💡</div>
+          {/* Logo */}
+          <div className="brand-logo-wrap">
+            <div className="brand-logo">
+              <span className="brand-logo-icon">⚖️</span>
+            </div>
+            <div>
+              <Title level={2} className="brand-title">决策辩论庭</Title>
+              <Text className="brand-tagline">AI 多智能体 × 众包协作</Text>
+            </div>
           </div>
-          <Title level={2} className="brand-title">
-            生活决策论坛
-          </Title>
-          <Text className="brand-subtitle">
-            多智能体众包辩论平台
-          </Text>
-          <div className="brand-features">
-            <Space direction="vertical" size="large" style={{ width: '100%' }}>
-              <div className="feature-item">
-                <span className="feature-icon">🤖</span>
-                <span>AI多角色观点碰撞</span>
+
+          {/* 平台简介 */}
+          <p className="brand-desc">
+            遇到两难抉择？让三位 AI 专家从<br />
+            <strong>逻辑</strong>、<strong>情感</strong>、<strong>法律</strong> 三个维度，<br />
+            为你的人生难题展开深度辩论。
+          </p>
+
+          {/* Agent 展示卡片 */}
+          <div className="brand-agents">
+            {AGENTS.map((agent) => (
+              <div key={agent.id} className="agent-preview-card" style={{ '--agent-color': agent.color, '--agent-bg': agent.bg } as React.CSSProperties}>
+                <div className="agent-preview-emoji">{agent.emoji}</div>
+                <div className="agent-preview-info">
+                  <div className="agent-preview-name">{agent.name}</div>
+                  <div className="agent-preview-desc">{agent.desc}</div>
+                  <div className="agent-preview-tags">
+                    {agent.tags.map((tag) => (
+                      <span key={tag} className="agent-preview-tag">{tag}</span>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <div className="feature-item">
-                <span className="feature-icon">💬</span>
-                <span>实时众包决策</span>
-              </div>
-              <div className="feature-item">
-                <span className="feature-icon">⚡</span>
-                <span>秒速获得多维建议</span>
-              </div>
-            </Space>
+            ))}
+          </div>
+
+          {/* 底部数据 */}
+          <div className="brand-stats">
+            <div className="brand-stat">
+              <span className="brand-stat-num">3</span>
+              <span className="brand-stat-label">AI 专家</span>
+            </div>
+            <div className="brand-stat-divider" />
+            <div className="brand-stat">
+              <span className="brand-stat-num">RAG</span>
+              <span className="brand-stat-label">知识增强</span>
+            </div>
+            <div className="brand-stat-divider" />
+            <div className="brand-stat">
+              <span className="brand-stat-num">实时</span>
+              <span className="brand-stat-label">流式辩论</span>
+            </div>
           </div>
         </div>
 
-        {/* 右侧表单区域 */}
-        <div className="auth-form-container">
-          <Card className="auth-card">
-            <div className="auth-header">
-              <Tabs
-                items={items}
-                activeKey={activeTab}
-                onChange={setActiveTab}
-                className="auth-tabs"
-                tabBarStyle={{
-                  marginBottom: '24px',
-                }}
-              />
+        {/* ── 右侧：表单区 ── */}
+        <div className="auth-form-panel">
+          <div className="auth-card">
+            <div className="auth-card-header">
+              <Title level={3} className="auth-card-title">
+                {activeTab === 'login' ? '欢迎回来' : '加入平台'}
+              </Title>
+              <Text type="secondary" className="auth-card-subtitle">
+                {activeTab === 'login'
+                  ? '登录后即可参与辩论，投票决策'
+                  : '创建账号，开启智能决策之旅'}
+              </Text>
             </div>
 
-            <Divider>或继续使用</Divider>
-
-            <div className="social-login">
-              <Button size="large" block className="social-button">
-                微信登录
-              </Button>
-              <Button size="large" block className="social-button">
-                支付宝登录
-              </Button>
-            </div>
-          </Card>
+            <Tabs
+              items={tabItems}
+              activeKey={activeTab}
+              onChange={setActiveTab}
+              className="auth-tabs"
+              centered
+            />
+          </div>
 
           <div className="auth-footer">
-            <Space size="small" className="footer-controls">
-              <Text type="secondary" className="footer-text">
-                © 2024 生活决策论坛 · 为生活决策提供智能支持
-              </Text>
-              <Tooltip title={themeMode === 'dark' ? '切换为亮色' : '切换为深色'}>
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<BgColorsOutlined />}
-                  onClick={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
-                />
-              </Tooltip>
-            </Space>
+            © 2025 决策辩论庭 · 基于多智能体协同与 RAG 架构
           </div>
         </div>
       </div>

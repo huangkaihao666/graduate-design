@@ -1,118 +1,118 @@
+// ============ 我的案件页面样式 ============
+
 .my-cases-page {
-  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 0 60px;
+}
 
-  .my-cases-header {
-    background: linear-gradient(135deg, #fff 0%, #fafafa 100%);
-    border-radius: 16px;
-    padding: 48px 40px;
-    margin-bottom: 32px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-    border: 1px solid rgba(0, 0, 0, 0.04);
-    text-align: center;
+// ── 页面头部 ──────────────────────────────────────────────────
+.my-cases-header {
+  position: relative;
+  background: linear-gradient(135deg, #1E1B4B 0%, #312E81 50%, #4C1D95 100%);
+  padding: 40px 32px 36px;
+  border-radius: 0 0 24px 24px;
+  margin-bottom: 28px;
+  overflow: hidden;
 
-    h1 {
-      font-size: 40px;
-      font-weight: 800;
-      color: rgba(0, 0, 0, 0.85);
-      margin: 0 0 8px;
-      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      letter-spacing: -0.5px;
+  // 背景装饰
+  &::before {
+    content: '';
+    position: absolute;
+    top: -40%;
+    right: -5%;
+    width: 320px;
+    height: 320px;
+    border-radius: 50%;
+    background: rgba(99, 102, 241, 0.2);
+    filter: blur(60px);
+    pointer-events: none;
+  }
+
+  &::after {
+    content: '📝';
+    position: absolute;
+    right: 40px;
+    bottom: -12px;
+    font-size: 110px;
+    opacity: 0.08;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 900;
+    color: #fff;
+    margin: 0 0 8px;
+  }
+
+  p {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.6);
+    margin: 0 0 20px;
+  }
+
+  // 创建按钮
+  :global(.ant-btn-primary) {
+    height: 42px !important;
+    padding: 0 24px !important;
+    border-radius: 10px !important;
+    background: linear-gradient(135deg, #6366F1, #8B5CF6) !important;
+    border: none !important;
+    font-weight: 700 !important;
+    font-size: 14px !important;
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4) !important;
+    transition: all 0.2s ease !important;
+
+    &:hover {
+      transform: translateY(-2px) !important;
+      box-shadow: 0 8px 24px rgba(99, 102, 241, 0.5) !important;
     }
+  }
+}
 
-    p {
-      color: rgba(0, 0, 0, 0.45);
-      margin: 0 0 24px;
-      font-size: 14px;
-    }
+// ── Tabs 样式 ─────────────────────────────────────────────────
+.my-cases-page {
+  :global(.ant-tabs-nav) {
+    padding: 0 4px !important;
+    margin-bottom: 20px !important;
+  }
 
-    :deep(.ant-btn) {
-      border-radius: 6px;
-      height: 40px;
-      font-size: 14px;
-    }
+  :global(.ant-tabs-tab) {
+    font-weight: 600 !important;
+    color: #64748B !important;
 
-    @media (max-width: 768px) {
-      padding: 32px 24px;
-
-      h1 {
-        font-size: 28px;
-      }
+    &:hover {
+      color: #6366F1 !important;
     }
   }
 
-  .cases-grid {
-    min-height: 400px;
+  :global(.ant-tabs-tab-active .ant-tabs-tab-btn) {
+    color: #6366F1 !important;
+  }
+
+  :global(.ant-tabs-ink-bar) {
+    background: linear-gradient(90deg, #6366F1, #8B5CF6) !important;
+    height: 3px !important;
+    border-radius: 3px 3px 0 0 !important;
+  }
+}
+
+// ── 案件卡片网格 ──────────────────────────────────────────────
+.cases-grid {
+  min-height: 200px;
+
+  .spinner-center {
     display: flex;
     justify-content: center;
     align-items: center;
-
-    .spinner-center {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      width: 100%;
-      height: 400px;
-
-      :deep(.ant-spin) {
-        font-size: 48px;
-      }
-    }
-
-    :deep(.ant-empty) {
-      padding: 60px 20px;
-    }
+    min-height: 200px;
+    width: 100%;
   }
 
-  :deep(.ant-tabs) {
-    background: linear-gradient(135deg, #fff 0%, #fafafa 100%);
-    border-radius: 12px;
-    padding: 0;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-    border: 1px solid rgba(0, 0, 0, 0.04);
-
-    .ant-tabs-tab-list {
-      padding: 12px 24px;
-      border-bottom: 2px solid #f0f0f0;
-
-      .ant-tabs-tab {
-        font-size: 15px;
-        font-weight: 500;
-        transition: all 0.3s ease;
-
-        &:hover {
-          color: #667eea;
-        }
-
-        &.ant-tabs-tab-active {
-          color: #667eea;
-          font-weight: 600;
-        }
-      }
-
-      .ant-tabs-ink-bar {
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-        height: 3px;
-        border-radius: 3px 3px 0 0;
-      }
-    }
-
-    .ant-tabs-content {
-      padding: 32px 24px;
-      min-height: 400px;
-
-      @media (max-width: 768px) {
-        padding: 24px 16px;
-      }
-    }
-  }
-
-  @media (max-width: 768px) {
-    .my-cases-header {
-      padding: 32px 24px;
-      margin-bottom: 24px;
-    }
+  // 空态
+  :global(.ant-empty) {
+    padding: 40px 0 !important;
   }
 }

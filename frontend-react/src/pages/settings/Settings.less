@@ -1,134 +1,172 @@
+// ============ 设置页面样式 ============
+
 .settings-page {
-  max-width: 800px;
+  max-width: 720px;
   margin: 0 auto;
+  padding: 0 0 60px;
+}
 
-  .settings-header {
-    margin-bottom: 32px;
-    text-align: center;
+// ── 页面头部 ──────────────────────────────────────────────────
+.settings-header {
+  position: relative;
+  background: linear-gradient(135deg, #1E1B4B 0%, #312E81 50%, #4C1D95 100%);
+  padding: 40px 32px 36px;
+  border-radius: 0 0 24px 24px;
+  margin-bottom: 28px;
+  overflow: hidden;
 
-    h1 {
-      font-size: 32px;
-      font-weight: 700;
-      margin: 0 0 8px;
-      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
+  &::before {
+    content: '';
+    position: absolute;
+    top: -40%;
+    right: -5%;
+    width: 280px;
+    height: 280px;
+    border-radius: 50%;
+    background: rgba(139, 92, 246, 0.25);
+    filter: blur(60px);
+    pointer-events: none;
+  }
 
-    p {
-      color: rgba(0, 0, 0, 0.45);
-      margin: 0;
+  &::after {
+    content: '⚙️';
+    position: absolute;
+    right: 32px;
+    bottom: -8px;
+    font-size: 100px;
+    opacity: 0.08;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  h1 {
+    font-size: 26px;
+    font-weight: 900;
+    color: #fff;
+    margin: 0 0 8px;
+  }
+
+  p {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.6);
+    margin: 0;
+  }
+}
+
+// ── 设置卡片 ──────────────────────────────────────────────────
+.settings-card {
+  border-radius: 16px !important;
+  border: 1px solid rgba(99, 102, 241, 0.12) !important;
+  box-shadow: 0 2px 16px rgba(99, 102, 241, 0.06) !important;
+  margin-bottom: 16px;
+  overflow: hidden;
+
+  :global(.ant-card-body) {
+    padding: 20px !important;
+  }
+
+  // 卡片标题区
+  .card-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    font-size: 15px;
+    font-weight: 800;
+    color: #1E1B4B;
+
+    .title-icon {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #6366F1, #8B5CF6);
+      border-radius: 8px;
+      color: #fff;
       font-size: 14px;
     }
   }
 
-  .settings-card {
-    margin-bottom: 24px;
-    border-radius: 12px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-    border: 1px solid rgba(0, 0, 0, 0.04);
+  // 表单控件
+  :global(.ant-form-item-label > label) {
+    font-weight: 600 !important;
+    color: #374151 !important;
+    font-size: 13px !important;
+  }
 
-    :deep(.ant-card-body) {
-      padding: 32px;
-    }
+  :global(.ant-input-password),
+  :global(.ant-input-affix-wrapper) {
+    border-radius: 10px !important;
+    border-color: #E2E8F0 !important;
+    height: 42px !important;
 
-    .card-title {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 18px;
-      font-weight: 600;
-      color: rgba(0, 0, 0, 0.85);
-      margin-bottom: 24px;
-
-      .title-icon {
-        color: #667eea;
-        font-size: 20px;
-      }
-    }
-
-    :deep(.ant-form) {
-      .ant-form-item {
-        margin-bottom: 16px;
-
-        .ant-form-item-label {
-          padding-bottom: 8px;
-
-          label {
-            font-weight: 600;
-            color: rgba(0, 0, 0, 0.85);
-          }
-        }
-
-        .ant-input,
-        .ant-input-password {
-          border-radius: 6px;
-          border: 1px solid #d9d9d9;
-          transition: all 0.3s ease;
-
-          &:hover {
-            border-color: #667eea;
-          }
-
-          &:focus {
-            border-color: #667eea;
-            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
-          }
-        }
-      }
-
-      .ant-form-item-explain-error {
-        font-size: 12px;
-      }
-
-      .ant-btn {
-        border-radius: 6px;
-        height: 40px;
-        font-size: 14px;
-      }
-    }
-
-    .settings-group {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-
-      .setting-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 12px;
-        background: rgba(0, 0, 0, 0.02);
-        border-radius: 8px;
-        transition: all 0.3s ease;
-
-        &:hover {
-          background: rgba(102, 126, 234, 0.05);
-        }
-
-        .setting-label {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          flex: 1;
-
-          .label-title {
-            font-weight: 600;
-            color: rgba(0, 0, 0, 0.85);
-            font-size: 14px;
-          }
-
-          .label-desc {
-            color: rgba(0, 0, 0, 0.45);
-            font-size: 12px;
-          }
-        }
-
-        :deep(.ant-switch) {
-          margin: 0;
-        }
-      }
+    &:focus-within {
+      border-color: #6366F1 !important;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
     }
   }
+
+  :global(.ant-btn-primary[type='submit']),
+  :global(.ant-btn-primary) {
+    background: linear-gradient(135deg, #6366F1, #8B5CF6) !important;
+    border: none !important;
+    border-radius: 10px !important;
+    font-weight: 700 !important;
+    height: 42px !important;
+    box-shadow: 0 3px 12px rgba(99, 102, 241, 0.35) !important;
+    transition: all 0.2s ease !important;
+
+    &:hover {
+      transform: translateY(-1px) !important;
+      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5) !important;
+    }
+  }
+}
+
+// ── 设置分组 ──────────────────────────────────────────────────
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  .setting-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-radius: 12px;
+    transition: background 0.15s ease;
+
+    &:hover {
+      background: #F8FAFC;
+    }
+
+    .setting-label {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+
+      .label-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #1E1B4B;
+      }
+
+      .label-desc {
+        font-size: 12px;
+        color: #94A3B8;
+      }
+    }
+
+    // Switch 主题色
+    :global(.ant-switch-checked) {
+      background: linear-gradient(135deg, #6366F1, #8B5CF6) !important;
+    }
+  }
+}
+
+// ── Divider ───────────────────────────────────────────────────
+:global(.ant-divider) {
+  border-color: rgba(99, 102, 241, 0.1) !important;
 }
