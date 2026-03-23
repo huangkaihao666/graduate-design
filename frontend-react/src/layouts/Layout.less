@@ -100,64 +100,7 @@
   }
 }
 
-// 中间导航
-.header-nav {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex: 1;
-  justify-content: center;
-  max-width: 500px;
-
-  @media (max-width: 768px) {
-    display: none;
-  }
-}
-
-.header-nav-item {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  border-radius: 8px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-size: 13.5px;
-  font-weight: 500;
-  color: #64748B;
-  transition: all 0.2s ease;
-  font-family: inherit;
-
-  &:hover {
-    color: #6366F1;
-    background: #EEF2FF;
-  }
-
-  &.active {
-    color: #6366F1;
-    background: #EEF2FF;
-    font-weight: 600;
-  }
-
-  .nav-item-icon {
-    font-size: 15px;
-    display: flex;
-    align-items: center;
-  }
-
-  .nav-item-indicator {
-    position: absolute;
-    bottom: -2px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 4px;
-    height: 4px;
-    border-radius: 2px;
-    background: linear-gradient(135deg, #6366F1, #8B5CF6);
-  }
-}
+// 中间导航（已移除，导航统一在左侧侧边栏）
 
 // 右侧按钮区
 .header-right {
@@ -170,17 +113,19 @@
   width: 36px !important;
   height: 36px !important;
   border-radius: 8px !important;
-  color: #64748B !important;
+  color: #94A3B8 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   font-size: 16px !important;
   padding: 0 !important;
-  transition: all 0.2s ease !important;
+  background: transparent !important;
+  outline: none !important;
+  transition: color 0.2s ease !important;
 
   &:hover {
     color: #6366F1 !important;
-    background: #EEF2FF !important;
+    background: transparent !important;
   }
 }
 
@@ -189,22 +134,37 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 8px 4px 4px;
+  padding: 4px 4px;
   border-radius: 24px;
-  border: 1.5px solid transparent;
-  background: #F8FAFF;
+  border: none;
+  outline: none;
+  background: transparent;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: color 0.2s ease;
   font-family: inherit;
 
   &:hover {
-    border-color: #C7D2FE;
-    background: #EEF2FF;
+    border-color: transparent;
+    background: transparent;
+
+    .user-name-text {
+      color: #6366F1;
+    }
+  }
+
+  &:focus,
+  &:focus-visible {
+    outline: none;
+    border-color: transparent;
+    box-shadow: none;
   }
 }
 
 .user-avatar {
   background: linear-gradient(135deg, #6366F1, #8B5CF6) !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
   flex-shrink: 0;
 }
 

@@ -143,21 +143,6 @@ const Layout = () => {
             </div>
           </div>
 
-          {/* 中间导航（桌面版） */}
-          <nav className="header-nav">
-            {NAV_ITEMS.slice(0, 4).map((item) => (
-              <button
-                key={item.key}
-                className={`header-nav-item ${selectedKey === item.key ? 'active' : ''}`}
-                onClick={() => navigate(item.path)}
-              >
-                <span className="nav-item-icon">{item.icon}</span>
-                <span className="nav-item-label">{item.label}</span>
-                {selectedKey === item.key && <span className="nav-item-indicator" />}
-              </button>
-            ))}
-          </nav>
-
           {/* 右侧用户区 */}
           <Space size={8} className="header-right">
             <Button
