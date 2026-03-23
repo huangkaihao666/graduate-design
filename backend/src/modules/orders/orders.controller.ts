@@ -31,6 +31,30 @@ export class OrdersController {
     return this.ordersService.findAll();
   }
 
+  @Get('photographers/:id/booked-dates')
+  @ApiOperation({ summary: '获取摄影师已被预约的日期列表' })
+  getBookedDatesByPhotographer(@Param('id', ParseIntPipe) id: number) {
+    return this.ordersService.getBookedDatesByPhotographer(id);
+  }
+
+  @Patch(':id/reschedule-request')
+  @ApiOperation({ summary: '用户发起改期申请（免费一次，拍摄日前3天）' })
+  requestReschedule(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { newShootingDate: string; reason?: string },
+  ) {
+    return this.ordersService.requestReschedule(id, body);
+  }
+
+  @Patch(':id/reschedule-review')
+  @ApiOperation({ summary: '管理员审批改期申请（通过/驳回）' })
+  reviewRescheduleRequest(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { action: 'approve' | 'reject'; reviewNote?: string },
+  ) {
+    return this.ordersService.reviewRescheduleRequest(id, body);
+  }
+
   @Patch(':id/status')
   @ApiOperation({ summary: '更新订单状态（管理员）' })
   updateStatus(
@@ -44,5 +68,11 @@ export class OrdersController {
   @ApiOperation({ summary: '管理员看板统计数据' })
   getDashboardStats() {
     return this.ordersService.getDashboardStats();
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: '获取单个订单详情' })
+  findById(@Param('id', ParseIntPipe) id: number) {
+    return this.ordersService.findById(id);
   }
 }

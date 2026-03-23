@@ -49,6 +49,12 @@
             <div class="meta-item">联系人：{{ o.contactName }}（{{ o.phone }}）</div>
             <div class="meta-item">支付方式：{{ formatPayment(o.paymentMethod) }}</div>
             <div class="meta-item">支付状态：{{ formatPaymentStatus(o.paymentStatus) }}</div>
+            <div v-if="isRescheduled(o)" class="meta-item rescheduled-mark">
+              拍摄日期：{{ o.shootingDate }}（已改期）
+            </div>
+            <div v-if="o.rescheduleRequestStatus" class="meta-item">
+              改期状态：{{ formatRescheduleStatus(o.rescheduleRequestStatus) }}
+            </div>
           </div>
 
           <div class="order-card-bottom">
@@ -58,9 +64,9 @@
               <a-button
                 v-if="canCheckOnlinePayment(o)"
                 type="text"
-                @click.stop="confirmDemoPaid(o.orderNo)"
+                @click.stop="openPaymentModal(o)"
               >
-                确认已支付
+                去支付
               </a-button>
               <a-popconfirm
                 title="确认删除该订单吗？"
@@ -122,7 +128,32 @@
               ><span class="v">{{ activeOrder.numberOfPeople }} 人</span>
             </div>
             <div class="detail-row">
-              <span class="k">拍摄日期</span><span class="v">{{ activeOrder.shootingDate }}</span>
+              <span class="k">拍摄日期</span>
+              <span class="v">
+                {{ activeOrder.shootingDate }}
+                <a-tag v-if="isRescheduled(activeOrder)" color="green" style="margin-left: 6px"
+                  >已改期</a-tag
+                >
+                <a-button
+                  v-if="canRequestReschedule(activeOrder)"
+                  type="link"
+                  size="small"
+                  style="padding: 0 0 0 8px"
+                  @click="openRescheduleModal(activeOrder)"
+                >
+                  申请改期
+                </a-button>
+              </span>
+            </div>
+            <div v-if="activeOrder.rescheduleRequestStatus" class="detail-row">
+              <span class="k">改期审批</span>
+              <span class="v">{{
+                formatRescheduleStatus(activeOrder.rescheduleRequestStatus)
+              }}</span>
+            </div>
+            <div v-if="activeOrder.rescheduleReviewNote" class="detail-row">
+              <span class="k">审批备注</span>
+              <span class="v">{{ activeOrder.rescheduleReviewNote }}</span>
             </div>
             <div class="detail-row">
               <span class="k">支付方式</span
@@ -164,16 +195,126 @@
         </div>
       </div>
     </a-modal>
+
+    <a-modal
+      v-model:open="paymentModalVisible"
+      title="扫码支付"
+      :footer="null"
+      :width="480"
+      @cancel="closePaymentModal"
+    >
+      <div class="payment-modal-body">
+        <a-spin :spinning="paymentLoading">
+          <template v-if="paymentInfo">
+            <div class="payment-summary">
+              <div>订单号：{{ paymentInfo.orderNo }}</div>
+              <div>支付方式：{{ formatPayment(paymentInfo.paymentMethod) }}</div>
+              <div>应付金额：¥{{ paymentInfo.totalAmount.toLocaleString() }}</div>
+            </div>
+            <div class="payment-qr-wrap">
+              <a-image
+                v-if="paymentInfo.qrCodeDataUrl"
+                :src="paymentInfo.qrCodeDataUrl"
+                :preview="false"
+                class="payment-qr-img"
+              />
+              <div v-else class="payment-qr-empty">二维码加载中...</div>
+            </div>
+            <div class="payment-hint">
+              {{ paymentInfo.hint || '请使用对应支付 App 扫码完成支付' }}
+            </div>
+            <div class="payment-actions">
+              <a-button type="primary" :loading="paymentSubmitting" @click="confirmPaidAndClose">
+                已支付
+              </a-button>
+            </div>
+          </template>
+        </a-spin>
+      </div>
+    </a-modal>
+
+    <a-modal
+      v-model:open="rescheduleModalVisible"
+      title="申请改期（免费一次）"
+      :confirm-loading="rescheduleSubmitting"
+      ok-text="提交申请"
+      cancel-text="取消"
+      @ok="submitRescheduleRequest"
+      @cancel="closeRescheduleModal"
+    >
+      <div class="reschedule-modal-body">
+        <div v-if="rescheduleTarget" class="reschedule-current">
+          当前拍摄日期：{{ rescheduleTarget.shootingDate }}
+        </div>
+        <div class="reschedule-calendar">
+          <div class="calendar-header">
+            <a-button size="small" @click="goPrevRescheduleMonth">上个月</a-button>
+            <span class="calendar-title">{{ rescheduleCalendarTitle }}</span>
+            <a-button size="small" @click="goNextRescheduleMonth">下个月</a-button>
+          </div>
+          <div class="calendar-legend">
+            <span class="legend-item available">可改</span>
+            <span class="legend-item booked">已约</span>
+            <span class="legend-item unavailable">不可改</span>
+          </div>
+          <div class="calendar-weekdays">
+            <span v-for="w in ['日', '一', '二', '三', '四', '五', '六']" :key="w">{{ w }}</span>
+          </div>
+          <div class="calendar-grid">
+            <button
+              v-for="cell in rescheduleCalendarCells"
+              :key="cell.date"
+              type="button"
+              class="calendar-day"
+              :class="[
+                cell.status,
+                {
+                  muted: !cell.inCurrentMonth,
+                  selected: rescheduleForm.newShootingDate === cell.date,
+                },
+              ]"
+              :disabled="!cell.inCurrentMonth || cell.status !== 'available'"
+              @click="selectRescheduleDate(cell.date)"
+            >
+              <span class="day-num">{{ cell.day }}</span>
+              <span class="day-status">
+                {{
+                  cell.status === 'available'
+                    ? '可改'
+                    : cell.status === 'booked'
+                      ? '已约'
+                      : '不可改'
+                }}
+              </span>
+            </button>
+          </div>
+        </div>
+        <div class="reschedule-current">
+          已选新日期：{{ rescheduleForm.newShootingDate || '未选择' }}
+        </div>
+        <a-textarea
+          v-model:value="rescheduleForm.reason"
+          :rows="3"
+          :maxlength="120"
+          show-count
+          placeholder="改期原因（选填）"
+          style="margin-top: 10px"
+        />
+        <div class="reschedule-tip">仅支持拍摄日前3天及以上免费改期一次，需管理员审批。</div>
+      </div>
+    </a-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { message } from 'ant-design-vue';
 import { useRouter } from 'vue-router';
 import { TRAVEL_STYLE_LABELS } from '@/constants/travel-style-labels';
 import { useAuthStore } from '@/store/auth';
 import { paymentsApi } from '@/api/payments';
+import { ordersApi } from '@/api/orders';
+import { photographersApi } from '@/api/photographers';
 
 type PaymentMethod = 'wechat' | 'alipay' | 'offline' | string;
 
@@ -201,6 +342,13 @@ interface BookingOrder {
   photographerName?: string;
   totalAmount: number;
   createdAt: string;
+  rescheduleCount?: number;
+  rescheduleRequestStatus?: 'pending' | 'approved' | 'rejected' | string;
+  rescheduleRequestedDate?: string;
+  rescheduleRequestReason?: string;
+  rescheduleRequestedAt?: string;
+  rescheduleReviewNote?: string;
+  rescheduleReviewedAt?: string;
 }
 
 const STORAGE_KEY = 'online-order-history';
@@ -229,6 +377,28 @@ const orders = ref<BookingOrder[]>([]);
 
 const detailVisible = ref(false);
 const activeOrder = ref<BookingOrder | null>(null);
+const paymentModalVisible = ref(false);
+const paymentLoading = ref(false);
+const paymentSubmitting = ref(false);
+let paymentPollTimer: ReturnType<typeof setInterval> | null = null;
+const paymentInfo = ref<{
+  orderNo: string;
+  paymentMethod: PaymentMethod;
+  totalAmount: number;
+  qrCodeDataUrl?: string;
+  codeUrl?: string;
+  hint?: string;
+} | null>(null);
+const rescheduleModalVisible = ref(false);
+const rescheduleSubmitting = ref(false);
+const rescheduleTarget = ref<BookingOrder | null>(null);
+const rescheduleForm = ref({
+  newShootingDate: '',
+  reason: '',
+});
+const rescheduleAvailableDates = ref<string[]>([]);
+const rescheduleBookedDates = ref<string[]>([]);
+const rescheduleCalendarMonth = ref(new Date());
 
 const styleMap: Record<string, string> = { ...TRAVEL_STYLE_LABELS };
 
@@ -255,6 +425,77 @@ const formatPaymentStatus = (status?: string) => {
   return status;
 };
 
+const formatRescheduleStatus = (status?: string) => {
+  if (!status) return '-';
+  if (status === 'pending') return '待审批';
+  if (status === 'approved') return '已通过';
+  if (status === 'rejected') return '已驳回';
+  return status;
+};
+
+const isRescheduled = (o: BookingOrder) =>
+  (o.rescheduleCount || 0) > 0 || o.rescheduleRequestStatus === 'approved';
+
+const toIsoDate = (d: Date) => {
+  const y = d.getFullYear();
+  const m = `${d.getMonth() + 1}`.padStart(2, '0');
+  const day = `${d.getDate()}`.padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+const rescheduleAvailableSet = computed(() => new Set(rescheduleAvailableDates.value));
+const rescheduleBookedSet = computed(() => new Set(rescheduleBookedDates.value));
+
+const rescheduleCalendarTitle = computed(() => {
+  const y = rescheduleCalendarMonth.value.getFullYear();
+  const m = rescheduleCalendarMonth.value.getMonth() + 1;
+  return `${y}年${m}月`;
+});
+
+const getRescheduleDateStatus = (iso: string): 'available' | 'booked' | 'unavailable' => {
+  const todayIso = toIsoDate(new Date());
+  if (rescheduleBookedSet.value.has(iso)) return 'booked';
+  if (rescheduleAvailableSet.value.has(iso) && iso >= todayIso) return 'available';
+  return 'unavailable';
+};
+
+const rescheduleCalendarCells = computed(() => {
+  const base = new Date(
+    rescheduleCalendarMonth.value.getFullYear(),
+    rescheduleCalendarMonth.value.getMonth(),
+    1
+  );
+  const firstWeekday = base.getDay();
+  const start = new Date(base);
+  start.setDate(base.getDate() - firstWeekday);
+  return Array.from({ length: 42 }, (_, i) => {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const iso = toIsoDate(d);
+    return {
+      date: iso,
+      day: d.getDate(),
+      inCurrentMonth: d.getMonth() === base.getMonth(),
+      status: getRescheduleDateStatus(iso),
+    };
+  });
+});
+
+const goPrevRescheduleMonth = () => {
+  const d = rescheduleCalendarMonth.value;
+  rescheduleCalendarMonth.value = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+};
+
+const goNextRescheduleMonth = () => {
+  const d = rescheduleCalendarMonth.value;
+  rescheduleCalendarMonth.value = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+};
+
+const selectRescheduleDate = (iso: string) => {
+  if (getRescheduleDateStatus(iso) !== 'available') return;
+  rescheduleForm.value.newShootingDate = iso;
+};
+
 const parseOrders = (raw: string | null): BookingOrder[] => {
   if (!raw) return [];
   try {
@@ -271,14 +512,34 @@ const loadOrders = async () => {
   try {
     const raw = readOrderHistoryStorage();
     const list = parseOrders(raw);
-    // 兜底：确保字段类型正确
-    orders.value = list.map((o) => ({
+    const normalized = list.map((o) => ({
       ...o,
       totalAmount: Number(o.totalAmount ?? 0),
       unitPrice: Number(o.unitPrice ?? 0),
       numberOfPeople: Number(o.numberOfPeople ?? 1),
       duration: Number(o.duration ?? 0),
     }));
+    const synced = await Promise.all(
+      normalized.map(async (o) => {
+        if (!o.orderId) return o;
+        try {
+          const latest: any = await ordersApi.getOrderById(o.orderId);
+          return {
+            ...o,
+            shootingDate: latest?.shootingDate || o.shootingDate,
+            rescheduleCount: Number(latest?.rescheduleCount ?? o.rescheduleCount ?? 0),
+            rescheduleRequestStatus: latest?.rescheduleRequestStatus || o.rescheduleRequestStatus,
+            rescheduleRequestedDate: latest?.rescheduleRequestedDate || o.rescheduleRequestedDate,
+            rescheduleReviewNote: latest?.rescheduleReviewNote || o.rescheduleReviewNote,
+            rescheduleReviewedAt: latest?.rescheduleReviewedAt || o.rescheduleReviewedAt,
+          } as BookingOrder;
+        } catch {
+          return o;
+        }
+      })
+    );
+    orders.value = synced;
+    writeOrderHistoryStorage(JSON.stringify(synced));
   } catch (e: any) {
     console.error('加载订单失败:', e);
     message.error('加载订单失败，请稍后重试');
@@ -320,28 +581,198 @@ const canCheckOnlinePayment = (o: BookingOrder) => {
   return onlineMethods.includes(o.paymentMethod as string) && o.paymentStatus === 'unpaid';
 };
 
-/** 与预约页二维码弹窗一致：演示流程下直接标记服务端已支付 */
-const confirmDemoPaid = async (orderNo: string) => {
+const canRequestReschedule = (o: BookingOrder) => {
+  if (!o.orderId) return false;
+  if ((o.rescheduleCount || 0) >= 1) return false;
+  if (o.rescheduleRequestStatus === 'pending') return false;
+  if (o.paymentStatus === 'cancelled') return false;
+  const d = new Date(`${o.shootingDate}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diff = Math.floor((d.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
+  return diff >= 3;
+};
+
+const openRescheduleModal = (order: BookingOrder) => {
+  closeDetail();
+  rescheduleTarget.value = order;
+  rescheduleForm.value = {
+    newShootingDate: '',
+    reason: '',
+  };
+  rescheduleAvailableDates.value = [];
+  rescheduleBookedDates.value = [];
+  const [y, m] = String(order.shootingDate || '')
+    .split('-')
+    .map((x) => Number(x));
+  rescheduleCalendarMonth.value = y && m ? new Date(y, m - 1, 1) : new Date();
+  rescheduleModalVisible.value = true;
+  void loadRescheduleCalendar(order);
+};
+
+const closeRescheduleModal = () => {
+  rescheduleTarget.value = null;
+  rescheduleAvailableDates.value = [];
+  rescheduleBookedDates.value = [];
+  rescheduleModalVisible.value = false;
+};
+
+const loadRescheduleCalendar = async (order: BookingOrder) => {
+  if (!order.photographerId) return;
+  try {
+    const [p, booked] = await Promise.all([
+      photographersApi.getPublicOne(order.photographerId),
+      ordersApi.getPhotographerBookedDates(order.photographerId),
+    ]);
+    const available = Array.isArray(p.availableDates) ? p.availableDates : [];
+    rescheduleAvailableDates.value = available
+      .map((x) => String(x).trim())
+      .filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(x));
+    rescheduleBookedDates.value = (Array.isArray(booked) ? booked : [])
+      .map((x) => String(x).trim())
+      .filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(x));
+  } catch {
+    rescheduleAvailableDates.value = [];
+    rescheduleBookedDates.value = [];
+  }
+};
+
+const submitRescheduleRequest = async () => {
+  const target = rescheduleTarget.value;
+  if (!target?.orderId) {
+    message.error('订单缺少服务端ID，暂无法申请改期');
+    return;
+  }
+  if (!rescheduleForm.value.newShootingDate) {
+    message.warning('请选择新拍摄日期');
+    return;
+  }
+  if (getRescheduleDateStatus(rescheduleForm.value.newShootingDate) !== 'available') {
+    message.warning('请在该摄影师可预约档期内选择可改日期');
+    return;
+  }
+  rescheduleSubmitting.value = true;
+  try {
+    const updated: any = await ordersApi.requestReschedule(target.orderId, {
+      newShootingDate: rescheduleForm.value.newShootingDate,
+      reason: rescheduleForm.value.reason || undefined,
+    });
+    const idx = orders.value.findIndex((x) => x.orderNo === target.orderNo);
+    if (idx !== -1) {
+      orders.value[idx] = {
+        ...orders.value[idx],
+        rescheduleRequestStatus: updated?.rescheduleRequestStatus || 'pending',
+        rescheduleRequestedDate:
+          updated?.rescheduleRequestedDate || rescheduleForm.value.newShootingDate,
+        rescheduleRequestReason:
+          updated?.rescheduleRequestReason || rescheduleForm.value.reason || undefined,
+        rescheduleRequestedAt: updated?.rescheduleRequestedAt || new Date().toISOString(),
+      };
+      writeOrderHistoryStorage(JSON.stringify(orders.value));
+    }
+    message.success('改期申请已提交，等待管理员审批');
+    closeRescheduleModal();
+  } catch (e: any) {
+    message.error(e?.message || '提交改期申请失败');
+  } finally {
+    rescheduleSubmitting.value = false;
+  }
+};
+
+const stopPaymentPoll = () => {
+  if (paymentPollTimer) {
+    clearInterval(paymentPollTimer);
+    paymentPollTimer = null;
+  }
+};
+
+const markOrderPaidLocal = (orderNo: string) => {
   const raw = readOrderHistoryStorage();
   const history = raw ? parseOrders(raw) : [];
   const idx = history.findIndex((x: any) => x.orderNo === orderNo);
-  if (idx === -1) {
-    message.error('订单不存在');
+  if (idx === -1) return;
+  history[idx] = {
+    ...history[idx],
+    paymentStatus: 'paid',
+    paidAt: new Date().toISOString(),
+  };
+  writeOrderHistoryStorage(JSON.stringify(history));
+  orders.value = history as BookingOrder[];
+};
+
+const handlePaymentSuccess = (orderNo: string) => {
+  markOrderPaidLocal(orderNo);
+  stopPaymentPoll();
+  paymentModalVisible.value = false;
+  paymentInfo.value = null;
+  message.success('支付成功');
+};
+
+const startPaymentPoll = () => {
+  stopPaymentPoll();
+  const orderNo = paymentInfo.value?.orderNo;
+  if (!orderNo) return;
+  paymentPollTimer = setInterval(async () => {
+    try {
+      const st = await paymentsApi.getStatus(orderNo);
+      if (st.paid) {
+        handlePaymentSuccess(orderNo);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, 2500);
+};
+
+const openPaymentModal = async (order: BookingOrder) => {
+  if (!order.orderId) {
+    message.error('订单缺少支付信息（orderId），请重新下单或联系管理员');
     return;
   }
+  paymentLoading.value = true;
+  paymentInfo.value = null;
+  paymentModalVisible.value = true;
+  try {
+    const channel = order.paymentMethod === 'alipay' ? 'alipay' : 'wechat';
+    const data = await paymentsApi.prepay({
+      orderId: order.orderId,
+      channel,
+    });
+    paymentInfo.value = {
+      orderNo: order.orderNo,
+      paymentMethod: order.paymentMethod,
+      totalAmount: order.totalAmount,
+      qrCodeDataUrl: data.qrCodeDataUrl,
+      codeUrl: data.codeUrl,
+      hint: data.hint,
+    };
+    startPaymentPoll();
+  } catch (e: any) {
+    paymentModalVisible.value = false;
+    message.error(e?.message || '获取支付二维码失败');
+  } finally {
+    paymentLoading.value = false;
+  }
+};
+
+const confirmPaidAndClose = async () => {
+  const orderNo = paymentInfo.value?.orderNo;
+  if (!orderNo) return;
+  paymentSubmitting.value = true;
   try {
     await paymentsApi.demoComplete({ orderNo });
-    history[idx] = {
-      ...history[idx],
-      paymentStatus: 'paid',
-      paidAt: new Date().toISOString(),
-    };
-    writeOrderHistoryStorage(JSON.stringify(history));
-    orders.value = history as BookingOrder[];
-    message.success('已标记为支付成功');
-  } catch {
-    message.error('操作失败，请检查网络或稍后重试');
+    handlePaymentSuccess(orderNo);
+  } catch (e: any) {
+    message.error(e?.message || '操作失败，请稍后重试');
+  } finally {
+    paymentSubmitting.value = false;
   }
+};
+
+const closePaymentModal = () => {
+  stopPaymentPoll();
+  paymentInfo.value = null;
 };
 
 const filteredOrders = computed(() => {
@@ -364,6 +795,10 @@ onMounted(() => {
     return;
   }
   loadOrders();
+});
+
+onUnmounted(() => {
+  stopPaymentPoll();
 });
 </script>
 
@@ -589,6 +1024,198 @@ onMounted(() => {
   color: #333;
   line-height: 1.7;
   font-size: 0.95rem;
+}
+
+.payment-modal-body {
+  padding-top: 4px;
+}
+
+.payment-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.92rem;
+  color: #555;
+  margin-bottom: 12px;
+}
+
+.payment-qr-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 260px;
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+}
+
+.payment-qr-img {
+  width: 240px;
+  height: 240px;
+}
+
+.payment-qr-empty {
+  color: #999;
+  font-size: 0.9rem;
+}
+
+.payment-hint {
+  margin-top: 10px;
+  color: #888;
+  font-size: 0.88rem;
+  text-align: center;
+}
+
+.payment-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: center;
+}
+
+.reschedule-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reschedule-current {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.reschedule-tip {
+  font-size: 12px;
+  color: #999;
+}
+
+.reschedule-calendar {
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+  padding: 10px;
+  background: #fff;
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.calendar-title {
+  font-weight: 700;
+  color: #334155;
+}
+
+.calendar-legend {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.legend-item {
+  font-size: 12px;
+  border-radius: 999px;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+
+  &.available {
+    color: #166534;
+    background: #dcfce7;
+    border-color: #86efac;
+  }
+  &.booked {
+    color: #991b1b;
+    background: #fee2e2;
+    border-color: #fca5a5;
+  }
+  &.unavailable {
+    color: #475569;
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+  }
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-bottom: 6px;
+
+  span {
+    text-align: center;
+    font-size: 12px;
+    color: #64748b;
+  }
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.calendar-day {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  min-height: 48px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+
+  .day-num {
+    font-size: 13px;
+    font-weight: 700;
+    color: #334155;
+    line-height: 1;
+  }
+
+  .day-status {
+    font-size: 10px;
+    line-height: 1;
+  }
+
+  &.available {
+    border-color: #86efac;
+    background: #f0fdf4;
+    .day-status {
+      color: #16a34a;
+    }
+  }
+
+  &.booked {
+    border-color: #fca5a5;
+    background: #fef2f2;
+    .day-status {
+      color: #dc2626;
+    }
+  }
+
+  &.unavailable {
+    border-color: #e2e8f0;
+    background: #f8fafc;
+    .day-status {
+      color: #94a3b8;
+    }
+  }
+
+  &.selected {
+    box-shadow: 0 0 0 2px rgba(255, 117, 140, 0.25) inset;
+  }
+
+  &.muted {
+    opacity: 0.35;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+  }
 }
 
 @media (max-width: 900px) {
