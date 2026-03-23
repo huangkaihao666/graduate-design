@@ -82,19 +82,23 @@ instance.interceptors.response.use(
       }
 
       originalRequest._retry = true
+
+      // 没有 refreshToken（如登录失败场景），直接透传错误，不走刷新流程
+      if (!authStore.refreshToken) {
+        return Promise.reject(error)
+      }
+
       isRefreshing = true
 
       try {
         // 尝试使用 refreshToken 刷新 accessToken
-        if (authStore.refreshToken) {
-          const response = await authApi.refreshToken(authStore.refreshToken)
-          const newAccessToken = (response as any).accessToken
-          authStore.setAccessToken(newAccessToken)
-          processQueue(null, newAccessToken)
-          // 重试原始请求
-          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`
-          return instance(originalRequest)
-        }
+        const response = await authApi.refreshToken(authStore.refreshToken)
+        const newAccessToken = (response as any).accessToken
+        authStore.setAccessToken(newAccessToken)
+        processQueue(null, newAccessToken)
+        // 重试原始请求
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`
+        return instance(originalRequest)
       } catch (refreshError) {
         processQueue(refreshError, null)
         message.error('登录已过期，请重新登录')

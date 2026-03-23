@@ -63,14 +63,23 @@ const AGENTS = [
 const Auth: React.FC = () => {
   const navigate = useNavigate();
   const { login } = useAuthStore();
-  const [loading, setLoading] = useState(false);
+  // 登录和注册使用独立 loading，互不干扰
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [registerLoading, setRegisterLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
   const [loginForm] = Form.useForm<LoginFormData>();
   const [registerForm] = Form.useForm<RegisterFormData>();
 
+  // 切换 Tab 时重置双方 loading，防止残留
+  const handleTabChange = (key: string) => {
+    setActiveTab(key);
+    setLoginLoading(false);
+    setRegisterLoading(false);
+  };
+
   // 处理登录
   const handleLogin = async (values: LoginFormData) => {
-    setLoading(true);
+    setLoginLoading(true);
     try {
       const response = await authApi.login({
         email: values.email,
@@ -89,37 +98,36 @@ const Auth: React.FC = () => {
     } catch {
       message.error("邮箱或密码错误，请重新输入");
     } finally {
-      setLoading(false);
+      setLoginLoading(false);
     }
   };
 
   // 处理注册
   const handleRegister = async (values: RegisterFormData) => {
+    // 注意：密码一致性校验已移至 Form rules，这里保留兜底
     if (values.password !== values.confirmPassword) {
       message.error("两次输入的密码不一致");
-      return;
+      return; // 此处直接 return，不进入 try/finally，loading 无需置位
     }
-    setLoading(true);
+    setRegisterLoading(true);
     try {
-      const response = await authApi.register({
+      await authApi.register({
         name: values.name,
         email: values.email,
         password: values.password,
       });
-      const loginData = response as any;
-      flushSync(() => {
-        login({
-          user: loginData.user,
-          accessToken: loginData.accessToken,
-          refreshToken: loginData.refreshToken,
-        });
+      // 注册成功后切换到登录 Tab，并预填邮箱
+      registerForm.resetFields();
+      handleTabChange("login");
+      loginForm.setFieldValue("email", values.email);
+      message.success({
+        content: "🎉 注册成功！请使用您的邮箱和密码登录",
+        duration: 4,
       });
-      message.success("注册成功，欢迎加入智辩助手！");
-      navigate("/cases", { replace: true });
     } catch {
       message.error("注册失败，请检查输入内容后重试");
     } finally {
-      setLoading(false);
+      setRegisterLoading(false);
     }
   };
 
@@ -180,7 +188,7 @@ const Auth: React.FC = () => {
             <Button
               type="primary"
               htmlType="submit"
-              loading={loading}
+              loading={loginLoading}
               block
               className="auth-submit-btn"
               icon={<ArrowRightOutlined />}
@@ -287,7 +295,7 @@ const Auth: React.FC = () => {
             <Button
               type="primary"
               htmlType="submit"
-              loading={loading}
+              loading={registerLoading}
               block
               className="auth-submit-btn"
               icon={<ArrowRightOutlined />}
@@ -410,7 +418,7 @@ const Auth: React.FC = () => {
             <Tabs
               items={tabItems}
               activeKey={activeTab}
-              onChange={setActiveTab}
+              onChange={handleTabChange}
               className="auth-tabs"
               centered
             />
