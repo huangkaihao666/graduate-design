@@ -1,5 +1,6 @@
 // ============ 登录/注册页 ============
 
+// ── 全页容器 ──────────────────────────────────────────────────
 .auth-page {
   position: relative;
   width: 100%;
@@ -8,106 +9,216 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: var(--gradient-hero, linear-gradient(135deg, #1e1b4b 0%, #312e81 45%, #4c1d95 100%));
+  // 图片未加载时的兜底色（蓝紫色调，不再纯黑）
+  background: #1a1535;
 }
 
-// ── 动态背景 ──────────────────────────────────────────────────
-.auth-bg {
+// ── 背景图层（科技感图片 + 叠加层） ──────────────────────────
+.auth-bg-image {
+  position: absolute;
+  inset: 0;
+  // 蓝紫色科技粒子/神经网络风格，整体明亮，白底带光感
+  background-image: url('https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?w=1920&q=85&auto=format&fit=crop');
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  z-index: 0;
+  transform: scale(1.05);
+  animation: bgBreath 20s ease-in-out infinite;
+}
+
+@keyframes bgBreath {
+  0%, 100% { transform: scale(1.05); }
+  50%       { transform: scale(1.08); }
+}
+
+// 叠加层：让图片融入主题色，整体更亮，不遮死图片细节
+.auth-bg-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(135deg,
+      rgba(15, 12, 40, 0.62) 0%,
+      rgba(30, 27, 75, 0.50) 40%,
+      rgba(76, 29, 149, 0.42) 70%,
+      rgba(15, 12, 40, 0.65) 100%
+    );
+  z-index: 1;
+}
+
+// ── 动态光效 ──────────────────────────────────────────────────
+.auth-bg-orbs {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 0;
+  z-index: 2;
+  overflow: hidden;
 }
 
-.auth-bg-orb {
+.auth-orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.35;
-  animation: floatOrb 20s ease-in-out infinite;
+  filter: blur(90px);
+  animation: floatOrb 24s ease-in-out infinite;
 }
 
 .orb-1 {
-  width: 560px;
-  height: 560px;
-  background: radial-gradient(circle, #6366F1, transparent 70%);
-  top: -180px;
-  right: -120px;
-  animation-duration: 22s;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.22), transparent 70%);
+  top: -200px;
+  right: -150px;
+  animation-duration: 26s;
 }
 
 .orb-2 {
-  width: 400px;
-  height: 400px;
-  background: radial-gradient(circle, #8B5CF6, transparent 70%);
-  bottom: -100px;
-  left: -80px;
-  animation-duration: 18s;
-  animation-delay: -6s;
+  width: 450px;
+  height: 450px;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.18), transparent 70%);
+  bottom: -120px;
+  left: -100px;
+  animation-duration: 20s;
+  animation-delay: -8s;
 }
 
 .orb-3 {
-  width: 300px;
-  height: 300px;
-  background: radial-gradient(circle, #3B82F6, transparent 70%);
-  top: 40%;
-  left: 35%;
-  animation-duration: 28s;
-  animation-delay: -12s;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.15), transparent 70%);
+  top: 50%;
+  left: 30%;
+  animation-duration: 32s;
+  animation-delay: -14s;
 }
 
 @keyframes floatOrb {
-  0%,100% { transform: translate(0, 0) scale(1); }
-  33%      { transform: translate(40px, -60px) scale(1.08); }
-  66%      { transform: translate(-30px, 40px) scale(0.95); }
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%       { transform: translate(50px, -70px) scale(1.1); }
+  66%       { transform: translate(-40px, 50px) scale(0.92); }
 }
 
+// 网格线（细微）
 .auth-bg-grid {
   position: absolute;
   inset: 0;
+  z-index: 2;
   background-image:
-    linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+    linear-gradient(rgba(99, 102, 241, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99, 102, 241, 0.06) 1px, transparent 1px);
   background-size: 60px 60px;
+}
+
+// 扫描光束
+.auth-bg-scan {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: -100%;
+    left: -20%;
+    width: 140%;
+    height: 3px;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(99, 102, 241, 0.6) 30%,
+      rgba(139, 92, 246, 0.8) 50%,
+      rgba(99, 102, 241, 0.6) 70%,
+      transparent 100%
+    );
+    animation: scanLine 8s linear infinite;
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: -100%;
+    left: -20%;
+    width: 140%;
+    height: 1px;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(139, 92, 246, 0.3) 30%,
+      rgba(99, 102, 241, 0.5) 50%,
+      rgba(139, 92, 246, 0.3) 70%,
+      transparent 100%
+    );
+    animation: scanLine 8s linear infinite;
+    animation-delay: 4s;
+  }
+}
+
+@keyframes scanLine {
+  0%   { top: -5%; }
+  100% { top: 105%; }
 }
 
 // ── 整体布局 ───────────────────────────────────────────────────
 .auth-wrapper {
   position: relative;
-  z-index: 1;
+  z-index: 10;
   display: flex;
-  gap: 80px;
+  gap: 72px;
   align-items: center;
   width: 92%;
-  max-width: 1100px;
+  max-width: 1120px;
   padding: 60px 0;
 
   @media (max-width: 960px) {
     flex-direction: column;
-    gap: 48px;
-    max-width: 520px;
+    gap: 40px;
+    max-width: 500px;
     padding: 48px 0;
   }
 
   @media (max-width: 576px) {
     width: 96%;
     padding: 32px 0;
-    gap: 32px;
+    gap: 28px;
   }
 }
 
-// ── 左侧品牌区 ─────────────────────────────────────────────────
+// ── 左侧品牌区（入场动画） ─────────────────────────────────────
 .auth-brand {
-  flex: 1.1;
+  flex: 1.15;
   color: #fff;
   display: flex;
   flex-direction: column;
   gap: 28px;
+  animation: slideInLeft 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
 
   @media (max-width: 960px) {
     align-items: center;
     text-align: center;
     gap: 20px;
+    animation: fadeInUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -122,22 +233,26 @@
 }
 
 .brand-logo {
-  width: 72px;
-  height: 72px;
+  width: 74px;
+  height: 74px;
   border-radius: 20px;
-  background: rgba(255,255,255,0.12);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255,255,255,0.2);
+  background: linear-gradient(135deg, rgba(99,102,241,0.4), rgba(139,92,246,0.3));
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(99,102,241,0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-  animation: floatUp 3s ease-in-out infinite;
+  box-shadow:
+    0 8px 32px rgba(99,102,241,0.3),
+    0 0 0 1px rgba(255,255,255,0.05),
+    inset 0 1px 0 rgba(255,255,255,0.15);
+  animation: floatUp 3.5s ease-in-out infinite;
   flex-shrink: 0;
 
   .brand-logo-icon {
     font-size: 36px;
     line-height: 1;
+    filter: drop-shadow(0 2px 8px rgba(99,102,241,0.5));
   }
 }
 
@@ -147,24 +262,26 @@
   color: #fff !important;
   margin: 0 !important;
   letter-spacing: -0.5px;
+  text-shadow: 0 2px 20px rgba(99,102,241,0.4);
 }
 
 .brand-tagline {
-  font-size: 14px;
-  color: rgba(255,255,255,0.65);
+  font-size: 13px;
+  color: rgba(165, 180, 252, 0.85);
   display: block;
-  margin-top: 2px;
-  letter-spacing: 0.5px;
+  margin-top: 4px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 
 .brand-desc {
   font-size: 15px;
-  line-height: 1.8;
-  color: rgba(255,255,255,0.8);
+  line-height: 1.85;
+  color: rgba(255, 255, 255, 0.78);
   max-width: 380px;
 
   strong {
-    color: #fff;
+    color: #a5b4fc;
     font-weight: 700;
   }
 
@@ -190,22 +307,43 @@
 .agent-preview-card {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border-radius: 12px;
-  background: var(--agent-bg, rgba(255,255,255,0.08));
-  border: 1px solid rgba(255,255,255,0.1);
-  backdrop-filter: blur(10px);
-  transition: all 0.25s ease;
+  gap: 14px;
+  padding: 13px 18px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
   cursor: default;
+  position: relative;
+  overflow: hidden;
+
+  // 悬浮光晕
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      135deg,
+      var(--agent-bg, rgba(255,255,255,0.03)),
+      transparent 60%
+    );
+    opacity: 0;
+    transition: opacity 0.3s;
+    border-radius: inherit;
+  }
 
   &:hover {
-    background: rgba(255,255,255,0.12);
-    transform: translateX(6px);
-    border-color: var(--agent-color, rgba(255,255,255,0.2));
+    transform: translateX(8px);
+    border-color: var(--agent-color, rgba(255, 255, 255, 0.2));
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--agent-color, transparent);
+
+    &::before {
+      opacity: 1;
+    }
 
     @media (max-width: 960px) {
-      transform: translateY(-3px);
+      transform: translateY(-4px);
     }
   }
 
@@ -223,6 +361,7 @@
   font-size: 28px;
   line-height: 1;
   flex-shrink: 0;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3));
 }
 
 .agent-preview-info {
@@ -237,11 +376,12 @@
   font-weight: 700;
   color: var(--agent-color, #fff);
   white-space: nowrap;
+  text-shadow: 0 0 12px var(--agent-color, transparent);
 }
 
 .agent-preview-desc {
   font-size: 12px;
-  color: rgba(255,255,255,0.6);
+  color: rgba(255, 255, 255, 0.55);
   white-space: nowrap;
 }
 
@@ -249,15 +389,16 @@
   display: flex;
   gap: 4px;
   flex-wrap: wrap;
-  margin-top: 2px;
+  margin-top: 3px;
 }
 
 .agent-preview-tag {
   font-size: 11px;
-  padding: 1px 7px;
+  padding: 2px 8px;
   border-radius: 10px;
-  background: rgba(255,255,255,0.1);
-  color: rgba(255,255,255,0.7);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.6);
   white-space: nowrap;
 }
 
@@ -266,7 +407,7 @@
   display: flex;
   align-items: center;
   gap: 24px;
-  padding-top: 8px;
+  padding-top: 4px;
 
   @media (max-width: 960px) {
     justify-content: center;
@@ -277,50 +418,81 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
 }
 
 .brand-stat-num {
   font-size: 20px;
   font-weight: 800;
-  color: #fff;
+  color: #a5b4fc;
   line-height: 1;
+  text-shadow: 0 0 20px rgba(99,102,241,0.6);
 }
 
 .brand-stat-label {
   font-size: 11px;
-  color: rgba(255,255,255,0.55);
+  color: rgba(255, 255, 255, 0.45);
   letter-spacing: 0.5px;
 }
 
 .brand-stat-divider {
   width: 1px;
   height: 36px;
-  background: rgba(255,255,255,0.2);
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(99, 102, 241, 0.4),
+    transparent
+  );
 }
 
-// ── 右侧表单区 ─────────────────────────────────────────────────
+// ── 右侧表单区（入场动画） ─────────────────────────────────────
 .auth-form-panel {
-  flex: 0.9;
+  flex: 0.88;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  animation: slideInRight 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
 
   @media (max-width: 960px) {
     width: 100%;
+    animation: fadeInUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
   }
 }
 
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+// 表单卡片：半透明毛玻璃，背景图若隐若现，文字清晰
 .auth-card {
-  background: rgba(255,255,255,0.97);
-  border-radius: 20px;
-  padding: 36px 40px 32px;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.35), 0 8px 24px rgba(0,0,0,0.15);
-  border: 1px solid rgba(255,255,255,0.3);
+  position: relative;
+  // 半透明白色：0.72 让背景图透出，形成真实毛玻璃感
+  background: rgba(255, 255, 255, 0.72);
+  border-radius: 22px;
+  padding: 38px 42px 34px;
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.25),
+    0 8px 24px rgba(99, 102, 241, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  // 强化模糊，让背景图明显虚化
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  overflow: hidden;
+
+  // 无顶部色条，保持干净
 
   @media (max-width: 576px) {
-    padding: 28px 24px 24px;
-    border-radius: 16px;
+    padding: 28px 24px 26px;
+    border-radius: 18px;
   }
 }
 
@@ -331,40 +503,48 @@
 .auth-card-title {
   font-size: 22px !important;
   font-weight: 800 !important;
-  color: #1E1B4B !important;
+  color: #1e1b4b !important;
   margin: 0 0 6px !important;
   letter-spacing: -0.3px;
 }
 
 .auth-card-subtitle {
   font-size: 14px;
-  color: #94A3B8;
+  color: #64748b !important;
 }
 
-// Auth Tabs
+// Auth Tabs（亮色主题）
 .auth-tabs {
   :global {
     .ant-tabs-nav {
       margin-bottom: 24px !important;
 
       &::before {
-        border-color: #E2E8F0 !important;
+        border-color: #e2e8f0 !important;
       }
     }
 
     .ant-tabs-tab {
-      font-size: 15px;
+      font-size: 16px;
       font-weight: 600;
-      padding: 8px 20px !important;
-      color: #94A3B8 !important;
+      padding: 8px 24px !important;
+      color: #64748b !important;
       transition: color 0.2s;
 
+      .ant-tabs-tab-btn {
+        color: #64748b !important;
+        font-weight: 600;
+        font-size: 16px;
+      }
+
       &:hover {
-        color: #6366F1 !important;
+        color: #4f46e5 !important;
+        .ant-tabs-tab-btn { color: #4f46e5 !important; }
       }
 
       &.ant-tabs-tab-active .ant-tabs-tab-btn {
-        color: #6366F1 !important;
+        color: #4f46e5 !important;
+        font-weight: 700;
       }
     }
 
@@ -376,38 +556,62 @@
   }
 }
 
-// 表单整体
+// 表单整体（亮色主题）
 .auth-form {
   :global {
     .ant-form-item {
       margin-bottom: 18px;
     }
 
+    // 标签深色，清晰可读
     .ant-form-item-label > label {
-      font-size: 13px;
-      font-weight: 600;
-      color: #374151;
+      font-size: 13px !important;
+      font-weight: 600 !important;
+      color: #374151 !important;
       letter-spacing: 0.2px;
     }
 
+    .ant-form-item-explain-error {
+      color: #ef4444 !important;
+      font-size: 12px;
+    }
+
+    // 输入框：半透明白色，与毛玻璃卡片统一
     .ant-input-affix-wrapper,
     .ant-input {
       border-radius: 10px !important;
-      border-color: #E2E8F0 !important;
-      background: #FAFAFA !important;
+      border-color: rgba(255, 255, 255, 0.60) !important;
+      background: rgba(255, 255, 255, 0.55) !important;
+      color: #1e293b !important;
       transition: all 0.2s ease;
 
+      input::placeholder,
+      &::placeholder {
+        color: #94a3b8 !important;
+      }
+
+      input {
+        color: #1e293b !important;
+        background: transparent !important;
+      }
+
       &:hover {
-        border-color: #818CF8 !important;
-        background: #fff !important;
+        border-color: rgba(99, 102, 241, 0.50) !important;
+        background: rgba(255, 255, 255, 0.75) !important;
       }
 
       &:focus,
       &.ant-input-affix-wrapper-focused {
-        border-color: #6366F1 !important;
-        background: #fff !important;
-        box-shadow: 0 0 0 3px rgba(99,102,241,0.12) !important;
+        border-color: #6366f1 !important;
+        background: rgba(255, 255, 255, 0.85) !important;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12) !important;
       }
+    }
+
+    // 密码图标
+    .ant-input-password-icon {
+      color: #94a3b8 !important;
+      &:hover { color: #6366f1 !important; }
     }
 
     .ant-input-prefix {
@@ -416,7 +620,7 @@
   }
 
   .input-icon {
-    color: #94A3B8;
+    color: #94a3b8;
     font-size: 15px;
   }
 }
@@ -431,15 +635,31 @@
   border: none !important;
   letter-spacing: 0.5px;
   transition: all 0.25s ease !important;
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4) !important;
+  position: relative;
+  overflow: hidden;
+
+  // 按钮内光晕
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg,
+      rgba(255,255,255,0.15) 0%,
+      transparent 60%
+    );
+    border-radius: inherit;
+  }
 
   &:hover:not(:disabled) {
     transform: translateY(-2px) !important;
-    box-shadow: 0 8px 24px rgba(99,102,241,0.45) !important;
+    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.55), 0 0 20px rgba(139,92,246,0.3) !important;
     background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%) !important;
   }
 
   &:active:not(:disabled) {
     transform: translateY(0) !important;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4) !important;
   }
 }
 
@@ -448,7 +668,7 @@
   display: block;
   text-align: center;
   font-size: 12px;
-  color: #94A3B8 !important;
+  color: #94a3b8 !important;
   margin-top: 14px;
   line-height: 1.6;
 }
@@ -457,7 +677,7 @@
 .auth-footer {
   text-align: center;
   font-size: 12px;
-  color: rgba(255,255,255,0.45);
+  color: rgba(200, 210, 235, 0.45);
   padding: 0 8px;
   letter-spacing: 0.3px;
 }

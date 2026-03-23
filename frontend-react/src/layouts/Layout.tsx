@@ -137,8 +137,8 @@ const Layout = () => {
             >
               <div className="app-logo-icon">⚖️</div>
               <div className="app-logo-text">
-                <span className="app-logo-name">决策辩论庭</span>
-                <span className="app-logo-sub">AI 多智能体平台</span>
+                <span className="app-logo-name">智辩助手</span>
+                <span className="app-logo-sub">多智能体协同决策平台</span>
               </div>
             </div>
           </div>
@@ -206,7 +206,7 @@ const Layout = () => {
               <div className="sider-footer-card">
                 <div className="sider-footer-icon">🤖</div>
                 <div className="sider-footer-text">
-                  <div className="sider-footer-title">AI 正在运行</div>
+                  <div className="sider-footer-title">智能体运行中</div>
                   <div className="sider-footer-desc">3 位专家待命中</div>
                 </div>
                 <div className="sider-footer-dot" />
@@ -220,7 +220,7 @@ const Layout = () => {
           title={
             <div className="drawer-title">
               <span className="drawer-title-icon">⚖️</span>
-              <span>决策辩论庭</span>
+              <span>智辩助手</span>
             </div>
           }
           placement="left"
