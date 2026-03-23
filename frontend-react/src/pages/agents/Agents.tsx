@@ -92,7 +92,16 @@ export const Agents: React.FC = () => {
       </div>
 
       {isLoading ? (
-        <Skeleton active paragraph={{ rows: 10 }} />
+        <div className="agents-grid">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i} className="agent-card" bodyStyle={{ padding: 16 }}>
+              <Skeleton active avatar={{ size: 56, shape: 'circle' }} title={{ width: '60%' }} paragraph={{ rows: 2, width: ['80%', '50%'] }} />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginTop: 14 }}>
+                {[0,1,2].map(j => <Skeleton.Button key={j} active block style={{ height: 52, borderRadius: 10 }} />)}
+              </div>
+            </Card>
+          ))}
+        </div>
       ) : (
         <div className="agents-grid">
           {agents.map((agent: any) => (

@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Row, Col, Tabs, Spin, Empty, Button } from 'antd'
+import { Row, Col, Tabs, Skeleton, Empty, Button } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
@@ -58,7 +58,13 @@ const MyCases: React.FC = () => {
       children: (
         <div className="cases-grid">
           {roomsLoading ? (
-            <Spin className="spinner-center" />
+            <Row gutter={[16, 16]}>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Col key={i} xs={24} sm={12} md={8} lg={6}>
+                  <Skeleton active avatar={{ size: 'large', shape: 'square' }} paragraph={{ rows: 3 }} />
+                </Col>
+              ))}
+            </Row>
           ) : roomsList.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '60px 20px' }}>
               <Empty description="暂无案件" />
@@ -89,7 +95,13 @@ const MyCases: React.FC = () => {
       children: (
         <div className="cases-grid">
           {roomsLoading ? (
-            <Spin className="spinner-center" />
+            <Row gutter={[16, 16]}>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Col key={i} xs={24} sm={12} md={8} lg={6}>
+                  <Skeleton active avatar={{ size: 'large', shape: 'square' }} paragraph={{ rows: 3 }} />
+                </Col>
+              ))}
+            </Row>
           ) : liveRooms.length === 0 ? (
             <Empty description="暂无进行中的案件" />
           ) : (
@@ -110,7 +122,13 @@ const MyCases: React.FC = () => {
       children: (
         <div className="cases-grid">
           {roomsLoading ? (
-            <Spin className="spinner-center" />
+            <Row gutter={[16, 16]}>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Col key={i} xs={24} sm={12} md={8} lg={6}>
+                  <Skeleton active avatar={{ size: 'large', shape: 'square' }} paragraph={{ rows: 3 }} />
+                </Col>
+              ))}
+            </Row>
           ) : archivedRooms.length === 0 ? (
             <Empty description="暂无已结束的案件" />
           ) : (

@@ -229,9 +229,101 @@ body {
     cursor: not-allowed;
   }
 
-  // 加载中
+  // ── Spin 加载动效 ──────────────────────────────
   .ant-spin-dot-item {
     background-color: #6366F1 !important;
+  }
+
+  .ant-spin-text {
+    color: #6366F1 !important;
+    font-weight: 600;
+    font-size: 13px;
+    margin-top: 12px;
+  }
+
+  // Spin 包裹容器：防止内容突然消失，加淡出过渡
+  .ant-spin-container {
+    transition: opacity 0.25s ease;
+  }
+
+  .ant-spin-blur {
+    opacity: 0.3 !important;
+  }
+
+  // ── 骨架屏主题色 ────────────────────────────────
+  .ant-skeleton-content .ant-skeleton-title,
+  .ant-skeleton-content .ant-skeleton-paragraph > li {
+    background: linear-gradient(
+      90deg,
+      #EEF2FF 25%,
+      #E0E7FF 50%,
+      #EEF2FF 75%
+    ) !important;
+    background-size: 400% 100% !important;
+    animation: skeletonShimmer 1.8s ease infinite !important;
+  }
+
+  .ant-skeleton-avatar {
+    background: linear-gradient(
+      90deg,
+      #EEF2FF 25%,
+      #E0E7FF 50%,
+      #EEF2FF 75%
+    ) !important;
+    background-size: 400% 100% !important;
+    animation: skeletonShimmer 1.8s ease infinite !important;
+  }
+
+  // ── Button 通用增强 ─────────────────────────────
+  // 所有按钮点击下压感
+  .ant-btn:active:not(:disabled) {
+    transform: scale(0.97) !important;
+  }
+
+  // 危险按钮悬浮
+  .ant-btn-dangerous:hover:not(:disabled) {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 14px rgba(239,68,68,0.35) !important;
+  }
+
+  // 默认按钮悬浮
+  .ant-btn-default:hover:not(:disabled) {
+    border-color: #6366F1 !important;
+    color: #6366F1 !important;
+  }
+
+  // ── Progress 进度条圆角 ─────────────────────────
+  .ant-progress-inner {
+    border-radius: 999px !important;
+  }
+
+  .ant-progress-bg {
+    border-radius: 999px !important;
+  }
+
+  // ── Switch 动效 ─────────────────────────────────
+  .ant-switch-checked {
+    background: linear-gradient(135deg, #6366F1, #8B5CF6) !important;
+  }
+
+  // ── Tag 统一形态 ────────────────────────────────
+  .ant-tag {
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 11px;
+    padding: 2px 8px;
+  }
+
+  // ── Modal 动效 ──────────────────────────────────
+  .ant-modal-content {
+    border-radius: 16px !important;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.18) !important;
+  }
+
+  // ── Empty 空状态 ────────────────────────────────
+  .ant-empty-description {
+    color: #94A3B8;
+    font-size: 13px;
   }
 
   // 文本选择
@@ -372,6 +464,11 @@ body {
 @keyframes shimmer {
   0%   { background-position: -200% 0; }
   100% { background-position: 200% 0; }
+}
+
+@keyframes skeletonShimmer {
+  0%   { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 @keyframes floatUp {

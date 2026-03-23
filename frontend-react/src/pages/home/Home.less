@@ -406,18 +406,31 @@
   }
 }
 
-// 加载状态
-.list-loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 80px 0;
-  gap: 16px;
-  color: #94A3B8;
+// 骨架屏卡片
+.case-card-skeleton {
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid rgba(99, 102, 241, 0.1);
+  overflow: hidden;
+  animation: skeletonFadeIn 0.3s ease-out both;
 
-  p {
-    font-size: 14px;
+  @keyframes skeletonFadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  :global(.ant-skeleton-image) {
+    width: 100% !important;
+    height: 140px !important;
+    border-radius: 0 !important;
+
+    svg {
+      display: none;
+    }
+  }
+
+  :global(.ant-skeleton) {
+    padding: 0;
   }
 }
 

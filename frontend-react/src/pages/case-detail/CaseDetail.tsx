@@ -45,7 +45,15 @@ const CaseDetail: React.FC = () => {
   if (roomLoading) {
     return (
       <div className="case-detail-page">
-        <Skeleton active paragraph={{ rows: 8 }} />
+        {/* 头图骨架 */}
+        <div style={{ borderRadius: 20, overflow: 'hidden', marginBottom: 20, border: '1px solid #E2E8F0' }}>
+          <Skeleton.Image active style={{ width: '100%', height: 220, borderRadius: 0 }} />
+          <div style={{ padding: '24px' }}>
+            <Skeleton active title={{ width: '60%' }} paragraph={{ rows: 3, width: ['40%', '70%', '50%'] }} />
+          </div>
+        </div>
+        {/* 内容骨架 */}
+        <Skeleton active paragraph={{ rows: 6 }} />
       </div>
     )
   }

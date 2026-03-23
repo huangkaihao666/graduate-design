@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Row, Col, Input, Select, Button, Spin, Empty, Tag } from 'antd'
+import { Row, Col, Input, Select, Button, Skeleton, Empty, Tag } from 'antd'
 import {
   SearchOutlined,
   ReloadOutlined,
@@ -211,10 +211,18 @@ export const Home: React.FC = () => {
 
         {/* 卡片网格 */}
         {roomsLoading ? (
-          <div className="list-loading">
-            <Spin size="large" />
-            <p>加载案件中…</p>
-          </div>
+          <Row gutter={[20, 20]} className="case-grid">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Col key={i} xs={24} sm={12} md={8} lg={6}>
+                <div className="case-card-skeleton">
+                  <Skeleton.Image active style={{ width: '100%', height: 140, borderRadius: 12 }} />
+                  <div style={{ padding: '12px 16px' }}>
+                    <Skeleton active title={{ width: '70%' }} paragraph={{ rows: 2, width: ['90%', '60%'] }} />
+                  </div>
+                </div>
+              </Col>
+            ))}
+          </Row>
         ) : roomsList.length === 0 ? (
           <div className="list-empty">
             <Empty

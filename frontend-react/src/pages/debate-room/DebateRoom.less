@@ -93,4 +93,32 @@
     color: #64748B;
     font-size: 15px;
   }
+
+  // 骨架屏三栏布局
+  .debate-room-skeleton {
+    display: grid;
+    grid-template-columns: 290px 1fr 310px;
+    gap: 14px;
+    padding: 80px 16px 14px;
+    height: 100vh;
+    align-items: start;
+
+    .skeleton-left,
+    .skeleton-center,
+    .skeleton-right {
+      background: #fff;
+      border-radius: 16px;
+      padding: 20px;
+      border: 1px solid rgba(99, 102, 241, 0.08);
+    }
+
+    @media (max-width: 900px) {
+      grid-template-columns: 1fr;
+
+      .skeleton-left,
+      .skeleton-right {
+        display: none;
+      }
+    }
+  }
 }

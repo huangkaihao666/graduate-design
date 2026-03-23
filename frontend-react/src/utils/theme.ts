@@ -137,6 +137,8 @@ export const lightTheme: ThemeConfig = {
     },
     Progress: {
       defaultColor: '#6366F1',
+      remainingColor: '#EEF2FF',
+      lineBorderRadius: 999,
     },
     Statistic: {
       contentFontSize: 28,
@@ -151,6 +153,51 @@ export const lightTheme: ThemeConfig = {
       headerBg: '#FFFFFF',
       siderBg: '#FFFFFF',
       bodyBg: '#F1F5F9',
+    },
+    Skeleton: {
+      blockRadius: 8,
+      titleHeight: 20,
+      paragraphLiHeight: 16,
+      paragraphMarginTop: 12,
+      gradientFromColor: '#EEF2FF',
+      gradientToColor: '#E0E7FF',
+    },
+    Spin: {
+      colorPrimary: '#6366F1',
+    },
+    Alert: {
+      borderRadius: 10,
+    },
+    Notification: {
+      borderRadiusLG: 14,
+    },
+    Message: {
+      borderRadiusLG: 10,
+    },
+    Empty: {
+      colorTextDisabled: '#94A3B8',
+    },
+    Popover: {
+      borderRadiusOuter: 12,
+    },
+    Dropdown: {
+      borderRadius: 10,
+      paddingBlock: 4,
+    },
+    Collapse: {
+      borderRadius: 10,
+      headerBg: '#FAFBFF',
+    },
+    Upload: {
+      borderRadius: 10,
+    },
+    Radio: {
+      buttonSolidCheckedBg: '#6366F1',
+      buttonSolidCheckedColor: '#fff',
+    },
+    Switch: {
+      colorPrimary: '#6366F1',
+      colorPrimaryHover: '#818CF8',
     },
   },
 }
@@ -270,6 +317,8 @@ export const darkTheme: ThemeConfig = {
     },
     Progress: {
       defaultColor: '#818CF8',
+      remainingColor: 'rgba(129,140,248,0.12)',
+      lineBorderRadius: 999,
     },
     Statistic: {
       contentFontSize: 28,
@@ -285,6 +334,37 @@ export const darkTheme: ThemeConfig = {
       headerBg: '#1A1826',
       siderBg: '#1A1826',
       bodyBg: '#0F0E1A',
+    },
+    Skeleton: {
+      blockRadius: 8,
+      titleHeight: 20,
+      paragraphLiHeight: 16,
+      paragraphMarginTop: 12,
+      gradientFromColor: '#1E1B2E',
+      gradientToColor: '#2D2B45',
+    },
+    Spin: {
+      colorPrimary: '#818CF8',
+    },
+    Alert: {
+      borderRadius: 10,
+    },
+    Notification: {
+      borderRadiusLG: 14,
+    },
+    Message: {
+      borderRadiusLG: 10,
+    },
+    Collapse: {
+      borderRadius: 10,
+      headerBg: '#1E1B2E',
+    },
+    Upload: {
+      borderRadius: 10,
+    },
+    Switch: {
+      colorPrimary: '#818CF8',
+      colorPrimaryHover: '#6366F1',
     },
   },
 }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Button, message, Tabs } from 'antd'
+import { Button, message, Tabs, Skeleton } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import { io } from 'socket.io-client'
@@ -499,7 +499,30 @@ export const DebateRoom: React.FC = () => {
   }
 
   if (isLoading || !room) {
-    return <div className="debate-room-loading">加载中...</div>
+    return (
+      <div className="debate-room-loading">
+        <div className="debate-room-skeleton">
+          {/* 左侧面板骨架 */}
+          <div className="skeleton-left">
+            <Skeleton active avatar={{ size: 64, shape: 'square' }} title={{ width: '70%' }} paragraph={{ rows: 4 }} />
+            <div style={{ marginTop: 20 }}>
+              <Skeleton active paragraph={{ rows: 3 }} />
+            </div>
+          </div>
+          {/* 中间舞台骨架 */}
+          <div className="skeleton-center">
+            <Skeleton active title={{ width: '40%' }} paragraph={{ rows: 8 }} />
+          </div>
+          {/* 右侧聊天骨架 */}
+          <div className="skeleton-right">
+            <Skeleton active avatar={{ shape: 'circle' }} paragraph={{ rows: 3 }} />
+            <div style={{ marginTop: 16 }}>
+              <Skeleton active avatar={{ shape: 'circle' }} paragraph={{ rows: 2 }} />
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   const roomData = room.data || room

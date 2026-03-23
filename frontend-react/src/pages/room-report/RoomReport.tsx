@@ -101,7 +101,18 @@ export const RoomReport: React.FC = () => {
   if (isLoading) {
     return (
       <div className="room-report-page">
-        <Skeleton active paragraph={{ rows: 12 }} />
+        {/* Hero 骨架 */}
+        <div style={{ background: '#F0F0FF', borderRadius: 20, padding: '28px 32px', marginBottom: 24 }}>
+          <Skeleton active title={{ width: '30%' }} paragraph={{ rows: 3, width: ['50%', '70%', '40%'] }} />
+        </div>
+        {/* 主内容骨架 */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 20 }}>
+          <Skeleton active paragraph={{ rows: 10 }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <Skeleton active paragraph={{ rows: 4 }} />
+            <Skeleton active paragraph={{ rows: 5 }} />
+          </div>
+        </div>
       </div>
     )
   }
