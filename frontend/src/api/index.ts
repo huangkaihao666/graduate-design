@@ -1,4 +1,5 @@
 import { authApi } from './auth';
+import { aiApi } from './ai';
 import { httpClient } from './client';
 import { ordersApi } from './orders';
 import { paymentsApi } from './payments';
@@ -10,6 +11,7 @@ import { usersApi } from './users';
 
 // 统一导出所有 API 和 HTTP 客户端
 export * from './auth';
+export * from './ai';
 export * from './client';
 export * from './orders';
 export * from './payments';
@@ -21,6 +23,7 @@ export * from './users';
 
 export {
   authApi,
+  aiApi,
   httpClient,
   ordersApi,
   packagesApi,
@@ -35,6 +38,7 @@ export {
 export const api = {
   httpClient,
   auth: authApi,
+  ai: aiApi,
   packages: packagesApi,
   photographers: photographersApi,
   users: usersApi,

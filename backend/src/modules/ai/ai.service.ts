@@ -1,7 +1,7 @@
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { Prisma, type VirtualTryOnHistory } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
 import axios from 'axios';
+import { PrismaService } from '../../prisma/prisma.service';
 
 /** 虚拍出镜：女生（新娘）/ 男生（新郎）/ 双人合影 */
 export type VirtualTryOnSubjectRole = 'female' | 'male' | 'couple';
@@ -50,6 +50,30 @@ export interface ItineraryPlanningRequest {
   duration: number;
   style: string;
   interests?: string[];
+}
+
+export interface CustomerSupportMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface CustomerSupportRequest {
+  question: string;
+  history?: CustomerSupportMessage[];
+}
+
+export interface CustomerSupportHistoryList {
+  items: Array<{
+    id: number;
+    question: string;
+    answer: string;
+    createdAt: Date;
+  }>;
+  pagination: {
+    total: number;
+    page: number;
+    pageSize: number;
+  };
 }
 
 @Injectable()
@@ -391,7 +415,7 @@ export class AiService {
     try {
       // 如果是 Base64 格式，直接使用（火山引擎支持 Base64）
       // 如果是 URL 格式，也直接使用
-      let finalImageUrl = imageUrl;
+      const finalImageUrl = imageUrl;
 
       console.log('[AI Service] 处理图片 URL:', {
         isBase64: imageUrl.startsWith('data:'),
@@ -849,6 +873,109 @@ export class AiService {
         duration: request.duration,
       };
     }
+  }
+
+  /**
+   * 智能客服问答 - 面向平台用户的帮助咨询
+   */
+  async customerSupport(request: CustomerSupportRequest): Promise<{
+    answer: string;
+  }> {
+    const cleanQuestion = request.question?.trim();
+    if (!cleanQuestion) {
+      throw new HttpException('问题不能为空', HttpStatus.BAD_REQUEST);
+    }
+
+    const sanitizedHistory = (request.history || [])
+      .filter((item) => item?.role && item?.content)
+      .slice(-8)
+      .map((item) => ({
+        role: item.role,
+        content: String(item.content).slice(0, 1000),
+      }));
+
+    const systemPrompt = `
+你是“旅拍·智享”平台的智能客服助手，请使用中文回答用户问题。
+
+回答要求：
+1. 优先解答平台常见问题：套餐浏览、下单预约、支付、订单、收藏、AI 功能使用、账号与登录。
+2. 如果问题信息不足，请先提出 1-2 个澄清问题，不要编造不存在的规则。
+3. 回答要简洁、可执行，可用分点形式。
+4. 若涉及退款、账号异常等需要人工介入的问题，请明确建议联系人工客服并说明需准备的信息（订单号、手机号、问题截图等）。
+`.trim();
+
+    const messages: Array<{
+      role: 'system' | 'user' | 'assistant';
+      content: string;
+    }> = [
+      { role: 'system', content: systemPrompt },
+      ...sanitizedHistory,
+      { role: 'user', content: cleanQuestion },
+    ];
+
+    const answer = await this.callDeepSeek(messages);
+    return { answer };
+  }
+
+  /**
+   * 保存客服问答历史
+   */
+  async saveCustomerSupportHistory(
+    userId: number,
+    question: string,
+    answer: string,
+  ): Promise<void> {
+    const cleanQuestion = question.trim();
+    const cleanAnswer = answer.trim();
+    if (!cleanQuestion || !cleanAnswer) return;
+
+    await this.prisma.$executeRaw`
+      INSERT INTO customer_support_histories (userId, question, answer, createdAt, updatedAt)
+      VALUES (${userId}, ${cleanQuestion}, ${cleanAnswer}, NOW(), NOW())
+    `;
+  }
+
+  /**
+   * 获取客服问答历史（按时间升序返回，便于前端直接回放）
+   */
+  async getCustomerSupportHistory(
+    userId: number,
+    page: number = 1,
+    pageSize: number = 50,
+  ): Promise<CustomerSupportHistoryList> {
+    const safePage = Math.max(1, page);
+    const safePageSize = Math.max(1, Math.min(100, pageSize));
+    const skip = (safePage - 1) * safePageSize;
+
+    const items = await this.prisma.$queryRaw<
+      Array<{ id: bigint; question: string; answer: string; createdAt: Date }>
+    >`
+      SELECT id, question, answer, createdAt
+      FROM customer_support_histories
+      WHERE userId = ${userId}
+      ORDER BY createdAt ASC
+      LIMIT ${safePageSize} OFFSET ${skip}
+    `;
+    const totalRows = await this.prisma.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(*) AS count
+      FROM customer_support_histories
+      WHERE userId = ${userId}
+    `;
+    const total = Number(totalRows[0]?.count || 0);
+
+    return {
+      items: items.map((item) => ({
+        id: Number(item.id),
+        question: item.question,
+        answer: item.answer,
+        createdAt: item.createdAt,
+      })),
+      pagination: {
+        total,
+        page: safePage,
+        pageSize: safePageSize,
+      },
+    };
   }
 
   /**

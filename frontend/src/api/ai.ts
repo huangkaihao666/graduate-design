@@ -1,5 +1,5 @@
-import { httpClient } from './client';
 import type { VirtualTryOnSubjectRole } from '@/constants/virtual-tryon-subject';
+import { httpClient } from './client';
 
 export type { VirtualTryOnSubjectRole } from '@/constants/virtual-tryon-subject';
 
@@ -34,6 +34,11 @@ export interface ItineraryPlanningRequest {
   interests?: string[];
 }
 
+export interface CustomerSupportMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export type AiHistoryType =
   | 'virtual-try-on'
   | 'style-recommendation'
@@ -63,6 +68,24 @@ export const aiApi = {
    */
   planItinerary: (data: ItineraryPlanningRequest) =>
     httpClient.post('/ai/itinerary-planning', data, { timeout: 90000 }),
+
+  /**
+   * 帮助中心智能客服问答
+   */
+  customerSupport: (data: { question: string; history?: CustomerSupportMessage[] }) =>
+    httpClient.post('/ai/customer-support', data, { timeout: 90000 }),
+
+  /**
+   * 保存客服问答历史（登录用户）
+   */
+  saveCustomerSupportHistory: (data: { question: string; answer: string }) =>
+    httpClient.post('/ai/customer-support/history', data),
+
+  /**
+   * 获取客服问答历史（登录用户）
+   */
+  getCustomerSupportHistory: (params?: { page?: number; pageSize?: number }) =>
+    httpClient.get('/ai/customer-support/history', { params }),
 
   /**
    * 保存 AI 生成历史

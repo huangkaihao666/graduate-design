@@ -24,6 +24,7 @@ import Dashboard from '../views/home/Dashboard.vue';
 import VirtualTryOn from '../views/ai/VirtualTryOn.vue';
 import StyleRecommendation from '../views/ai/StyleRecommendation.vue';
 import ItineraryPlanning from '../views/plan/ItineraryPlanning.vue';
+import HelpCenter from '../views/help/HelpCenter.vue';
 
 // 预约模块 (延迟加载)
 const Packages = () => import('../views/booking/Packages.vue');
@@ -73,6 +74,15 @@ const routes: RouteRecordRaw[] = [
     meta: {
       title: '关于',
       layout: 'none',
+    },
+  },
+  {
+    path: '/help-center',
+    name: 'HelpCenter',
+    component: HelpCenter,
+    meta: {
+      title: '帮助中心',
+      layout: 'default',
     },
   },
   {
@@ -191,7 +201,7 @@ const routes: RouteRecordRaw[] = [
         name: 'UserOrders',
         component: UserOrders,
         meta: {
-          title: '订单管理',
+          title: '我的订单',
         },
       },
       {

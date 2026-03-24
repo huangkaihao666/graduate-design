@@ -8,12 +8,12 @@
         </router-link>
       </div>
 
-      <nav class="main-nav">
+      <nav v-if="!authStore.isAdmin" class="main-nav">
         <router-link v-if="authStore.isAuthenticated" to="/dashboard" class="nav-item">
           控制台
         </router-link>
         <router-link to="/booking/packages" class="nav-item"> 套餐浏览 </router-link>
-        <a href="#" class="nav-item">帮助中心</a>
+        <router-link to="/help-center" class="nav-item">帮助中心</router-link>
       </nav>
 
       <div class="header-actions">
@@ -33,7 +33,7 @@
                   <!-- 普通用户 -->
                   <template v-if="!authStore.isAdmin">
                     <a-menu-item key="orders">
-                      <router-link to="/user/orders">订单管理</router-link>
+                      <router-link to="/user/orders">我的订单</router-link>
                     </a-menu-item>
                     <a-menu-item key="favorites">
                       <router-link to="/user/favorites">我的收藏</router-link>

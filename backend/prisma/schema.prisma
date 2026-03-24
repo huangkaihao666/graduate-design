@@ -29,6 +29,7 @@ model User {
   virtualTryOnHistories          VirtualTryOnHistory[]         @relation("VirtualTryOnHistories")
   styleRecommendationHistories   StyleRecommendationHistory[]  @relation("StyleRecommendationHistories")
   itineraryPlanningHistories     ItineraryPlanningHistory[]    @relation("ItineraryPlanningHistories")
+  customerSupportHistories       CustomerSupportHistory[]      @relation("CustomerSupportHistories")
   favorites                      Favorite[]
 
   @@map("users")
@@ -148,6 +149,24 @@ model ItineraryPlanningHistory {
   @@map("itinerary_planning_histories")
   @@index([userId])
   @@index([destination])
+  @@index([createdAt])
+}
+
+/// AI 客服问答历史记录
+model CustomerSupportHistory {
+  id        Int      @id @default(autoincrement()) @db.UnsignedInt
+  question  String   @db.Text
+  answer    String   @db.LongText
+
+  // 用户关联
+  userId    Int      @db.UnsignedInt
+  user      User     @relation("CustomerSupportHistories", fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("customer_support_histories")
+  @@index([userId])
   @@index([createdAt])
 }
 

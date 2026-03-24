@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type {
+  CustomerSupportRequest,
   ItineraryPlanningRequest,
   StyleRecommendationRequest,
   VirtualTryOnRequest,
@@ -132,6 +133,133 @@ export class AiController {
           message: error.message || '生成行程规划失败',
         },
         HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
+   * 帮助中心智能客服问答
+   */
+  @Post('customer-support')
+  async customerSupport(
+    @Body() request: CustomerSupportRequest,
+    @Req() req: any,
+  ) {
+    try {
+      const result = await this.aiService.customerSupport(request);
+      const userId = req.user?.sub ? parseInt(req.user.sub, 10) : undefined;
+
+      return {
+        statusCode: 200,
+        message: '智能客服回复成功',
+        data: {
+          userId: userId || 'guest',
+          ...result,
+          timestamp: new Date().toISOString(),
+        },
+      };
+    } catch (error: any) {
+      console.error('[AI Controller] 智能客服问答失败:', error);
+      throw new HttpException(
+        {
+          statusCode: 400,
+          message: error.message || '智能客服问答失败',
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
+   * 保存客服问答历史（仅登录用户）
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('customer-support/history')
+  async saveCustomerSupportHistory(
+    @Body() body: { question: string; answer: string },
+    @Req() req: any,
+  ) {
+    try {
+      const userId = req.user?.sub ? parseInt(req.user.sub, 10) : undefined;
+      if (!userId) {
+        throw new HttpException(
+          {
+            statusCode: 401,
+            message: '未登录用户无法保存客服历史',
+          },
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+
+      await this.aiService.saveCustomerSupportHistory(
+        userId,
+        body.question || '',
+        body.answer || '',
+      );
+
+      return {
+        statusCode: 200,
+        message: '客服问答历史保存成功',
+        data: {
+          userId,
+          savedAt: new Date().toISOString(),
+        },
+      };
+    } catch (error: any) {
+      console.error('[AI Controller] 保存客服历史失败:', error);
+      throw new HttpException(
+        {
+          statusCode: error.status || 400,
+          message: error.message || '保存客服历史失败',
+        },
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
+   * 获取客服问答历史（仅登录用户）
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('customer-support/history')
+  async getCustomerSupportHistory(
+    @Req() req: any,
+    @Query('page') page: string = '1',
+    @Query('pageSize') pageSize: string = '50',
+  ) {
+    try {
+      const userId = req.user?.sub ? parseInt(req.user.sub, 10) : undefined;
+      if (!userId) {
+        throw new HttpException(
+          {
+            statusCode: 401,
+            message: '未登录用户无法查看客服历史',
+          },
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+
+      const pageNum = Number.isNaN(Number(page)) ? 1 : Number(page);
+      const sizeNum = Number.isNaN(Number(pageSize)) ? 50 : Number(pageSize);
+      const data = await this.aiService.getCustomerSupportHistory(
+        userId,
+        pageNum,
+        sizeNum,
+      );
+
+      return {
+        statusCode: 200,
+        message: '获取客服历史成功',
+        data,
+      };
+    } catch (error: any) {
+      console.error('[AI Controller] 获取客服历史失败:', error);
+      throw new HttpException(
+        {
+          statusCode: error.status || 400,
+          message: error.message || '获取客服历史失败',
+        },
+        error.status || HttpStatus.BAD_REQUEST,
       );
     }
   }
