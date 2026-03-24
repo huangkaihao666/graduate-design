@@ -15,6 +15,7 @@ export interface VirtualTryOnRequest {
     makeup?: string;
     hairstyle?: string;
     dress?: string;
+    accessory?: string;
   };
   /**
    * 与 preferences 各字段对应的展示文案（中文），用于火山图生图 prompt，
@@ -24,6 +25,7 @@ export interface VirtualTryOnRequest {
     makeup?: string;
     hairstyle?: string;
     dress?: string;
+    accessory?: string;
   };
 }
 
@@ -304,6 +306,7 @@ export class AiService {
         request.imageUrl,
         request.style,
         subjectRole,
+        request.preferences,
         request.preferenceLabels,
       );
     } catch (imageError) {
@@ -359,22 +362,42 @@ export class AiService {
    */
   private buildVirtualTryOnImageEditPrompt(
     subjectRole: VirtualTryOnSubjectRole,
+    style: string,
+    preferences?: VirtualTryOnRequest['preferences'],
     labels?: VirtualTryOnRequest['preferenceLabels'],
   ): string {
     const mk = labels?.makeup?.trim();
     const hs = labels?.hairstyle?.trim();
     const dr = labels?.dress?.trim();
-    if (!mk && !hs && !dr) return '';
+    const accLabel = labels?.accessory?.trim();
+    const accRaw = preferences?.accessory?.trim();
+    const styleAccessoryDefaults: Record<string, string> = {
+      minimalist: '轻薄头纱',
+      classical: '中式发簪或步摇',
+      bohemian: '花环或贝壳耳饰',
+      romantic: '珍珠头饰或头纱',
+      adventure: '礼帽或披肩',
+      oldtown: '古镇纪实发簪或复古耳饰',
+      artistic: '复古发饰或胸花',
+    };
+    const acc =
+      accLabel ||
+      accRaw ||
+      styleAccessoryDefaults[style] ||
+      '与风格一致的婚礼配饰';
+    if (!mk && !hs && !dr && !acc) return '';
 
     const parts: string[] = [];
     if (mk) parts.push(`妆容「${mk}」`);
     if (hs) parts.push(`发型「${hs}」`);
     if (dr) parts.push(`服装「${dr}」`);
+    if (acc) parts.push(`配饰「${acc}」`);
     const zhList = parts.join('，');
 
     const enMk = mk || 'unchanged makeup';
     const enHs = hs || 'unchanged hairstyle';
     const enDr = dr || 'unchanged outfit';
+    const enAcc = acc || 'style-matched accessory';
 
     if (subjectRole === 'male') {
       return (
@@ -382,8 +405,9 @@ export class AiService {
         `参考图仅用于保持同一人面部身份与五官相似度；` +
         `必须彻底重绘头发造型（含帽子、发际线、分缝、长度与蓬松度）与全身着装（含外套、大衣、西装、衬衫、配饰），` +
         `严格按用户选择落实：${zhList}。` +
+        `配饰必须在画面中清晰可见且与风格匹配，不可省略。` +
         `严禁沿用参考图中的发型、帽子与衣物款式；若原图为长发而用户选择短发/背头/戴帽，输出须体现该造型。` +
-        ` Image edit for solo groom: preserve facial identity only; completely redraw hair (including hats) and full outfit to match: makeup "${enMk}", hairstyle "${enHs}", clothing "${enDr}". ` +
+        ` Image edit for solo groom: preserve facial identity only; completely redraw hair (including hats) and full outfit to match: makeup "${enMk}", hairstyle "${enHs}", clothing "${enDr}", accessory "${enAcc}". ` +
         `Do NOT keep the reference photo's original hairstyle, hat, or garments.`
       );
     }
@@ -391,15 +415,16 @@ export class AiService {
     if (subjectRole === 'couple') {
       return (
         ` 【图生图硬性要求-双人合影】参考图用于人物身份；须按用户选择调整妆容、发型与服装（男女造型均需落实），` +
-        `用户选择：${zhList}。勿完整沿用原图婚纱/西装与发型。` +
-        ` Couple edit: apply styling per user (${enMk} / ${enHs} / ${enDr}); replace outfits and hairstyles; do not copy original wardrobe from reference.`
+        `用户选择：${zhList}。配饰必须可见并符合风格语义。勿完整沿用原图婚纱/西装与发型。` +
+        ` Couple edit: apply styling per user (${enMk} / ${enHs} / ${enDr} / ${enAcc}); replace outfits and hairstyles; keep accessories visible and style-consistent.`
       );
     }
 
     return (
       ` 【图生图硬性要求-新娘/女生】参考图仅保留面部身份；须按用户选择更换妆容、发型与婚纱/礼服：${zhList}。` +
+      `配饰（如头纱/发簪等）需与风格一致并清晰可见。` +
       `勿沿用原图发型与裙装款式。` +
-      ` Bridal edit: keep face identity; replace makeup, hair, dress per user (${enMk} / ${enHs} / ${enDr}); do not preserve original hair and dress from reference.`
+      ` Bridal edit: keep face identity; replace makeup, hair, dress per user (${enMk} / ${enHs} / ${enDr} / ${enAcc}); include visible style-matched accessory.`
     );
   }
 
@@ -410,6 +435,7 @@ export class AiService {
     imageUrl: string,
     style: string,
     subjectRole: VirtualTryOnSubjectRole = 'female',
+    preferences?: VirtualTryOnRequest['preferences'],
     preferenceLabels?: VirtualTryOnRequest['preferenceLabels'],
   ): Promise<string> {
     try {
@@ -488,6 +514,8 @@ export class AiService {
           : this.buildVirtualTryOnCompositionPrompt();
       const editBlock = this.buildVirtualTryOnImageEditPrompt(
         subjectRole,
+        style,
+        preferences,
         preferenceLabels,
       );
       const prompt = `${aspectRatioBlock}${basePrompt}${subjectTail[subjectRole]}${compositionBlock}${editBlock}`;
@@ -510,7 +538,8 @@ export class AiService {
         hasPreferenceLabels: !!(
           preferenceLabels?.makeup ||
           preferenceLabels?.hairstyle ||
-          preferenceLabels?.dress
+          preferenceLabels?.dress ||
+          preferenceLabels?.accessory
         ),
         promptLength: prompt.length,
         promptPreview:

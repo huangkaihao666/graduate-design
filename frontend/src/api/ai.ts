@@ -12,12 +12,14 @@ export interface VirtualTryOnRequest {
     makeup?: string;
     hairstyle?: string;
     dress?: string;
+    accessory?: string;
   };
   /** 与 preferences 对应的中文文案，供后端图生图 prompt 使用 */
   preferenceLabels?: {
     makeup?: string;
     hairstyle?: string;
     dress?: string;
+    accessory?: string;
   };
 }
 

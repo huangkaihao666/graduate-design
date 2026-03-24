@@ -1,155 +1,173 @@
 <template>
   <div class="virtual-try-on-container">
-    <!-- 页面标题 -->
-    <div class="page-header">
-      <h1>🤖 AI 虚拍生成</h1>
-      <p>支持新娘、新郎单人或双人合影；上传照片后，AI 按所选风格生成高保真婚礼大片</p>
-    </div>
-
-    <div class="content-grid">
-      <!-- 左侧：上传和配置 -->
-      <div class="left-panel">
-        <!-- 出镜方式 -->
-        <div class="subject-section">
-          <h2>第 1 步：选择出镜方式</h2>
-          <div class="subject-grid">
-            <div
-              v-for="s in subjectOptions"
-              :key="s.value"
-              class="subject-card"
-              :class="{ active: subjectRole === s.value }"
-              @click="
-                () => {
-                  subjectRole = s.value;
-                  saveStateToStorage();
-                }
-              "
-            >
-              <div class="subject-short">{{ s.short }}</div>
-              <div class="subject-label">{{ s.label }}</div>
-              <div class="subject-desc">{{ s.desc }}</div>
-            </div>
-          </div>
+    <div class="page-shell">
+      <div class="step-progress card-base">
+        <div class="step-item" :class="{ active: currentStep >= 1 }">
+          <span class="step-index">1</span>
+          <span>选择出镜方式</span>
         </div>
+        <span class="step-line" :class="{ active: currentStep >= 2 }"></span>
+        <div class="step-item" :class="{ active: currentStep >= 2 }">
+          <span class="step-index">2</span>
+          <span>上传照片</span>
+        </div>
+        <span class="step-line" :class="{ active: currentStep >= 3 }"></span>
+        <div class="step-item" :class="{ active: currentStep >= 3 }">
+          <span class="step-index">3</span>
+          <span>选择风格</span>
+        </div>
+        <span class="step-line" :class="{ active: currentStep >= 4 }"></span>
+        <div class="step-item" :class="{ active: currentStep >= 4 }">
+          <span class="step-index">4</span>
+          <span>个性化偏好</span>
+        </div>
+      </div>
 
-        <!-- 图片上传 -->
-        <div class="upload-section">
-          <h2>第 2 步：上传照片</h2>
-          <div
-            class="upload-area"
-            :class="{ active: dragActive }"
-            @click="() => fileInput?.click()"
-            @dragover.prevent="dragActive = true"
-            @dragleave.prevent="dragActive = false"
-            @drop.prevent="handleDrop"
-          >
-            <div v-if="!uploadedImage" class="upload-placeholder">
-              <span class="upload-icon">📸</span>
-              <p>拖拽照片到此或点击选择</p>
-              <div class="upload-hints">
-                <small>支持 JPG、PNG 格式，文件大小不超过 10MB</small>
-                <small v-if="subjectRole === 'couple'" class="upload-tip-couple">
-                  双人模式建议上传「两人同框」照片，效果更自然。
-                </small>
+      <div class="builder card-base">
+        <div class="builder-row">
+          <section class="subject-section">
+            <h3>选择出镜方式</h3>
+            <div class="subject-grid">
+              <div
+                v-for="s in subjectOptions"
+                :key="s.value"
+                class="subject-card"
+                :class="{ active: subjectRole === s.value }"
+                @click="
+                  () => {
+                    subjectRole = s.value;
+                    saveStateToStorage();
+                  }
+                "
+              >
+                <div class="subject-short">{{ s.short }}</div>
+                <div class="subject-label">{{ s.label }}</div>
+                <div class="subject-desc">{{ s.desc }}</div>
               </div>
-              <input
-                ref="fileInput"
-                type="file"
-                accept="image/jpeg,image/png"
-                style="display: none"
-                @change="handleFileUpload"
-              />
             </div>
-            <div v-else class="image-preview">
-              <a-image
-                :src="uploadedImage"
-                :alt="uploadedFileName"
-                :preview="true"
-                class="upload-preview-image"
-                :fallback="uploadedImage"
-              />
-              <button type="button" class="remove-btn" @click="clearImage">✕ 重新选择</button>
-            </div>
-          </div>
-        </div>
+          </section>
 
-        <!-- 风格选择 -->
-        <div class="style-section">
-          <h2>第 3 步：选择风格</h2>
-          <div class="style-grid">
+          <section class="upload-section">
+            <h3>样貌片</h3>
             <div
-              v-for="style in availableStyles"
-              :key="style.id"
-              class="style-card"
-              :class="{ active: selectedStyle === style.id }"
-              :title="style.id === 'minimalist' ? minimalistDetailForRole : undefined"
-              @click="
-                () => {
-                  selectedStyle = style.id;
-                  saveStateToStorage();
-                }
-              "
+              class="upload-area"
+              :class="{ active: dragActive }"
+              @click="() => fileInput?.click()"
+              @dragover.prevent="dragActive = true"
+              @dragleave.prevent="dragActive = false"
+              @drop.prevent="handleDrop"
             >
-              <div class="style-icon">{{ style.icon }}</div>
-              <div class="style-name">{{ style.name }}</div>
-              <div class="style-desc">{{ style.description }}</div>
+              <div v-if="!uploadedImage" class="upload-placeholder">
+                <span class="upload-icon">📷</span>
+                <p>拖拽照片到此或点击选择</p>
+                <small>支持 JPG/PNG，最大 10MB</small>
+                <input
+                  ref="fileInput"
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  style="display: none"
+                  @change="handleFileUpload"
+                />
+              </div>
+              <div v-else class="image-preview">
+                <a-image
+                  :src="uploadedImage"
+                  :alt="uploadedFileName"
+                  :preview="true"
+                  class="upload-preview-image"
+                  :fallback="uploadedImage"
+                />
+                <button type="button" class="remove-btn" @click="clearImage">重新选择</button>
+              </div>
             </div>
-          </div>
+          </section>
         </div>
 
-        <!-- 个性化偏好（随第 2 步拍摄风格联动） -->
-        <div class="preferences-section">
-          <h2>第 4 步：个性化偏好（可选）</h2>
-          <p class="pref-style-hint">
-            以下选项会随第 3 步所选「{{ travelStyleLabel }}」变化，可任选一项或留空。
-          </p>
-          <a-form layout="vertical">
-            <a-form-item label="妆容风格">
-              <a-select
-                v-model:value="preferences.makeup"
-                placeholder="选择妆容风格"
-                allow-clear
-                @change="saveStateToStorage"
+        <div class="builder-row styles-row">
+          <section class="style-section">
+            <h3>选择风格</h3>
+            <div class="style-grid">
+              <div
+                v-for="style in styleDisplayList"
+                :key="style.id"
+                class="style-card"
+                :class="{ active: selectedStyle === style.id }"
+                :title="style.id === 'minimalist' ? minimalistDetailForRole : undefined"
+                @click="
+                  () => {
+                    selectedStyle = style.id;
+                    saveStateToStorage();
+                  }
+                "
               >
-                <a-select-option v-for="opt in makeupOptions" :key="opt.value" :value="opt.value">
-                  {{ opt.label }}
-                </a-select-option>
-              </a-select>
-            </a-form-item>
+                <img :src="style.preview" :alt="style.name" />
+                <div class="style-name">{{ style.name }}</div>
+              </div>
+            </div>
+          </section>
 
-            <a-form-item label="发型风格">
-              <a-select
-                v-model:value="preferences.hairstyle"
-                placeholder="选择发型风格"
-                allow-clear
-                @change="saveStateToStorage"
-              >
-                <a-select-option
-                  v-for="opt in hairstyleOptions"
-                  :key="opt.value"
-                  :value="opt.value"
+          <section class="preferences-section">
+            <h3>个性化偏好</h3>
+            <a-form layout="vertical">
+              <a-form-item label="妆容">
+                <a-select
+                  v-model:value="preferences.makeup"
+                  placeholder="妆容"
+                  allow-clear
+                  @change="saveStateToStorage"
                 >
-                  {{ opt.label }}
-                </a-select-option>
-              </a-select>
-            </a-form-item>
+                  <a-select-option v-for="opt in makeupOptions" :key="opt.value" :value="opt.value">
+                    {{ opt.label }}
+                  </a-select-option>
+                </a-select>
+              </a-form-item>
 
-            <a-form-item label="服装风格">
-              <a-select
-                v-model:value="preferences.dress"
-                placeholder="选择服装风格"
-                allow-clear
-                @change="saveStateToStorage"
-              >
-                <a-select-option v-for="opt in dressOptions" :key="opt.value" :value="opt.value">
-                  {{ opt.label }}
-                </a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-form>
+              <a-form-item label="发型">
+                <a-select
+                  v-model:value="preferences.hairstyle"
+                  placeholder="发型"
+                  allow-clear
+                  @change="saveStateToStorage"
+                >
+                  <a-select-option
+                    v-for="opt in hairstyleOptions"
+                    :key="opt.value"
+                    :value="opt.value"
+                  >
+                    {{ opt.label }}
+                  </a-select-option>
+                </a-select>
+              </a-form-item>
+
+              <a-form-item label="服装风格">
+                <a-select
+                  v-model:value="preferences.dress"
+                  placeholder="服装风格"
+                  allow-clear
+                  @change="saveStateToStorage"
+                >
+                  <a-select-option v-for="opt in dressOptions" :key="opt.value" :value="opt.value">
+                    {{ opt.label }}
+                  </a-select-option>
+                </a-select>
+              </a-form-item>
+
+              <a-form-item label="配饰">
+                <a-select
+                  v-model:value="preferences.accessory"
+                  placeholder="配饰"
+                  allow-clear
+                  @change="saveStateToStorage"
+                >
+                  <a-select-option v-for="opt in accessoryOptions" :key="opt" :value="opt">
+                    {{ opt }}
+                  </a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-form>
+          </section>
         </div>
 
-        <!-- 生成按钮 -->
         <a-button
           type="primary"
           size="large"
@@ -163,7 +181,6 @@
         </a-button>
       </div>
 
-      <!-- 右侧：结果展示 -->
       <div class="right-panel">
         <div v-if="generating" class="loading-state">
           <div class="spinner"></div>
@@ -181,7 +198,10 @@
           <div class="result-summary">
             <h2>{{ result.style }} - 虚拍效果</h2>
             <div v-if="result.subjectRole" class="result-subject">
-              出镜方式：{{ VTO_SUBJECT_LABELS[result.subjectRole] || result.subjectRole }}
+              出镜方式：{{
+                VTO_SUBJECT_LABELS[result.subjectRole as VirtualTryOnSubjectRole] ||
+                result.subjectRole
+              }}
             </div>
             <div class="result-time">生成时间：{{ formatTime(result.timestamp) }}</div>
           </div>
@@ -272,6 +292,12 @@
 
 <script setup lang="ts">
 import { aiApi, VirtualTryOnRequest } from '@/api/ai';
+import hero1 from '@/assets/images/hero/hero1.jpg';
+import hero2 from '@/assets/images/hero/hero2.jpg';
+import hero3 from '@/assets/images/hero/hero3.jpg';
+import hero4 from '@/assets/images/hero/hero4.jpg';
+import hero5 from '@/assets/images/hero/hero5.jpg';
+import hero6 from '@/assets/images/hero/hero6.jpg';
 import {
   TRAVEL_STYLE_CARD_DESCRIPTIONS,
   TRAVEL_STYLE_DETAIL_MINIMALIST_COUPLE,
@@ -305,12 +331,59 @@ const preferences = reactive({
   makeup: undefined,
   hairstyle: undefined,
   dress: undefined,
+  accessory: undefined as string | undefined,
 });
 
 const availableStyles = ref<any[]>([]);
 const authStore = useAuthStore();
 
-const travelStyleLabel = computed(() => TRAVEL_STYLE_LABELS[selectedStyle.value] || '当前风格');
+const currentStep = computed(() => {
+  if (!subjectRole.value) return 1;
+  if (!uploadedImage.value) return 1;
+  if (!selectedStyle.value) return 2;
+  return 4;
+});
+
+const stylePreviewMap: Record<string, string> = {
+  minimalist: hero1,
+  classical: hero2,
+  bohemian: hero3,
+  romantic: hero4,
+  adventure: hero5,
+  oldtown: hero6,
+};
+
+const styleDisplayList = computed(() => {
+  const baseList = (availableStyles.value || []).map((style: any) => ({
+    ...style,
+    preview: stylePreviewMap[style.id] || hero1,
+  }));
+
+  const hasOldtown = baseList.some((s: any) => s.id === 'oldtown' || s.name === '古镇纪实');
+  if (!hasOldtown) {
+    baseList.push({
+      id: 'oldtown',
+      name: '古镇纪实',
+      description: '古镇街巷、人文纪实、烟火生活感',
+      color: '#8b5e3c',
+      preview: hero6,
+    });
+  }
+
+  return baseList.slice(0, 6);
+});
+
+const accessoryOptionsByStyle: Record<string, string[]> = {
+  minimalist: ['轻薄头纱', '珍珠耳饰', '简约项链', '胸花'],
+  classical: ['发簪', '步摇', '金钗', '流苏耳饰'],
+  bohemian: ['花环', '贝壳耳饰', '编绳手链', '羽毛耳坠'],
+  romantic: ['头纱', '珍珠项链', '花环', '蕾丝手套'],
+  adventure: ['礼帽', '披肩', '皮质手套', '胸针'],
+  oldtown: ['发簪', '复古耳饰', '手捧花', '披肩'],
+};
+const accessoryOptions = computed(() => {
+  return accessoryOptionsByStyle[selectedStyle.value] || ['头纱', '花环', '项链', '耳饰'];
+});
 
 /** 韩式简约卡片悬停：随出镜方式切换完整说明 */
 const minimalistDetailForRole = computed(() => {
@@ -344,9 +417,11 @@ function pruneInvalidVtoPreferences() {
   const mk = new Set(g.makeup.map((o) => o.value));
   const hs = new Set(g.hairstyle.map((o) => o.value));
   const dr = new Set(g.dress.map((o) => o.value));
+  const acc = new Set(accessoryOptions.value);
   if (preferences.makeup && !mk.has(preferences.makeup)) preferences.makeup = undefined;
   if (preferences.hairstyle && !hs.has(preferences.hairstyle)) preferences.hairstyle = undefined;
   if (preferences.dress && !dr.has(preferences.dress)) preferences.dress = undefined;
+  if (preferences.accessory && !acc.has(preferences.accessory)) preferences.accessory = undefined;
 }
 
 /** 切换主风格或出镜方式时，若原偏好不在新列表中则清空，避免脏值 */
@@ -391,6 +466,7 @@ const restoreStateFromStorage = () => {
         preferences.makeup = state.preferences.makeup;
         preferences.hairstyle = state.preferences.hairstyle;
         preferences.dress = state.preferences.dress;
+        preferences.accessory = state.preferences.accessory;
       }
       pruneInvalidVtoPreferences();
       result.value = state.result || null;
@@ -542,11 +618,13 @@ const handleGenerate = async () => {
         makeup: preferences.makeup,
         hairstyle: preferences.hairstyle,
         dress: preferences.dress,
+        accessory: preferences.accessory,
       },
       preferenceLabels: {
         makeup: resolveVtoPrefLabel(makeupOptions.value, preferences.makeup),
         hairstyle: resolveVtoPrefLabel(hairstyleOptions.value, preferences.hairstyle),
         dress: resolveVtoPrefLabel(dressOptions.value, preferences.dress),
+        accessory: preferences.accessory,
       },
     };
     lastRequest.value = request;
@@ -825,71 +903,136 @@ const showResultImagePlaceholder = (target: any) => {
 <style scoped lang="less">
 .virtual-try-on-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  padding: 40px 20px;
+  background:
+    radial-gradient(
+      1200px 520px at 10% -10%,
+      rgba(255, 182, 213, 0.35) 0%,
+      rgba(255, 182, 213, 0) 60%
+    ),
+    radial-gradient(
+      900px 420px at 92% 8%,
+      rgba(255, 205, 223, 0.32) 0%,
+      rgba(255, 205, 223, 0) 65%
+    ),
+    linear-gradient(180deg, #fff7fb 0%, #ffeef6 52%, #ffe8f2 100%);
+  padding: 24px 16px 40px;
 }
 
-.page-header {
-  text-align: center;
-  margin-bottom: 40px;
-  color: white;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-
-  h1 {
-    font-size: 2.5rem;
-    font-weight: 700;
-    margin-bottom: 10px;
-  }
-
-  p {
-    font-size: 1.1rem;
-    opacity: 0.9;
-  }
-}
-
-.content-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 30px;
-  max-width: 1400px;
+.page-shell {
+  max-width: 1200px;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
 
-  @media (max-width: 1024px) {
+.card-base {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+}
+
+.step-progress {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 18px;
+  gap: 10px;
+  flex-wrap: wrap;
+
+  .step-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #666;
+    font-weight: 600;
+    font-size: 18px;
+
+    .step-index {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #e5e7eb;
+      color: #fff;
+      font-size: 13px;
+    }
+
+    &.active {
+      color: #ff6b8b;
+      .step-index {
+        background: #ff6b8b;
+      }
+    }
+  }
+
+  @media (max-width: 768px) {
+    .step-item {
+      font-size: 16px;
+    }
+  }
+
+  .step-line {
+    width: 70px;
+    height: 3px;
+    border-radius: 999px;
+    background: #d1d5db;
+
+    &.active {
+      background: #ff6b8b;
+    }
+  }
+}
+
+.builder {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.builder-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 18px;
+
+  @media (max-width: 980px) {
     grid-template-columns: 1fr;
   }
 }
 
-.left-panel,
-.right-panel {
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-}
+.styles-row {
+  grid-template-columns: 2fr 0.82fr;
+  column-gap: 34px;
 
-.left-panel {
-  padding: 30px;
-  display: flex;
-  flex-direction: column;
-  gap: 30px;
+  @media (max-width: 980px) {
+    grid-template-columns: 1fr;
+    column-gap: 0;
+  }
 }
 
 .subject-section,
 .upload-section,
 .style-section,
 .preferences-section {
-  h2 {
-    font-size: 1.2rem;
-    font-weight: 600;
-    margin-bottom: 15px;
+  h3 {
+    font-size: 18px;
+    margin: 0 0 12px;
     color: #333;
+    font-weight: 700;
   }
+}
 
-  .pref-style-hint {
-    font-size: 13px;
-    color: #64748b;
-    margin: -8px 0 16px;
-    line-height: 1.55;
+.preferences-section {
+  width: 100%;
+  max-width: 320px;
+  justify-self: end;
+
+  @media (max-width: 980px) {
+    max-width: none;
+    justify-self: stretch;
   }
 }
 
@@ -917,9 +1060,9 @@ const showResultImagePlaceholder = (target: any) => {
   }
 
   &.active {
-    border-color: #ff758c;
-    background: #fff5f7;
-    box-shadow: 0 4px 12px rgba(255, 92, 138, 0.15);
+    border-color: #ff6b8b;
+    background: #ffedf2;
+    box-shadow: 0 0 0 3px rgba(255, 107, 139, 0.22);
   }
 
   .subject-short {
@@ -967,7 +1110,7 @@ const showResultImagePlaceholder = (target: any) => {
   text-align: center;
   transition: all 0.3s;
   cursor: pointer;
-  background: #fafafa;
+  background: #fff;
   position: relative;
 
   &:hover {
@@ -976,8 +1119,8 @@ const showResultImagePlaceholder = (target: any) => {
   }
 
   &.active {
-    border-color: #ff758c;
-    background: #fff5f7;
+    border-color: #ff6b8b;
+    background: #fff6f9;
   }
 
   input {
@@ -1050,12 +1193,20 @@ const showResultImagePlaceholder = (target: any) => {
 
 .style-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+
+  @media (max-width: 1200px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .style-card {
-  padding: 16px;
+  padding: 7px 4px 9px;
   border: 2px solid #e0e0e0;
   border-radius: 12px;
   text-align: center;
@@ -1063,51 +1214,47 @@ const showResultImagePlaceholder = (target: any) => {
   transition: all 0.3s;
   background: white;
 
+  img {
+    width: 86%;
+    aspect-ratio: 3 / 4;
+    height: auto;
+    max-height: 136px;
+    border-radius: 7px;
+    object-fit: cover;
+    margin: 0 auto 5px;
+    display: block;
+  }
+
   &:hover {
-    border-color: #ff758c;
-    background: #fff5f7;
+    border-color: #ff6b8b;
     transform: translateY(-2px);
   }
 
   &.active {
-    border-color: #ff758c;
-    background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%);
-    color: white;
-
-    .style-desc {
-      color: rgba(255, 255, 255, 0.9);
-    }
-  }
-
-  .style-icon {
-    font-size: 1.8rem;
-    margin-bottom: 8px;
+    border-color: #ff6b8b;
+    box-shadow: 0 0 0 3px rgba(255, 107, 139, 0.24);
   }
 
   .style-name {
     font-weight: 600;
-    font-size: 0.95rem;
-    margin-bottom: 4px;
-  }
-
-  .style-desc {
-    font-size: 0.75rem;
-    color: #999;
-    line-height: 1.3;
+    font-size: 0.86rem;
+    color: #333;
+    margin: 0;
   }
 }
 
 .generate-btn {
-  margin-top: 10px;
-  height: 48px;
+  margin-top: 4px;
+  height: 50px;
   font-size: 1rem;
   font-weight: 600;
-  background: linear-gradient(90deg, #ff758c 0%, #ff7eb3 100%);
+  background: #ff6b8b;
   border: none;
 
   &:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(255, 117, 140, 0.4);
+    background: #f0547b;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(255, 107, 139, 0.35);
   }
 
   &:disabled {
@@ -1117,7 +1264,10 @@ const showResultImagePlaceholder = (target: any) => {
 }
 
 .right-panel {
-  padding: 30px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+  padding: 24px;
   display: flex;
   flex-direction: column;
 }
