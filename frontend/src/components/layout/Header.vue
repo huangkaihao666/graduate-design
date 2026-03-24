@@ -9,11 +9,20 @@
       </div>
 
       <nav v-if="!authStore.isAdmin" class="main-nav">
-        <router-link v-if="authStore.isAuthenticated" to="/dashboard" class="nav-item">
-          控制台
-        </router-link>
-        <router-link to="/booking/packages" class="nav-item"> 套餐浏览 </router-link>
-        <router-link to="/help-center" class="nav-item">帮助中心</router-link>
+        <template v-if="authStore.isAuthenticated">
+          <router-link to="/dashboard" class="nav-item">首页</router-link>
+          <router-link to="/ai/virtual-try-on" class="nav-item">虚拍试衣</router-link>
+          <router-link to="/ai/style-recommendation" class="nav-item">风格推荐</router-link>
+          <router-link to="/ai/itinerary-planning" class="nav-item">行程规划</router-link>
+          <router-link to="/booking/packages" class="nav-item">套餐浏览</router-link>
+          <router-link to="/booking/photographers" class="nav-item">本店摄影师</router-link>
+          <router-link to="/booking/order" class="nav-item">在线下单</router-link>
+          <router-link to="/help-center" class="nav-item">帮助中心</router-link>
+        </template>
+        <template v-else>
+          <router-link to="/booking/packages" class="nav-item">套餐浏览</router-link>
+          <router-link to="/help-center" class="nav-item">帮助中心</router-link>
+        </template>
       </nav>
 
       <div class="header-actions">
@@ -144,14 +153,17 @@ const handleLogout = () => {
   .main-nav {
     flex: 1;
     display: flex;
-    justify-content: center;
-    gap: 30px;
+    justify-content: flex-start;
+    gap: 20px;
     margin: 0 20px;
+    overflow-x: auto;
+    scrollbar-width: thin;
 
     .nav-item {
       color: #666;
       text-decoration: none;
       font-size: 14px;
+      white-space: nowrap;
       transition: color 0.3s;
 
       &:hover,

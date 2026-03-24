@@ -1,15 +1,15 @@
 <template>
   <div class="app-layout" :class="{ 'with-sidebar': showSidebar }">
     <!-- 顶部导航栏 (仅在 layout: 'default' 时显示) -->
-    <Header v-if="showSidebar" />
+    <Header v-if="showHeader" />
 
-    <div class="layout-body" :class="{ 'has-header': showSidebar }">
-      <!-- 侧边菜单 -->
+    <div class="layout-body" :class="{ 'has-header': showHeader }">
+      <!-- 侧边菜单（仅管理员保留） -->
       <Sidebar v-if="showSidebar" />
 
       <!-- 主内容区 -->
       <main :class="{ 'with-sidebar': showSidebar }">
-        <div class="content-wrapper">
+        <div class="content-wrapper" :class="{ 'dashboard-home-wrapper': isDashboardHome }">
           <slot />
         </div>
       </main>
@@ -20,14 +20,21 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
+import { useAuthStore } from '@/store/auth';
 import Header from './Header.vue';
 import Sidebar from './Sidebar.vue';
 
 const route = useRoute();
+const authStore = useAuthStore();
 
-// 判断当前路由是否需要显示侧边栏（layout 为 'default' 时显示）
+const isDefaultLayout = computed(() => route.meta?.layout === 'default');
+const isAdmin = computed(() => authStore.user?.role === 'admin');
+const isDashboardHome = computed(() => route.path === '/dashboard');
+
+// 用户端改为顶部导航，管理员保留侧边栏
+const showHeader = computed(() => isDefaultLayout.value);
 const showSidebar = computed(() => {
-  return route.meta?.layout === 'default';
+  return isDefaultLayout.value && isAdmin.value;
 });
 </script>
 
@@ -71,6 +78,10 @@ const showSidebar = computed(() => {
         max-width: 1400px;
         margin: 0 auto;
         width: 100%;
+
+        &.dashboard-home-wrapper {
+          padding-top: 8px;
+        }
       }
     }
   }
