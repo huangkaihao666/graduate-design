@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/store'
 
 /**
@@ -33,14 +34,20 @@ export const useAuth = () => {
 
 /**
  * 登出 Hook
- * 处理登出逻辑并重定向到登录页
+ * 处理登出逻辑：清除 token、清除 React Query 所有缓存、重定向到登录页
+ * 必须清除缓存，否则下一个登录用户会看到上一个用户的数据
  */
 export const useLogout = () => {
   const navigate = useNavigate()
   const { logout } = useAuthStore()
+  const queryClient = useQueryClient()
 
   const handleLogout = () => {
+    // 1. 清除 Zustand 中的 token 和用户信息
     logout()
+    // 2. 清除所有 React Query 缓存，防止用户数据泄露给下一个登录者
+    queryClient.clear()
+    // 3. 跳转到登录页
     navigate('/login')
   }
 

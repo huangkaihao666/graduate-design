@@ -46,11 +46,14 @@ export class RoomsController {
 
   /**
    * 获取案件列表
+   * - 未登录时正常访问（公开列表），但 sort=mine 会返回空
+   * - 登录后携带 token，JwtGuard 会注入 req.user
    */
   @Get()
+  @UseGuards(JwtGuard)
   @ApiOkResponse({ description: '获取案件列表成功' })
-  async getRooms(@Query() query: QueryRoomDto, @Request() req?: any) {
-    const userId = req?.user?.id;
+  async getRooms(@Query() query: QueryRoomDto, @Request() req: any) {
+    const userId = req.user?.id;
     return await this.roomsService.getRooms(query, userId);
   }
 

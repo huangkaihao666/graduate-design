@@ -88,7 +88,14 @@ export class RoomsService {
     let orderBy: any = { createdAt: 'desc' };
     if (sort === 'hot') {
       orderBy = { viewCount: 'desc' };
-    } else if (sort === 'mine' && userId) {
+    } else if (sort === 'mine') {
+      // 必须提供 userId，否则返回空列表（兜底保护）
+      if (!userId) {
+        return {
+          data: [],
+          pagination: { page, pageSize, total: 0, totalPages: 0 },
+        };
+      }
       where.ownerId = userId;
     }
 

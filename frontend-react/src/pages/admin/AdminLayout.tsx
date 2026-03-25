@@ -2,6 +2,7 @@ import React from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Layout, Menu, Button, Space, Modal } from 'antd'
 import { HomeOutlined, LogoutOutlined, UserOutlined, FileTextOutlined, WarningOutlined, BarChartOutlined, ControlOutlined } from '@ant-design/icons'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/store'
 import './AdminLayout.less'
 
@@ -11,6 +12,7 @@ const AdminLayout: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { clearAuth } = useAuthStore()
+  const queryClient = useQueryClient()
 
   const selectedKey = (() => {
     if (location.pathname.startsWith('/admin/stats')) return 'stats'
@@ -43,6 +45,7 @@ const AdminLayout: React.FC = () => {
                 cancelText: '取消',
                 onOk: () => {
                   clearAuth()
+                  queryClient.clear()
                   navigate('/admin/login')
                 },
               })
