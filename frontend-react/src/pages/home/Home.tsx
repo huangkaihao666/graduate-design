@@ -49,7 +49,7 @@ export const Home: React.FC = () => {
         sort: sortBy,
         search: search || undefined,
       }),
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
   })
 
   const { data: agentsData } = useQuery({

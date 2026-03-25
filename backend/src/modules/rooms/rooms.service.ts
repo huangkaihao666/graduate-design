@@ -164,10 +164,11 @@ export class RoomsService {
       throw new NotFoundException('案件不存在');
     }
 
-    // 增加浏览数
-    await this.prisma.room.update({
+    // 增加浏览数，并返回更新后的值
+    const updatedRoom = await this.prisma.room.update({
       where: { id: roomId },
       data: { viewCount: { increment: 1 } },
+      select: { viewCount: true, commentCount: true },
     });
 
     // 计算投票统计
@@ -189,6 +190,8 @@ export class RoomsService {
 
     return {
       ...room,
+      viewCount: updatedRoom.viewCount,
+      commentCount: updatedRoom.commentCount,
       agents: JSON.parse(room.agents),
       votes,
     };
@@ -266,6 +269,175 @@ export class RoomsService {
     });
 
     return { message: '案件删除成功' };
+  }
+
+  /**
+   * 添加评论或回复（存入 Message 表 senderType=HUMAN）
+   * parentId 有值时为回复某条评论，否则为顶层评论
+   */
+  async addComment(
+    roomId: number,
+    userId: number,
+    content: string,
+    parentId?: number,
+  ) {
+    const room = await this.prisma.room.findUnique({ where: { id: roomId } });
+    if (!room) {
+      throw new NotFoundException('案件不存在');
+    }
+
+    // 若有 parentId，验证父评论存在且属于该房间
+    if (parentId) {
+      const parent = await this.prisma.message.findUnique({
+        where: { id: parentId },
+      });
+      if (!parent || parent.roomId !== roomId) {
+        throw new NotFoundException('被回复的评论不存在');
+      }
+    }
+
+    const msg = await (this.prisma.message as any).create({
+      data: {
+        roomId,
+        senderId: userId,
+        senderType: 'HUMAN',
+        content,
+        parentId: parentId || null,
+      },
+      include: {
+        sender: { select: { id: true, name: true, avatar: true } },
+      },
+    });
+
+    // 只有顶层评论才 +1 commentCount；回复不计入
+    if (!parentId) {
+      await this.prisma.room.update({
+        where: { id: roomId },
+        data: { commentCount: { increment: 1 } },
+      });
+    }
+
+    return msg;
+  }
+
+  /**
+   * 获取顶层评论列表（parentId=null），每条带所有回复（replies）+ 点赞数 + 是否已赞
+   */
+  async getComments(
+    roomId: number,
+    page: number = 1,
+    pageSize: number = 20,
+    currentUserId?: number,
+  ) {
+    const skip = (page - 1) * pageSize;
+
+    const senderSelect = { id: true, name: true, avatar: true };
+    const where = {
+      roomId,
+      senderType: 'HUMAN',
+      senderId: { not: null },
+      parentId: null,
+    } as any;
+
+    const [comments, total] = await Promise.all([
+      (this.prisma.message as any).findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          sender: { select: senderSelect },
+          replies: {
+            where: { senderType: 'HUMAN' },
+            orderBy: { createdAt: 'asc' },
+            include: {
+              sender: { select: senderSelect },
+            },
+          },
+        },
+      }),
+      this.prisma.message.count({ where }),
+    ]);
+
+    // 批量查询点赞数和当前用户点赞状态
+    const allIds: number[] = [];
+    for (const c of comments) {
+      allIds.push(c.id);
+      for (const r of c.replies || []) allIds.push(r.id);
+    }
+
+    const [likeCounts, userLikes] = await Promise.all([
+      allIds.length
+        ? (this.prisma as any).messageLike.groupBy({
+            by: ['messageId'],
+            where: { messageId: { in: allIds } },
+            _count: { id: true },
+          })
+        : Promise.resolve([]),
+      allIds.length && currentUserId
+        ? (this.prisma as any).messageLike.findMany({
+            where: { messageId: { in: allIds }, userId: currentUserId },
+            select: { messageId: true },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const likeMap: Record<number, number> = {};
+    for (const row of likeCounts as any[]) {
+      likeMap[row.messageId] = row._count.id;
+    }
+    const likedSet = new Set<number>(
+      (userLikes as any[]).map((l: any) => l.messageId),
+    );
+
+    const attach = (msg: any) => ({
+      ...msg,
+      likeCount: likeMap[msg.id] || 0,
+      liked: likedSet.has(msg.id),
+    });
+
+    return {
+      data: comments.map((c: any) => ({
+        ...attach(c),
+        replies: (c.replies || []).map(attach),
+      })),
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    };
+  }
+
+  /**
+   * 点赞评论（幂等）
+   */
+  async likeComment(messageId: number, userId: number) {
+    await (this.prisma as any).messageLike.upsert({
+      where: { userId_messageId: { userId, messageId } },
+      update: {},
+      create: { userId, messageId },
+    });
+    const count = await (this.prisma as any).messageLike.count({
+      where: { messageId },
+    });
+    return { liked: true, likeCount: count };
+  }
+
+  /**
+   * 取消点赞
+   */
+  async unlikeComment(messageId: number, userId: number) {
+    await (this.prisma as any).messageLike
+      .delete({
+        where: { userId_messageId: { userId, messageId } },
+      })
+      .catch(() => null); // 未点过赞时静默忽略
+    const count = await (this.prisma as any).messageLike.count({
+      where: { messageId },
+    });
+    return { liked: false, likeCount: count };
   }
 
   /**

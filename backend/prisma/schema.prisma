@@ -82,6 +82,11 @@ model Message {
   content    String  @db.LongText
   reasoning  String? @db.LongText
   roundNumber Int?   @db.UnsignedInt
+
+  // 回复关系（自引用）：parentId 为 null 表示顶层评论，否则为某条评论的回复
+  parentId  Int?    @db.UnsignedInt
+  parent    Message?  @relation("MessageReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Message[] @relation("MessageReplies")
   
   createdAt DateTime @default(now())
 
@@ -90,6 +95,7 @@ model Message {
   @@index([senderId])
   @@index([createdAt])
   @@index([roundNumber])
+  @@index([parentId])
 }
 
 /// 投票模型
@@ -109,6 +115,17 @@ model Vote {
   @@map("votes")
   @@index([userId])
   @@index([roomId])
+}
+
+/// 评论点赞模型
+model MessageLike {
+  id        Int     @id @default(autoincrement()) @db.UnsignedInt
+  userId    Int     @db.UnsignedInt
+  messageId Int     @db.UnsignedInt
+
+  @@unique([userId, messageId])
+  @@map("message_likes")
+  @@index([messageId])
 }
 
 /// AI Agent 模型

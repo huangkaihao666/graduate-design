@@ -62,3 +62,31 @@ export const closeRoom = (roomId: number) => {
 export const getRoomReport = (roomId: number) => {
   return httpClient.get(`/rooms/${roomId}/report`)
 }
+
+/**
+ * 获取评论列表
+ */
+export const getComments = (roomId: number, page = 1, pageSize = 20) => {
+  return httpClient.get(`/rooms/${roomId}/comments`, { params: { page, pageSize } })
+}
+
+/**
+ * 发表评论（parentId 有值时为回复）
+ */
+export const addComment = (roomId: number, content: string, parentId?: number) => {
+  return httpClient.post(`/rooms/${roomId}/comments`, { content, parentId })
+}
+
+/**
+ * 点赞评论
+ */
+export const likeComment = (roomId: number, commentId: number) => {
+  return httpClient.post(`/rooms/${roomId}/comments/${commentId}/like`)
+}
+
+/**
+ * 取消点赞
+ */
+export const unlikeComment = (roomId: number, commentId: number) => {
+  return httpClient.delete(`/rooms/${roomId}/comments/${commentId}/like`)
+}

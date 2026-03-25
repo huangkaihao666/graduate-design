@@ -52,7 +52,7 @@ export const CaseCard: React.FC<CaseCardProps> = ({ room, agents }) => {
   const colorIdx = (room.id || 0) % PLACEHOLDER_COLORS.length
 
   const handleClick = () => {
-    if (room.status === 'LIVE' || room.status === 'WAITING') {
+    if (room.status === 'LIVE') {
       navigate(`/debate/${room.id}`)
     } else {
       navigate(`/cases/${room.id}`)

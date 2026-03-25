@@ -130,6 +130,69 @@ export class RoomsController {
   }
 
   /**
+   * 获取评论列表（带点赞数和是否已赞）
+   */
+  @Get(':id/comments')
+  @UseGuards(JwtGuard)
+  @ApiOkResponse({ description: '获取评论列表成功' })
+  async getComments(
+    @Param('id') id: string,
+    @Query('page') page: string,
+    @Query('pageSize') pageSize: string,
+    @Request() req: any,
+  ) {
+    return await this.roomsService.getComments(
+      parseInt(id, 10),
+      page ? parseInt(page, 10) : 1,
+      pageSize ? parseInt(pageSize, 10) : 20,
+      req.user?.id,
+    );
+  }
+
+  /**
+   * 发表评论或回复
+   */
+  @Post(':id/comments')
+  @UseGuards(JwtGuard)
+  @ApiCreatedResponse({ description: '评论发表成功' })
+  async addComment(
+    @Param('id') id: string,
+    @Body('content') content: string,
+    @Body('parentId') parentId: string | undefined,
+    @Request() req: any,
+  ) {
+    return await this.roomsService.addComment(
+      parseInt(id, 10),
+      req.user.id,
+      content,
+      parentId ? parseInt(parentId, 10) : undefined,
+    );
+  }
+
+  /**
+   * 点赞评论
+   */
+  @Post(':id/comments/:cid/like')
+  @UseGuards(JwtGuard)
+  @ApiCreatedResponse({ description: '点赞成功' })
+  async likeComment(@Param('cid') cid: string, @Request() req: any) {
+    return await this.roomsService.likeComment(parseInt(cid, 10), req.user.id);
+  }
+
+  /**
+   * 取消点赞
+   */
+  @Delete(':id/comments/:cid/like')
+  @UseGuards(JwtGuard)
+  @ApiOkResponse({ description: '取消点赞成功' })
+  async unlikeComment(@Param('cid') cid: string, @Request() req: any) {
+    return await this.roomsService.unlikeComment(
+      parseInt(cid, 10),
+      req.user.id,
+    );
+  }
+
+  /**
    * 结案（结束辩论）
    */
   @Post(':id/close')
