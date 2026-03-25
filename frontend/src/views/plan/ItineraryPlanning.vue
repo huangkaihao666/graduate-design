@@ -578,15 +578,15 @@ onMounted(() => {
 <style scoped lang="less">
 .itinerary-planning-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: linear-gradient(180deg, #fff5f7 0%, #ffffff 32%);
   padding: 40px 20px;
 }
 
 .page-header {
   text-align: center;
   margin-bottom: 40px;
-  color: white;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  color: #334155;
+  text-shadow: none;
 
   h1 {
     font-size: 2.5rem;

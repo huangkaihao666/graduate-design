@@ -9,7 +9,13 @@
 
       <!-- 主内容区 -->
       <main :class="{ 'with-sidebar': showSidebar }">
-        <div class="content-wrapper" :class="{ 'dashboard-home-wrapper': isDashboardHome }">
+        <div
+          class="content-wrapper"
+          :class="{
+            'dashboard-home-wrapper': isDashboardHome,
+            'full-bleed-wrapper': isFullBleed,
+          }"
+        >
           <slot />
         </div>
       </main>
@@ -27,14 +33,18 @@ import Sidebar from './Sidebar.vue';
 const route = useRoute();
 const authStore = useAuthStore();
 
-const isDefaultLayout = computed(() => route.meta?.layout === 'default');
+const isHeaderLayout = computed(
+  () => route.meta?.layout === 'default' || route.meta?.layout === 'full'
+);
+const isFullBleed = computed(() => route.meta?.layout === 'full');
 const isAdmin = computed(() => authStore.user?.role === 'admin');
 const isDashboardHome = computed(() => route.path === '/dashboard');
 
 // 用户端改为顶部导航，管理员保留侧边栏
-const showHeader = computed(() => isDefaultLayout.value);
+const showHeader = computed(() => isHeaderLayout.value);
 const showSidebar = computed(() => {
-  return isDefaultLayout.value && isAdmin.value;
+  // 仅 default 布局下管理员显示侧边栏；full 布局用于全宽页面（不显示侧边栏）
+  return route.meta?.layout === 'default' && isAdmin.value;
 });
 </script>
 
@@ -66,7 +76,7 @@ const showSidebar = computed(() => {
     transition: margin-top 0.3s;
 
     &.has-header {
-      margin-top: 64px;
+      margin-top: 72px;
     }
 
     main {
@@ -81,6 +91,12 @@ const showSidebar = computed(() => {
 
         &.dashboard-home-wrapper {
           padding-top: 8px;
+        }
+
+        &.full-bleed-wrapper {
+          padding: 0;
+          max-width: none;
+          margin: 0;
         }
       }
     }

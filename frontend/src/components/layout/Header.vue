@@ -114,7 +114,7 @@ const handleLogout = () => {
     max-width: 1400px;
     margin: 0 auto;
     padding: 0 20px;
-    height: 64px;
+    height: 72px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -127,25 +127,27 @@ const handleLogout = () => {
       display: flex;
       align-items: center;
       gap: 8px;
-      font-size: 1.2rem;
-      font-weight: 700;
+      font-size: 1.35rem;
+      font-weight: 800;
       color: #333;
       text-decoration: none;
       transition: all 0.3s;
+      letter-spacing: 0.2px;
 
       &:hover {
         color: #ff758c;
       }
 
       .icon {
-        font-size: 1.5rem;
+        font-size: 1.65rem;
       }
 
       .text {
-        background: linear-gradient(90deg, #ff758c 0%, #ff7eb3 100%);
+        background: linear-gradient(90deg, #ff5f84 0%, #ff7eb3 55%, #ffb3d1 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
+        text-shadow: 0 2px 10px rgba(255, 117, 140, 0.18);
       }
     }
   }
@@ -154,21 +156,40 @@ const handleLogout = () => {
     flex: 1;
     display: flex;
     justify-content: flex-start;
-    gap: 20px;
+    gap: 12px;
     margin: 0 20px;
     overflow-x: auto;
     scrollbar-width: thin;
 
     .nav-item {
-      color: #666;
+      color: #4b5563;
       text-decoration: none;
-      font-size: 14px;
+      font-size: 16px;
       white-space: nowrap;
-      transition: color 0.3s;
+      padding: 10px 14px;
+      border-radius: 999px;
+      line-height: 1;
+      transition:
+        color 0.25s ease,
+        background 0.25s ease,
+        box-shadow 0.25s ease,
+        transform 0.25s ease;
 
-      &:hover,
+      &:hover {
+        color: #ff4d8a;
+        background: rgba(255, 117, 140, 0.1);
+        transform: translateY(-1px);
+      }
+
       &.router-link-active {
-        color: #ff758c;
+        color: #fff;
+        background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%);
+        box-shadow: 0 6px 14px rgba(255, 117, 140, 0.28);
+      }
+
+      &:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(255, 117, 140, 0.25);
       }
     }
   }

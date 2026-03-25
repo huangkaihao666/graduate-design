@@ -103,7 +103,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       title: '控制台',
       requiresAuth: true,
-      layout: 'default',
+      layout: 'full',
     },
   },
 
@@ -146,7 +146,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/booking',
     meta: {
-      layout: 'none',
+      layout: 'default',
     },
     children: [
       {
@@ -155,7 +155,7 @@ const routes: RouteRecordRaw[] = [
         component: Packages,
         meta: {
           title: '旅拍套餐',
-          layout: 'none',
+          layout: 'full',
         },
       },
       {

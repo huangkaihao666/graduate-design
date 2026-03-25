@@ -558,8 +558,9 @@ onBeforeUnmount(() => {
   position: relative;
   width: 100%;
   min-height: 100vh;
-  background: #f9f9f9;
-  margin-top: -30px;
+  /* 淡粉更明显：避免快速过渡到纯白导致“看起来还是白色” */
+  background: linear-gradient(180deg, #fff5f7 0%, #fff5f7 42%, #ffffff 100%);
+  margin-top: 0;
 }
 
 .hero-wrap {

@@ -1,6 +1,12 @@
 <template>
   <div class="virtual-try-on-container">
     <div class="page-shell">
+      <!-- 页面导语（与行程规划页面同款样式） -->
+      <div class="page-header">
+        <h1>👰‍♀️ AI 虚拍试衣</h1>
+        <p>上传一张样貌片，选择风格与偏好，AI 为你生成更贴近真实旅拍效果的虚拍建议</p>
+      </div>
+
       <div class="step-progress card-base">
         <div class="step-item" :class="{ active: currentStep >= 1 }">
           <span class="step-index">1</span>
@@ -903,19 +909,27 @@ const showResultImagePlaceholder = (target: any) => {
 <style scoped lang="less">
 .virtual-try-on-container {
   min-height: 100vh;
-  background:
-    radial-gradient(
-      1200px 520px at 10% -10%,
-      rgba(255, 182, 213, 0.35) 0%,
-      rgba(255, 182, 213, 0) 60%
-    ),
-    radial-gradient(
-      900px 420px at 92% 8%,
-      rgba(255, 205, 223, 0.32) 0%,
-      rgba(255, 205, 223, 0) 65%
-    ),
-    linear-gradient(180deg, #fff7fb 0%, #ffeef6 52%, #ffe8f2 100%);
+  background: linear-gradient(180deg, #fff5f7 0%, #ffffff 32%);
   padding: 24px 16px 40px;
+}
+
+.page-header {
+  text-align: center;
+  margin-top: 10px;
+  margin-bottom: 23px;
+  color: #334155;
+  text-shadow: none;
+
+  h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+
+  p {
+    font-size: 1.1rem;
+    opacity: 0.9;
+  }
 }
 
 .page-shell {

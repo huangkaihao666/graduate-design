@@ -1,28 +1,5 @@
 <template>
   <div class="packages-container">
-    <!-- 导航栏 -->
-    <nav class="navbar" :class="{ scrolled: isScrolled }">
-      <div class="nav-content">
-        <div class="nav-left">
-          <div class="logo" @click="goToHome">
-            <span class="icon">📸</span>
-            <span class="text">旅拍 · 智享</span>
-          </div>
-        </div>
-        <div class="nav-actions">
-          <template v-if="!authStore.isAuthenticated">
-            <a-button type="text" class="nav-btn" @click="goToLogin">登录</a-button>
-            <a-button type="primary" class="nav-btn primary" @click="goToLogin">注册</a-button>
-          </template>
-          <template v-else>
-            <a-button type="primary" class="nav-btn primary" @click="goToDashboard">
-              进入控制台
-            </a-button>
-          </template>
-        </div>
-      </div>
-    </nav>
-
     <!-- Hero 区域 -->
     <div class="hero-section">
       <div class="hero-bg"></div>
@@ -75,8 +52,8 @@
             v-model:value="filters.style"
             placeholder="全部风格"
             allow-clear
-            size="large"
-            style="width: 220px"
+            size="middle"
+            style="width: 176px"
             :options="styleSelectOptions"
             @change="handleFilterChange"
           />
@@ -88,8 +65,8 @@
             v-model:value="filters.region"
             placeholder="全部地区"
             allow-clear
-            size="large"
-            style="width: 120px"
+            size="middle"
+            style="width: 100px"
             @change="handleRegionChange"
           >
             <a-select-option value="domestic">国内</a-select-option>
@@ -103,8 +80,8 @@
             v-model:value="filters.location"
             placeholder="全部目的地"
             allow-clear
-            size="large"
-            style="width: 240px"
+            size="middle"
+            style="width: 196px"
             :options="locationSelectOptions"
             @change="handleFilterChange"
           />
@@ -114,8 +91,8 @@
           <span class="filter-label">排序：</span>
           <a-select
             v-model:value="filters.sortBy"
-            size="large"
-            style="width: 150px"
+            size="middle"
+            style="width: 128px"
             :options="sortOptions"
             @change="handleFilterChange"
           />
@@ -127,8 +104,8 @@
             v-model:value="filters.minPrice"
             placeholder="最低价"
             :min="0"
-            size="large"
-            style="width: 120px"
+            size="middle"
+            style="width: 100px"
             @change="handleFilterChange"
           />
           <span class="filter-separator">-</span>
@@ -136,8 +113,8 @@
             v-model:value="filters.maxPrice"
             placeholder="最高价"
             :min="0"
-            size="large"
-            style="width: 120px"
+            size="middle"
+            style="width: 100px"
             @change="handleFilterChange"
           />
         </div>
@@ -148,8 +125,8 @@
             v-model:value="filters.duration"
             placeholder="全部天数"
             allow-clear
-            size="large"
-            style="width: 120px"
+            size="middle"
+            style="width: 100px"
             @change="handleFilterChange"
           >
             <a-select-option :value="1">1天</a-select-option>
@@ -212,37 +189,6 @@
             >
               立即预约
             </a-button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="!isFilteringActive && comboRecommendations.length > 0" class="recommend-section">
-      <div class="section-header">
-        <h2>推荐组合套餐</h2>
-        <p>按主题自动搭配，帮你快速决策</p>
-      </div>
-      <div class="combo-grid">
-        <div
-          v-for="combo in comboRecommendations"
-          :key="combo.title"
-          class="combo-card"
-          @click="openComboDetail(combo)"
-        >
-          <h4>{{ combo.title }}</h4>
-          <p class="combo-desc">{{ combo.description }}</p>
-          <div class="combo-items">
-            <button
-              v-for="item in combo.items"
-              :key="`${combo.title}-${item.id}`"
-              type="button"
-              class="combo-item-chip"
-              @click.stop="openPackageDetail(item)"
-            >
-              {{ item.location }} · {{ getStyleName(item.style) }} · ¥{{
-                item.price.toLocaleString()
-              }}
-            </button>
           </div>
         </div>
       </div>
@@ -487,37 +433,6 @@
           </div>
         </div>
       </div>
-
-      <div v-if="comboRecommendations.length > 0" class="recommend-section drawer-mode">
-        <div class="section-header">
-          <h2>推荐组合套餐</h2>
-          <p>按主题自动搭配，帮你快速决策</p>
-        </div>
-        <div class="combo-grid">
-          <div
-            v-for="combo in comboRecommendations"
-            :key="`drawer-${combo.title}`"
-            class="combo-card"
-            @click="openComboDetail(combo)"
-          >
-            <h4>{{ combo.title }}</h4>
-            <p class="combo-desc">{{ combo.description }}</p>
-            <div class="combo-items">
-              <button
-                v-for="item in combo.items"
-                :key="`${combo.title}-${item.id}`"
-                type="button"
-                class="combo-item-chip"
-                @click.stop="openPackageDetail(item)"
-              >
-                {{ item.location }} · {{ getStyleName(item.style) }} · ¥{{
-                  item.price.toLocaleString()
-                }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
     </a-drawer>
 
     <!-- 页脚 -->
@@ -558,6 +473,7 @@ import {
   matchPackageByHotTag,
   type HotTagKey,
 } from '@/constants/package-hot-tags';
+import { TRAVEL_STYLE_LABELS } from '@/constants/travel-style-labels';
 import { useAuthStore } from '@/store/auth';
 import { message } from 'ant-design-vue';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
@@ -594,7 +510,6 @@ const clearPendingPhotographer = () => {
 };
 
 // 状态管理
-const isScrolled = ref(false);
 const loading = ref(false);
 const searchInputKeyword = ref('');
 const searchKeyword = ref('');
@@ -658,14 +573,7 @@ const locationRegionMap = new Map<string, 'domestic' | 'overseas'>();
 domesticLocations.forEach((location) => locationRegionMap.set(location, 'domestic'));
 overseasLocations.forEach((location) => locationRegionMap.set(location, 'overseas'));
 
-const baseStyleMap: Record<string, string> = {
-  romantic: '浪漫梦幻',
-  artistic: '艺术文艺',
-  bohemian: '波西米亚',
-  minimalist: '极简现代',
-  classical: '古典优雅',
-  adventure: '冒险活力',
-};
+const baseStyleMap: Record<string, string> = { ...TRAVEL_STYLE_LABELS };
 
 const loadedStyleMap = ref<Record<string, string>>({ ...baseStyleMap });
 
@@ -778,38 +686,6 @@ const recommendedPackages = computed(() => {
   return ranked;
 });
 
-const comboRecommendations = computed(() => {
-  const source =
-    recommendedPackages.value.length > 0 ? recommendedPackages.value : allPackages.value;
-  if (source.length < 2) {
-    return [];
-  }
-
-  const byPriceAsc = [...source].sort((a, b) => a.price - b.price);
-  const byDurationAsc = [...source].sort((a, b) => a.duration - b.duration);
-  const byHot = [...source].sort(
-    (a, b) => Number(Boolean(b.isPopular || b.isHot)) - Number(Boolean(a.isPopular || a.isHot))
-  );
-
-  return [
-    {
-      title: '周末轻量组合',
-      description: '优先短行程与高性价比，适合快节奏出行',
-      items: byDurationAsc.slice(0, 2),
-    },
-    {
-      title: '品质进阶组合',
-      description: '热门+高口碑搭配，适合一次拍到位',
-      items: byHot.slice(0, 2),
-    },
-    {
-      title: '预算友好组合',
-      description: '价格更友好，兼顾风格与体验',
-      items: byPriceAsc.slice(0, 2),
-    },
-  ].filter((combo) => combo.items.length > 0);
-});
-
 const getStyleName = (style: string) => {
   return loadedStyleMap.value[style] || style;
 };
@@ -913,24 +789,6 @@ const getGuestFavoriteIds = (): number[] => {
 
 const setGuestFavoriteIds = (ids: number[]) => {
   localStorage.setItem(GUEST_FAVORITES_KEY, JSON.stringify(ids));
-};
-
-// 滚动监听
-const handleScroll = () => {
-  isScrolled.value = window.scrollY > 50;
-};
-
-// 导航函数
-const goToHome = () => {
-  router.push('/');
-};
-
-const goToLogin = () => {
-  router.push('/login');
-};
-
-const goToDashboard = () => {
-  router.push('/dashboard');
 };
 
 // 搜索和筛选
@@ -1096,12 +954,6 @@ const openPackageDetail = (pkg: Package) => {
   saveBrowseBehavior(pkg);
 };
 
-const openComboDetail = (combo: { items: Package[] }) => {
-  const first = combo.items?.[0];
-  if (!first) return;
-  openPackageDetail(first);
-};
-
 const openRecommendDrawer = () => {
   recommendDrawerVisible.value = true;
 };
@@ -1215,7 +1067,6 @@ onMounted(async () => {
     });
   }
   await syncPhotographerFromRoute();
-  window.addEventListener('scroll', handleScroll);
   updateBehaviorProfile();
   fetchPackages();
   loadFavoriteStatus();
@@ -1225,7 +1076,8 @@ onMounted(async () => {
 <style scoped lang="less">
 .packages-container {
   min-height: 100vh;
-  background-color: #fff;
+  /* 与摄影师页、行程规划等一致：全粉系渐变 */
+  background: linear-gradient(180deg, #fff5f7 0%, #ffeef4 100%);
   width: 100%;
   overflow-x: hidden;
 }
@@ -1244,90 +1096,9 @@ onMounted(async () => {
   font-weight: 600;
 }
 
-// 导航栏
-.navbar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  z-index: 1000;
-  padding: 20px 0;
-  transition: all 0.3s ease;
-
-  &.scrolled {
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(10px);
-    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.05);
-    padding: 15px 0;
-
-    .logo .text {
-      color: #333;
-    }
-  }
-
-  .nav-content {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .nav-left {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 1.5rem;
-      font-weight: 700;
-      cursor: pointer;
-
-      .text {
-        color: white;
-        transition: color 0.3s;
-        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      }
-    }
-  }
-
-  &.scrolled {
-    .nav-left {
-      .logo .text {
-        color: #333;
-        text-shadow: none;
-      }
-    }
-  }
-
-  .nav-actions {
-    display: flex;
-    gap: 15px;
-
-    .nav-btn {
-      font-size: 1rem;
-
-      &.primary {
-        background: linear-gradient(90deg, #ff758c 0%, #ff7eb3 100%);
-        border: none;
-        box-shadow: 0 4px 10px rgba(255, 117, 140, 0.3);
-
-        &:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 6px 15px rgba(255, 117, 140, 0.4);
-        }
-      }
-    }
-  }
-}
-
 // Hero 区域
 .hero-section {
-  height: 400px;
+  height: 320px;
   position: relative;
   display: flex;
   align-items: center;
@@ -1335,7 +1106,7 @@ onMounted(async () => {
   text-align: center;
   color: white;
   overflow: hidden;
-  margin-top: 70px;
+  margin-top: -12px;
 
   .hero-bg {
     position: absolute;
@@ -1363,12 +1134,12 @@ onMounted(async () => {
     position: relative;
     z-index: 1;
     max-width: 800px;
-    padding: 0 20px;
+    padding: 12px 20px;
 
     .title {
-      font-size: 3rem;
+      font-size: 2.5rem;
       font-weight: 700;
-      margin-bottom: 15px;
+      margin-bottom: 10px;
       line-height: 1.2;
       text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
 
@@ -1381,8 +1152,8 @@ onMounted(async () => {
     }
 
     .subtitle {
-      font-size: 1.2rem;
-      margin-bottom: 30px;
+      font-size: 1.05rem;
+      margin-bottom: 18px;
       opacity: 0.95;
     }
 
@@ -1395,7 +1166,7 @@ onMounted(async () => {
       .search-input {
         flex: 1;
         border-radius: 30px;
-        height: 50px;
+        height: 44px;
 
         :deep(.ant-input) {
           border-radius: 30px;
@@ -1418,8 +1189,8 @@ onMounted(async () => {
       }
 
       .search-btn {
-        height: 50px;
-        padding: 0 30px;
+        height: 44px;
+        padding: 0 26px;
         border-radius: 30px;
         background: rgba(255, 255, 255, 0.2);
         backdrop-filter: blur(10px);
@@ -1435,16 +1206,20 @@ onMounted(async () => {
 
 // 筛选栏
 .filters-section {
-  background: #f8f9fa;
+  background: #fff5f7;
   padding: 20px 0;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid rgba(255, 182, 193, 0.35);
 
   :deep(.ant-select-selector) {
-    min-height: 44px;
+    min-height: 32px;
   }
 
   :deep(.ant-select-selection-item) {
-    font-size: 1rem;
+    font-size: 0.9rem;
+  }
+
+  :deep(.ant-input-number-input) {
+    font-size: 0.9rem;
   }
 
   .filters-content {
@@ -1463,7 +1238,7 @@ onMounted(async () => {
 
       .filter-label {
         font-weight: 500;
-        font-size: 1.05rem;
+        font-size: 0.95rem;
         color: #666;
         white-space: nowrap;
       }
@@ -1475,8 +1250,8 @@ onMounted(async () => {
     }
 
     .recommend-entry-btn {
-      height: 42px;
-      padding: 0 18px;
+      height: 34px;
+      padding: 0 14px;
       border-radius: 999px;
       background: linear-gradient(135deg, #ff85a1 0%, #ff6f91 100%);
       border: none;
@@ -1495,21 +1270,48 @@ onMounted(async () => {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 9px;
 
     .hot-tags-label {
       color: #666;
       font-weight: 500;
-      font-size: 1.05rem;
+      font-size: 1rem;
       white-space: nowrap;
     }
 
     .hot-tag-btn {
       border-radius: 999px;
-      padding: 0 22px;
-      height: 42px;
-      font-size: 1.02rem;
-      line-height: 42px;
+      padding: 0 16px;
+      height: 34px;
+      min-height: 34px;
+      font-size: 0.9rem;
+      line-height: 32px;
+
+      /* 选中态：粉色主题，覆盖 Ant Design 默认蓝色 primary */
+      &.ant-btn-primary {
+        color: #fff !important;
+        background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%) !important;
+        border-color: #ff758c !important;
+        box-shadow: 0 2px 6px rgba(255, 117, 140, 0.28);
+
+        &:hover,
+        &:focus {
+          color: #fff !important;
+          background: linear-gradient(135deg, #ff6b8a 0%, #ff6fa8 100%) !important;
+          border-color: #ff6b8a !important;
+        }
+      }
+
+      &.ant-btn-default {
+        border-color: rgba(255, 182, 193, 0.65);
+        color: #4b5563;
+        background: #fff;
+
+        &:hover {
+          color: #ff6b8a;
+          border-color: #ffb6c1;
+        }
+      }
     }
   }
 }
@@ -1569,20 +1371,28 @@ onMounted(async () => {
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
     }
 
+    /* a-image 的 class 会合并到根节点（.ant-image.recommend-cover），必须 overflow + 固定高度，否则会按原图比例撑高 */
     .recommend-cover {
-      width: 100%;
-      height: 140px;
-      display: block;
+      width: 100% !important;
+      height: 60px !important;
+      max-height: 60px !important;
+      display: block !important;
+      overflow: hidden !important;
+      line-height: 0;
 
-      :deep(.ant-image-img) {
-        width: 100%;
-        height: 140px;
-        object-fit: cover;
+      :deep(.ant-image-img),
+      :deep(img) {
+        width: 100% !important;
+        height: 60px !important;
+        max-height: 60px !important;
+        object-fit: cover !important;
+        object-position: center !important;
+        vertical-align: top;
       }
     }
 
     .recommend-info {
-      padding: 10px 12px 12px;
+      padding: 8px 12px 9px;
 
       h4 {
         margin: 0 0 6px;
@@ -1598,63 +1408,14 @@ onMounted(async () => {
       }
 
       .recommend-price {
-        margin-top: 8px;
+        margin-top: 6px;
         display: inline-block;
         color: #ff4d4f;
         font-weight: 700;
       }
 
       .recommend-book-btn {
-        margin-top: 10px;
-      }
-    }
-  }
-
-  .combo-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 16px;
-  }
-
-  .combo-card {
-    background: linear-gradient(135deg, #f8fbff 0%, #eef5ff 100%);
-    border: 1px solid #dbe9ff;
-    border-radius: 12px;
-    padding: 14px;
-    cursor: pointer;
-
-    h4 {
-      margin: 0 0 8px;
-      color: #174ea6;
-      font-size: 1rem;
-    }
-
-    .combo-desc {
-      margin: 0 0 10px;
-      color: #5f6368;
-      font-size: 0.88rem;
-    }
-
-    .combo-items {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-
-      .combo-item-chip {
-        cursor: pointer;
-        border: 1px solid #91caff;
-        background: #e6f4ff;
-        color: #0958d9;
-        border-radius: 999px;
-        padding: 4px 10px;
-        font-size: 12px;
-        line-height: 1.6;
-        transition: all 0.2s ease;
-
-        &:hover {
-          background: #d0e8ff;
-          border-color: #69b1ff;
-        }
+        margin-top: 8px;
       }
     }
   }
@@ -1673,11 +1434,6 @@ onMounted(async () => {
     }
 
     .recommend-grid {
-      grid-template-columns: 1fr;
-      gap: 12px;
-    }
-
-    .combo-grid {
       grid-template-columns: 1fr;
       gap: 12px;
     }
@@ -2167,8 +1923,7 @@ onMounted(async () => {
   }
 
   .recommend-section {
-    .recommend-grid,
-    .combo-grid {
+    .recommend-grid {
       grid-template-columns: 1fr;
     }
   }
