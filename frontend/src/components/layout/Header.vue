@@ -87,9 +87,9 @@
 </template>
 
 <script setup lang="ts">
-import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/store/auth';
 import { message } from 'ant-design-vue';
+import { useRouter } from 'vue-router';
 
 const router = useRouter();
 const authStore = useAuthStore();

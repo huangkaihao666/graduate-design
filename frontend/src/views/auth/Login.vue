@@ -158,8 +158,12 @@ const handleSubmit = async () => {
         password: formState.password,
       });
       message.success('欢迎回来！');
-      // 登录成功后跳转到仪表板
-      router.push('/dashboard');
+      // 登录成功后按角色跳转
+      if (authStore.isWorker) {
+        router.push('/worker/dashboard');
+      } else {
+        router.push('/dashboard');
+      }
     } else {
       await authStore.register({
         email: formState.email,

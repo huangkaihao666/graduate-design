@@ -115,17 +115,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
 import { useAuthStore } from '@/store/auth';
 import {
+  AppstoreOutlined,
+  CameraOutlined,
   DashboardOutlined,
   EnvironmentOutlined,
-  AppstoreOutlined,
-  TagsOutlined,
-  CameraOutlined,
   FileTextOutlined,
+  TagsOutlined,
   TeamOutlined,
 } from '@ant-design/icons-vue';
+import { computed, ref } from 'vue';
 
 const authStore = useAuthStore();
 const isCollapsed = ref(false);

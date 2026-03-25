@@ -1,5 +1,5 @@
-import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router';
 import { useAuthStore } from '@/store/auth';
+import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router';
 
 // 扩展 Vue Router 的 RouteMeta 类型
 declare module 'vue-router' {
@@ -8,23 +8,33 @@ declare module 'vue-router' {
     layout?: 'default' | 'full' | 'none';
     requiresAuth?: boolean;
     requiresAdmin?: boolean;
+    requiresWorker?: boolean;
     hideHeader?: boolean;
     hideSidebar?: boolean;
   }
 }
 
 // 视图组件 - 公开页面
-import Home from '../views/home/Home.vue';
 import Login from '../views/auth/Login.vue';
+import Home from '../views/home/Home.vue';
 import About from '../views/system/About.vue';
 import NotFound from '../views/system/NotFound.vue';
 
 // AI 模块
-import Dashboard from '../views/home/Dashboard.vue';
-import VirtualTryOn from '../views/ai/VirtualTryOn.vue';
 import StyleRecommendation from '../views/ai/StyleRecommendation.vue';
-import ItineraryPlanning from '../views/plan/ItineraryPlanning.vue';
+import VirtualTryOn from '../views/ai/VirtualTryOn.vue';
 import HelpCenter from '../views/help/HelpCenter.vue';
+import Dashboard from '../views/home/Dashboard.vue';
+import ItineraryPlanning from '../views/plan/ItineraryPlanning.vue';
+
+// 工作人员端
+const WorkerShell = () => import('../views/worker/WorkerShell.vue');
+const WorkerDashboard = () => import('../views/worker/pages/Dashboard.vue');
+const WorkerOrders = () => import('../views/worker/pages/Orders.vue');
+const WorkerSchedule = () => import('../views/worker/pages/Schedule.vue');
+const WorkerPortfolio = () => import('../views/worker/pages/Portfolio.vue');
+const WorkerMessages = () => import('../views/worker/pages/Messages.vue');
+const WorkerProfile = () => import('../views/worker/pages/Profile.vue');
 
 // 预约模块 (延迟加载)
 const Packages = () => import('../views/booking/Packages.vue');
@@ -223,6 +233,58 @@ const routes: RouteRecordRaw[] = [
     ],
   },
 
+  // 工作人员工作台
+  {
+    path: '/worker',
+    component: WorkerShell,
+    redirect: '/worker/dashboard',
+    meta: {
+      requiresAuth: true,
+      requiresWorker: true,
+      layout: 'default',
+      hideHeader: true,
+      hideSidebar: true,
+    },
+    children: [
+      {
+        path: 'dashboard',
+        name: 'WorkerDashboard',
+        component: WorkerDashboard,
+        meta: { title: '工作人员工作台' },
+      },
+      {
+        path: 'orders',
+        name: 'WorkerOrders',
+        component: WorkerOrders,
+        meta: { title: '我的订单' },
+      },
+      {
+        path: 'schedule',
+        name: 'WorkerSchedule',
+        component: WorkerSchedule,
+        meta: { title: '档期管理' },
+      },
+      {
+        path: 'portfolio',
+        name: 'WorkerPortfolio',
+        component: WorkerPortfolio,
+        meta: { title: '作品管理' },
+      },
+      {
+        path: 'messages',
+        name: 'WorkerMessages',
+        component: WorkerMessages,
+        meta: { title: '消息中心' },
+      },
+      {
+        path: 'profile',
+        name: 'WorkerProfile',
+        component: WorkerProfile,
+        meta: { title: '个人中心' },
+      },
+    ],
+  },
+
   // 后台管理（管理员只）
   {
     path: '/admin',
@@ -311,12 +373,40 @@ const router = createRouter({
 });
 
 // 路由守卫
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   // 更新页面标题
   const title = (to.meta?.title as string) ? `${to.meta.title} - 旅拍智享` : '旅拍智享';
   document.title = title;
 
   const authStore = useAuthStore();
+  // 确保从 localStorage 恢复登录态（路由守卫触发时页面可能尚未 mounted）
+  authStore.initializeAuth();
+
+  // 若已登录但缺少 role（旧缓存），拉取一次 profile 补齐
+  if (authStore.isAuthenticated && !authStore.user?.role) {
+    try {
+      await authStore.getProfile();
+    } catch {
+      // ignore
+    }
+  }
+
+  // worker 账号隔离：除 /worker/** 外不允许访问其他业务页面
+  if (
+    authStore.isAuthenticated &&
+    authStore.user?.role === 'worker' &&
+    !to.path.startsWith('/worker') &&
+    to.name !== 'Login'
+  ) {
+    next({ name: 'WorkerDashboard' });
+    return;
+  }
+
+  // worker 账号禁止进入用户控制台，统一送到工作人员工作台
+  if (to.path === '/dashboard' && authStore.user?.role === 'worker') {
+    next({ name: 'WorkerDashboard' });
+    return;
+  }
 
   // 检查路由是否需要认证
   if (to.meta?.requiresAuth) {
@@ -330,6 +420,14 @@ router.beforeEach((to, from, next) => {
   // 检查管理员权限
   if (to.meta?.requiresAdmin) {
     if (!authStore.isAdmin) {
+      next({ name: 'Dashboard' });
+      return;
+    }
+  }
+
+  // 检查工作人员权限（role=worker）
+  if (to.meta?.requiresWorker) {
+    if (authStore.user?.role !== 'worker') {
       next({ name: 'Dashboard' });
       return;
     }

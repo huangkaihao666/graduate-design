@@ -1,6 +1,16 @@
-import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
 import { authApi, type LoginRequest, type RegisterRequest } from '@/api/auth';
+import { defineStore } from 'pinia';
+import { computed, ref } from 'vue';
+
+function unwrapApiData<T = any>(res: any): T {
+  // httpClient 响应拦截器已返回 response.data，因此这里的 res 通常是：
+  // { statusCode, message, data: <payload> }
+  // Auth 接口 payload 又是：{ statusCode, message, data: { user, accessToken, refreshToken } }
+  const outer = res && typeof res === 'object' ? res : {};
+  const level1 = outer?.data ?? outer;
+  const level2 = level1?.data ?? level1;
+  return level2 as T;
+}
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<any>(null);
@@ -12,6 +22,7 @@ export const useAuthStore = defineStore('auth', () => {
   // 计算属性
   const isAuthenticated = computed(() => !!accessToken.value);
   const isAdmin = computed(() => user.value?.role === 'admin');
+  const isWorker = computed(() => user.value?.role === 'worker');
 
   // 从本地存储恢复 token
   const initializeAuth = () => {
@@ -47,9 +58,12 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = '';
     try {
       const response = await authApi.login(credentials);
-      // API 返回的数据格式：{ statusCode, message, data: { statusCode, message, data: { user, accessToken, refreshToken } } }
-      // 需要取内层的 data
-      const authData = response.data?.data || response.data;
+      const authData = unwrapApiData<{
+        user: any;
+        accessToken: string;
+        refreshToken: string;
+        tokenType?: string;
+      }>(response);
 
       // 保存 token 和用户信息
       accessToken.value = authData.accessToken;
@@ -98,8 +112,12 @@ export const useAuthStore = defineStore('auth', () => {
       const response = await authApi.register(data);
 
       // 自动登录
-      // API 返回的数据格式：{ statusCode, message, data: { statusCode, message, data: { user, accessToken, refreshToken } } }
-      const authData = response.data?.data || response.data;
+      const authData = unwrapApiData<{
+        user: any;
+        accessToken: string;
+        refreshToken: string;
+        tokenType?: string;
+      }>(response);
       accessToken.value = authData.accessToken;
       refreshToken.value = authData.refreshToken;
       user.value = authData.user;
@@ -122,11 +140,12 @@ export const useAuthStore = defineStore('auth', () => {
   const refreshAccessToken = async () => {
     try {
       const response = await authApi.refreshToken(refreshToken.value);
-      accessToken.value = response.data.accessToken;
-      refreshToken.value = response.data.refreshToken;
+      const data = unwrapApiData<{ accessToken: string; refreshToken: string }>(response);
+      accessToken.value = data.accessToken;
+      refreshToken.value = data.refreshToken;
 
-      localStorage.setItem('accessToken', response.data.accessToken);
-      localStorage.setItem('refreshToken', response.data.refreshToken);
+      localStorage.setItem('accessToken', data.accessToken);
+      localStorage.setItem('refreshToken', data.refreshToken);
 
       return response;
     } catch (err) {
@@ -138,8 +157,9 @@ export const useAuthStore = defineStore('auth', () => {
   // 获取当前用户信息
   const getProfile = async () => {
     const response = await authApi.getProfile();
-    user.value = response.data;
-    localStorage.setItem('user', JSON.stringify(response.data));
+    const profile = unwrapApiData<any>(response);
+    user.value = profile;
+    localStorage.setItem('user', JSON.stringify(profile));
     return response;
   };
 
@@ -171,6 +191,7 @@ export const useAuthStore = defineStore('auth', () => {
     // 计算属性
     isAuthenticated,
     isAdmin,
+    isWorker,
 
     // 方法
     initializeAuth,

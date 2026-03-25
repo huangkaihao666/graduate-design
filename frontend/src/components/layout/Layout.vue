@@ -41,9 +41,10 @@ const isAdmin = computed(() => authStore.user?.role === 'admin');
 const isDashboardHome = computed(() => route.path === '/dashboard');
 
 // 用户端改为顶部导航，管理员保留侧边栏
-const showHeader = computed(() => isHeaderLayout.value);
+const showHeader = computed(() => isHeaderLayout.value && !route.meta?.hideHeader);
 const showSidebar = computed(() => {
   // 仅 default 布局下管理员显示侧边栏；full 布局用于全宽页面（不显示侧边栏）
+  if (route.meta?.hideSidebar) return false;
   return route.meta?.layout === 'default' && isAdmin.value;
 });
 </script>

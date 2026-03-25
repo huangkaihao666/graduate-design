@@ -16,6 +16,7 @@ const userTableSelect = {
   password: true,
   avatar: true,
   isActive: true,
+  role: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.UserSelect;

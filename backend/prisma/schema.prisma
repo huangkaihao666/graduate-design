@@ -20,6 +20,8 @@ model User {
   password  String  @db.VarChar(255)
   avatar    String? @db.LongText
   isActive  Boolean @default(true)
+  /// user | worker | admin
+  role      String  @default("user") @db.VarChar(20)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -315,6 +317,8 @@ model BookingOrder {
   email          String?  @db.VarChar(255)
   paymentMethod  String   @db.VarChar(30)
   remark         String?  @db.Text
+  /// 用户定制方案（JSON）
+  customPlan     Json?
   /// 用户指定的摄影师（可选）
   photographerId   Int?    @db.UnsignedInt
   photographerName String? @db.VarChar(100)

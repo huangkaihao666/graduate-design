@@ -19,6 +19,7 @@ export interface AuthResponse {
       id: number;
       email: string;
       name: string;
+      role?: 'user' | 'worker' | 'admin' | string;
     };
     accessToken: string;
     refreshToken: string;

@@ -172,8 +172,10 @@ import hero5 from '@/assets/images/hero/hero5.jpg';
 import hero6 from '@/assets/images/hero/hero6.jpg';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { useAuthStore } from '@/store/auth';
 
 const router = useRouter();
+const authStore = useAuthStore();
 let timer: number | null = null;
 const heroWrapRef = ref<HTMLElement | null>(null);
 const swipeStartX = ref<number | null>(null);
@@ -540,6 +542,12 @@ const handleVisibilityChange = () => {
 };
 
 onMounted(() => {
+  // 兜底：worker 账号不应进入用户控制台
+  authStore.initializeAuth();
+  if (authStore.user?.role === 'worker') {
+    router.replace('/worker/dashboard');
+    return;
+  }
   restartAutoPlay();
   document.addEventListener('visibilitychange', handleVisibilityChange);
 });
