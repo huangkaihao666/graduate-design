@@ -2,7 +2,7 @@
 
 .me-page {
   min-height: 100vh;
-  background: #F8FAFF;
+  background: var(--bg-page);
 }
 
 .me-shell {
@@ -37,26 +37,26 @@
     .title {
       font-size: 15px;
       font-weight: 800;
-      color: #1E1B4B;
+      color: var(--text-primary);
     }
   }
 
   :global(.ant-btn) {
     border-radius: 8px !important;
     font-weight: 600 !important;
-    color: #6366F1 !important;
-    border-color: rgba(99, 102, 241, 0.3) !important;
+    color: var(--color-primary) !important;
+    border-color: var(--color-primary-border) !important;
 
     &:hover {
-      background: #EEF2FF !important;
-      border-color: #6366F1 !important;
+      background: var(--color-primary-light) !important;
+      border-color: var(--color-primary) !important;
     }
   }
 }
 
 // ── Hero 标题区 ────────────────────────────────────────────────
 .me-hero {
-  background: linear-gradient(135deg, #1E1B4B 0%, #312E81 50%, #4C1D95 100%);
+  background: var(--gradient-hero);
   padding: 36px 32px;
   border-radius: 20px;
   margin-bottom: 24px;
@@ -106,7 +106,7 @@
 .me-tabs {
   :global(.ant-card) {
     border-radius: 16px !important;
-    border-color: rgba(99, 102, 241, 0.1) !important;
-    box-shadow: 0 2px 16px rgba(99, 102, 241, 0.06) !important;
+    border-color: var(--border-color) !important;
+    box-shadow: var(--shadow-sm) !important;
   }
 }

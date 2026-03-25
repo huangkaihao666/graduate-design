@@ -1,5 +1,6 @@
+import { useEffect } from 'react'
 import { RouterProvider } from 'react-router-dom'
-import { ConfigProvider, Spin } from 'antd'
+import { ConfigProvider, Spin, theme as antdTheme } from 'antd'
 import { LoadingOutlined } from '@ant-design/icons'
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query'
 import { router } from '@/router'
@@ -30,12 +31,21 @@ Spin.setDefaultIndicator(GlobalSpinIndicator)
 
 function App() {
   const { themeMode } = useUIStore()
-  const theme = themeMode === 'dark' ? darkTheme : lightTheme
+  const isDark = themeMode === 'dark'
+  const theme = isDark ? darkTheme : lightTheme
+
+  // 同步 data-theme 到 body，驱动 CSS 变量切换
+  useEffect(() => {
+    document.body.setAttribute('data-theme', themeMode)
+  }, [themeMode])
 
   return (
     <QueryClientProvider client={queryClient}>
       <ConfigProvider
-        theme={theme}
+        theme={{
+          ...theme,
+          algorithm: isDark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
+        }}
         // ── 全局组件默认属性 ──────────────────────────────────
         button={{
           // 所有按钮默认 round 圆角

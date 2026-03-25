@@ -7,34 +7,34 @@
 // ── 主卡片 ────────────────────────────────────────────────────
 .profile-card {
   border-radius: 16px !important;
-  border-color: rgba(99, 102, 241, 0.12) !important;
-  box-shadow: 0 4px 24px rgba(99, 102, 241, 0.08) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: var(--shadow-md) !important;
   overflow: hidden;
 
   // Tabs 样式
   :global(.ant-tabs-nav) {
     margin-bottom: 0 !important;
     padding: 0 16px !important;
-    background: linear-gradient(90deg, #FAFBFF, #F8F8FF) !important;
-    border-bottom: 1px solid rgba(99, 102, 241, 0.1) !important;
+    background: var(--bg-card) !important;
+    border-bottom: 1px solid var(--border-color) !important;
   }
 
   :global(.ant-tabs-tab) {
     font-weight: 600 !important;
-    color: #64748B !important;
+    color: var(--text-secondary) !important;
     padding: 14px 4px !important;
 
     &:hover {
-      color: #6366F1 !important;
+      color: var(--color-primary) !important;
     }
   }
 
   :global(.ant-tabs-tab-active .ant-tabs-tab-btn) {
-    color: #6366F1 !important;
+    color: var(--color-primary) !important;
   }
 
   :global(.ant-tabs-ink-bar) {
-    background: linear-gradient(90deg, #6366F1, #8B5CF6) !important;
+    background: var(--gradient-primary) !important;
     height: 3px !important;
     border-radius: 3px 3px 0 0 !important;
   }
@@ -58,14 +58,14 @@
 // ── 内部卡片 ──────────────────────────────────────────────────
 .inner-card {
   border-radius: 12px !important;
-  border-color: rgba(99, 102, 241, 0.1) !important;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.05) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: var(--shadow-sm) !important;
 
   :global(.ant-card-head) {
-    background: #FAFBFF !important;
-    border-bottom-color: rgba(99, 102, 241, 0.08) !important;
+    background: var(--bg-card) !important;
+    border-bottom-color: var(--border-color) !important;
     font-weight: 700 !important;
-    color: #1E1B4B !important;
+    color: var(--text-primary) !important;
     min-height: 44px !important;
     padding: 0 16px !important;
   }
@@ -76,14 +76,14 @@
 
   // Table
   :global(.ant-table-thead > tr > th) {
-    background: #F8FAFC !important;
-    color: #374151 !important;
+    background: var(--bg-page) !important;
+    color: var(--text-secondary) !important;
     font-weight: 700 !important;
-    border-bottom-color: #E2E8F0 !important;
+    border-bottom-color: var(--border-color) !important;
   }
 
   :global(.ant-table-tbody > tr:hover > td) {
-    background: #EEF2FF !important;
+    background: var(--color-primary-light) !important;
   }
 }
 
@@ -95,10 +95,10 @@
   margin-bottom: 16px;
 
   :global(.ant-avatar) {
-    background: linear-gradient(135deg, #6366F1, #8B5CF6) !important;
+    background: var(--gradient-primary) !important;
     font-weight: 900 !important;
     flex-shrink: 0;
-    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3) !important;
+    box-shadow: var(--shadow-primary) !important;
   }
 
   // 拖拽上传区
@@ -107,30 +107,30 @@
 
     :global(.ant-upload-drag) {
       border-radius: 10px !important;
-      border-color: rgba(99, 102, 241, 0.3) !important;
-      background: #FAFBFF !important;
+      border-color: var(--color-primary-border) !important;
+      background: var(--color-primary-light) !important;
       padding: 12px !important;
 
       &:hover {
-        border-color: #6366F1 !important;
-        background: #EEF2FF !important;
+        border-color: var(--color-primary) !important;
+        background: var(--color-primary-light) !important;
       }
     }
 
     :global(.ant-upload-drag-icon .anticon) {
-      color: #6366F1 !important;
+      color: var(--color-primary) !important;
       font-size: 24px !important;
     }
 
     :global(.ant-upload-text) {
       font-size: 13px !important;
-      color: #374151 !important;
+      color: var(--text-secondary) !important;
       font-weight: 600 !important;
     }
 
     :global(.ant-upload-hint) {
       font-size: 11px !important;
-      color: #94A3B8 !important;
+      color: var(--text-tertiary) !important;
     }
   }
 }
@@ -139,7 +139,7 @@
 .inner-card {
   :global(.ant-form-item-label > label) {
     font-weight: 600 !important;
-    color: #374151 !important;
+    color: var(--text-secondary) !important;
     font-size: 13px !important;
   }
 
@@ -147,25 +147,25 @@
   :global(.ant-input-password),
   :global(.ant-input-affix-wrapper) {
     border-radius: 8px !important;
-    border-color: #E2E8F0 !important;
+    border-color: var(--border-color) !important;
 
     &:focus,
     &:focus-within {
-      border-color: #6366F1 !important;
+      border-color: var(--color-primary) !important;
       box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
     }
   }
 
   :global(.ant-btn-primary) {
-    background: linear-gradient(135deg, #6366F1, #8B5CF6) !important;
+    background: var(--gradient-primary) !important;
     border: none !important;
     border-radius: 8px !important;
     font-weight: 700 !important;
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3) !important;
+    box-shadow: var(--shadow-primary) !important;
 
     &:hover {
       transform: translateY(-1px) !important;
-      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.45) !important;
+      box-shadow: var(--shadow-lg) !important;
     }
   }
 }

@@ -10,11 +10,13 @@ import {
   RobotOutlined,
   AppstoreOutlined,
   BellOutlined,
+  SunOutlined,
+  MoonOutlined,
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { useAuthStore } from '@/store'
+import { useAuthStore, useUIStore } from '@/store'
 import { useLogout } from '@/hooks'
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import './Layout.less'
 
 const { Header, Sider, Content } = AntLayout
@@ -61,8 +63,54 @@ const Layout = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { user } = useAuthStore()
+  const { themeMode, toggleTheme } = useUIStore()
   const handleLogout = useLogout()
   const [drawerVisible, setDrawerVisible] = useState(false)
+
+  const handleToggleTheme = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    const btn = e.currentTarget
+    const rect = btn.getBoundingClientRect()
+    // 点击中心坐标
+    const x = rect.left + rect.width / 2
+    const y = rect.top + rect.height / 2
+    // 计算到最远角的距离（到屏幕最远角 = 对角线终点）
+    const endRadius = Math.hypot(
+      Math.max(x, window.innerWidth - x),
+      Math.max(y, window.innerHeight - y),
+    )
+
+    // 如果浏览器支持 View Transitions API
+    if (typeof document.startViewTransition === 'function') {
+      const nextTheme = themeMode === 'light' ? 'dark' : 'light'
+
+      const transition = document.startViewTransition(() => {
+        // ① 同步修改 data-theme → CSS 变量立即切换 → View Transition 截到真实 new 快照
+        document.body.setAttribute('data-theme', nextTheme)
+        // ② 更新 React 状态 → antd ConfigProvider 算法跟进（可以异步）
+        toggleTheme()
+      })
+
+      transition.ready.then(() => {
+        // new 层（新主题快照）始终从点击位置圆形扩展覆盖 old 层（旧主题快照）
+        document.documentElement.animate(
+          {
+            clipPath: [
+              `circle(0px at ${x}px ${y}px)`,
+              `circle(${endRadius}px at ${x}px ${y}px)`,
+            ],
+          },
+          {
+            duration: 500,
+            easing: 'ease-in-out',
+            pseudoElement: '::view-transition-new(root)',
+          },
+        )
+      })
+    } else {
+      // 降级：直接切换
+      toggleTheme()
+    }
+  }, [toggleTheme, themeMode])
 
   const getSelectedKey = () => {
     if (location.pathname.includes('/cases')) return 'cases'
@@ -160,6 +208,14 @@ const Layout = () => {
                 title="通知"
               />
             </Badge>
+            {/* 深浅色切换 */}
+            <Button
+              type="text"
+              icon={themeMode === 'dark' ? <SunOutlined /> : <MoonOutlined />}
+              className="header-icon-btn theme-toggle-btn"
+              onClick={handleToggleTheme}
+              title={themeMode === 'dark' ? '切换为亮色模式' : '切换为深色模式'}
+            />
             <Dropdown menu={{ items: userMenuItems }} trigger={['click']} placement="bottomRight">
               <button className="user-menu-trigger">
                 <Avatar

@@ -99,6 +99,23 @@
   --shadow-primary: 0 4px 14px rgba(129,140,248,0.35);
 }
 
+// ============ View Transitions - 主题切换涟漪动画 ============
+// 禁用默认的交叉淡入淡出，由 JS 侧 clip-path 动画全权接管
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+// new 层（新主题）始终在最上面，做圆形扩展；old 层静止垫底
+::view-transition-new(root) {
+  z-index: 9999;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+
 // ============ Reset & Base ============
 * {
   margin: 0;
@@ -206,9 +223,9 @@ body {
   }
 
   .ant-table-thead > tr > th {
-    background: #F8FAFF;
+    background: var(--bg-card);
     font-weight: 600;
-    color: #374151;
+    color: var(--text-secondary);
   }
 
   // Pagination
@@ -358,6 +375,261 @@ body {
 .visible-sm { @media (min-width: 769px) { display: none !important; } }
 .visible-md { @media (min-width: 993px) { display: none !important; } }
 .visible-lg { @media (min-width: 1201px) { display: none !important; } }
+
+// ============ 深色模式：antd 组件全局覆写 ============
+[data-theme='dark'] {
+  // ── Card ───────────────────────────────────────────────────
+  :global(.ant-card) {
+    background: var(--bg-card) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+
+    .ant-card-head {
+      background: var(--bg-card) !important;
+      border-bottom-color: var(--border-color) !important;
+      color: var(--text-primary) !important;
+    }
+
+    .ant-card-body {
+      color: var(--text-primary) !important;
+    }
+  }
+
+  // ── Table ──────────────────────────────────────────────────
+  :global(.ant-table) {
+    background: var(--bg-card) !important;
+    color: var(--text-primary) !important;
+  }
+
+  :global(.ant-table-container) {
+    background: var(--bg-card) !important;
+  }
+
+  :global(.ant-table-thead > tr > th) {
+    background: rgba(129, 140, 248, 0.08) !important;
+    color: var(--text-secondary) !important;
+    border-bottom-color: var(--border-color) !important;
+  }
+
+  :global(.ant-table-tbody > tr > td) {
+    background: var(--bg-card) !important;
+    color: var(--text-primary) !important;
+    border-bottom-color: var(--border-color) !important;
+  }
+
+  :global(.ant-table-tbody > tr:hover > td) {
+    background: rgba(129, 140, 248, 0.08) !important;
+  }
+
+  :global(.ant-table-tbody > tr.ant-table-row-selected > td) {
+    background: rgba(129, 140, 248, 0.12) !important;
+  }
+
+  // ── Tabs ───────────────────────────────────────────────────
+  :global(.ant-tabs-nav) {
+    background: transparent !important;
+  }
+
+  :global(.ant-tabs-tab) {
+    color: var(--text-secondary) !important;
+
+    &:hover {
+      color: var(--color-primary) !important;
+    }
+  }
+
+  :global(.ant-tabs-tab-active .ant-tabs-tab-btn) {
+    color: var(--color-primary) !important;
+  }
+
+  :global(.ant-tabs-content-holder) {
+    background: transparent !important;
+  }
+
+  // ── List ───────────────────────────────────────────────────
+  :global(.ant-list-item) {
+    border-bottom-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+  }
+
+  // ── Descriptions ──────────────────────────────────────────
+  :global(.ant-descriptions-item-label) {
+    background: rgba(129, 140, 248, 0.06) !important;
+    color: var(--text-secondary) !important;
+  }
+
+  :global(.ant-descriptions-item-content) {
+    background: var(--bg-card) !important;
+    color: var(--text-primary) !important;
+  }
+
+  :global(.ant-descriptions-bordered .ant-descriptions-item-label),
+  :global(.ant-descriptions-bordered .ant-descriptions-item-content) {
+    border-right-color: var(--border-color) !important;
+  }
+
+  :global(.ant-descriptions-bordered .ant-descriptions-row) {
+    border-bottom-color: var(--border-color) !important;
+  }
+
+  :global(.ant-descriptions-view) {
+    border-color: var(--border-color) !important;
+  }
+
+  // ── Modal ──────────────────────────────────────────────────
+  :global(.ant-modal-content) {
+    background: var(--bg-card) !important;
+    color: var(--text-primary) !important;
+  }
+
+  :global(.ant-modal-header) {
+    background: var(--bg-card) !important;
+
+    .ant-modal-title {
+      color: var(--text-primary) !important;
+    }
+  }
+
+  :global(.ant-modal-body) {
+    color: var(--text-primary) !important;
+  }
+
+  // ── Dropdown ──────────────────────────────────────────────
+  :global(.ant-dropdown-menu) {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-color);
+
+    .ant-dropdown-menu-item {
+      color: var(--text-primary) !important;
+
+      &:hover {
+        background: rgba(129, 140, 248, 0.1) !important;
+      }
+    }
+  }
+
+  // ── Select ────────────────────────────────────────────────
+  :global(.ant-select-selector) {
+    background: var(--bg-card) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+  }
+
+  :global(.ant-select-dropdown) {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-color);
+
+    .ant-select-item {
+      color: var(--text-primary) !important;
+
+      &:hover,
+      &.ant-select-item-option-active {
+        background: rgba(129, 140, 248, 0.1) !important;
+      }
+
+      &.ant-select-item-option-selected {
+        background: rgba(129, 140, 248, 0.15) !important;
+        color: var(--color-primary) !important;
+      }
+    }
+  }
+
+  // ── Input ─────────────────────────────────────────────────
+  :global(.ant-input),
+  :global(.ant-input-affix-wrapper),
+  :global(.ant-input-password) {
+    background: rgba(129, 140, 248, 0.06) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+
+    &::placeholder {
+      color: var(--text-tertiary) !important;
+    }
+  }
+
+  :global(.ant-input-affix-wrapper:focus-within) {
+    border-color: var(--color-primary) !important;
+  }
+
+  // ── Tag ───────────────────────────────────────────────────
+  :global(.ant-tag) {
+    border-color: var(--border-color) !important;
+  }
+
+  // ── Divider ───────────────────────────────────────────────
+  :global(.ant-divider) {
+    border-color: var(--border-color) !important;
+  }
+
+  // ── Upload Dragger ────────────────────────────────────────
+  :global(.ant-upload-drag) {
+    background: rgba(129, 140, 248, 0.04) !important;
+    border-color: var(--border-color) !important;
+
+    &:hover {
+      border-color: var(--color-primary) !important;
+    }
+  }
+
+  // ── Form ──────────────────────────────────────────────────
+  :global(.ant-form-item-label > label) {
+    color: var(--text-secondary) !important;
+  }
+
+  // ── Skeleton ──────────────────────────────────────────────
+  :global(.ant-skeleton-content .ant-skeleton-title),
+  :global(.ant-skeleton-content .ant-skeleton-paragraph > li),
+  :global(.ant-skeleton-avatar) {
+    background: linear-gradient(
+      90deg,
+      rgba(129,140,248,0.1) 25%,
+      rgba(129,140,248,0.2) 50%,
+      rgba(129,140,248,0.1) 75%
+    ) !important;
+    background-size: 400% 100% !important;
+  }
+
+  // ── Empty ─────────────────────────────────────────────────
+  :global(.ant-empty-description) {
+    color: var(--text-tertiary) !important;
+  }
+
+  // ── Statistic ─────────────────────────────────────────────
+  :global(.ant-statistic-title) {
+    color: var(--text-secondary) !important;
+  }
+
+  :global(.ant-statistic-content) {
+    color: var(--text-primary) !important;
+  }
+
+  // ── Progress ──────────────────────────────────────────────
+  :global(.ant-progress-inner) {
+    background: rgba(129, 140, 248, 0.1) !important;
+  }
+
+  // ── Pagination ────────────────────────────────────────────
+  :global(.ant-pagination-item) {
+    background: var(--bg-card) !important;
+    border-color: var(--border-color) !important;
+
+    a {
+      color: var(--text-primary) !important;
+    }
+  }
+
+  :global(.ant-pagination-prev .ant-pagination-item-link),
+  :global(.ant-pagination-next .ant-pagination-item-link) {
+    background: var(--bg-card) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+  }
+
+  // ── Scrollbar ─────────────────────────────────────────────
+  ::-webkit-scrollbar-thumb {
+    background: rgba(129, 140, 248, 0.3) !important;
+  }
+}
 
 // ============ 文本工具类 ============
 .text-center { text-align: center; }

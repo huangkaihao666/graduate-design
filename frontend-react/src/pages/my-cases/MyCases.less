@@ -9,7 +9,7 @@
 // ── 页面头部 ──────────────────────────────────────────────────
 .my-cases-header {
   position: relative;
-  background: linear-gradient(135deg, #1E1B4B 0%, #312E81 50%, #4C1D95 100%);
+  background: var(--gradient-hero);
   padding: 40px 32px 36px;
   border-radius: 0 0 24px 24px;
   margin-bottom: 28px;
@@ -58,16 +58,16 @@
     height: 42px !important;
     padding: 0 24px !important;
     border-radius: 10px !important;
-    background: linear-gradient(135deg, #6366F1, #8B5CF6) !important;
+    background: var(--gradient-primary) !important;
     border: none !important;
     font-weight: 700 !important;
     font-size: 14px !important;
-    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4) !important;
+    box-shadow: var(--shadow-primary) !important;
     transition: all 0.2s ease !important;
 
     &:hover {
       transform: translateY(-2px) !important;
-      box-shadow: 0 8px 24px rgba(99, 102, 241, 0.5) !important;
+      box-shadow: var(--shadow-lg) !important;
     }
   }
 }
@@ -81,19 +81,19 @@
 
   :global(.ant-tabs-tab) {
     font-weight: 600 !important;
-    color: #64748B !important;
+    color: var(--text-secondary) !important;
 
     &:hover {
-      color: #6366F1 !important;
+      color: var(--color-primary) !important;
     }
   }
 
   :global(.ant-tabs-tab-active .ant-tabs-tab-btn) {
-    color: #6366F1 !important;
+    color: var(--color-primary) !important;
   }
 
   :global(.ant-tabs-ink-bar) {
-    background: linear-gradient(90deg, #6366F1, #8B5CF6) !important;
+    background: var(--gradient-primary) !important;
     height: 3px !important;
     border-radius: 3px 3px 0 0 !important;
   }

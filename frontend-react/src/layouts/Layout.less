@@ -18,6 +18,14 @@
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid rgba(99, 102, 241, 0.08);
   box-shadow: 0 1px 0 rgba(99, 102, 241, 0.06), 0 4px 20px rgba(0, 0, 0, 0.04);
+  transition: background 0.3s ease, border-color 0.3s ease;
+
+  // 深色模式
+  [data-theme='dark'] & {
+    background: rgba(26, 24, 38, 0.92) !important;
+    border-bottom-color: rgba(129, 140, 248, 0.1);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2), 0 4px 20px rgba(0, 0, 0, 0.15);
+  }
 }
 
 .header-inner {
@@ -171,7 +179,7 @@
 .user-name-text {
   font-size: 13px;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-secondary);
   max-width: 100px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -191,8 +199,8 @@
 
 // ── 侧边栏 ────────────────────────────────────────────────────
 .app-sider {
-  background: #fff !important;
-  border-right: 1px solid rgba(99, 102, 241, 0.08) !important;
+  background: var(--bg-sidebar) !important;
+  border-right: 1px solid var(--border-color) !important;
   position: sticky !important;
   top: 60px;
   height: calc(100vh - 60px);
@@ -231,7 +239,7 @@
       padding-left: 16px !important;
       font-size: 13.5px;
       font-weight: 500;
-      color: #64748B !important;
+      color: var(--text-secondary) !important;
       transition: all 0.2s ease;
 
       .ant-menu-item-icon {
@@ -239,13 +247,13 @@
       }
 
       &:hover {
-        color: #6366F1 !important;
-        background: #EEF2FF !important;
+        color: var(--color-primary) !important;
+        background: var(--color-primary-light) !important;
       }
 
       &.ant-menu-item-selected {
-        color: #6366F1 !important;
-        background: linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(139,92,246,0.06) 100%) !important;
+        color: var(--color-primary) !important;
+        background: var(--gradient-card) !important;
         font-weight: 600;
 
         &::after {
@@ -300,12 +308,12 @@
 .sider-footer-title {
   font-size: 12px;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-secondary);
 }
 
 .sider-footer-desc {
   font-size: 11px;
-  color: #94A3B8;
+  color: var(--text-tertiary);
   margin-top: 1px;
 }
 
@@ -361,8 +369,8 @@
       font-weight: 500;
 
       &.ant-menu-item-selected {
-        color: #6366F1 !important;
-        background: #EEF2FF !important;
+        color: var(--color-primary) !important;
+        background: var(--color-primary-light) !important;
         font-weight: 600;
 
         &::after {
@@ -371,8 +379,8 @@
       }
 
       &:hover {
-        color: #6366F1 !important;
-        background: #F5F3FF !important;
+        color: var(--color-primary) !important;
+        background: var(--color-secondary-light) !important;
       }
     }
   }
@@ -389,6 +397,50 @@
 
   @media (max-width: 768px) {
     padding: 16px 12px;
+  }
+}
+
+// ── 侧边栏菜单深色模式 ─────────────────────────────────────────
+// 侧边栏背景、边框已通过 var(--bg-sidebar) 等 CSS 变量自动切换
+// 这里只处理 antd Menu 组件内部样式（class 层级较深，需额外覆写）
+[data-theme='dark'] {
+  .sider-menu {
+    :global(.ant-menu) {
+      background: transparent !important;
+      color: var(--text-secondary) !important;
+    }
+  }
+
+  .mobile-nav-drawer {
+    :global(.ant-drawer-content) {
+      background: var(--bg-card) !important;
+    }
+
+    :global(.ant-drawer-header) {
+      background: var(--bg-card) !important;
+      border-bottom-color: var(--border-color) !important;
+    }
+  }
+}
+
+// ── 主题切换按钮动画 ──────────────────────────────────────────
+.theme-toggle-btn {
+  transition: color 0.2s ease, transform 0.3s ease !important;
+
+  &:hover {
+    transform: rotate(20deg);
+  }
+
+  :global(.anticon) {
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+}
+
+// ── 全局主题切换过渡 ──────────────────────────────────────────
+// 不支持 View Transitions API 时才使用 CSS transition 降级过渡
+@supports not (view-transition-name: none) {
+  body {
+    transition: background-color 0.4s ease, color 0.4s ease;
   }
 }
 

@@ -9,7 +9,7 @@
 // ── 页面头部 ──────────────────────────────────────────────────
 .settings-header {
   position: relative;
-  background: linear-gradient(135deg, #1E1B4B 0%, #312E81 50%, #4C1D95 100%);
+  background: var(--gradient-hero);
   padding: 40px 32px 36px;
   border-radius: 0 0 24px 24px;
   margin-bottom: 28px;
@@ -56,8 +56,8 @@
 // ── 设置卡片 ──────────────────────────────────────────────────
 .settings-card {
   border-radius: 16px !important;
-  border: 1px solid rgba(99, 102, 241, 0.12) !important;
-  box-shadow: 0 2px 16px rgba(99, 102, 241, 0.06) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: var(--shadow-sm) !important;
   margin-bottom: 16px;
   overflow: hidden;
 
@@ -73,7 +73,7 @@
     margin-bottom: 20px;
     font-size: 15px;
     font-weight: 800;
-    color: #1E1B4B;
+    color: var(--text-primary);
 
     .title-icon {
       width: 32px;
@@ -81,7 +81,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: linear-gradient(135deg, #6366F1, #8B5CF6);
+      background: var(--gradient-primary);
       border-radius: 8px;
       color: #fff;
       font-size: 14px;
@@ -91,35 +91,35 @@
   // 表单控件
   :global(.ant-form-item-label > label) {
     font-weight: 600 !important;
-    color: #374151 !important;
+    color: var(--text-secondary) !important;
     font-size: 13px !important;
   }
 
   :global(.ant-input-password),
   :global(.ant-input-affix-wrapper) {
     border-radius: 10px !important;
-    border-color: #E2E8F0 !important;
+    border-color: var(--border-color) !important;
     height: 42px !important;
 
     &:focus-within {
-      border-color: #6366F1 !important;
+      border-color: var(--color-primary) !important;
       box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
     }
   }
 
   :global(.ant-btn-primary[type='submit']),
   :global(.ant-btn-primary) {
-    background: linear-gradient(135deg, #6366F1, #8B5CF6) !important;
+    background: var(--gradient-primary) !important;
     border: none !important;
     border-radius: 10px !important;
     font-weight: 700 !important;
     height: 42px !important;
-    box-shadow: 0 3px 12px rgba(99, 102, 241, 0.35) !important;
+    box-shadow: var(--shadow-primary) !important;
     transition: all 0.2s ease !important;
 
     &:hover {
       transform: translateY(-1px) !important;
-      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5) !important;
+      box-shadow: var(--shadow-lg) !important;
     }
   }
 }
@@ -139,7 +139,7 @@
     transition: background 0.15s ease;
 
     &:hover {
-      background: #F8FAFC;
+      background: var(--color-primary-light);
     }
 
     .setting-label {
@@ -150,23 +150,23 @@
       .label-title {
         font-size: 14px;
         font-weight: 600;
-        color: #1E1B4B;
+        color: var(--text-primary);
       }
 
       .label-desc {
         font-size: 12px;
-        color: #94A3B8;
+        color: var(--text-tertiary);
       }
     }
 
     // Switch 主题色
     :global(.ant-switch-checked) {
-      background: linear-gradient(135deg, #6366F1, #8B5CF6) !important;
+      background: var(--gradient-primary) !important;
     }
   }
 }
 
 // ── Divider ───────────────────────────────────────────────────
 :global(.ant-divider) {
-  border-color: rgba(99, 102, 241, 0.1) !important;
+  border-color: var(--border-color) !important;
 }

@@ -1,11 +1,11 @@
 // ============ 案件卡片组件 ============
 
 .case-card {
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 16px;
   overflow: hidden;
   cursor: pointer;
-  border: 1.5px solid #E2E8F0;
+  border: 1.5px solid var(--border-color);
   transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
@@ -19,7 +19,7 @@
     left: 0;
     right: 0;
     height: 3px;
-    background: linear-gradient(90deg, #6366F1, #8B5CF6);
+    background: var(--gradient-primary);
     opacity: 0;
     transition: opacity 0.25s ease;
     z-index: 2;
@@ -27,15 +27,15 @@
 
   &:hover {
     transform: translateY(-6px);
-    border-color: #C7D2FE;
-    box-shadow: 0 12px 40px rgba(99, 102, 241, 0.18), 0 4px 12px rgba(0, 0, 0, 0.06);
+    border-color: var(--color-primary-border);
+    box-shadow: var(--shadow-lg);
 
     &::before {
       opacity: 1;
     }
 
     .card-title {
-      color: #6366F1;
+      color: var(--color-primary);
     }
 
     .card-cover img {
@@ -181,7 +181,7 @@
   margin: 0;
   font-size: 15px;
   font-weight: 700;
-  color: #1E1B4B;
+  color: var(--text-primary);
   line-height: 1.55;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -193,7 +193,7 @@
 .card-desc {
   margin: 0;
   font-size: 12.5px;
-  color: #64748B;
+  color: var(--text-secondary);
   line-height: 1.65;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -208,7 +208,7 @@
   align-items: center;
   gap: 8px;
   padding-top: 4px;
-  border-top: 1px solid #F1F5F9;
+  border-top: 1px solid var(--border-color);
 }
 
 .agent-avatars {
@@ -223,8 +223,8 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 2px solid #fff;
-  background: var(--agent-bg, #EEF2FF);
+  border: 2px solid var(--bg-card);
+  background: var(--agent-bg, var(--color-primary-light));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -245,7 +245,7 @@
 
 .agent-label {
   font-size: 11px;
-  color: #94A3B8;
+  color: var(--text-tertiary);
   font-weight: 500;
 }
 
@@ -259,20 +259,20 @@
 .vote-bar-track {
   height: 6px;
   border-radius: 3px;
-  background: #F1F5F9;
+  background: var(--border-color);
   display: flex;
   overflow: hidden;
 }
 
 .vote-bar-left {
-  background: linear-gradient(90deg, #6366F1, #8B5CF6);
+  background: var(--gradient-primary);
   transition: width 0.5s ease;
   min-width: 0;
   border-radius: 3px 0 0 3px;
 }
 
 .vote-bar-right {
-  background: linear-gradient(90deg, #F97316, #FB923C);
+  background: var(--gradient-agent-a);
   transition: width 0.5s ease;
   min-width: 0;
   border-radius: 0 3px 3px 0;
@@ -286,17 +286,17 @@
 }
 
 .vote-label-left {
-  color: #6366F1;
+  color: var(--color-primary);
   font-weight: 600;
 }
 
 .vote-label-right {
-  color: #F97316;
+  color: var(--color-agent-a);
   font-weight: 600;
 }
 
 .vote-total {
-  color: #94A3B8;
+  color: var(--text-tertiary);
 }
 
 // ── 底部区 ────────────────────────────────────────────────────
@@ -305,8 +305,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 16px;
-  border-top: 1px solid #F1F5F9;
-  background: #FAFAFA;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-page);
 }
 
 .card-owner {
@@ -315,12 +315,12 @@
   gap: 7px;
 
   .owner-avatar {
-    background: linear-gradient(135deg, #6366F1, #8B5CF6) !important;
+    background: var(--gradient-primary) !important;
   }
 
   .owner-name {
     font-size: 12px;
-    color: #374151;
+    color: var(--text-secondary);
     font-weight: 500;
     max-width: 90px;
     overflow: hidden;
@@ -340,7 +340,7 @@
   align-items: center;
   gap: 3px;
   font-size: 11.5px;
-  color: #94A3B8;
+  color: var(--text-tertiary);
 
   :global(.anticon) {
     font-size: 12px;

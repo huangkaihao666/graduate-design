@@ -25,6 +25,10 @@
   color: #1E1B4B;
   margin: 0;
 
+  [data-theme='dark'] & {
+    color: rgba(255, 255, 255, 0.92);
+  }
+
   .selector-title-icon {
     font-size: 18px;
   }
@@ -40,6 +44,10 @@
   font-size: 13px;
   font-weight: 600;
   transition: all 0.25s ease;
+
+  [data-theme='dark'] & {
+    background: rgba(255, 255, 255, 0.08);
+  }
 
   .count-num {
     color: #6366F1;
@@ -74,6 +82,10 @@
   font-size: 13px;
   color: #64748B;
   margin: 0;
+
+  [data-theme='dark'] & {
+    color: rgba(255, 255, 255, 0.5);
+  }
 }
 
 // ── Agent 网格 ────────────────────────────────────────────────
@@ -108,6 +120,11 @@
   gap: 10px;
   overflow: hidden;
   user-select: none;
+
+  [data-theme='dark'] & {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(99, 102, 241, 0.2) !important;
+  }
 
   // 顶部彩色线
   &::before {
@@ -145,6 +162,10 @@
     border-color: var(--agent-color, #6366F1);
     background: var(--agent-bg, #EEF2FF);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+
+    [data-theme='dark'] & {
+      background: rgba(99, 102, 241, 0.15) !important;
+    }
 
     &::before {
       opacity: 1;
@@ -195,6 +216,10 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   position: relative;
   z-index: 1;
+
+  [data-theme='dark'] & {
+    border-color: rgba(255, 255, 255, 0.15);
+  }
 }
 
 .agent-avatar-emoji {
@@ -245,6 +270,10 @@
   font-weight: 700;
   color: #1E1B4B;
   line-height: 1.3;
+
+  [data-theme='dark'] & {
+    color: rgba(255, 255, 255, 0.92);
+  }
 }
 
 // 描述
@@ -257,6 +286,10 @@
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+
+  [data-theme='dark'] & {
+    color: rgba(255, 255, 255, 0.55);
+  }
 }
 
 // 专长标签
@@ -317,6 +350,10 @@
   background: #E2E8F0;
   transition: all 0.3s ease;
 
+  [data-theme='dark'] & {
+    background: rgba(255, 255, 255, 0.15);
+  }
+
   &.filled {
     background: linear-gradient(135deg, #6366F1, #8B5CF6);
     transform: scale(1.2);
@@ -327,4 +364,8 @@
 .progress-hint {
   font-size: 12px;
   color: #94A3B8;
+
+  [data-theme='dark'] & {
+    color: rgba(255, 255, 255, 0.4);
+  }
 }
