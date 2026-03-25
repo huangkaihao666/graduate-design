@@ -52,9 +52,7 @@ function App() {
           autoInsertSpace: false,
         }}
         skeleton={{
-          // 骨架屏默认开启动画
-          active: true,
-          round: true,
+          // 骨架屏样式配置
         }}
         spin={{
           // 统一 indicator
@@ -72,16 +70,13 @@ function App() {
         table={{
           // 表格 rowKey 默认 id
           rowKey: 'id',
-          size: 'middle',
         }}
         pagination={{
           // 分页条目较多时显示条目选择
           showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total: number) => `共 ${total} 条`,
         }}
         empty={{
-          description: '暂无数据',
+          // 空状态配置
         }}
       >
         <RouterProvider router={router} />
