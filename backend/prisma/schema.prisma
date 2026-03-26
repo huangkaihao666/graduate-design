@@ -28,9 +28,11 @@ model User {
   updatedAt DateTime @updatedAt
 
   // 关系
-  rooms     Room[]
-  votes     Vote[]
-  messages  Message[]
+  rooms                Room[]
+  votes                Vote[]
+  messages             Message[]
+  notificationsReceived Notification[] @relation("NotificationTo")
+  notificationsSent     Notification[] @relation("NotificationFrom")
 
   @@map("users")
   @@index([email])
@@ -126,6 +128,26 @@ model MessageLike {
   @@unique([userId, messageId])
   @@map("message_likes")
   @@index([messageId])
+}
+
+/// 通知模型
+model Notification {
+  id         Int      @id @default(autoincrement()) @db.UnsignedInt
+  userId     Int      @db.UnsignedInt          // 接收通知的用户
+  type       String   @db.VarChar(50)          // LIKE_COMMENT | NEW_COMMENT | NEW_REPLY
+  fromUserId Int      @db.UnsignedInt          // 触发通知的用户
+  roomId     Int      @db.UnsignedInt          // 相关案件
+  messageId  Int?     @db.UnsignedInt          // 相关评论（可选）
+  isRead     Boolean  @default(false)
+
+  fromUser   User     @relation("NotificationFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  receiver   User     @relation("NotificationTo",   fields: [userId],     references: [id], onDelete: Cascade)
+
+  createdAt  DateTime @default(now())
+
+  @@map("notifications")
+  @@index([userId])
+  @@index([userId, isRead])
 }
 
 /// AI Agent 模型

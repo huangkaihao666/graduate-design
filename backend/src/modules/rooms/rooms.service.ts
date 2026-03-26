@@ -315,6 +315,38 @@ export class RoomsService {
         where: { id: roomId },
         data: { commentCount: { increment: 1 } },
       });
+      // 通知案件 owner（自己评论自己的不通知）
+      if (room.ownerId !== userId) {
+        await (this.prisma as any).notification
+          .create({
+            data: {
+              userId: room.ownerId,
+              type: 'NEW_COMMENT',
+              fromUserId: userId,
+              roomId,
+              messageId: msg.id,
+            },
+          })
+          .catch(() => null);
+      }
+    } else {
+      // 回复：通知被回复评论的作者（自己回复自己的不通知）
+      const parentMsg = await this.prisma.message.findUnique({
+        where: { id: parentId },
+      });
+      if (parentMsg?.senderId && parentMsg.senderId !== userId) {
+        await (this.prisma as any).notification
+          .create({
+            data: {
+              userId: parentMsg.senderId,
+              type: 'NEW_REPLY',
+              fromUserId: userId,
+              roomId,
+              messageId: msg.id,
+            },
+          })
+          .catch(() => null);
+      }
     }
 
     return msg;
@@ -422,6 +454,36 @@ export class RoomsService {
     const count = await (this.prisma as any).messageLike.count({
       where: { messageId },
     });
+
+    // 通知评论作者（自己点自己不通知）
+    const msg = await this.prisma.message.findUnique({
+      where: { id: messageId },
+    });
+    if (msg?.senderId && msg.senderId !== userId) {
+      // 同一评论同一用户只需一条通知（幂等）
+      const exists = await (this.prisma as any).notification.findFirst({
+        where: {
+          userId: msg.senderId,
+          type: 'LIKE_COMMENT',
+          fromUserId: userId,
+          messageId,
+        },
+      });
+      if (!exists) {
+        await (this.prisma as any).notification
+          .create({
+            data: {
+              userId: msg.senderId,
+              type: 'LIKE_COMMENT',
+              fromUserId: userId,
+              roomId: msg.roomId,
+              messageId,
+            },
+          })
+          .catch(() => null);
+      }
+    }
+
     return { liked: true, likeCount: count };
   }
 

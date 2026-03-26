@@ -7,6 +7,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { RoomsModule } from './modules/rooms/rooms.module';
 import { AgentsModule } from './modules/agents/agents.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -18,6 +19,7 @@ import { PrismaModule } from './prisma/prisma.module';
     RoomsModule,
     AgentsModule,
     AdminModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

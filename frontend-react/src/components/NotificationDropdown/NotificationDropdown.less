@@ -1,0 +1,128 @@
+// ── 通知下拉面板 ─────────────────────────────────────────────────────────────
+
+.notif-panel {
+  width: 340px;
+  background: var(--bg-card);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.14);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+
+  .notif-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px 12px;
+
+    .notif-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .read-all-btn {
+      font-size: 12px;
+      color: #6366F1 !important;
+      padding: 0;
+      height: auto;
+    }
+  }
+
+  .notif-list-wrap {
+    max-height: 420px;
+    overflow-y: auto;
+
+    &::-webkit-scrollbar {
+      width: 4px;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: rgba(99, 102, 241, 0.2);
+      border-radius: 4px;
+    }
+
+    .notif-loading {
+      display: flex;
+      justify-content: center;
+      padding: 24px;
+    }
+  }
+
+  // 单条通知
+  .notif-item {
+    padding: 0 !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    cursor: pointer;
+    transition: background 0.15s;
+
+    &:last-child {
+      border-bottom: none !important;
+    }
+
+    &:hover {
+      background: rgba(99, 102, 241, 0.05);
+    }
+
+    &.unread {
+      background: rgba(99, 102, 241, 0.04);
+    }
+
+    .notif-item-inner {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      width: 100%;
+    }
+
+    .notif-avatar-wrap {
+      position: relative;
+      flex-shrink: 0;
+
+      .notif-type-badge {
+        position: absolute;
+        bottom: -2px;
+        right: -4px;
+        width: 18px;
+        height: 18px;
+        background: var(--bg-card);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+      }
+    }
+
+    .notif-text {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+
+      .notif-content {
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--text-primary);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .notif-time {
+        font-size: 11px;
+        color: rgba(0, 0, 0, 0.35);
+      }
+    }
+
+    .unread-dot {
+      width: 8px;
+      height: 8px;
+      background: #6366F1;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+  }
+}

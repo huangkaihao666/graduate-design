@@ -1,4 +1,4 @@
-import { Layout as AntLayout, Menu, Dropdown, Avatar, Space, Button, Drawer, Modal, Badge } from 'antd'
+import { Layout as AntLayout, Menu, Dropdown, Avatar, Space, Button, Drawer, Modal } from 'antd'
 import {
   LogoutOutlined,
   UserOutlined,
@@ -9,10 +9,10 @@ import {
   PlusOutlined,
   RobotOutlined,
   AppstoreOutlined,
-  BellOutlined,
   SunOutlined,
   MoonOutlined,
 } from '@ant-design/icons'
+import NotificationDropdown from '@/components/NotificationDropdown/NotificationDropdown'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore, useUIStore } from '@/store'
 import { useLogout } from '@/hooks'
@@ -200,14 +200,7 @@ const Layout = () => {
               onClick={() => navigate('/cases')}
               title="辩论广场"
             />
-            <Badge dot offset={[-2, 2]}>
-              <Button
-                type="text"
-                icon={<BellOutlined />}
-                className="header-icon-btn"
-                title="通知"
-              />
-            </Badge>
+            <NotificationDropdown />
             {/* 深浅色切换 */}
             <Button
               type="text"
