@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -255,6 +256,31 @@ export class OrdersService {
 
   findAll() {
     return this.prisma.bookingOrder.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * 工作人员订单列表：
+   * - 未绑定本店摄影师（演示账号）：返回全部订单
+   * - 已绑定 photographerId：仅返回该摄影师订单，或已指派给当前工作人员账号的订单
+   */
+  async findForWorkerUser(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true, workerPhotographerId: true },
+    });
+    if (!user || user.role !== 'worker') {
+      throw new ForbiddenException('仅工作人员可访问');
+    }
+    if (!user.workerPhotographerId) {
+      return this.findAll();
+    }
+    const pid = user.workerPhotographerId;
+    return this.prisma.bookingOrder.findMany({
+      where: {
+        OR: [{ photographerId: pid }, { workerUserId: userId }],
+      },
       orderBy: { createdAt: 'desc' },
     });
   }

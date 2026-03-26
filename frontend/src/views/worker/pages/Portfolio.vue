@@ -105,6 +105,7 @@
 </template>
 
 <script setup lang="ts">
+import { useAuthStore } from '@/store/auth';
 import { message } from 'ant-design-vue';
 import type { UploadProps } from 'ant-design-vue';
 import { computed, onMounted, ref } from 'vue';
@@ -112,7 +113,9 @@ import { computed, onMounted, ref } from 'vue';
 type Cat = 'wedding' | 'makeup' | 'styling';
 type Item = { url: string; category: Cat; desc?: string };
 
-const storageKey = 'worker_portfolio_items_v1';
+const authStore = useAuthStore();
+const storageKey = computed(() => `worker_portfolio_items_v1_${authStore.user?.id ?? 'guest'}`);
+const urlsKey = computed(() => `worker_portfolio_urls_${authStore.user?.id ?? 'guest'}`);
 
 const categories = [
   { key: 'all', label: '全部' },
@@ -138,16 +141,16 @@ const likes = computed(() => Math.max(0, items.value.length * 13));
 const reviews = computed(() => Math.max(0, Math.floor(items.value.length * 1.6)));
 
 const load = () => {
-  const raw = localStorage.getItem(storageKey);
+  const raw = localStorage.getItem(storageKey.value);
   const list = raw ? (JSON.parse(raw) as Item[]) : [];
   items.value = Array.isArray(list) ? list : [];
   // 兼容 Dashboard 读取
-  localStorage.setItem('worker_portfolio_urls', JSON.stringify(items.value.map((x) => x.url)));
+  localStorage.setItem(urlsKey.value, JSON.stringify(items.value.map((x) => x.url)));
 };
 
 const save = () => {
-  localStorage.setItem(storageKey, JSON.stringify(items.value));
-  localStorage.setItem('worker_portfolio_urls', JSON.stringify(items.value.map((x) => x.url)));
+  localStorage.setItem(storageKey.value, JSON.stringify(items.value));
+  localStorage.setItem(urlsKey.value, JSON.stringify(items.value.map((x) => x.url)));
 };
 
 const filtered = computed(() => {
@@ -236,7 +239,10 @@ const applyDraft = () => {
   message.success('已应用到最近上传');
 };
 
-onMounted(() => load());
+onMounted(() => {
+  authStore.initializeAuth();
+  load();
+});
 </script>
 
 <style scoped lang="less">

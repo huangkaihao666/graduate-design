@@ -75,6 +75,8 @@
 
 <script setup lang="ts">
 import { httpClient } from '@/api/client';
+import { useAuthStore } from '@/store/auth';
+import { unwrapOrderListPayload } from '@/utils/workerOrders';
 import dayjs, { Dayjs } from 'dayjs';
 import { message } from 'ant-design-vue';
 import { computed, onMounted, ref } from 'vue';
@@ -88,9 +90,11 @@ const modes = [
   { label: '休息', value: 'rest' },
 ];
 
-const keyAvail = 'worker_schedule_available';
-const keyRest = 'worker_schedule_rest';
-const keyFull = 'worker_schedule_full_auto';
+const authStore = useAuthStore();
+const uid = () => authStore.user?.id ?? 'guest';
+const keyAvail = () => `worker_${uid()}_schedule_available`;
+const keyRest = () => `worker_${uid()}_schedule_rest`;
+const keyFull = () => `worker_${uid()}_schedule_full_auto`;
 
 const loadSet = (key: string) => {
   const raw = localStorage.getItem(key);
@@ -106,12 +110,8 @@ const booked = ref<Set<string>>(new Set());
 
 const refreshBooked = async () => {
   try {
-    const res: any = await httpClient.get('/orders');
-    const list = Array.isArray(res?.data)
-      ? res.data
-      : Array.isArray(res)
-        ? res
-        : res?.data?.data || [];
+    const res: any = await httpClient.get('/orders/worker');
+    const list = unwrapOrderListPayload(res);
     const full = new Set<string>();
     for (const o of Array.isArray(list) ? list : []) {
       const s = String(o?.paymentStatus || '');
@@ -120,17 +120,17 @@ const refreshBooked = async () => {
       if (d) full.add(d);
     }
     booked.value = full;
-    saveSet(keyFull, full);
+    saveSet(keyFull(), full);
   } catch {
-    booked.value = loadSet(keyFull);
+    booked.value = loadSet(keyFull());
   }
 };
 
 const tagText = (current: any) => {
   const k = dayKey(dayjs(current.toDate()));
   if (booked.value.has(k)) return '已约满';
-  const a = loadSet(keyAvail);
-  const r = loadSet(keyRest);
+  const a = loadSet(keyAvail());
+  const r = loadSet(keyRest());
   if (r.has(k)) return '休息';
   if (a.has(k)) return '可预约';
   return '';
@@ -139,8 +139,8 @@ const tagText = (current: any) => {
 const tagClass = (current: any) => {
   const k = dayKey(dayjs(current.toDate()));
   if (booked.value.has(k)) return 'full';
-  const a = loadSet(keyAvail);
-  const r = loadSet(keyRest);
+  const a = loadSet(keyAvail());
+  const r = loadSet(keyRest());
   if (r.has(k)) return 'rest';
   if (a.has(k)) return 'avail';
   return '';
@@ -152,8 +152,8 @@ const toggleDate = (d: any) => {
     message.warning('已约满日期由订单自动标注，不建议手工修改');
     return;
   }
-  const a = loadSet(keyAvail);
-  const r = loadSet(keyRest);
+  const a = loadSet(keyAvail());
+  const r = loadSet(keyRest());
   if (a.has(k)) {
     a.delete(k);
     r.add(k);
@@ -162,8 +162,8 @@ const toggleDate = (d: any) => {
   } else {
     a.add(k);
   }
-  saveSet(keyAvail, a);
-  saveSet(keyRest, r);
+  saveSet(keyAvail(), a);
+  saveSet(keyRest(), r);
 };
 
 const setRest = () => {
@@ -171,8 +171,8 @@ const setRest = () => {
 };
 
 const clearAll = () => {
-  saveSet(keyAvail, new Set());
-  saveSet(keyRest, new Set());
+  saveSet(keyAvail(), new Set());
+  saveSet(keyRest(), new Set());
   message.success('已清空档期（不影响订单自动标注）');
 };
 
@@ -182,8 +182,8 @@ const applyRange = () => {
     return;
   }
   const [start, end] = range.value;
-  const a = loadSet(keyAvail);
-  const r = loadSet(keyRest);
+  const a = loadSet(keyAvail());
+  const r = loadSet(keyRest());
   let cur = start.startOf('day');
   const last = end.startOf('day');
   while (cur.isBefore(last) || cur.isSame(last)) {
@@ -199,17 +199,18 @@ const applyRange = () => {
     }
     cur = cur.add(1, 'day');
   }
-  saveSet(keyAvail, a);
-  saveSet(keyRest, r);
+  saveSet(keyAvail(), a);
+  saveSet(keyRest(), r);
   message.success('已批量设置');
 };
 
 const stats = computed(() => {
-  const a = loadSet(keyAvail);
+  const a = loadSet(keyAvail());
   return { booked: booked.value.size, free: a.size };
 });
 
 onMounted(() => {
+  authStore.initializeAuth();
   refreshBooked();
 });
 </script>

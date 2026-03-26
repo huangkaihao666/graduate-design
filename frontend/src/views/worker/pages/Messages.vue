@@ -52,8 +52,8 @@
           </a-space>
         </div>
 
-        <div class="msgs">
-          <div v-for="m in messages" :key="m.id" class="msg" :class="{ mine: m.from === 'me' }">
+        <div ref="msgsRef" class="msgs">
+          <div v-for="m in messages" :key="m.id" class="msg" :class="{ mine: m.from === 'staff' }">
             <div class="bubble">
               <template v-if="isImage(m.content)">
                 <img :src="m.content" alt="图片" />
@@ -119,10 +119,17 @@
 </template>
 
 <script setup lang="ts">
+import { useAuthStore } from '@/store/auth';
+import {
+  isOrderThreadId,
+  orderNoFromThreadId,
+  sharedOrderMessagesStorageKey,
+} from '@/utils/orderChatStorage';
 import { message } from 'ant-design-vue';
 import type { UploadProps } from 'ant-design-vue';
 import dayjs from 'dayjs';
-import { computed, onMounted, ref } from 'vue';
+import { computed, nextTick, onMounted, ref } from 'vue';
+import { useRoute } from 'vue-router';
 
 type Conv = {
   id: string;
@@ -133,13 +140,15 @@ type Conv = {
   orderNo: string;
   time: string;
 };
-type Msg = { id: string; from: 'me' | 'them'; content: string; at: string };
+/** staff=工作人员，customer=用户；与 /user/chat 共用订单会话存储 */
+type Msg = { id: string; from: 'staff' | 'customer'; content: string; at: string };
 
 const kw = ref('');
 const convs = ref<Conv[]>([]);
 const selected = ref<Conv | null>(null);
 const messages = ref<Msg[]>([]);
 const draft = ref('');
+const msgsRef = ref<HTMLElement | null>(null);
 
 const quickReplies = [
   '已确认档期，我们按约定时间见哦～',
@@ -148,7 +157,17 @@ const quickReplies = [
   '如果需要改期，请尽早告知我，我来帮你协调档期～',
 ];
 
-const storageKey = (id: string) => `worker_msg_thread_${id}`;
+const authStore = useAuthStore();
+const route = useRoute();
+const uid = () => authStore.user?.id ?? 'guest';
+const threadKey = (id: string) => {
+  if (isOrderThreadId(id)) {
+    return sharedOrderMessagesStorageKey(orderNoFromThreadId(id));
+  }
+  return `worker_${uid()}_msg_thread_${id}`;
+};
+const convListKey = () => `worker_${uid()}_convs_v1`;
+const lastSelectedKey = () => `worker_${uid()}_last_conv_id`;
 
 const filteredConvs = computed(() => {
   const q = kw.value.trim().toLowerCase();
@@ -161,7 +180,7 @@ const isImage = (content: string) => {
 };
 
 const loadSeedConvs = () => {
-  // 本地演示：生成一些会话
+  // 本地演示：生成一些会话（非订单 id，仅本端演示线程）
   convs.value = [
     {
       id: 'c1',
@@ -194,43 +213,138 @@ const loadSeedConvs = () => {
   if (!selected.value) selected.value = convs.value[0] ?? null;
 };
 
+const normalizeMsgs = (list: unknown): Msg[] => {
+  if (!Array.isArray(list)) return [];
+  return list.map((raw: any) => {
+    let f = raw?.from;
+    if (f === 'me') f = 'staff';
+    if (f === 'them') f = 'customer';
+    if (f !== 'staff' && f !== 'customer') f = 'customer';
+    return { ...raw, from: f } as Msg;
+  });
+};
+
+const saveConvs = () => {
+  try {
+    localStorage.setItem(convListKey(), JSON.stringify(convs.value));
+  } catch {
+    /* ignore */
+  }
+};
+
+const loadConvs = () => {
+  try {
+    const raw = localStorage.getItem(convListKey());
+    if (!raw) return false;
+    const list = JSON.parse(raw) as Conv[];
+    if (!Array.isArray(list) || !list.length) return false;
+    convs.value = list;
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const restoreLastSelected = () => {
+  try {
+    const id = String(localStorage.getItem(lastSelectedKey()) || '').trim();
+    if (!id) return;
+    const c = convs.value.find((x) => x.id === id);
+    if (c) selected.value = c;
+  } catch {
+    /* ignore */
+  }
+};
+
+const upsertConvFromOrder = () => {
+  const q = route.query || {};
+  const name = String(q.name || '').trim();
+  const phone = String(q.phone || '').trim();
+  const orderNo = String(q.orderNo || '').trim();
+  if (!orderNo) return;
+
+  const id = `order_${orderNo}`;
+  const existing = convs.value.find((c) => c.id === id);
+  if (!existing) {
+    convs.value.unshift({
+      id,
+      name: name || '客户',
+      last: '点击这里开始与客户沟通…',
+      unread: 0,
+      phone: phone || '-',
+      orderNo,
+      time: dayjs().format('YYYY-MM-DD'),
+    });
+  } else {
+    // 同步最新的展示信息（避免订单页改了客户名/手机号后不一致）
+    existing.name = name || existing.name;
+    existing.phone = phone || existing.phone;
+    existing.orderNo = orderNo || existing.orderNo;
+  }
+
+  selected.value = convs.value.find((c) => c.id === id) || selected.value;
+  saveConvs();
+  try {
+    localStorage.setItem(lastSelectedKey(), id);
+  } catch {
+    /* ignore */
+  }
+};
+
 const loadMessages = (c: Conv) => {
-  const raw = localStorage.getItem(storageKey(c.id));
+  const raw = localStorage.getItem(threadKey(c.id));
   const list = raw ? (JSON.parse(raw) as Msg[]) : [];
-  messages.value = Array.isArray(list) ? list : [];
+  messages.value = normalizeMsgs(list);
   if (!messages.value.length) {
+    // 订单会话：与用户端共用存储，不自动写演示文案，避免两端不一致
+    if (isOrderThreadId(c.id)) {
+      return;
+    }
     messages.value = [
       {
         id: 'm1',
-        from: 'them',
+        from: 'customer',
         content: '老师你好～我想了解一下拍摄风格',
         at: dayjs().subtract(1, 'day').format('MM-DD HH:mm'),
       },
       {
         id: 'm2',
-        from: 'me',
+        from: 'staff',
         content: '好的～你更喜欢清透韩系还是复古胶片感呢？',
         at: dayjs().subtract(1, 'day').add(5, 'minute').format('MM-DD HH:mm'),
       },
     ];
     persist();
   }
+  nextTick(() => scrollToBottom());
+};
+
+const scrollToBottom = () => {
+  const el = msgsRef.value;
+  if (!el) return;
+  el.scrollTop = el.scrollHeight;
 };
 
 const persist = () => {
   if (!selected.value) return;
-  localStorage.setItem(storageKey(selected.value.id), JSON.stringify(messages.value));
+  localStorage.setItem(threadKey(selected.value.id), JSON.stringify(messages.value));
 };
 
 const select = (c: Conv) => {
   selected.value = c;
   loadMessages(c);
+  try {
+    localStorage.setItem(lastSelectedKey(), c.id);
+  } catch {
+    /* ignore */
+  }
 };
 
 const markRead = () => {
   if (!selected.value) return;
   const idx = convs.value.findIndex((x) => x.id === selected.value?.id);
   if (idx >= 0) convs.value[idx].unread = 0;
+  saveConvs();
   message.success('已标为已读');
 };
 
@@ -240,7 +354,7 @@ const sendText = () => {
   if (!text) return;
   messages.value.push({
     id: String(Date.now()),
-    from: 'me',
+    from: 'staff',
     content: text,
     at: dayjs().format('MM-DD HH:mm'),
   });
@@ -248,6 +362,8 @@ const sendText = () => {
   persist();
   const idx = convs.value.findIndex((x) => x.id === selected.value?.id);
   if (idx >= 0) convs.value[idx].last = text;
+  saveConvs();
+  nextTick(() => scrollToBottom());
 };
 
 const sendQuick = (t: string) => {
@@ -272,22 +388,28 @@ const sendImage: UploadProps['customRequest'] = async (options) => {
     const url = String(reader.result || '');
     messages.value.push({
       id: String(Date.now()),
-      from: 'me',
+      from: 'staff',
       content: url,
       at: dayjs().format('MM-DD HH:mm'),
     });
     persist();
     const idx = convs.value.findIndex((x) => x.id === selected.value?.id);
     if (idx >= 0) convs.value[idx].last = '[图片]';
+    saveConvs();
     options.onSuccess?.(url);
     message.success('图片已发送（本地演示）');
+    nextTick(() => scrollToBottom());
   };
   reader.onerror = () => options.onError?.(new Error('读取图片失败'));
   reader.readAsDataURL(raw);
 };
 
 onMounted(() => {
-  loadSeedConvs();
+  authStore.initializeAuth();
+  const loaded = loadConvs();
+  if (!loaded) loadSeedConvs();
+  upsertConvFromOrder();
+  restoreLastSelected();
   if (selected.value) loadMessages(selected.value);
 });
 </script>
@@ -296,6 +418,11 @@ onMounted(() => {
 .page {
   --pink: #ff6b8b;
   --r: 12px;
+  // 固定为“可视高度”，避免消息撑高整页
+  height: calc(100vh - 64px - 18px - 28px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 .head {
   margin-bottom: 14px;
@@ -315,7 +442,9 @@ onMounted(() => {
   display: grid;
   grid-template-columns: 320px 1fr 320px;
   gap: 16px;
-  align-items: start;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
   @media (max-width: 1200px) {
     grid-template-columns: 1fr;
   }
@@ -330,6 +459,8 @@ onMounted(() => {
 
 .list {
   padding: 12px;
+  min-height: 0;
+  overflow: hidden;
 }
 .list-head {
   margin-bottom: 10px;
@@ -341,6 +472,8 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  min-height: 0;
+  overflow: auto;
 }
 .conv-item {
   display: flex;
@@ -393,6 +526,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
 }
 .chat-head {
   display: flex;
@@ -418,6 +552,7 @@ onMounted(() => {
   flex-direction: column;
   gap: 10px;
   background: linear-gradient(180deg, rgba(255, 245, 247, 0.35) 0%, rgba(255, 255, 255, 1) 45%);
+  min-height: 0;
 }
 .msg {
   max-width: 72%;
@@ -459,6 +594,10 @@ onMounted(() => {
 .right .panel {
   padding: 14px;
   margin-bottom: 14px;
+}
+.right {
+  min-height: 0;
+  overflow: auto;
 }
 .panel-h {
   display: flex;

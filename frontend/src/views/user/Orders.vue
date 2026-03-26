@@ -62,6 +62,13 @@
             <div class="order-actions">
               <a-button type="text" @click="openDetail(o)">查看详情</a-button>
               <a-button
+                v-if="o.photographerName"
+                type="text"
+                @click.stop="goChatWithPhotographer(o)"
+              >
+                联系摄影师
+              </a-button>
+              <a-button
                 v-if="canCheckOnlinePayment(o)"
                 type="text"
                 @click.stop="openPaymentModal(o)"
@@ -564,6 +571,17 @@ const clearAllOrders = () => {
   sessionStorage.removeItem(STORAGE_KEY);
   orders.value = [];
   message.success('已清空所有订单');
+};
+
+const goChatWithPhotographer = (o: BookingOrder) => {
+  router.push({
+    path: '/user/chat',
+    query: {
+      orderNo: o.orderNo,
+      peerName: o.photographerName || '工作人员',
+      shootingDate: String(o.shootingDate || ''),
+    },
+  });
 };
 
 const openDetail = (order: BookingOrder) => {

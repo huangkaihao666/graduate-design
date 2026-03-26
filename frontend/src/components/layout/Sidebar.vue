@@ -59,6 +59,10 @@
             <span class="icon">📦</span>
             <span v-if="!isCollapsed" class="label">订单管理</span>
           </router-link>
+          <router-link to="/user/chat" class="nav-link" active-class="active">
+            <span class="icon">💬</span>
+            <span v-if="!isCollapsed" class="label">消息</span>
+          </router-link>
           <router-link to="/user/favorites" class="nav-link" active-class="active">
             <span class="icon">❤️</span>
             <span v-if="!isCollapsed" class="label">我的收藏</span>

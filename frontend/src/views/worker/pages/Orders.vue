@@ -89,6 +89,8 @@
 
 <script setup lang="ts">
 import { httpClient } from '@/api/client';
+import { useAuthStore } from '@/store/auth';
+import { unwrapOrderListPayload } from '@/utils/workerOrders';
 import { message } from 'ant-design-vue';
 import dayjs, { Dayjs } from 'dayjs';
 import { computed, onMounted, ref } from 'vue';
@@ -98,6 +100,7 @@ type UiStatus = 'pending' | 'confirmed' | 'completed';
 type OrderRow = any & { uiStatus: UiStatus };
 
 const router = useRouter();
+const authStore = useAuthStore();
 
 const loading = ref(false);
 const rows = ref<OrderRow[]>([]);
@@ -116,12 +119,8 @@ const normalizeStatus = (o: any): UiStatus => {
 const load = async () => {
   loading.value = true;
   try {
-    const res: any = await httpClient.get('/orders');
-    const list = Array.isArray(res?.data)
-      ? res.data
-      : Array.isArray(res)
-        ? res
-        : res?.data?.data || [];
+    const res: any = await httpClient.get('/orders/worker');
+    const list = unwrapOrderListPayload(res);
     rows.value = (Array.isArray(list) ? list : []).map((o: any) => ({
       ...o,
       uiStatus: normalizeStatus(o),
@@ -167,10 +166,25 @@ const reschedule = () => {
 };
 
 const contact = () => {
-  router.push('/worker/messages');
+  if (!selected.value) {
+    message.warning('请先选择一条订单');
+    return;
+  }
+  const name = String(selected.value.contactName || '').trim() || '客户';
+  const phone = String(selected.value.phone || '').trim();
+  const orderNo = String(selected.value.orderNo || selected.value.id || '').trim();
+  router.push({
+    path: '/worker/messages',
+    query: {
+      name,
+      phone,
+      orderNo,
+    },
+  });
 };
 
 onMounted(() => {
+  authStore.initializeAuth();
   load();
 });
 </script>

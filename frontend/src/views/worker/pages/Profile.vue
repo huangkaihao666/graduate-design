@@ -111,7 +111,7 @@ import { computed, onMounted, reactive } from 'vue';
 
 const authStore = useAuthStore();
 
-const storageKey = 'worker_profile_local_v1';
+const storageKey = computed(() => `worker_profile_local_v1_${authStore.user?.id ?? 'guest'}`);
 
 const form = reactive({
   role: 'photographer',
@@ -130,7 +130,7 @@ const positionLabel = computed(() => {
 });
 
 const load = () => {
-  const raw = localStorage.getItem(storageKey);
+  const raw = localStorage.getItem(storageKey.value);
   if (!raw) return;
   try {
     const v = JSON.parse(raw) as any;
@@ -141,7 +141,7 @@ const load = () => {
 };
 
 const save = () => {
-  localStorage.setItem(storageKey, JSON.stringify(form));
+  localStorage.setItem(storageKey.value, JSON.stringify(form));
   message.success('已保存（本地演示）');
 };
 

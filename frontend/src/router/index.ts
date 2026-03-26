@@ -46,6 +46,7 @@ const UserProfile = () => import('../views/user/Profile.vue');
 const UserOrders = () => import('../views/user/Orders.vue');
 const UserFavorites = () => import('../views/user/Favorites.vue');
 const UserAIHistory = () => import('../views/user/AIHistory.vue');
+const UserChat = () => import('../views/user/Chat.vue');
 
 // 后台管理 (延迟加载)
 const AdminDashboard = () => import('../views/admin/Dashboard.vue');
@@ -228,6 +229,14 @@ const routes: RouteRecordRaw[] = [
         component: UserAIHistory,
         meta: {
           title: 'AI 生成历史',
+        },
+      },
+      {
+        path: 'chat',
+        name: 'UserChat',
+        component: UserChat,
+        meta: {
+          title: '消息',
         },
       },
     ],

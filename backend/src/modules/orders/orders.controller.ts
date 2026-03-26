@@ -6,9 +6,12 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Request,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Prisma } from '@prisma/client';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OrdersService } from './orders.service';
 
 @ApiTags('Orders')
@@ -29,6 +32,17 @@ export class OrdersController {
   @ApiOperation({ summary: '获取订单列表（管理员）' })
   findAll() {
     return this.ordersService.findAll();
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get('worker')
+  @ApiOperation({
+    summary:
+      '工作人员获取本人相关订单（演示账号未绑定摄影师=全部；已绑定=仅该摄影师/本人接单）',
+  })
+  findForWorker(@Request() req: { user: { id: number } }) {
+    return this.ordersService.findForWorkerUser(req.user.id);
   }
 
   @Get('photographers/:id/booked-dates')

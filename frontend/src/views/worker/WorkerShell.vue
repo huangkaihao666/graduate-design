@@ -136,6 +136,7 @@ const handleLogout = () => {
   --border: rgba(17, 24, 39, 0.08);
   --r: 12px;
 
+  font-size: 16px;
   min-height: 100vh;
   background: linear-gradient(180deg, #fff5f7 0%, #ffffff 45%);
   display: grid;
@@ -206,6 +207,7 @@ const handleLogout = () => {
   text-decoration: none;
   border: 1px solid transparent;
   transition: all 0.2s ease;
+  font-size: 16px;
 
   .icon {
     width: 26px;
@@ -271,6 +273,7 @@ const handleLogout = () => {
   font-weight: 600;
   padding: 10px 2px;
   white-space: nowrap;
+  font-size: 16px;
 
   &:hover {
     color: var(--pink);
@@ -314,6 +317,7 @@ const handleLogout = () => {
 .name {
   font-weight: 700;
   color: #374151;
+  font-size: 16px;
 }
 
 .user-trigger {

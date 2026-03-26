@@ -22,6 +22,9 @@ model User {
   isActive  Boolean @default(true)
   /// user | worker | admin
   role      String  @default("user") @db.VarChar(20)
+  /// 工作人员账号绑定本店摄影师（用于只查看该摄影师相关订单）；演示账号不绑定则为空
+  workerPhotographerId Int?         @db.UnsignedInt
+  workerPhotographer   Photographer? @relation("WorkerPhotographer", fields: [workerPhotographerId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -36,6 +39,7 @@ model User {
 
   @@map("users")
   @@index([email])
+  @@index([workerPhotographerId])
 }
 
 /// 文章模型
@@ -274,6 +278,8 @@ model Photographer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  workerAccounts User[] @relation("WorkerPhotographer")
+
   @@map("photographers")
   @@index([enabled, sortOrder])
 }
@@ -334,6 +340,12 @@ model BookingOrder {
   rescheduleReviewNote      String?  @db.VarChar(255)
   rescheduleReviewedAt      DateTime?
 
+  /// 接单工作人员用户 id（与 users.id 对应）
+  workerUserId    Int?     @db.UnsignedInt
+  workerType      String?  @db.VarChar(30)
+  workerName      String?  @db.VarChar(100)
+  workerTakenAt   DateTime?
+
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -341,4 +353,6 @@ model BookingOrder {
   @@index([location])
   @@index([createdAt])
   @@index([paymentStatus])
+  @@index([photographerId])
+  @@index([workerUserId, createdAt])
 }

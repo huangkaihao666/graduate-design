@@ -86,16 +86,14 @@ const imageUrls = [
 
 async function main() {
   // 应你的要求：seed 改为「完全不修改数据库」的只读模式（no-op）。
-  const [userCount, workerProfileCount, photographerCount, spotCount, packageCount] =
-    await Promise.all([
-      prisma.user.count(),
-      prisma.workerProfile.count(),
-      prisma.photographer.count(),
-      prisma.spot.count(),
-      prisma.travelPackage.count(),
-    ]);
+  const [userCount, photographerCount, spotCount, packageCount] = await Promise.all([
+    prisma.user.count(),
+    prisma.photographer.count(),
+    prisma.spot.count(),
+    prisma.travelPackage.count(),
+  ]);
   console.log(
-    `Seed NO-OP: users=${userCount}, workerProfiles=${workerProfileCount}, photographers=${photographerCount}, spots=${spotCount}, packages=${packageCount}`,
+    `Seed NO-OP: users=${userCount}, photographers=${photographerCount}, spots=${spotCount}, packages=${packageCount}`,
   );
 }
 

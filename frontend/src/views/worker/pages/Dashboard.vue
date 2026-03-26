@@ -108,13 +108,21 @@
 </template>
 
 <script setup lang="ts">
+import { httpClient } from '@/api/client';
+import { useAuthStore } from '@/store/auth';
+import { unwrapOrderListPayload } from '@/utils/workerOrders';
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { httpClient } from '@/api/client';
 
 type OrderRow = any;
 
 const router = useRouter();
+const authStore = useAuthStore();
+const uid = () => authStore.user?.id ?? 'guest';
+const portfolioUrlsKey = () => `worker_portfolio_urls_${uid()}`;
+const scheduleAvailKey = () => `worker_${uid()}_schedule_available`;
+const scheduleFullKey = () => `worker_${uid()}_schedule_full_auto`;
+
 const orders = ref<OrderRow[]>([]);
 
 const stats = computed(() => {
@@ -134,13 +142,13 @@ const stats = computed(() => {
 });
 
 const gallery = computed(() => {
-  const raw = localStorage.getItem('worker_portfolio_urls');
+  const raw = localStorage.getItem(portfolioUrlsKey());
   const arr = raw ? (JSON.parse(raw) as string[]) : [];
   return Array.isArray(arr) ? arr.slice(0, 8) : [];
 });
 
 const upcomingDates = computed(() => {
-  const raw = localStorage.getItem('worker_schedule_available');
+  const raw = localStorage.getItem(scheduleAvailKey());
   const arr = raw ? (JSON.parse(raw) as string[]) : [];
   if (!Array.isArray(arr)) return [];
   return arr.slice(0, 6);
@@ -171,7 +179,7 @@ const cellText = (current: any) => {
 };
 
 const getSchedule = (kind: 'available' | 'full') => {
-  const key = kind === 'available' ? 'worker_schedule_available' : 'worker_schedule_full';
+  const key = kind === 'available' ? scheduleAvailKey() : scheduleFullKey();
   const raw = localStorage.getItem(key);
   const arr = raw ? (JSON.parse(raw) as string[]) : [];
   return new Set(Array.isArray(arr) ? arr : []);
@@ -179,13 +187,8 @@ const getSchedule = (kind: 'available' | 'full') => {
 
 const loadOrders = async () => {
   try {
-    // 这里复用已有订单接口（若后端未按工作人员区分，会显示最近订单用于界面演示）
-    const res: any = await httpClient.get('/orders');
-    const list = Array.isArray(res?.data)
-      ? res.data
-      : Array.isArray(res)
-        ? res
-        : res?.data?.data || [];
+    const res: any = await httpClient.get('/orders/worker');
+    const list = unwrapOrderListPayload(res);
     orders.value = Array.isArray(list) ? list.slice(0, 20) : [];
   } catch {
     orders.value = [];
@@ -193,6 +196,7 @@ const loadOrders = async () => {
 };
 
 onMounted(() => {
+  authStore.initializeAuth();
   loadOrders();
 });
 </script>

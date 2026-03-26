@@ -17,6 +17,9 @@
           <router-link to="/booking/packages" class="nav-item">套餐浏览</router-link>
           <router-link to="/booking/photographers" class="nav-item">本店摄影师</router-link>
           <router-link to="/booking/order" class="nav-item">在线下单</router-link>
+          <router-link v-if="!authStore.isWorker" to="/user/chat" class="nav-item"
+            >消息中心</router-link
+          >
           <router-link to="/help-center" class="nav-item">帮助中心</router-link>
         </template>
         <template v-else>
@@ -43,6 +46,9 @@
                   <template v-if="!authStore.isAdmin">
                     <a-menu-item key="orders">
                       <router-link to="/user/orders">我的订单</router-link>
+                    </a-menu-item>
+                    <a-menu-item key="chat">
+                      <router-link to="/user/chat">消息</router-link>
                     </a-menu-item>
                     <a-menu-item key="favorites">
                       <router-link to="/user/favorites">我的收藏</router-link>
