@@ -45,6 +45,29 @@ export class OrdersController {
     return this.ordersService.findForWorkerUser(req.user.id);
   }
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Patch('worker/:id/take')
+  @ApiOperation({ summary: '工作人员确认接单（绑定订单到当前工作人员）' })
+  takeForWorker(
+    @Request() req: { user: { id: number } },
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.ordersService.takeForWorkerUser(req.user.id, id);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Patch('worker/:id/reschedule')
+  @ApiOperation({ summary: '工作人员修改拍摄时间（改期）' })
+  rescheduleForWorker(
+    @Request() req: { user: { id: number } },
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { newShootingDate: string; note?: string },
+  ) {
+    return this.ordersService.rescheduleForWorkerUser(req.user.id, id, body);
+  }
+
   @Get('photographers/:id/booked-dates')
   @ApiOperation({ summary: '获取摄影师已被预约的日期列表' })
   getBookedDatesByPhotographer(@Param('id', ParseIntPipe) id: number) {

@@ -285,6 +285,107 @@ export class OrdersService {
     });
   }
 
+  async takeForWorkerUser(userId: number, orderId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, role: true, workerPhotographerId: true },
+    });
+    if (!user || user.role !== 'worker') {
+      throw new ForbiddenException('仅工作人员可访问');
+    }
+
+    const order = (await this.prisma.bookingOrder.findUnique({
+      where: { id: orderId },
+    })) as any;
+    if (!order) throw new NotFoundException('订单不存在');
+
+    // 若账号绑定了摄影师，仅允许接与该摄影师相关订单
+    if (
+      user.workerPhotographerId &&
+      order.photographerId &&
+      order.photographerId !== user.workerPhotographerId
+    ) {
+      throw new ForbiddenException('无权接单：订单不属于当前摄影师');
+    }
+
+    // 已被其他工作人员接单则提示
+    if (order.workerUserId && Number(order.workerUserId) !== userId) {
+      throw new ConflictException('该订单已被其他工作人员接单');
+    }
+
+    return this.prisma.bookingOrder.update({
+      where: { id: orderId },
+      data: {
+        workerUserId: user.id,
+        workerName: user.name,
+        workerType: 'photographer',
+        workerTakenAt: new Date(),
+      } as any,
+    });
+  }
+
+  async rescheduleForWorkerUser(
+    userId: number,
+    orderId: number,
+    body: { newShootingDate: string; note?: string },
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true, workerPhotographerId: true },
+    });
+    if (!user || user.role !== 'worker') {
+      throw new ForbiddenException('仅工作人员可访问');
+    }
+
+    const order = (await this.prisma.bookingOrder.findUnique({
+      where: { id: orderId },
+    })) as any;
+    if (!order) throw new NotFoundException('订单不存在');
+
+    // 若绑定摄影师，则仅允许改自己的订单
+    if (
+      user.workerPhotographerId &&
+      order.photographerId &&
+      order.photographerId !== user.workerPhotographerId
+    ) {
+      throw new ForbiddenException('无权改期：订单不属于当前摄影师');
+    }
+
+    const nextDate = String(body?.newShootingDate || '').trim();
+    this.parseIsoDate(nextDate);
+    if (nextDate === String(order.shootingDate || '').trim()) {
+      throw new BadRequestException('新拍摄日期不能与当前日期相同');
+    }
+
+    // 校验摄影师档期冲突（同一 photographerId + shootingDate 不可重复）
+    if (order.photographerId) {
+      const occupied = await this.prisma.bookingOrder.findFirst({
+        where: {
+          id: { not: order.id },
+          photographerId: order.photographerId,
+          shootingDate: nextDate,
+          paymentStatus: { not: 'cancelled' },
+        },
+        select: { id: true },
+      });
+      if (occupied) {
+        throw new ConflictException('目标日期已被预约，请选择其他日期');
+      }
+    }
+
+    const note = String(body?.note || '').trim();
+    return this.prisma.bookingOrder.update({
+      where: { id: orderId },
+      data: {
+        shootingDate: nextDate,
+        // 复用既有字段用于记录改期说明（便于后台追溯）
+        rescheduleRequestStatus: 'approved',
+        rescheduleReviewNote: note || '工作人员改期',
+        rescheduleReviewedAt: new Date(),
+      } as any,
+    });
+  }
+
   updateStatus(id: number, status: string) {
     const nextPaymentStatus =
       status === '已支付'

@@ -27,7 +27,7 @@
 
     <div class="content-card">
       <div class="content-header">
-        <span class="count">共 {{ orders.length }} 条订单</span>
+        <span class="count">共 {{ filteredOrders.length }} 条订单</span>
       </div>
 
       <div v-if="filteredOrders.length === 0" class="empty-state">
@@ -36,7 +36,7 @@
       </div>
 
       <div v-else class="orders-grid">
-        <div v-for="o in filteredOrders" :key="o.orderNo" class="order-card">
+        <div v-for="o in pagedOrders" :key="o.orderNo" class="order-card">
           <div class="order-card-top">
             <div class="order-no">订单号：{{ o.orderNo }}</div>
             <div class="order-amount">¥{{ o.totalAmount.toLocaleString() }}</div>
@@ -48,7 +48,24 @@
             <div class="meta-item">人数：{{ o.numberOfPeople }} 人</div>
             <div class="meta-item">联系人：{{ o.contactName }}（{{ o.phone }}）</div>
             <div class="meta-item">支付方式：{{ formatPayment(o.paymentMethod) }}</div>
-            <div class="meta-item">支付状态：{{ formatPaymentStatus(o.paymentStatus) }}</div>
+            <div class="meta-item">
+              支付状态：
+              <span
+                class="status-pill"
+                :class="{ unpaid: o.paymentStatus === 'unpaid', paid: o.paymentStatus === 'paid' }"
+              >
+                {{ formatPaymentStatus(o.paymentStatus) }}
+              </span>
+            </div>
+            <div class="meta-item">
+              订单确认：
+              <span
+                class="status-pill"
+                :class="{ confirmed: isOrderConfirmed(o), unconfirmed: !isOrderConfirmed(o) }"
+              >
+                {{ isOrderConfirmed(o) ? '已确认' : '未确认' }}
+              </span>
+            </div>
             <div v-if="isRescheduled(o)" class="meta-item rescheduled-mark">
               拍摄日期：{{ o.shootingDate }}（已改期）
             </div>
@@ -61,31 +78,19 @@
             <div class="created-at">提交时间：{{ formatDate(o.createdAt) }}</div>
             <div class="order-actions">
               <a-button type="text" @click="openDetail(o)">查看详情</a-button>
-              <a-button
-                v-if="o.photographerName"
-                type="text"
-                @click.stop="goChatWithPhotographer(o)"
-              >
-                联系摄影师
-              </a-button>
-              <a-button
-                v-if="canCheckOnlinePayment(o)"
-                type="text"
-                @click.stop="openPaymentModal(o)"
-              >
-                去支付
-              </a-button>
-              <a-popconfirm
-                title="确认删除该订单吗？"
-                ok-text="确认"
-                cancel-text="取消"
-                @confirm="deleteOrder(o.orderNo)"
-              >
-                <a-button type="text" danger>删除</a-button>
-              </a-popconfirm>
+              <a-button type="text" danger @click="openDeleteModal(o.orderNo)">删除</a-button>
             </div>
           </div>
         </div>
+      </div>
+      <div v-if="filteredOrders.length > pageSize" class="pagination-wrap">
+        <a-pagination
+          v-model:current="currentPage"
+          :page-size="pageSize"
+          :total="filteredOrders.length"
+          :show-size-changer="false"
+          size="small"
+        />
       </div>
     </div>
 
@@ -168,7 +173,34 @@
             </div>
             <div class="detail-row">
               <span class="k">支付状态</span
-              ><span class="v">{{ formatPaymentStatus(activeOrder.paymentStatus) }}</span>
+              ><span class="v">
+                <span
+                  class="status-pill"
+                  :class="{
+                    unpaid: activeOrder.paymentStatus === 'unpaid',
+                    paid: activeOrder.paymentStatus === 'paid',
+                  }"
+                >
+                  {{ formatPaymentStatus(activeOrder.paymentStatus) }}
+                </span>
+              </span>
+            </div>
+            <div class="detail-row">
+              <span class="k">订单确认</span>
+              <span class="v">
+                <span
+                  class="status-pill"
+                  :class="{
+                    confirmed: isOrderConfirmed(activeOrder),
+                    unconfirmed: !isOrderConfirmed(activeOrder),
+                  }"
+                >
+                  {{ isOrderConfirmed(activeOrder) ? '已确认' : '未确认' }}
+                </span>
+              </span>
+            </div>
+            <div v-if="isOrderConfirmed(activeOrder) && activeOrder.workerName" class="detail-row">
+              <span class="k">确认人员</span><span class="v">{{ activeOrder.workerName }}</span>
             </div>
             <div class="detail-row">
               <span class="k">支付时间</span
@@ -179,6 +211,32 @@
             <div class="detail-row">
               <span class="k">提交时间</span
               ><span class="v">{{ formatDate(activeOrder.createdAt) }}</span>
+            </div>
+            <div v-if="activeOrder.photographerName" class="detail-row">
+              <span class="k">沟通</span>
+              <span class="v">
+                <a-button
+                  type="link"
+                  size="small"
+                  style="padding-right: 0"
+                  @click="goChatWithPhotographer(activeOrder)"
+                >
+                  联系摄影师
+                </a-button>
+              </span>
+            </div>
+            <div v-if="canCheckOnlinePayment(activeOrder)" class="detail-row">
+              <span class="k">支付</span>
+              <span class="v">
+                <a-button
+                  type="link"
+                  size="small"
+                  style="padding-right: 0"
+                  @click="openPaymentModal(activeOrder)"
+                >
+                  去支付
+                </a-button>
+              </span>
             </div>
           </div>
 
@@ -201,6 +259,19 @@
           </div>
         </div>
       </div>
+    </a-modal>
+
+    <a-modal
+      v-model:open="deleteModalVisible"
+      title="确认删除订单"
+      :width="460"
+      ok-text="确认删除"
+      cancel-text="取消"
+      centered
+      @ok="confirmDeleteOrder"
+      @cancel="closeDeleteModal"
+    >
+      <div class="delete-modal-body">删除后不可恢复，确认删除该订单吗？</div>
     </a-modal>
 
     <a-modal
@@ -314,7 +385,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { message } from 'ant-design-vue';
 import { useRouter } from 'vue-router';
 import { TRAVEL_STYLE_LABELS } from '@/constants/travel-style-labels';
@@ -347,6 +418,9 @@ interface BookingOrder {
   remark?: string;
   photographerId?: number;
   photographerName?: string;
+  workerUserId?: number;
+  workerName?: string;
+  workerTakenAt?: string;
   totalAmount: number;
   createdAt: string;
   rescheduleCount?: number;
@@ -381,6 +455,8 @@ const authStore = useAuthStore();
 const loading = ref(false);
 const keyword = ref('');
 const orders = ref<BookingOrder[]>([]);
+const currentPage = ref(1);
+const pageSize = 6;
 
 const detailVisible = ref(false);
 const activeOrder = ref<BookingOrder | null>(null);
@@ -396,6 +472,8 @@ const paymentInfo = ref<{
   codeUrl?: string;
   hint?: string;
 } | null>(null);
+const deleteModalVisible = ref(false);
+const pendingDeleteOrderNo = ref('');
 const rescheduleModalVisible = ref(false);
 const rescheduleSubmitting = ref(false);
 const rescheduleTarget = ref<BookingOrder | null>(null);
@@ -442,6 +520,8 @@ const formatRescheduleStatus = (status?: string) => {
 
 const isRescheduled = (o: BookingOrder) =>
   (o.rescheduleCount || 0) > 0 || o.rescheduleRequestStatus === 'approved';
+const isOrderConfirmed = (o: BookingOrder | null | undefined) =>
+  !!o && (Number(o.workerUserId || 0) > 0 || !!String(o.workerTakenAt || '').trim());
 
 const toIsoDate = (d: Date) => {
   const y = d.getFullYear();
@@ -534,6 +614,9 @@ const loadOrders = async () => {
           return {
             ...o,
             shootingDate: latest?.shootingDate || o.shootingDate,
+            workerUserId: Number(latest?.workerUserId ?? o.workerUserId ?? 0) || undefined,
+            workerName: latest?.workerName || o.workerName,
+            workerTakenAt: latest?.workerTakenAt || o.workerTakenAt,
             rescheduleCount: Number(latest?.rescheduleCount ?? o.rescheduleCount ?? 0),
             rescheduleRequestStatus: latest?.rescheduleRequestStatus || o.rescheduleRequestStatus,
             rescheduleRequestedDate: latest?.rescheduleRequestedDate || o.rescheduleRequestedDate,
@@ -564,6 +647,22 @@ const deleteOrder = (orderNo: string) => {
   const next = orders.value.filter((o) => o.orderNo !== orderNo);
   saveOrdersToStorage(next);
   message.success('订单已删除');
+};
+
+const openDeleteModal = (orderNo: string) => {
+  pendingDeleteOrderNo.value = orderNo;
+  deleteModalVisible.value = true;
+};
+
+const closeDeleteModal = () => {
+  deleteModalVisible.value = false;
+  pendingDeleteOrderNo.value = '';
+};
+
+const confirmDeleteOrder = () => {
+  if (!pendingDeleteOrderNo.value) return;
+  deleteOrder(pendingDeleteOrderNo.value);
+  closeDeleteModal();
 };
 
 const clearAllOrders = () => {
@@ -806,6 +905,17 @@ const filteredOrders = computed(() => {
   });
 });
 
+const pagedOrders = computed(() => {
+  const start = (currentPage.value - 1) * pageSize;
+  return filteredOrders.value.slice(start, start + pageSize);
+});
+
+const ensurePageInRange = () => {
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.value.length / pageSize));
+  if (currentPage.value > totalPages) currentPage.value = totalPages;
+  if (currentPage.value < 1) currentPage.value = 1;
+};
+
 onMounted(() => {
   authStore.initializeAuth();
   if (!authStore.isAuthenticated) {
@@ -815,6 +925,13 @@ onMounted(() => {
   loadOrders();
 });
 
+watch(
+  () => filteredOrders.value.length,
+  () => {
+    ensurePageInRange();
+  }
+);
+
 onUnmounted(() => {
   stopPaymentPoll();
 });
@@ -823,15 +940,15 @@ onUnmounted(() => {
 <style scoped lang="less">
 .orders-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: linear-gradient(180deg, #fff5f7 0%, #ffffff 32%);
   padding: 40px 20px;
 }
 
 .page-header {
   text-align: center;
   margin-bottom: 28px;
-  color: white;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  color: #334155;
+  text-shadow: none;
 
   h1 {
     font-size: 2.3rem;
@@ -841,7 +958,7 @@ onUnmounted(() => {
 
   p {
     font-size: 1.05rem;
-    opacity: 0.95;
+    opacity: 0.9;
     margin: 0;
   }
 }
@@ -908,6 +1025,12 @@ onUnmounted(() => {
   gap: 16px;
 }
 
+.pagination-wrap {
+  padding: 0 22px 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
 .order-card {
   border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 14px;
@@ -950,6 +1073,47 @@ onUnmounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  margin-left: 4px;
+  color: #475569;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+
+  &.unpaid {
+    color: #be185d;
+    background: #fff1f6;
+    border-color: #f9a8d4;
+    font-weight: 700;
+  }
+
+  &.paid {
+    color: #0f766e;
+    background: #f0fdfa;
+    border-color: #99f6e4;
+    font-weight: 700;
+  }
+
+  &.confirmed {
+    color: #155eef;
+    background: #eef4ff;
+    border-color: #b2ccff;
+    font-weight: 700;
+  }
+
+  &.unconfirmed {
+    color: #854d0e;
+    background: #fff7ed;
+    border-color: #fed7aa;
+    font-weight: 700;
+  }
 }
 
 .order-card-bottom {
@@ -1088,6 +1252,14 @@ onUnmounted(() => {
   margin-top: 12px;
   display: flex;
   justify-content: center;
+}
+
+.delete-modal-body {
+  min-height: 66px;
+  display: flex;
+  align-items: center;
+  font-size: 15px;
+  color: #334155;
 }
 
 .reschedule-modal-body {

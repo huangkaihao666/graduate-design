@@ -175,9 +175,16 @@
         </p>
         <div v-if="recommendedLocations.length > 0" class="recommended-locations">
           <span class="loc-label">推荐地点：</span>
-          <span v-for="loc in recommendedLocations" :key="`loc-${loc}`" class="loc-chip">
+          <button
+            v-for="loc in recommendedLocations"
+            :key="`loc-${loc}`"
+            type="button"
+            class="loc-chip"
+            :class="{ active: isRecommendedLocationActive(loc) }"
+            @click.stop="applyRecommendedLocation(loc)"
+          >
             {{ loc }}
-          </span>
+          </button>
         </div>
       </div>
       <div class="recommend-grid">
@@ -425,9 +432,16 @@
           </p>
           <div v-if="recommendedLocations.length > 0" class="recommended-locations">
             <span class="loc-label">推荐地点：</span>
-            <span v-for="loc in recommendedLocations" :key="`drawer-loc-${loc}`" class="loc-chip">
+            <button
+              v-for="loc in recommendedLocations"
+              :key="`drawer-loc-${loc}`"
+              type="button"
+              class="loc-chip"
+              :class="{ active: isRecommendedLocationActive(loc) }"
+              @click.stop="applyRecommendedLocation(loc)"
+            >
               {{ loc }}
-            </span>
+            </button>
           </div>
         </div>
         <div class="recommend-grid">
@@ -835,6 +849,35 @@ const loadCollaborativeRecommendations = async () => {
     cfRecommendedLocations.value = [];
   }
 };
+
+const applyRecommendedLocation = (location: string) => {
+  const loc = String(location || '').trim();
+  if (!loc) return;
+  if (filters.location === loc) {
+    filters.location = undefined;
+    filters.region = undefined;
+    locationOptions.value = [...domesticLocations, ...overseasLocations];
+    pagination.page = 1;
+    fetchPackages();
+    return;
+  }
+  filters.location = loc;
+  const region = locationRegionMap.get(loc);
+  if (region === 'domestic') {
+    filters.region = 'domestic';
+    locationOptions.value = [...domesticLocations];
+  } else if (region === 'overseas') {
+    filters.region = 'overseas';
+    locationOptions.value = [...overseasLocations];
+  } else {
+    filters.region = undefined;
+    locationOptions.value = [...domesticLocations, ...overseasLocations];
+  }
+  pagination.page = 1;
+  fetchPackages();
+};
+
+const isRecommendedLocationActive = (location: string) => filters.location === location;
 
 const getGuestFavoriteIds = (): number[] => {
   const data = safeReadJSON(localStorage.getItem(GUEST_FAVORITES_KEY));
@@ -1430,6 +1473,20 @@ onMounted(async () => {
         color: #ff5c8a;
         background: #fff0f4;
         border: 1px solid rgba(255, 107, 139, 0.28);
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: #ffe4ec;
+          border-color: rgba(255, 107, 139, 0.42);
+        }
+
+        &.active {
+          color: #fff;
+          background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%);
+          border-color: #ff758c;
+          box-shadow: 0 4px 10px rgba(255, 117, 140, 0.28);
+        }
       }
     }
   }
