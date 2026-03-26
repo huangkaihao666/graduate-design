@@ -82,19 +82,45 @@
           </a-form-item>
 
           <a-form-item label="拍摄日期" name="shootingDate" :rules="shootingDateRules">
-            <a-select
-              v-if="restrictShootingDateToPhotographerSchedule"
-              v-model:value="orderForm.shootingDate"
-              placeholder="请选择摄影师可约日期（仅档期内的日期可选）"
-              show-search
-              :filter-option="filterScheduleDateOption"
-              style="width: 100%"
-              @change="onShootingDateFieldChange"
-            >
-              <a-select-option v-for="d in photographerAvailableDatesSorted" :key="d" :value="d">
-                {{ formatShootingDateLabel(d) }}
-              </a-select-option>
-            </a-select>
+            <div v-if="restrictShootingDateToPhotographerSchedule" class="schedule-calendar">
+              <div class="calendar-legend">
+                <span class="legend-item available">可约</span>
+                <span class="legend-item booked">已约</span>
+                <span class="legend-item unavailable">不可约</span>
+              </div>
+              <div class="calendar-header">
+                <a-button size="small" @click="goPrevCalendarMonth">上个月</a-button>
+                <span class="calendar-title">{{ calendarMonthTitle }}</span>
+                <a-button size="small" @click="goNextCalendarMonth">下个月</a-button>
+              </div>
+              <div class="calendar-weekdays">
+                <span v-for="w in calendarWeekLabels" :key="w">{{ w }}</span>
+              </div>
+              <div class="calendar-grid">
+                <button
+                  v-for="d in calendarDays"
+                  :key="d.dateKey"
+                  type="button"
+                  class="calendar-day"
+                  :class="[
+                    scheduleCellStatus(d.dateKey, d.inCurrentMonth),
+                    { selected: orderForm.shootingDate === d.dateKey, outside: !d.inCurrentMonth },
+                  ]"
+                  @click="onCalendarDayClick(d)"
+                >
+                  {{ d.day }}
+                </button>
+              </div>
+
+              <div class="calendar-picked">
+                已选择拍摄日期：
+                <strong>{{
+                  orderForm.shootingDate
+                    ? formatShootingDateLabel(orderForm.shootingDate)
+                    : '未选择'
+                }}</strong>
+              </div>
+            </div>
             <a-input v-else v-model:value="orderForm.shootingDate" type="date" />
             <div v-if="photographerScheduleNote" class="schedule-tip">
               档期说明：{{ photographerScheduleNote }}
@@ -144,6 +170,16 @@
             </a-space>
           </a-form-item>
         </a-form>
+        <div class="bottom-price-bar">
+          <div class="bar-left">
+            <span class="label">当前合计</span>
+            <span class="price">¥{{ previewTotalAmount.toLocaleString() }}</span>
+          </div>
+          <div class="bar-right">
+            <span>{{ orderForm.numberOfPeople }} 人</span>
+            <span>单价 ¥{{ selectedPackage.price.toLocaleString() }}</span>
+          </div>
+        </div>
       </div>
 
       <!-- 右侧：订单摘要 -->
@@ -186,7 +222,6 @@
         </div>
       </div>
     </div>
-
     <div v-else-if="packageMissing" class="loading-state">
       <div class="empty-icon">📦</div>
       <p>请先在“套餐浏览”中选择一个套餐</p>
@@ -290,8 +325,8 @@
 
 <script setup lang="ts">
 import { ordersApi } from '@/api/orders';
-import { paymentsApi } from '@/api/payments';
 import { packagesApi, type Package } from '@/api/packages';
+import { paymentsApi } from '@/api/payments';
 import { photographersApi, type PhotographerPublic } from '@/api/photographers';
 import { TRAVEL_STYLE_LABELS } from '@/constants/travel-style-labels';
 import { useAuthStore } from '@/store/auth';
@@ -375,6 +410,9 @@ const peopleOptions = computed(() => {
   const max = selectedPackage.value?.maxPeople ?? 1;
   return Array.from({ length: max }, (_, idx) => idx + 1);
 });
+const previewTotalAmount = computed(
+  () => (selectedPackage.value?.price || 0) * (Number(orderForm.numberOfPeople) || 0)
+);
 
 /** 当前摄影师档期日期（YYYY-MM-DD，已排序） */
 const photographerAvailableDatesSorted = computed(() => {
@@ -386,6 +424,15 @@ const photographerAvailableDatesSorted = computed(() => {
     .map((x) => String(x).trim())
     .sort();
 });
+
+const photographerAvailableDateSet = computed(
+  () => new Set(photographerAvailableDatesSorted.value)
+);
+const photographerBookedDates = ref<string[]>([]);
+const photographerBookedDateSet = computed(() => new Set(photographerBookedDates.value));
+const calendarMonthCursor = ref(new Date());
+const calendarWeekLabels = ['日', '一', '二', '三', '四', '五', '六'];
+type CalendarCell = { dateKey: string; day: number; inCurrentMonth: boolean };
 
 /** 已选摄影师且在后台配置了可约日期时，拍摄日仅限这些日期 */
 const restrictShootingDateToPhotographerSchedule = computed(
@@ -407,22 +454,99 @@ const formatShootingDateLabel = (iso: string) => {
   return `${t}（周${w}）`;
 };
 
-const filterScheduleDateOption = (input: string, option: any) => {
-  const val = option?.value as string | undefined;
-  if (!val) return false;
-  const q = input.trim().toLowerCase();
-  if (!q) return true;
-  return val.includes(q) || formatShootingDateLabel(val).toLowerCase().includes(q);
+const scheduleCellStatus = (
+  iso: string,
+  inCurrentMonth = true
+): 'available' | 'booked' | 'unavailable' => {
+  if (!inCurrentMonth) return 'unavailable';
+  if (iso < todayKey()) return 'unavailable';
+  if (!photographerAvailableDateSet.value.has(iso)) return 'unavailable';
+  if (photographerBookedDateSet.value.has(iso)) return 'booked';
+  return 'available';
+};
+
+const todayKey = () => {
+  const t = new Date();
+  const y = t.getFullYear();
+  const m = String(t.getMonth() + 1).padStart(2, '0');
+  const d = String(t.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+const calendarMonthTitle = computed(() => {
+  const d = calendarMonthCursor.value;
+  return `${d.getFullYear()}年${d.getMonth() + 1}月`;
+});
+
+const toDateKey = (d: Date) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+const calendarDays = computed<CalendarCell[]>(() => {
+  const base = new Date(
+    calendarMonthCursor.value.getFullYear(),
+    calendarMonthCursor.value.getMonth(),
+    1
+  );
+  const start = new Date(base);
+  start.setDate(1 - start.getDay());
+  const arr: CalendarCell[] = [];
+  for (let i = 0; i < 42; i += 1) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    arr.push({
+      dateKey: toDateKey(d),
+      day: d.getDate(),
+      inCurrentMonth: d.getMonth() === base.getMonth(),
+    });
+  }
+  return arr;
+});
+
+const syncCalendarMonthByCurrentContext = () => {
+  const selected = orderForm.shootingDate?.trim();
+  const anchor =
+    (selected && /^\d{4}-\d{2}-\d{2}$/.test(selected) ? selected : '') ||
+    photographerAvailableDatesSorted.value[0] ||
+    '';
+  if (!anchor) {
+    calendarMonthCursor.value = new Date();
+    return;
+  }
+  const dt = new Date(`${anchor}T12:00:00`);
+  if (Number.isNaN(dt.getTime())) {
+    calendarMonthCursor.value = new Date();
+    return;
+  }
+  calendarMonthCursor.value = new Date(dt.getFullYear(), dt.getMonth(), 1);
+};
+
+const goPrevCalendarMonth = () => {
+  const d = calendarMonthCursor.value;
+  calendarMonthCursor.value = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+};
+
+const goNextCalendarMonth = () => {
+  const d = calendarMonthCursor.value;
+  calendarMonthCursor.value = new Date(d.getFullYear(), d.getMonth() + 1, 1);
 };
 
 const shootingDateRules = computed(() => {
-  const list = [{ required: true, message: '请选择拍摄日期', trigger: 'change' }];
+  const list: Array<Record<string, any>> = [
+    { required: true, message: '请选择拍摄日期', trigger: 'change' },
+  ];
   if (restrictShootingDateToPhotographerSchedule.value) {
     list.push({
       validator: async (_rule: unknown, value: string) => {
         if (!value) return Promise.reject('请选择拍摄日期');
         if (!photographerAvailableDatesSorted.value.includes(value)) {
-          return Promise.reject('所选日期不在该摄影师可约档期内，请从下拉中选择可约日期');
+          return Promise.reject('所选日期不在该摄影师可约档期内，请在月历中选择绿色日期');
+        }
+        if (photographerBookedDateSet.value.has(value)) {
+          return Promise.reject('该日期已约满，请选择其他可约日期');
         }
         return Promise.resolve();
       },
@@ -451,6 +575,23 @@ const refreshPhotographerScheduleDetail = async () => {
   }
 };
 
+const refreshPhotographerBookedDates = async () => {
+  const id = selectedPhotographerId.value;
+  if (!id) {
+    photographerBookedDates.value = [];
+    return;
+  }
+  try {
+    const list = await ordersApi.getPhotographerBookedDates(id);
+    const re = /^\d{4}-\d{2}-\d{2}$/;
+    photographerBookedDates.value = (Array.isArray(list) ? list : [])
+      .map((x) => String(x || '').trim())
+      .filter((d) => re.test(d));
+  } catch {
+    photographerBookedDates.value = [];
+  }
+};
+
 /** 会话恢复或切换摄影师后，若当前拍摄日不在档期内则清空并提示 */
 const ensureShootingDateMatchesSchedule = () => {
   if (!restrictShootingDateToPhotographerSchedule.value) return;
@@ -462,12 +603,26 @@ const ensureShootingDateMatchesSchedule = () => {
   }
 };
 
-const onShootingDateFieldChange = () => {
+const onScheduleCalendarSelect = (dateValue: any) => {
   if (!restrictShootingDateToPhotographerSchedule.value) return;
-  const d = orderForm.shootingDate?.trim();
-  if (d && !photographerAvailableDatesSorted.value.includes(d)) {
-    message.warning('所选日期不在该摄影师可约档期内，请从列表中选择。');
+  const iso = typeof dateValue?.dateKey === 'string' ? dateValue.dateKey : '';
+  if (!iso) return;
+  const status = scheduleCellStatus(iso, true);
+  if (status === 'unavailable') {
+    message.warning('该日期不可约，请选择可约日期。');
+    return;
   }
+  if (status === 'booked') {
+    message.warning('该日期已约满，请选择其他可约日期。');
+    return;
+  }
+  orderForm.shootingDate = iso;
+  void orderFormRef.value?.validateFields(['shootingDate']);
+};
+
+const onCalendarDayClick = (cell: CalendarCell) => {
+  if (!cell.inCurrentMonth) return;
+  onScheduleCalendarSelect(cell);
 };
 
 const paymentModalVisible = ref(false);
@@ -697,7 +852,9 @@ const onPhotographerSelectChange = async (val: number | string | undefined) => {
     query: { ...route.query, photographerId: String(id) },
   });
   await refreshPhotographerScheduleDetail();
+  await refreshPhotographerBookedDates();
   ensureShootingDateMatchesSchedule();
+  syncCalendarMonthByCurrentContext();
   saveStateToStorage();
 };
 
@@ -725,6 +882,7 @@ const loadSelectedPackage = async () => {
   await applyPhotographerFromUrl();
   await loadPhotographersList();
   await refreshPhotographerScheduleDetail();
+  await refreshPhotographerBookedDates();
 
   selectedPackage.value = null;
   try {
@@ -759,7 +917,9 @@ const loadSelectedPackage = async () => {
   }
 
   await refreshPhotographerScheduleDetail();
+  await refreshPhotographerBookedDates();
   ensureShootingDateMatchesSchedule();
+  syncCalendarMonthByCurrentContext();
 };
 
 const handleReset = () => {
@@ -1009,6 +1169,7 @@ watch(
 watch(restrictShootingDateToPhotographerSchedule, (restricted) => {
   if (restricted) {
     ensureShootingDateMatchesSchedule();
+    syncCalendarMonthByCurrentContext();
   }
 });
 
@@ -1031,15 +1192,15 @@ onUnmounted(() => {
 <style scoped lang="less">
 .order-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: linear-gradient(180deg, #fff5f7 0%, #ffffff 55%);
   padding: 40px 20px;
 }
 
 .page-header {
   text-align: center;
   margin-bottom: 32px;
-  color: white;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  color: #334155;
+  text-shadow: none;
 
   h1 {
     font-size: 2.5rem;
@@ -1049,7 +1210,7 @@ onUnmounted(() => {
 
   p {
     font-size: 1.1rem;
-    opacity: 0.95;
+    opacity: 0.9;
     margin: 0;
   }
 }
@@ -1080,6 +1241,47 @@ onUnmounted(() => {
 
 .right-panel {
   padding: 26px;
+}
+
+.bottom-price-bar {
+  position: sticky;
+  bottom: 8px;
+  margin-top: 30px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(255, 107, 139, 0.22);
+  border-radius: 14px;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.1);
+  padding: 16px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+  z-index: 2;
+
+  .bar-left {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    .label {
+      font-size: 15px;
+      color: #64748b;
+    }
+    .price {
+      font-size: 26px;
+      font-weight: 800;
+      color: #ff5c8a;
+      line-height: 1;
+    }
+  }
+
+  .bar-right {
+    display: inline-flex;
+    gap: 14px;
+    color: #475569;
+    font-size: 14px;
+    white-space: nowrap;
+  }
 }
 
 .package-card {
@@ -1183,6 +1385,124 @@ onUnmounted(() => {
   &.muted {
     color: #94a3b8;
     font-size: 12px;
+  }
+}
+
+.schedule-calendar {
+  margin-top: 8px;
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  padding: 12px;
+  background: #fff;
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.calendar-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.calendar-legend {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #475569;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 600;
+
+  &.available {
+    color: #237804;
+  }
+  &.booked {
+    color: #cf1322;
+  }
+  &.unavailable {
+    color: #94a3b8;
+  }
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-bottom: 6px;
+
+  span {
+    text-align: center;
+    font-size: 12px;
+    color: #94a3b8;
+    padding: 4px 0;
+  }
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.calendar-day {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  height: 38px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #f8fafc;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  padding: 0;
+
+  &.available {
+    background: rgba(82, 196, 26, 0.15);
+    color: #237804;
+  }
+
+  &.booked {
+    background: rgba(245, 34, 45, 0.14);
+    color: #cf1322;
+  }
+
+  &.unavailable {
+    background: #f1f5f9;
+    color: #94a3b8;
+  }
+
+  &.selected {
+    border-color: #ff6b8b;
+    box-shadow: 0 0 0 1px #ff6b8b inset;
+  }
+
+  &.outside {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+.calendar-picked {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #64748b;
+
+  strong {
+    color: #ff5c8a;
+    margin-left: 4px;
   }
 }
 
