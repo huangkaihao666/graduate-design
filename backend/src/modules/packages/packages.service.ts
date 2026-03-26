@@ -66,6 +66,176 @@ export class PackagesService {
     };
   }
 
+  /**
+   * 协同滤波推荐（ItemCF，隐式反馈）
+   * - 行为源：收藏、下单
+   * - 反馈权重：收藏(3)、下单未支付(4)、下单已支付/完成(6)
+   */
+  async recommendForUser(userId: number, limit = 6) {
+    const safeLimit = Math.min(Math.max(Number(limit) || 6, 1), 20);
+    const published = await this.prisma.travelPackage.findMany({
+      where: { status: 'published' },
+      include: { spot: true },
+      orderBy: { id: 'asc' },
+    });
+    if (!published.length) {
+      return { items: [], locations: [] as string[] };
+    }
+
+    const packageIdSet = new Set(published.map((p) => p.id));
+    const packageById = new Map(published.map((p) => [p.id, p]));
+
+    const [favorites, orders] = await Promise.all([
+      this.prisma.favorite.findMany({
+        select: { userId: true, packageId: true },
+      }),
+      this.prisma.bookingOrder.findMany({
+        select: {
+          id: true,
+          packageId: true,
+          paymentStatus: true,
+          contactName: true,
+          phone: true,
+        },
+      }),
+    ]);
+
+    // 行为矩阵：userId -> (packageId -> weight)
+    const userMatrix = new Map<number, Map<number, number>>();
+    const addAction = (uid: number, pid: number, w: number) => {
+      if (!packageIdSet.has(pid) || !uid || w <= 0) return;
+      let row = userMatrix.get(uid);
+      if (!row) {
+        row = new Map<number, number>();
+        userMatrix.set(uid, row);
+      }
+      row.set(pid, (row.get(pid) || 0) + w);
+    };
+
+    for (const f of favorites) {
+      addAction(f.userId, f.packageId, 3);
+    }
+
+    // 订单无直接 userId，采用联系人手机号分组为“隐式用户”
+    const pseudoUserBase = 10_000_000;
+    const contactMap = new Map<string, number>();
+    let nextPseudo = 1;
+    const getPseudoUid = (name: string, phone: string) => {
+      const key = `${name || ''}#${phone || ''}`.trim();
+      if (!key || key === '#') return 0;
+      if (!contactMap.has(key)) {
+        contactMap.set(key, pseudoUserBase + nextPseudo);
+        nextPseudo += 1;
+      }
+      return contactMap.get(key)!;
+    };
+
+    for (const o of orders as any[]) {
+      const pid = Number(o.packageId);
+      const status = String(o.paymentStatus || '').toLowerCase();
+      const weight = status === 'paid' || status === 'completed' ? 6 : 4;
+      const pseudoUid = getPseudoUid(
+        String(o.contactName || ''),
+        String(o.phone || ''),
+      );
+      addAction(pseudoUid, pid, weight);
+    }
+
+    const seed = userMatrix.get(userId) || new Map<number, number>();
+    const hasSeed = seed.size > 0;
+
+    // 冷启动：回退热门
+    if (!hasSeed) {
+      const items = [...published]
+        .sort((a, b) => {
+          const sa = (a.isPopular ? 2 : 0) + (a.isHot ? 1 : 0);
+          const sb = (b.isPopular ? 2 : 0) + (b.isHot ? 1 : 0);
+          if (sb !== sa) return sb - sa;
+          return b.id - a.id;
+        })
+        .slice(0, safeLimit)
+        .map((r) => this.mapRow(r));
+      const locations = [
+        ...new Set(items.map((x) => x.location).filter(Boolean)),
+      ].slice(0, 5);
+      return { items, locations };
+    }
+
+    // ItemCF: co[i][j] 与 norm[i]
+    const norm = new Map<number, number>();
+    const co = new Map<number, Map<number, number>>();
+    for (const row of userMatrix.values()) {
+      const entries = [...row.entries()];
+      for (let i = 0; i < entries.length; i += 1) {
+        const [pi, wi] = entries[i];
+        norm.set(pi, (norm.get(pi) || 0) + wi * wi);
+        for (let j = i + 1; j < entries.length; j += 1) {
+          const [pj, wj] = entries[j];
+          const val = wi * wj;
+          if (!co.has(pi)) co.set(pi, new Map());
+          if (!co.has(pj)) co.set(pj, new Map());
+          co.get(pi)!.set(pj, (co.get(pi)!.get(pj) || 0) + val);
+          co.get(pj)!.set(pi, (co.get(pj)!.get(pi) || 0) + val);
+        }
+      }
+    }
+
+    const seedIds = new Set(seed.keys());
+    const candidateScore = new Map<number, number>();
+    for (const [pi, wi] of seed.entries()) {
+      const related = co.get(pi);
+      if (!related) continue;
+      const normI = Math.sqrt(norm.get(pi) || 0);
+      if (!normI) continue;
+      for (const [pj, cij] of related.entries()) {
+        if (seedIds.has(pj)) continue; // 已交互的不再推荐
+        const normJ = Math.sqrt(norm.get(pj) || 0);
+        if (!normJ) continue;
+        const sim = cij / (normI * normJ);
+        if (sim <= 0) continue;
+        candidateScore.set(pj, (candidateScore.get(pj) || 0) + wi * sim);
+      }
+    }
+
+    const scored = [...candidateScore.entries()]
+      .map(([pid, score]) => {
+        const p = packageById.get(pid);
+        if (!p) return null;
+        // 加少量先验：热门略微抬升
+        const prior = (p.isPopular ? 0.12 : 0) + (p.isHot ? 0.08 : 0);
+        return { row: p, score: score + prior };
+      })
+      .filter((x): x is { row: TravelPackageWithSpot; score: number } => !!x)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, safeLimit);
+
+    // 若候选不足，补齐热门
+    if (scored.length < safeLimit) {
+      const used = new Set(scored.map((x) => x.row.id));
+      for (const p of published) {
+        if (used.has(p.id) || seedIds.has(p.id)) continue;
+        scored.push({
+          row: p,
+          score: (p.isPopular ? 0.2 : 0) + (p.isHot ? 0.1 : 0),
+        });
+        if (scored.length >= safeLimit) break;
+      }
+    }
+
+    const items = scored.slice(0, safeLimit).map((x) => this.mapRow(x.row));
+    const locationScore = new Map<string, number>();
+    scored.forEach((x) => {
+      const loc = x.row.location || '';
+      if (!loc) return;
+      locationScore.set(loc, (locationScore.get(loc) || 0) + x.score);
+    });
+    const locations = [...locationScore.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map((x) => x[0])
+      .slice(0, 5);
+    return { items, locations };
+  }
+
   /** 管理端：全部套餐 */
   async findAllAdmin() {
     const rows = await this.prisma.travelPackage.findMany({

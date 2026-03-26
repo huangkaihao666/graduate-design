@@ -6,10 +6,12 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Request,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AdminOrJwtAuthGuard } from '../auth/admin-or-jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PackagesService } from './packages.service';
 
 @ApiTags('Packages')
@@ -29,6 +31,14 @@ export class PackagesController {
   @ApiOperation({ summary: '已上架套餐列表（用户端）' })
   findPublished() {
     return this.packagesService.findPublishedList();
+  }
+
+  @Get('recommendations')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '协同滤波推荐（返回推荐套餐与地点）' })
+  getRecommendations(@Request() req: { user: { id: number } }) {
+    return this.packagesService.recommendForUser(req.user.id, 6);
   }
 
   @Get(':id')

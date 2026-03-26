@@ -56,6 +56,11 @@ export interface PackageListResponse {
   };
 }
 
+export interface PackageRecommendationResponse {
+  items: Package[];
+  locations: string[];
+}
+
 export type CreatePackageBody = {
   spotId: number;
   name: string;
@@ -82,6 +87,11 @@ export const packagesApi = {
 
   getPackageDetail: (id: number): Promise<Package> =>
     httpClient.get<Package>(`/packages/${id}`).then((res) => unwrap(res)),
+
+  getRecommendations: (): Promise<PackageRecommendationResponse> =>
+    httpClient
+      .get<PackageRecommendationResponse>('/packages/recommendations')
+      .then((res) => unwrap(res)),
 
   /** 管理端 */
   getAdminPackages: (): Promise<Package[]> =>

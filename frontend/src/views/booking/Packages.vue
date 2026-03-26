@@ -166,7 +166,19 @@
     <div v-if="!isFilteringActive && recommendedPackages.length > 0" class="recommend-section">
       <div class="section-header">
         <h2>你可能喜欢</h2>
-        <p>基于你的浏览与生成偏好，为你智能推荐</p>
+        <p>
+          {{
+            isUsingCollaborativeRecommendation
+              ? '基于协同滤波算法（收藏/下单行为）推荐'
+              : '基于你的浏览与生成偏好，为你智能推荐'
+          }}
+        </p>
+        <div v-if="recommendedLocations.length > 0" class="recommended-locations">
+          <span class="loc-label">推荐地点：</span>
+          <span v-for="loc in recommendedLocations" :key="`loc-${loc}`" class="loc-chip">
+            {{ loc }}
+          </span>
+        </div>
       </div>
       <div class="recommend-grid">
         <div
@@ -404,7 +416,19 @@
       <div v-if="recommendedPackages.length > 0" class="recommend-section drawer-mode">
         <div class="section-header">
           <h2>你可能喜欢</h2>
-          <p>点击卡片可查看详情或直接预约</p>
+          <p>
+            {{
+              isUsingCollaborativeRecommendation
+                ? '协同滤波推荐结果：点击卡片可查看详情或直接预约'
+                : '点击卡片可查看详情或直接预约'
+            }}
+          </p>
+          <div v-if="recommendedLocations.length > 0" class="recommended-locations">
+            <span class="loc-label">推荐地点：</span>
+            <span v-for="loc in recommendedLocations" :key="`drawer-loc-${loc}`" class="loc-chip">
+              {{ loc }}
+            </span>
+          </div>
         </div>
         <div class="recommend-grid">
           <div
@@ -520,6 +544,8 @@ const recommendDrawerVisible = ref(false);
 const selectedPackage = ref<Package | null>(null);
 const favoritePackageIds = ref<Set<number>>(new Set());
 const favoriteLoading = ref<Set<number>>(new Set());
+const cfRecommendedPackages = ref<Package[]>([]);
+const cfRecommendedLocations = ref<string[]>([]);
 const behaviorProfile = ref<{ locations: string[]; styles: string[]; budgets: number[] }>({
   locations: [],
   styles: [],
@@ -643,7 +669,7 @@ const isFilteringActive = computed(() => {
   );
 });
 
-const recommendedPackages = computed(() => {
+const heuristicRecommendedPackages = computed(() => {
   if (allPackages.value.length === 0) {
     return [];
   }
@@ -684,6 +710,18 @@ const recommendedPackages = computed(() => {
     .map((item) => item.pkg);
 
   return ranked;
+});
+
+const isUsingCollaborativeRecommendation = computed(() => cfRecommendedPackages.value.length > 0);
+const recommendedPackages = computed(() =>
+  isUsingCollaborativeRecommendation.value
+    ? cfRecommendedPackages.value.slice(0, 6)
+    : heuristicRecommendedPackages.value
+);
+const recommendedLocations = computed(() => {
+  if (cfRecommendedLocations.value.length > 0) return cfRecommendedLocations.value.slice(0, 5);
+  const set = new Set(recommendedPackages.value.map((x) => x.location).filter(Boolean));
+  return [...set].slice(0, 5);
 });
 
 const getStyleName = (style: string) => {
@@ -780,6 +818,22 @@ const saveBrowseBehavior = (pkg: Package) => {
   ].slice(0, 30);
   localStorage.setItem(BROWSE_HISTORY_KEY, JSON.stringify(next));
   updateBehaviorProfile();
+};
+
+const loadCollaborativeRecommendations = async () => {
+  if (!authStore.isAuthenticated) {
+    cfRecommendedPackages.value = [];
+    cfRecommendedLocations.value = [];
+    return;
+  }
+  try {
+    const res = await packagesApi.getRecommendations();
+    cfRecommendedPackages.value = Array.isArray(res?.items) ? res.items : [];
+    cfRecommendedLocations.value = Array.isArray(res?.locations) ? res.locations : [];
+  } catch {
+    cfRecommendedPackages.value = [];
+    cfRecommendedLocations.value = [];
+  }
 };
 
 const getGuestFavoriteIds = (): number[] => {
@@ -1040,6 +1094,7 @@ const handleToggleFavorite = async (pkg: Package) => {
       favoritePackageIds.value.add(pkg.id);
       message.success('收藏成功');
     }
+    await loadCollaborativeRecommendations();
   } catch (error: any) {
     console.error('收藏操作失败:', error);
     message.error(error?.response?.data?.message || '操作失败，请稍后重试');
@@ -1069,7 +1124,8 @@ onMounted(async () => {
   await syncPhotographerFromRoute();
   updateBehaviorProfile();
   fetchPackages();
-  loadFavoriteStatus();
+  await loadFavoriteStatus();
+  await loadCollaborativeRecommendations();
 });
 </script>
 
@@ -1349,6 +1405,32 @@ onMounted(async () => {
       margin: 0;
       color: #666;
       font-size: 1rem;
+    }
+
+    .recommended-locations {
+      margin-top: 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+
+      .loc-label {
+        color: #64748b;
+        font-size: 0.9rem;
+      }
+
+      .loc-chip {
+        display: inline-flex;
+        align-items: center;
+        height: 26px;
+        padding: 0 10px;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        color: #ff5c8a;
+        background: #fff0f4;
+        border: 1px solid rgba(255, 107, 139, 0.28);
+      }
     }
   }
 
