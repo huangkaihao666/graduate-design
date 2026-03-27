@@ -627,7 +627,7 @@ onMounted(() => {
   background: rgba(255, 107, 139, 0.55);
 }
 .dot.f {
-  background: #ff4d4f;
+  background: #e53935;
 }
 .dot.r {
   background: #9ca3af;
@@ -642,9 +642,9 @@ onMounted(() => {
   font-weight: 700;
 }
 .tag.full {
-  border-color: rgba(255, 77, 79, 0.35);
-  background: rgba(255, 77, 79, 0.16);
-  color: #cf1322;
+  border-color: rgba(229, 57, 53, 0.5);
+  background: rgba(229, 57, 53, 0.18);
+  color: #c62828;
 }
 .tag.rest {
   border-color: rgba(107, 114, 128, 0.32);

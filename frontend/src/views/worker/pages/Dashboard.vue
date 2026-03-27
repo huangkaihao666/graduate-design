@@ -29,7 +29,6 @@
               <span v-for="d in upcomingDates" :key="d" class="chip">{{ d }}</span>
               <span v-if="!upcomingDates.length" class="muted">暂无档期</span>
             </div>
-            <a-button class="pill-btn ghost" @click="go('/worker/schedule')">设置档期</a-button>
           </div>
         </div>
 
@@ -37,7 +36,7 @@
           <div class="panel-h">
             <div class="panel-title">作品管理</div>
             <div class="actions">
-              <a-button type="primary" class="pill-btn" @click="go('/worker/portfolio')"
+              <a-button class="pill-btn upload-btn" @click="go('/worker/portfolio')"
                 >上传作品</a-button
               >
               <a-button type="primary" class="pill-btn ghost" @click="go('/worker/schedule')"
@@ -62,40 +61,52 @@
             <div class="legend">
               <span class="lg"><i class="dot a" />可预约</span>
               <span class="lg"><i class="dot f" />已约满</span>
+              <span class="lg"><i class="dot r" />休息</span>
             </div>
           </div>
-          <a-calendar :fullscreen="false" class="calendar">
-            <template #dateCellRender="{ current }">
-              <div class="cell" :class="cellClass(current)">
-                <span v-if="cellText(current)" class="cell-tag">{{ cellText(current) }}</span>
+          <div class="mini-calendar">
+            <div class="mini-toolbar">
+              <a-button size="small" class="mini-month-btn" @click="prevMonth">上个月</a-button>
+              <span class="mini-month-title">{{ monthTitle }}</span>
+              <a-button size="small" class="mini-month-btn" @click="nextMonth">下个月</a-button>
+            </div>
+            <div class="mini-week">
+              <span v-for="w in weekLabels" :key="w" class="mini-week-cell">{{ w }}</span>
+            </div>
+            <div class="mini-grid">
+              <div
+                v-for="cell in dashboardCells"
+                :key="cell.key"
+                class="mini-day"
+                :class="[
+                  !cell.inMonth && 'muted',
+                  isTodayDay(cell.day) && 'today',
+                  dayStatusClass(cell.day),
+                ]"
+              >
+                <span class="mini-num">{{ cell.day.date() }}</span>
               </div>
-            </template>
-          </a-calendar>
+            </div>
+          </div>
         </div>
 
-        <div class="panel">
+        <div class="panel order-detail-panel">
           <div class="panel-h">
             <div class="panel-title">订单详情</div>
           </div>
-          <div v-if="selectedOrder" class="detail">
-            <div class="row">
-              <span class="k">客户信息</span><span class="v">{{ selectedOrder.contactName }}</span>
-            </div>
-            <div class="row">
-              <span class="k">拍摄风格</span>
-              <span class="v"
-                ><span class="tag">{{ selectedOrder.style || '主步' }}</span></span
-              >
-            </div>
-            <div class="row">
-              <span class="k">时间</span><span class="v">{{ selectedOrder.shootingDate }}</span>
-            </div>
-            <div class="row">
-              <span class="k">地点</span><span class="v">{{ selectedOrder.location }}</span>
-            </div>
-            <div class="row">
-              <span class="k">需求</span
-              ><span class="v muted">{{ selectedOrder.remark || '—' }}</span>
+          <div v-if="orderBriefList.length" class="order-brief-list">
+            <div
+              v-for="o in orderBriefList"
+              :key="String(o.id || o.orderNo || o.shootingDate)"
+              class="brief-item"
+            >
+              <div class="brief-name">{{ o.contactName || '客户' }}</div>
+              <div class="brief-meta">
+                <span class="k">时间</span><span class="v">{{ o.shootingDate || '-' }}</span>
+              </div>
+              <div class="brief-meta">
+                <span class="k">地点</span><span class="v">{{ o.location || '-' }}</span>
+              </div>
             </div>
           </div>
           <div v-else class="empty">暂无订单可展示</div>
@@ -109,6 +120,7 @@
 import { httpClient } from '@/api/client';
 import { useAuthStore } from '@/store/auth';
 import { unwrapOrderListPayload } from '@/utils/workerOrders';
+import dayjs, { Dayjs } from 'dayjs';
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
@@ -120,6 +132,9 @@ const uid = () => authStore.user?.id ?? 'guest';
 const portfolioUrlsKey = () => `worker_portfolio_urls_${uid()}`;
 const scheduleAvailKey = () => `worker_${uid()}_schedule_available`;
 const scheduleFullKey = () => `worker_${uid()}_schedule_full_auto`;
+const scheduleRestKey = () => `worker_${uid()}_schedule_rest`;
+const dashboardMonth = ref(dayjs().startOf('month'));
+const weekLabels = ['一', '二', '三', '四', '五', '六', '日'];
 
 const orders = ref<OrderRow[]>([]);
 
@@ -149,38 +164,66 @@ const upcomingDates = computed(() => {
   const raw = localStorage.getItem(scheduleAvailKey());
   const arr = raw ? (JSON.parse(raw) as string[]) : [];
   if (!Array.isArray(arr)) return [];
-  return arr.slice(0, 6);
+  const re = /^\d{4}-\d{2}-\d{2}$/;
+  return arr
+    .map((x) => String(x).trim())
+    .filter((x) => re.test(x))
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 });
 
-const selectedOrder = computed(() => orders.value[0] || null);
+const orderBriefList = computed(() => orders.value.slice(0, 6));
 
 const go = (to: string) => router.push(to);
 
 const scheduleKey = (d: Date) => d.toISOString().slice(0, 10);
 
-const cellClass = (current: any) => {
-  const k = scheduleKey(current.toDate());
+const dayStatusClass = (d: Dayjs) => {
+  const k = d.format('YYYY-MM-DD');
   const full = getSchedule('full');
+  const rest = getSchedule('rest');
   const avail = getSchedule('available');
   if (full.has(k)) return 'full';
+  if (rest.has(k)) return 'rest';
   if (avail.has(k)) return 'available';
-  return '';
+  return 'none';
 };
 
-const cellText = (current: any) => {
-  const k = scheduleKey(current.toDate());
-  const full = getSchedule('full');
-  const avail = getSchedule('available');
-  if (full.has(k)) return '已约满';
-  if (avail.has(k)) return '可预约';
-  return '';
-};
-
-const getSchedule = (kind: 'available' | 'full') => {
-  const key = kind === 'available' ? scheduleAvailKey() : scheduleFullKey();
+const getSchedule = (kind: 'available' | 'full' | 'rest') => {
+  const key =
+    kind === 'available'
+      ? scheduleAvailKey()
+      : kind === 'full'
+        ? scheduleFullKey()
+        : scheduleRestKey();
   const raw = localStorage.getItem(key);
   const arr = raw ? (JSON.parse(raw) as string[]) : [];
   return new Set(Array.isArray(arr) ? arr : []);
+};
+
+const monthTitle = computed(() => dashboardMonth.value.format('YYYY年M月'));
+
+const dashboardCells = computed(() => {
+  const start = dashboardMonth.value.startOf('month');
+  const startWeek = (start.day() + 6) % 7;
+  const gridStart = start.subtract(startWeek, 'day');
+  const out: Array<{ key: string; day: Dayjs; inMonth: boolean }> = [];
+  for (let i = 0; i < 42; i += 1) {
+    const day = gridStart.add(i, 'day');
+    out.push({
+      key: day.format('YYYY-MM-DD'),
+      day,
+      inMonth: day.month() === dashboardMonth.value.month(),
+    });
+  }
+  return out;
+});
+
+const isTodayDay = (d: Dayjs) => d.isSame(dayjs(), 'day');
+const prevMonth = () => {
+  dashboardMonth.value = dashboardMonth.value.subtract(1, 'month').startOf('month');
+};
+const nextMonth = () => {
+  dashboardMonth.value = dashboardMonth.value.add(1, 'month').startOf('month');
 };
 
 const loadOrders = async () => {
@@ -279,7 +322,9 @@ onMounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 4px 0 10px;
+  margin: 4px 0 0;
+  max-height: 132px;
+  overflow: hidden;
 }
 .chip {
   display: inline-flex;
@@ -328,10 +373,32 @@ onMounted(() => {
   background: var(--pink);
   border-color: var(--pink);
 }
+.upload-btn {
+  background: #ff6b8b !important;
+  border-color: #ff6b8b !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+.upload-btn:hover,
+.upload-btn:focus,
+.upload-btn:active {
+  background: #ef476f !important;
+  border-color: #ef476f !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
 .pill-btn.ghost {
   background: rgba(255, 107, 139, 0.1);
   border-color: rgba(255, 107, 139, 0.18);
   color: #d6336c;
+}
+.pill-btn.ghost:hover,
+.pill-btn.ghost:focus,
+.pill-btn.ghost:active {
+  background: rgba(255, 107, 139, 0.2) !important;
+  border-color: rgba(255, 107, 139, 0.36) !important;
+  color: #be185d !important;
+  box-shadow: none !important;
 }
 
 .gallery {
@@ -349,7 +416,7 @@ onMounted(() => {
   overflow: hidden;
   border: 1px solid rgba(17, 24, 39, 0.08);
   background: #f9fafb;
-  height: 96px;
+  aspect-ratio: 3 / 4;
 }
 .img-wrap img {
   width: 100%;
@@ -388,39 +455,113 @@ onMounted(() => {
   background: rgba(255, 107, 139, 0.45);
 }
 .dot.f {
-  background: #ff4d4f;
+  background: #ff0000;
+}
+.dot.r {
+  background: #9ca3af;
 }
 
-.calendar :deep(.ant-picker-calendar-date-content) {
-  height: 26px;
+.mini-calendar {
+  border: 1px solid rgba(255, 107, 139, 0.16);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fff8fc 0%, #fff 100%);
+  padding: 10px;
 }
-.cell {
-  height: 18px;
-  margin-top: 4px;
+.mini-toolbar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
 }
-.cell-tag {
-  font-size: 11px;
-  padding: 2px 6px;
+.mini-month-btn {
   border-radius: 999px;
-  background: rgba(255, 107, 139, 0.08);
-  border: 1px solid rgba(255, 107, 139, 0.18);
-  color: #d6336c;
+  border-color: rgba(255, 107, 139, 0.28);
+  color: #be185d;
+  background: #fff;
+  padding: 0 8px;
 }
-.cell.full .cell-tag {
-  background: rgba(255, 77, 79, 0.1);
-  border-color: rgba(255, 77, 79, 0.2);
-  color: #cf1322;
+.mini-month-title {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: #374151;
+}
+.mini-week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.mini-week-cell {
+  text-align: center;
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: 700;
+}
+.mini-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.mini-day {
+  border: 1px solid rgba(17, 24, 39, 0.1);
+  border-radius: 8px;
+  min-height: 28px;
+  background: #fff;
+  display: grid;
+  place-items: center;
+}
+.mini-day.muted {
+  opacity: 0.4;
+}
+.mini-day.today {
+  box-shadow: inset 0 0 0 1px rgba(255, 107, 139, 0.4);
+}
+.mini-day.available {
+  background: rgba(255, 107, 139, 0.1);
+  border-color: rgba(255, 107, 139, 0.28);
+}
+.mini-day.full {
+  background: rgba(255, 0, 0, 0.28);
+  border-color: rgba(255, 0, 0, 0.56);
+}
+.mini-day.rest {
+  background: rgba(156, 163, 175, 0.12);
+  border-color: rgba(107, 114, 128, 0.28);
+}
+.mini-num {
+  font-size: 11px;
+  font-weight: 700;
+  color: #374151;
 }
 
-.detail .row {
+.order-brief-list {
+  display: grid;
+  gap: 10px;
+  max-height: 340px;
+  overflow: auto;
+}
+.brief-item {
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 107, 139, 0.08);
+  padding: 7px 10px;
+}
+.brief-name {
+  font-weight: 800;
+  color: #111827;
+  margin-bottom: 4px;
+}
+.brief-meta {
   display: flex;
   justify-content: space-between;
-  gap: 10px;
-  padding: 9px 0;
-  border-bottom: 1px dashed rgba(17, 24, 39, 0.1);
+  gap: 8px;
+  padding: 1px 0;
 }
-.detail .row:last-child {
-  border-bottom: none;
+.order-detail-panel {
+  padding-top: 10px;
+  padding-bottom: 10px;
 }
 .k {
   color: #6b7280;
@@ -428,16 +569,5 @@ onMounted(() => {
 .v {
   color: #111827;
   text-align: right;
-}
-.tag {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 10px;
-  border-radius: 999px;
-  background: rgba(255, 107, 139, 0.1);
-  border: 1px solid rgba(255, 107, 139, 0.18);
-  color: #d6336c;
-  font-weight: 700;
-  font-size: 12px;
 }
 </style>

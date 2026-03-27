@@ -140,7 +140,7 @@ const handleLogout = () => {
   min-height: 100vh;
   background: linear-gradient(180deg, #fff5f7 0%, #ffffff 45%);
   display: grid;
-  grid-template-columns: 222px 1fr;
+  grid-template-columns: 240px 1fr;
 }
 
 .side {
@@ -148,7 +148,7 @@ const handleLogout = () => {
   top: 0;
   height: 100vh;
   margin-left: 2px;
-  padding: 8px 4px;
+  padding: 8px 8px;
   background: linear-gradient(180deg, #ffd8e4 0%, #ffc6d8 100%);
   backdrop-filter: blur(10px);
   border-right: none;
@@ -179,6 +179,7 @@ const handleLogout = () => {
     font-weight: 800;
     color: #111111;
     letter-spacing: 0.2px;
+    font-size: 22px;
   }
   .t2 {
     margin-top: 2px;
@@ -199,14 +200,16 @@ const handleLogout = () => {
 }
 
 .menu-item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 11px 12px;
-  border-radius: var(--r);
+  border-radius: 18px;
   color: #4b5563;
   text-decoration: none;
-  border: 1px solid transparent;
+  border: 1px solid rgba(255, 107, 139, 0.2);
+  background: rgba(255, 255, 255, 0.2);
   transition: all 0.2s ease;
   font-size: 16px;
 
@@ -238,6 +241,10 @@ const handleLogout = () => {
       border-color: rgba(255, 107, 139, 0.35);
     }
   }
+}
+
+.menu-item + .menu-item::before {
+  display: none;
 }
 
 .main {
