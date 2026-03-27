@@ -122,18 +122,33 @@ export class UsersService {
     if (!/^1[3-9]\d{9}$/.test(normalized)) {
       throw new BadRequestException('请输入有效的手机号');
     }
-    const dup = await this.prisma.user.findFirst({
-      where: { phone: normalized, NOT: { id: userId } },
-      select: { id: true },
-    });
-    if (dup) {
-      throw new BadRequestException('该手机号已被其他账号绑定');
+    try {
+      const dup = await this.prisma.user.findFirst({
+        where: { phone: normalized, NOT: { id: userId } },
+        select: { id: true },
+      });
+      if (dup) {
+        throw new BadRequestException('该手机号已被其他账号绑定');
+      }
+      return this.prisma.user.update({
+        where: { id: userId },
+        data: { phone: normalized },
+        select: userSafeSelect,
+      });
+    } catch (e: unknown) {
+      // 数据库尚未执行 phone 列迁移时，给出明确提示而不是 500
+      if (
+        e &&
+        typeof e === 'object' &&
+        'code' in e &&
+        String((e as { code?: string }).code) === 'P2022'
+      ) {
+        throw new BadRequestException(
+          '数据库缺少 users.phone 字段，请先执行手机号迁移（ALTER TABLE users ADD COLUMN phone VARCHAR(20) NULL）',
+        );
+      }
+      throw e;
     }
-    return this.prisma.user.update({
-      where: { id: userId },
-      data: { phone: normalized },
-      select: userSafeSelect,
-    });
   }
 
   async uploadAvatar(

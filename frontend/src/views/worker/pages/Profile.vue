@@ -215,6 +215,9 @@
       title="绑定手机号"
       ok-text="确认绑定"
       cancel-text="取消"
+      :ok-button-props="{
+        style: { backgroundColor: '#ff6b8b', borderColor: '#ff6b8b', color: '#fff' },
+      }"
       :confirm-loading="phoneSubmitting"
       destroy-on-close
       @ok="submitBindPhone"
