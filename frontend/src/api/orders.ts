@@ -15,6 +15,7 @@ function unwrapList<T>(res: unknown): T[] {
 export const ordersApi = {
   createOrder: (data: any) => httpClient.post<unknown>('/orders', data).then((res) => unwrap(res)),
   getAdminOrders: () => httpClient.get<unknown>('/orders').then((res) => unwrap(res)),
+  getWorkerOrders: () => httpClient.get<unknown>('/orders/worker').then((res) => unwrap(res)),
   getOrderById: (id: number) => httpClient.get<unknown>(`/orders/${id}`).then((res) => unwrap(res)),
   getPhotographerBookedDates: (photographerId: number) =>
     httpClient

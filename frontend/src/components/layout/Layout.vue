@@ -13,7 +13,7 @@
           class="content-wrapper"
           :class="{
             'dashboard-home-wrapper': isDashboardHome,
-            'full-bleed-wrapper': isFullBleed,
+            'full-bleed-wrapper': isFullBleed || isWorkerShell,
           }"
         >
           <slot />
@@ -37,6 +37,7 @@ const isHeaderLayout = computed(
   () => route.meta?.layout === 'default' || route.meta?.layout === 'full'
 );
 const isFullBleed = computed(() => route.meta?.layout === 'full');
+const isWorkerShell = computed(() => route.path.startsWith('/worker'));
 const isAdmin = computed(() => authStore.user?.role === 'admin');
 const isDashboardHome = computed(() => route.path === '/dashboard');
 

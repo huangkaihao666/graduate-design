@@ -1,9 +1,6 @@
 <template>
   <div class="page">
     <div class="head">
-      <div>
-        <div class="title">作品管理</div>
-      </div>
       <div class="tags">
         <a-checkable-tag
           v-for="t in categories"
@@ -104,7 +101,14 @@
       </aside>
     </div>
 
-    <a-modal v-model:open="editOpen" title="编辑作品" ok-text="保存" @ok="saveEdit">
+    <a-modal
+      v-model:open="editOpen"
+      title="编辑作品"
+      ok-text="保存"
+      :ok-button-props="{ class: 'portfolio-ok-btn' }"
+      :cancel-button-props="{ class: 'portfolio-cancel-btn' }"
+      @ok="saveEdit"
+    >
       <a-form layout="vertical">
         <a-form-item label="描述">
           <a-textarea v-model:value="editDesc" :rows="3" />
@@ -123,6 +127,8 @@
       :width="500"
       :style="{ top: '210px' }"
       ok-type="danger"
+      :ok-button-props="{ class: 'portfolio-ok-btn' }"
+      :cancel-button-props="{ class: 'portfolio-cancel-btn' }"
       @ok="confirmDelete"
       @cancel="cancelDelete"
     >
@@ -317,6 +323,7 @@ onMounted(() => {
 .page {
   --pink: #ff6b8b;
   --r: 12px;
+  padding-top: 12px;
 }
 .head {
   display: flex;
@@ -343,16 +350,22 @@ onMounted(() => {
 }
 .pill-tag {
   border-radius: 999px;
-  padding: 4px 12px;
-  border: 1px solid rgba(255, 107, 139, 0.18);
-  background: rgba(255, 107, 139, 0.08);
-  color: #d6336c;
-  font-weight: 800;
+  padding: 7px 16px;
+  border: 1px solid rgba(255, 107, 139, 0.14);
+  background: rgba(255, 107, 139, 0.05);
+  color: #e35d86;
+  font-weight: 700;
+  font-size: 15px;
 }
-.pill-tag:deep(.ant-tag-checkable-checked) {
-  background: var(--pink);
-  border-color: var(--pink);
-  color: #fff;
+.pill-tag:hover {
+  color: #be185d;
+  border-color: rgba(244, 63, 94, 0.38);
+  background: rgba(244, 63, 94, 0.14);
+}
+.pill-tag.ant-tag-checkable-checked {
+  color: #be185d;
+  border-color: rgba(244, 63, 94, 0.38);
+  background: rgba(244, 63, 94, 0.14);
 }
 
 .grid {
@@ -511,5 +524,32 @@ onMounted(() => {
   margin-top: 2px;
   font-size: 12px;
   color: #6b7280;
+}
+</style>
+
+<style lang="less">
+.ant-btn.portfolio-ok-btn {
+  background: #ff6b8b !important;
+  border-color: #ff6b8b !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+.ant-btn.portfolio-ok-btn:hover,
+.ant-btn.portfolio-ok-btn:focus,
+.ant-btn.portfolio-ok-btn:active {
+  background: #ef476f !important;
+  border-color: #ef476f !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+.ant-btn.portfolio-cancel-btn:hover,
+.ant-btn.portfolio-cancel-btn:focus,
+.ant-btn.portfolio-cancel-btn:active {
+  color: #d6336c !important;
+  border-color: #ff9fbc !important;
+  background: #fff5f8 !important;
+  box-shadow: none !important;
 }
 </style>

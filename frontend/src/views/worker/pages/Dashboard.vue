@@ -1,7 +1,5 @@
 <template>
   <div class="page">
-    <div class="page-title">首页工作台</div>
-
     <div class="grid">
       <section class="main">
         <div class="top-cards">

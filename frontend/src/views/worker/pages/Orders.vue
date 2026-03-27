@@ -1,10 +1,6 @@
 <template>
   <div class="page">
     <div class="head">
-      <div>
-        <div class="title">我的订单</div>
-        <div class="sub">卡片式列表 + 右侧详情面板，温柔粉系风格。</div>
-      </div>
       <div class="filters">
         <a-space>
           <a-select v-model:value="status" class="pill" style="width: 140px">
@@ -13,7 +9,13 @@
             <a-select-option value="confirmed">已确认</a-select-option>
             <a-select-option value="completed">已完成</a-select-option>
           </a-select>
-          <a-date-picker v-model:value="date" class="pill" placeholder="按日期筛选" />
+          <a-date-picker
+            v-model:value="date"
+            class="pill"
+            placeholder="按日期筛选"
+            :locale="datePickerLocaleZhCN"
+            popup-class-name="orders-filter-date-popup"
+          />
           <a-button class="pill ghost" @click="load">筛选</a-button>
         </a-space>
       </div>
@@ -84,8 +86,7 @@
           <div class="btns">
             <a-button
               v-if="selected && selected.uiStatus === 'pending'"
-              type="primary"
-              class="pill"
+              class="pill take-btn"
               @click="openTakeConfirm"
             >
               确认接单
@@ -93,7 +94,6 @@
             <a-button type="primary" class="pill ghost" @click="reschedule">修改时间</a-button>
             <a-button type="primary" class="pill ghost" @click="contact">联系客户</a-button>
           </div>
-          <div class="tip">说明：确认接单与改期已接入后端。</div>
         </div>
       </aside>
     </div>
@@ -106,7 +106,16 @@
       cancel-text="取消"
       centered
       class="take-confirm-modal"
-      :ok-button-props="{ class: 'take-ok-btn' }"
+      :ok-button-props="{
+        class: 'take-ok-btn',
+        style: {
+          backgroundColor: '#ff6b8b',
+          borderColor: '#ff6b8b',
+          color: '#fff',
+          boxShadow: 'none',
+        },
+      }"
+      :cancel-button-props="{ class: 'take-cancel-btn' }"
       @ok="confirm"
     >
       <div class="confirm-body">是否确认接下该订单？</div>
@@ -118,11 +127,18 @@
       :confirm-loading="rescheduleSubmitting"
       ok-text="确认修改"
       cancel-text="取消"
+      :ok-button-props="{ class: 'take-ok-btn' }"
+      :cancel-button-props="{ class: 'take-cancel-btn' }"
       @ok="submitReschedule"
     >
       <a-form layout="vertical">
         <a-form-item label="新拍摄日期">
-          <a-date-picker v-model:value="rescheduleDate" style="width: 100%" />
+          <a-date-picker
+            v-model:value="rescheduleDate"
+            style="width: 100%"
+            :locale="datePickerLocaleZhCN"
+            popup-class-name="reschedule-date-popup"
+          />
         </a-form-item>
         <a-form-item label="备注（可选）">
           <a-input v-model:value="rescheduleNote" placeholder="如：客户有事，改到下周" />
@@ -258,8 +274,10 @@ import hero2Image from '@/assets/images/hero/hero2.jpg';
 import { TRAVEL_STYLE_LABELS } from '@/constants/travel-style-labels';
 import { useAuthStore } from '@/store/auth';
 import { unwrapOrderListPayload } from '@/utils/workerOrders';
+import datePickerLocaleZhCN from 'ant-design-vue/es/date-picker/locale/zh_CN';
 import { message } from 'ant-design-vue';
 import dayjs, { Dayjs } from 'dayjs';
+import 'dayjs/locale/zh-cn';
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
@@ -284,6 +302,7 @@ const rescheduleNote = ref('');
 const takeConfirmOpen = ref(false);
 const takeSubmitting = ref(false);
 const deepDetailOpen = ref(false);
+dayjs.locale('zh-cn');
 
 const demoIdPhotos = [hero2Image];
 
@@ -488,6 +507,7 @@ onMounted(() => {
 .page {
   --pink: #ff6b8b;
   --r: 12px;
+  padding-top: 8px;
 }
 
 .head {
@@ -639,8 +659,38 @@ onMounted(() => {
 }
 .pill {
   border-radius: 999px;
+}
+:deep(.ant-btn.pill) {
   background: var(--pink);
   border-color: var(--pink);
+}
+:deep(.ant-picker.pill) {
+  background: rgba(255, 107, 139, 0.12);
+  border-color: rgba(255, 107, 139, 0.26);
+}
+:deep(.ant-picker.pill .ant-picker-input > input) {
+  color: #1f2937;
+}
+:deep(.ant-picker.pill .ant-picker-input > input::placeholder) {
+  color: #6b7280;
+}
+:deep(.ant-picker.pill .ant-picker-suffix),
+:deep(.ant-picker.pill .ant-picker-clear) {
+  color: #374151;
+}
+.take-btn {
+  background: #ff6b8b !important;
+  border-color: #ff6b8b !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+.take-btn:hover,
+.take-btn:focus,
+.take-btn:active {
+  background: #ef476f !important;
+  border-color: #ef476f !important;
+  color: #fff !important;
+  box-shadow: none !important;
 }
 .pill.ghost {
   background: rgba(255, 107, 139, 0.1);
@@ -945,14 +995,154 @@ onMounted(() => {
 }
 
 :deep(.take-confirm-modal .ant-modal-footer .take-ok-btn) {
-  background: #ffd6e2 !important;
-  border-color: #ffc2d3 !important;
-  color: #be185d !important;
+  background: #ff6b8b !important;
+  border-color: #ff6b8b !important;
+  color: #fff !important;
   font-weight: 700;
+  box-shadow: none !important;
 }
 
-:deep(.take-confirm-modal .ant-modal-footer .take-ok-btn:hover) {
-  background: #ffc9d9 !important;
-  border-color: #ffb1c7 !important;
+:deep(.take-confirm-modal .ant-modal-footer .take-ok-btn:hover),
+:deep(.take-confirm-modal .ant-modal-footer .take-ok-btn:focus),
+:deep(.take-confirm-modal .ant-modal-footer .take-ok-btn:active) {
+  background: #e11d48 !important;
+  border-color: #e11d48 !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+:deep(.take-confirm-modal .ant-modal-footer .take-cancel-btn:hover),
+:deep(.take-confirm-modal .ant-modal-footer .take-cancel-btn:focus),
+:deep(.take-confirm-modal .ant-modal-footer .take-cancel-btn:active) {
+  color: #d6336c !important;
+  border-color: #ff9fbc !important;
+  background: #fff5f8 !important;
+  box-shadow: 0 0 0 2px rgba(255, 107, 139, 0.18) !important;
+}
+
+/* 兜底：直接命中按钮类，避免 Teleport/层级影响 */
+:deep(.ant-btn.take-ok-btn:hover),
+:deep(.ant-btn.take-ok-btn:focus),
+:deep(.ant-btn.take-ok-btn:active) {
+  background: #e11d48 !important;
+  border-color: #e11d48 !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+:deep(.ant-btn.take-cancel-btn:hover),
+:deep(.ant-btn.take-cancel-btn:focus),
+:deep(.ant-btn.take-cancel-btn:active) {
+  color: #d6336c !important;
+  border-color: #ff9fbc !important;
+  background: #fff5f8 !important;
+  box-shadow: 0 0 0 2px rgba(255, 107, 139, 0.18) !important;
+}
+</style>
+
+<style lang="less">
+.ant-btn.take-ok-btn {
+  background: #ff6b8b !important;
+  border-color: #ff6b8b !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+.ant-btn.take-ok-btn:hover,
+.ant-btn.take-ok-btn:focus,
+.ant-btn.take-ok-btn:active {
+  background: #ef476f !important;
+  border-color: #ef476f !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+.ant-btn.take-cancel-btn:hover,
+.ant-btn.take-cancel-btn:focus,
+.ant-btn.take-cancel-btn:active {
+  color: #d6336c !important;
+  border-color: #ff9fbc !important;
+  background: #fff5f8 !important;
+  box-shadow: none !important;
+}
+
+.reschedule-date-popup {
+  .ant-picker-panel-container {
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 107, 139, 0.2);
+    box-shadow: 0 10px 24px rgba(255, 107, 139, 0.16);
+  }
+
+  .ant-picker-header {
+    background: #fff4f8;
+    border-bottom-color: rgba(255, 107, 139, 0.18);
+  }
+
+  .ant-picker-content th {
+    color: #be185d;
+    font-weight: 700;
+  }
+
+  .ant-picker-cell-in-view.ant-picker-cell-selected .ant-picker-cell-inner,
+  .ant-picker-cell-in-view.ant-picker-cell-range-start .ant-picker-cell-inner,
+  .ant-picker-cell-in-view.ant-picker-cell-range-end .ant-picker-cell-inner {
+    background: #ff6b8b;
+    color: #fff;
+  }
+
+  .ant-picker-cell-in-view.ant-picker-cell-today .ant-picker-cell-inner::before {
+    border-color: #ff6b8b;
+  }
+
+  .ant-picker-cell-in-view:hover .ant-picker-cell-inner {
+    background: rgba(255, 107, 139, 0.12);
+  }
+
+  .ant-picker-today-btn {
+    color: #ff6b8b;
+    font-weight: 700;
+  }
+
+  .ant-picker-today-btn:hover {
+    color: #ef476f;
+  }
+}
+
+.orders-filter-date-popup {
+  .ant-picker-panel-container {
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 107, 139, 0.2);
+    box-shadow: 0 10px 24px rgba(255, 107, 139, 0.16);
+  }
+
+  .ant-picker-header {
+    background: #fff4f8;
+    border-bottom-color: rgba(255, 107, 139, 0.18);
+  }
+
+  .ant-picker-content th {
+    color: #be185d;
+    font-weight: 700;
+  }
+
+  .ant-picker-cell-in-view.ant-picker-cell-selected .ant-picker-cell-inner {
+    background: #ff6b8b;
+    color: #fff;
+  }
+
+  .ant-picker-cell-in-view.ant-picker-cell-today .ant-picker-cell-inner::before {
+    border-color: #ff6b8b;
+  }
+
+  .ant-picker-cell-in-view:hover .ant-picker-cell-inner {
+    background: rgba(255, 107, 139, 0.12);
+  }
+
+  .ant-picker-today-btn {
+    color: #ff6b8b;
+    font-weight: 700;
+  }
 }
 </style>

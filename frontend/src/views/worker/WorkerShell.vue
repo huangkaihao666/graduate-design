@@ -5,7 +5,7 @@
       <div class="brand">
         <div class="logo">W</div>
         <div class="brand-text">
-          <div class="t1">工作人员工作台</div>
+          <div class="t1">工作台</div>
           <div class="t2">婚纱旅拍 · 温柔粉系</div>
         </div>
       </div>
@@ -44,7 +44,7 @@
             <template #overlay>
               <a-menu>
                 <a-menu-item key="worker-dashboard">
-                  <router-link to="/worker/dashboard">工作人员工作台</router-link>
+                  <router-link to="/worker/dashboard">工作台</router-link>
                 </a-menu-item>
                 <a-menu-item key="worker-orders">
                   <router-link to="/worker/orders">订单列表</router-link>
@@ -87,8 +87,8 @@
 
 <script setup lang="ts">
 import { useAuthStore } from '@/store/auth';
-import { computed } from 'vue';
 import { message } from 'ant-design-vue';
+import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 const authStore = useAuthStore();
@@ -105,7 +105,7 @@ const sideItems = computed(() => [
 ]);
 
 const topTabs = computed(() => [
-  { label: '工作人员工作台', to: '/worker/dashboard' },
+  { label: '工作台', to: '/worker/dashboard' },
   { label: '我的订单', to: '/worker/orders' },
   { label: '档期管理', to: '/worker/schedule' },
   { label: '作品管理', to: '/worker/portfolio' },
@@ -140,17 +140,18 @@ const handleLogout = () => {
   min-height: 100vh;
   background: linear-gradient(180deg, #fff5f7 0%, #ffffff 45%);
   display: grid;
-  grid-template-columns: 264px 1fr;
+  grid-template-columns: 222px 1fr;
 }
 
 .side {
   position: sticky;
   top: 0;
   height: 100vh;
-  padding: 18px 14px;
-  background: rgba(255, 255, 255, 0.82);
+  margin-left: 2px;
+  padding: 8px 4px;
+  background: linear-gradient(180deg, #ffd8e4 0%, #ffc6d8 100%);
   backdrop-filter: blur(10px);
-  border-right: 1px solid var(--border);
+  border-right: none;
 }
 
 .brand {
@@ -176,7 +177,7 @@ const handleLogout = () => {
   min-width: 0;
   .t1 {
     font-weight: 800;
-    color: var(--text);
+    color: #111111;
     letter-spacing: 0.2px;
   }
   .t2 {
@@ -253,7 +254,7 @@ const handleLogout = () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 22px;
+  padding: 0 10px 0 14px;
   background: rgba(255, 255, 255, 0.82);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border);
@@ -264,6 +265,7 @@ const handleLogout = () => {
   gap: 18px;
   overflow: auto;
   padding-bottom: 2px;
+  margin-left: 22px;
 }
 
 .top-item {
@@ -352,8 +354,8 @@ const handleLogout = () => {
 }
 
 .content {
-  padding: 18px 22px 28px;
-  max-width: 1400px;
+  padding: 8px 16px 10px 20px;
+  max-width: none;
   width: 100%;
 }
 
@@ -367,5 +369,72 @@ const handleLogout = () => {
     border-right: none;
     border-bottom: 1px solid var(--border);
   }
+}
+</style>
+
+<style lang="less">
+body.worker-theme .ant-btn-primary {
+  background: #ff6b8b !important;
+  border-color: #ff6b8b !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+body.worker-theme .ant-btn-primary:hover,
+body.worker-theme .ant-btn-primary:focus,
+body.worker-theme .ant-btn-primary:active {
+  background: #ef476f !important;
+  border-color: #ef476f !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+body.worker-theme .ant-btn-default:hover,
+body.worker-theme .ant-btn-default:focus,
+body.worker-theme .ant-btn-default:active {
+  color: #d6336c !important;
+  border-color: #ff9fbc !important;
+  background: #fff5f8 !important;
+  box-shadow: none !important;
+}
+
+body.worker-theme .ant-btn.worker-confirm-ok-btn {
+  background: #ff6b8b !important;
+  border-color: #ff6b8b !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+body.worker-theme .ant-btn.worker-confirm-ok-btn:hover,
+body.worker-theme .ant-btn.worker-confirm-ok-btn:focus,
+body.worker-theme .ant-btn.worker-confirm-ok-btn:active {
+  background: #ef476f !important;
+  border-color: #ef476f !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+body.worker-theme .ant-btn.worker-confirm-cancel-btn:hover,
+body.worker-theme .ant-btn.worker-confirm-cancel-btn:focus,
+body.worker-theme .ant-btn.worker-confirm-cancel-btn:active {
+  color: #d6336c !important;
+  border-color: #ff9fbc !important;
+  background: #fff5f8 !important;
+  box-shadow: none !important;
+}
+
+body.worker-theme .worker-confirm-modal .ant-modal-content {
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fff8fb 0%, #ffffff 100%);
+}
+
+body.worker-theme .worker-confirm-modal .ant-modal-header {
+  background: transparent;
+  border-bottom: 1px solid rgba(255, 107, 139, 0.16);
+}
+
+body.worker-theme .worker-confirm-modal .ant-modal-title {
+  color: #be185d;
+  font-weight: 800;
 }
 </style>

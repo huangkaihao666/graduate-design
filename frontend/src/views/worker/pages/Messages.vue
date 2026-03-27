@@ -1,12 +1,5 @@
 <template>
   <div class="page">
-    <div class="head">
-      <div>
-        <div class="title">消息中心</div>
-        <div class="sub">会话列表 + 聊天窗口（文字/图片）+ 右侧客户信息与快捷回复。</div>
-      </div>
-    </div>
-
     <div class="grid">
       <section class="panel list">
         <div class="list-head">
@@ -29,7 +22,12 @@
             <div class="meta">
               <div class="row1">
                 <span class="name">{{ c.name }}</span>
-                <span v-if="c.unread" class="badge">{{ c.unread }}</span>
+                <span class="row1-right">
+                  <span v-if="c.unread" class="badge">{{ c.unread }}</span>
+                  <a-button type="text" size="small" class="del-btn" @click.stop="removeConv(c)">
+                    删除
+                  </a-button>
+                </span>
               </div>
               <div class="row2">{{ c.last }}</div>
             </div>
@@ -72,7 +70,7 @@
             v-model:value="draft"
             :rows="2"
             placeholder="输入消息，回车发送（Shift+Enter 换行）"
-            @pressEnter="onEnter"
+            @press-enter="onEnter"
           />
           <a-button type="primary" class="pill" :disabled="!selected" @click="sendText"
             >发送</a-button
@@ -106,7 +104,8 @@
             <a-button
               v-for="(t, idx) in quickReplies"
               :key="idx"
-              class="pill ghost"
+              class="pill ghost quick-btn"
+              :title="t"
               @click="sendQuick(t)"
             >
               {{ t }}
@@ -125,8 +124,8 @@ import {
   orderNoFromThreadId,
   sharedOrderMessagesStorageKey,
 } from '@/utils/orderChatStorage';
-import { message } from 'ant-design-vue';
 import type { UploadProps } from 'ant-design-vue';
+import { message, Modal } from 'ant-design-vue';
 import dayjs from 'dayjs';
 import { computed, nextTick, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
@@ -348,6 +347,50 @@ const markRead = () => {
   message.success('已标为已读');
 };
 
+const removeConv = (c: Conv) => {
+  Modal.confirm({
+    class: 'worker-confirm-modal',
+    title: '确认删除该会话？',
+    content: '删除后将同时清空该会话的本地聊天记录，且不可恢复。',
+    okText: '确认删除',
+    cancelText: '取消',
+    okType: 'danger',
+    onOk: () => {
+      const id = c.id;
+      const idx = convs.value.findIndex((x) => x.id === id);
+      if (idx === -1) return;
+
+      convs.value.splice(idx, 1);
+      try {
+        localStorage.removeItem(threadKey(id));
+      } catch {
+        /* ignore */
+      }
+
+      if (selected.value?.id === id) {
+        selected.value = convs.value[0] || null;
+        if (selected.value) {
+          loadMessages(selected.value);
+          try {
+            localStorage.setItem(lastSelectedKey(), selected.value.id);
+          } catch {
+            /* ignore */
+          }
+        } else {
+          messages.value = [];
+          try {
+            localStorage.removeItem(lastSelectedKey());
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+      saveConvs();
+      message.success('会话已删除');
+    },
+  });
+};
+
 const sendText = () => {
   if (!selected.value) return;
   const text = draft.value.trim();
@@ -480,16 +523,21 @@ onMounted(() => {
   gap: 10px;
   padding: 10px;
   border-radius: var(--r);
-  border: 1px solid transparent;
+  border: 1px solid rgba(17, 24, 39, 0.12);
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(17, 24, 39, 0.04);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 .conv-item:hover {
-  background: rgba(255, 107, 139, 0.06);
+  background: rgba(255, 107, 139, 0.05);
+  border-color: rgba(255, 107, 139, 0.28);
+  box-shadow: 0 6px 14px rgba(255, 107, 139, 0.1);
 }
 .conv-item.active {
   background: linear-gradient(135deg, rgba(255, 107, 139, 0.12) 0%, rgba(255, 155, 180, 0.08) 100%);
-  border-color: rgba(255, 107, 139, 0.25);
+  border-color: rgba(255, 107, 139, 0.38);
+  box-shadow: 0 8px 16px rgba(255, 107, 139, 0.12);
 }
 .meta {
   min-width: 0;
@@ -500,6 +548,11 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+.row1-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 .name {
   font-weight: 900;
@@ -512,6 +565,21 @@ onMounted(() => {
   background: #ff4d4f;
   border-radius: 999px;
   padding: 2px 8px;
+}
+.del-btn {
+  color: #be123c;
+  padding: 0 6px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+.del-btn:hover {
+  color: #9f1239;
+}
+.conv-item:hover .del-btn,
+.conv-item.active .del-btn {
+  opacity: 1;
+  pointer-events: auto;
 }
 .row2 {
   margin-top: 2px;
@@ -630,9 +698,17 @@ onMounted(() => {
   color: #9ca3af;
 }
 .quick {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 10px;
+}
+.quick-btn {
+  width: 100%;
+  max-width: none;
+  display: inline-flex;
+  justify-content: flex-start;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .pill {
   border-radius: 999px;

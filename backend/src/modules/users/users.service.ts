@@ -9,15 +9,11 @@ import { CreateUserDto } from './dto/create-user.dto';
  * 若 Prisma schema 与数据库不同步（例如 schema 多了未迁移的字段），
  * 不带 select 的 findUnique 会触发 P2022，JWT 等接口会 500。
  */
-/**
- * 若已在 MySQL 执行 `users.phone` 列迁移，请在两处 select 中加回 `phone: true`，
- * 否则登录/资料接口里的 user 不会带手机号（但不影响登录）。
- * 迁移 SQL 见：prisma/migrations/20260327120000_add_user_phone/migration.sql
- */
 const userTableSelect = {
   id: true,
   email: true,
   name: true,
+  phone: true,
   password: true,
   avatar: true,
   isActive: true,
@@ -34,6 +30,7 @@ const userSafeSelect = {
   id: true,
   email: true,
   name: true,
+  phone: true,
   avatar: true,
   isActive: true,
   role: true,

@@ -172,13 +172,23 @@
         <div class="panel">
           <div class="panel-h"><div class="panel-title">平台通知</div></div>
           <div class="notice">
-            <div class="n-item">
-              <div class="n-title">订单提醒</div>
-              <div class="n-body">有新订单/改期申请时会在此提示（演示）。</div>
-            </div>
-            <div class="n-item">
-              <div class="n-title">系统公告</div>
-              <div class="n-body">温柔粉系 UI 已上线，支持消息图片发送（本地演示）。</div>
+            <a-spin v-if="noticesLoading" />
+            <div
+              v-for="n in notices"
+              v-else
+              :key="n.id"
+              class="n-item"
+              :class="{ unread: !n.read }"
+              @click="markNoticeRead(n.id)"
+            >
+              <div class="n-title">
+                <span>{{ n.title }}</span>
+                <span class="n-state" :class="n.read ? 'read' : 'unread'">{{
+                  n.read ? '已读' : '未读'
+                }}</span>
+              </div>
+              <div class="n-body">{{ n.body }}</div>
+              <div class="n-time">{{ n.timeText }}</div>
             </div>
           </div>
         </div>
@@ -190,9 +200,8 @@
       title="修改密码"
       ok-text="确认修改"
       cancel-text="取消"
-      :ok-button-props="{
-        style: { backgroundColor: '#ff6b8b', borderColor: '#ff6b8b', color: '#fff' },
-      }"
+      :ok-button-props="{ class: 'profile-ok-btn' }"
+      :cancel-button-props="{ class: 'profile-cancel-btn' }"
       :confirm-loading="pwdSubmitting"
       destroy-on-close
       @ok="submitChangePassword"
@@ -215,9 +224,8 @@
       title="绑定手机号"
       ok-text="确认绑定"
       cancel-text="取消"
-      :ok-button-props="{
-        style: { backgroundColor: '#ff6b8b', borderColor: '#ff6b8b', color: '#fff' },
-      }"
+      :ok-button-props="{ class: 'profile-ok-btn' }"
+      :cancel-button-props="{ class: 'profile-cancel-btn' }"
       :confirm-loading="phoneSubmitting"
       destroy-on-close
       @ok="submitBindPhone"
@@ -234,9 +242,11 @@
 
 <script setup lang="ts">
 import { authApi } from '@/api/auth';
+import { ordersApi } from '@/api/orders';
 import { photographersApi } from '@/api/photographers';
 import { useAuthStore } from '@/store/auth';
 import { getApiErrorMessage } from '@/utils/apiError';
+import { unwrapOrderListPayload } from '@/utils/workerOrders';
 import { UploadOutlined } from '@ant-design/icons-vue';
 import type { UploadProps } from 'ant-design-vue';
 import { message } from 'ant-design-vue';
@@ -257,8 +267,19 @@ const pwdForm = reactive({
 const phoneModalOpen = ref(false);
 const phoneSubmitting = ref(false);
 const phoneForm = reactive({ phone: '' });
+const noticesLoading = ref(false);
+type NoticeItem = {
+  id: string;
+  title: string;
+  body: string;
+  time: number;
+  timeText: string;
+  read: boolean;
+};
+const notices = ref<NoticeItem[]>([]);
 
 const storageKey = computed(() => `worker_profile_local_v1_${authStore.user?.id ?? 'guest'}`);
+const noticeReadKey = computed(() => `worker_notice_read_ids_v1_${authStore.user?.id ?? 'guest'}`);
 
 const form = reactive({
   role: 'photographer',
@@ -362,6 +383,35 @@ const parseAvailableDates = (text: string): string[] => {
     out.push(t);
   }
   return out.sort();
+};
+
+const formatNoticeTime = (ts: number) => {
+  const d = new Date(ts);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${y}-${m}-${day} ${hh}:${mm}`;
+};
+
+const parseTs = (v: unknown): number => {
+  const t = typeof v === 'string' ? Date.parse(v) : NaN;
+  return Number.isFinite(t) ? t : Date.now();
+};
+
+const loadReadIds = (): Set<string> => {
+  try {
+    const raw = localStorage.getItem(noticeReadKey.value);
+    const arr = raw ? (JSON.parse(raw) as string[]) : [];
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch {
+    return new Set<string>();
+  }
+};
+
+const saveReadIds = (ids: Set<string>) => {
+  localStorage.setItem(noticeReadKey.value, JSON.stringify(Array.from(ids)));
 };
 
 const save = async () => {
@@ -471,6 +521,140 @@ const submitBindPhone = async () => {
   }
 };
 
+const markNoticeRead = (id: string) => {
+  const i = notices.value.findIndex((x) => x.id === id);
+  if (i === -1 || notices.value[i]?.read) return;
+  notices.value[i] = { ...notices.value[i], read: true };
+  const ids = loadReadIds();
+  ids.add(id);
+  saveReadIds(ids);
+};
+
+const loadNotices = async () => {
+  noticesLoading.value = true;
+  try {
+    const workerRes = await ordersApi.getWorkerOrders();
+    const workerOrders = unwrapOrderListPayload(workerRes as any);
+    const rows = Array.isArray(workerOrders) ? workerOrders : [];
+
+    const pendingTake = rows.filter(
+      (x: any) => !Number(x?.workerUserId || 0) && !String(x?.workerTakenAt || '').trim()
+    ).length;
+    const pendingReschedule = rows.filter(
+      (x: any) => String(x?.rescheduleRequestStatus || '').toLowerCase() === 'pending'
+    ).length;
+    const today = new Date();
+    const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const todayShootings = rows.filter(
+      (x: any) => String(x?.shootingDate || '').slice(0, 10) === todayKey
+    ).length;
+
+    const realOrderNotices: Array<Omit<NoticeItem, 'read' | 'timeText'>> = [];
+    if (pendingTake > 0) {
+      const latestTs = Math.max(
+        ...rows
+          .filter(
+            (x: any) => !Number(x?.workerUserId || 0) && !String(x?.workerTakenAt || '').trim()
+          )
+          .map((x: any) => parseTs(x?.createdAt))
+      );
+      realOrderNotices.push({
+        id: `order-pending-take-${pendingTake}-${latestTs}`,
+        title: '待接单提醒',
+        body: `当前有 ${pendingTake} 条订单待接单，请及时处理。`,
+        time: latestTs,
+      });
+    }
+    if (pendingReschedule > 0) {
+      const latestTs = Math.max(
+        ...rows
+          .filter((x: any) => String(x?.rescheduleRequestStatus || '').toLowerCase() === 'pending')
+          .map((x: any) => parseTs(x?.rescheduleRequestedAt || x?.updatedAt || x?.createdAt))
+      );
+      realOrderNotices.push({
+        id: `order-reschedule-pending-${pendingReschedule}-${latestTs}`,
+        title: '改期申请提醒',
+        body: `当前有 ${pendingReschedule} 条改期申请待处理。`,
+        time: latestTs,
+      });
+    }
+    if (todayShootings > 0) {
+      const latestTs = Math.max(
+        ...rows
+          .filter((x: any) => String(x?.shootingDate || '').slice(0, 10) === todayKey)
+          .map((x: any) => parseTs(`${String(x?.shootingDate).slice(0, 10)}T09:00:00`))
+      );
+      realOrderNotices.push({
+        id: `order-today-shooting-${todayShootings}-${todayKey}`,
+        title: '今日拍摄提醒',
+        body: `今天有 ${todayShootings} 条拍摄安排，请提前确认客户沟通与档期。`,
+        time: latestTs,
+      });
+    }
+    if (!realOrderNotices.length) {
+      realOrderNotices.push({
+        id: `order-empty-${todayKey}`,
+        title: '订单提醒',
+        body: '当前暂无待处理订单提醒。',
+        time: Date.now() - 60 * 1000,
+      });
+    }
+
+    const realSystemNotices: Array<Omit<NoticeItem, 'read' | 'timeText'>> = [];
+    const profileTs = parseTs(authStore.user?.updatedAt);
+    if (authStore.user?.phone) {
+      realSystemNotices.push({
+        id: `sys-phone-bound-${String(authStore.user.phone)}`,
+        title: '账号状态',
+        body: `已绑定手机号：${String(authStore.user.phone)}`,
+        time: profileTs,
+      });
+    } else {
+      realSystemNotices.push({
+        id: 'sys-phone-unbound',
+        title: '账号安全提醒',
+        body: '建议尽快绑定手机号，便于接收通知与找回账号。',
+        time: profileTs,
+      });
+    }
+    if (authStore.user?.workerPhotographerId) {
+      realSystemNotices.push({
+        id: `sys-worker-bind-${authStore.user.workerPhotographerId}`,
+        title: '档案关联状态',
+        body: `当前账号已关联摄影师档案（ID: ${authStore.user.workerPhotographerId}）。`,
+        time: profileTs - 1000,
+      });
+    }
+    realSystemNotices.push({
+      id: `sys-order-overview-${rows.length}`,
+      title: '订单数据概览',
+      body: `系统已同步到你名下共 ${rows.length} 条订单记录。`,
+      time: Date.now() - 2000,
+    });
+    const readIds = loadReadIds();
+    notices.value = [...realOrderNotices, ...realSystemNotices]
+      .map((x) => ({
+        ...x,
+        read: readIds.has(x.id),
+        timeText: formatNoticeTime(x.time),
+      }))
+      .sort((a, b) => b.time - a.time);
+  } catch {
+    notices.value = [
+      {
+        id: `sys-load-error-${Date.now()}`,
+        title: '系统公告',
+        body: '系统通知加载失败，请稍后重试。',
+        time: Date.now(),
+        timeText: formatNoticeTime(Date.now()),
+        read: false,
+      },
+    ];
+  } finally {
+    noticesLoading.value = false;
+  }
+};
+
 onMounted(async () => {
   authStore.initializeAuth();
   load();
@@ -485,6 +669,7 @@ onMounted(async () => {
       /* ignore */
     }
   }
+  void loadNotices();
 });
 </script>
 
@@ -647,15 +832,72 @@ onMounted(async () => {
   border: 1px solid rgba(255, 107, 139, 0.18);
   background: rgba(255, 107, 139, 0.06);
   padding: 12px;
+  cursor: pointer;
+}
+.n-item.unread {
+  border-color: rgba(255, 107, 139, 0.32);
+  background: rgba(255, 107, 139, 0.12);
 }
 .n-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
   font-weight: 900;
   color: #111827;
+}
+.n-state {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 107, 139, 0.25);
+}
+.n-state.unread {
+  color: #be185d;
+  background: rgba(255, 107, 139, 0.12);
+}
+.n-state.read {
+  color: #64748b;
+  background: rgba(148, 163, 184, 0.12);
+  border-color: rgba(148, 163, 184, 0.28);
 }
 .n-body {
   margin-top: 4px;
   color: #6b7280;
   font-size: 13px;
   line-height: 1.6;
+}
+.n-time {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+</style>
+
+<style lang="less">
+.ant-btn.profile-ok-btn {
+  background: #ff6b8b !important;
+  border-color: #ff6b8b !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+.ant-btn.profile-ok-btn:hover,
+.ant-btn.profile-ok-btn:focus,
+.ant-btn.profile-ok-btn:active {
+  background: #ef476f !important;
+  border-color: #ef476f !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+.ant-btn.profile-cancel-btn:hover,
+.ant-btn.profile-cancel-btn:focus,
+.ant-btn.profile-cancel-btn:active {
+  color: #d6336c !important;
+  border-color: #ff9fbc !important;
+  background: #fff5f8 !important;
+  box-shadow: none !important;
 }
 </style>
