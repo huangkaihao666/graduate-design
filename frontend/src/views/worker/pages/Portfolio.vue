@@ -3,7 +3,6 @@
     <div class="head">
       <div>
         <div class="title">作品管理</div>
-        <div class="sub">3 列网格 + 分类标签（粉色胶囊）+ 右侧上传面板与统计。</div>
       </div>
       <div class="tags">
         <a-checkable-tag
@@ -26,7 +25,11 @@
             <div class="mask">
               <a-space>
                 <a-button size="small" class="pill ghost" @click="edit(item)">编辑</a-button>
-                <a-button size="small" danger class="pill ghost" @click="remove(item.url)"
+                <a-button
+                  size="small"
+                  danger
+                  class="pill ghost"
+                  @click="openDeleteConfirm(item.url)"
                   >删除</a-button
                 >
               </a-space>
@@ -50,6 +53,18 @@
             <p class="ant-upload-text">拖拽或点击上传作品图</p>
             <p class="ant-upload-hint">粉色质感卡片风格，支持多张</p>
           </a-upload-dragger>
+          <div v-if="pendingUploads.length" class="pending-wrap">
+            <div class="pending-title">待上传（{{ pendingUploads.length }}）</div>
+            <div class="pending-list">
+              <a-image
+                v-for="u in pendingUploads"
+                :key="u"
+                :src="u"
+                :preview="false"
+                class="pending-img"
+              />
+            </div>
+          </div>
 
           <a-divider />
           <a-form layout="vertical">
@@ -63,9 +78,7 @@
             <a-form-item label="分类">
               <a-segmented v-model:value="draftCat" :options="catOptions" />
             </a-form-item>
-            <a-button type="primary" class="pill" block @click="applyDraft"
-              >应用到最近上传</a-button
-            >
+            <a-button type="primary" class="pill" block @click="applyDraft">上传作品</a-button>
           </a-form>
         </div>
 
@@ -101,13 +114,27 @@
         </a-form-item>
       </a-form>
     </a-modal>
+
+    <a-modal
+      v-model:open="deleteConfirmOpen"
+      title="确认删除作品"
+      ok-text="确认删除"
+      cancel-text="取消"
+      :width="500"
+      :style="{ top: '210px' }"
+      ok-type="danger"
+      @ok="confirmDelete"
+      @cancel="cancelDelete"
+    >
+      <p>删除后不可恢复，确认要删除这张作品吗？</p>
+    </a-modal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { useAuthStore } from '@/store/auth';
-import { message } from 'ant-design-vue';
 import type { UploadProps } from 'ant-design-vue';
+import { message } from 'ant-design-vue';
 import { computed, onMounted, ref } from 'vue';
 
 type Cat = 'wedding' | 'makeup' | 'styling';
@@ -134,8 +161,8 @@ const cat = ref<string>('all');
 const items = ref<Item[]>([]);
 
 const draftDesc = ref('');
-const draftCat = ref<Cat>('wedding');
-const lastUploadedUrls = ref<string[]>([]);
+const draftCat = ref<Cat | undefined>('wedding');
+const pendingUploads = ref<string[]>([]);
 
 const likes = computed(() => Math.max(0, items.value.length * 13));
 const reviews = computed(() => Math.max(0, Math.floor(items.value.length * 1.6)));
@@ -165,21 +192,29 @@ const categoryLabel = (c: Cat) => {
 };
 
 const upload: UploadProps['customRequest'] = async (options) => {
-  // 这里先做“本地演示”：使用 FileReader 转 dataURL 保存到本地
+  // 先加入上传面板的待上传列表，点击“应用”后再真正写入作品列表
   const raw = options.file as File;
   const reader = new FileReader();
   reader.onload = () => {
     const url = String(reader.result || '');
     if (!url) return;
-    items.value.unshift({ url, category: draftCat.value, desc: draftDesc.value.trim() || '' });
-    items.value = dedupe(items.value);
-    save();
-    lastUploadedUrls.value = [url, ...lastUploadedUrls.value].slice(0, 6);
-    message.success('已上传（本地演示保存）');
+    pendingUploads.value = dedupeUrls([url, ...pendingUploads.value]);
+    message.success('已加入待上传列表');
     options.onSuccess?.(url);
   };
   reader.onerror = () => options.onError?.(new Error('读取文件失败'));
   reader.readAsDataURL(raw);
+};
+
+const dedupeUrls = (arr: string[]) => {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const u of arr) {
+    if (!u || seen.has(u)) continue;
+    seen.add(u);
+    out.push(u);
+  }
+  return out;
 };
 
 const dedupe = (arr: Item[]) => {
@@ -197,6 +232,29 @@ const remove = (url: string) => {
   items.value = items.value.filter((x) => x.url !== url);
   save();
   message.success('已删除');
+};
+
+const deleteConfirmOpen = ref(false);
+const pendingDeleteUrl = ref('');
+
+const openDeleteConfirm = (url: string) => {
+  pendingDeleteUrl.value = url;
+  deleteConfirmOpen.value = true;
+};
+
+const cancelDelete = () => {
+  deleteConfirmOpen.value = false;
+  pendingDeleteUrl.value = '';
+};
+
+const confirmDelete = () => {
+  if (!pendingDeleteUrl.value) {
+    deleteConfirmOpen.value = false;
+    return;
+  }
+  remove(pendingDeleteUrl.value);
+  deleteConfirmOpen.value = false;
+  pendingDeleteUrl.value = '';
 };
 
 // 编辑
@@ -227,16 +285,26 @@ const saveEdit = () => {
 };
 
 const applyDraft = () => {
-  if (!lastUploadedUrls.value.length) {
+  if (!pendingUploads.value.length) {
     message.warning('请先上传作品');
     return;
   }
-  const set = new Set(lastUploadedUrls.value);
-  items.value = items.value.map((x) =>
-    set.has(x.url) ? { ...x, desc: draftDesc.value.trim(), category: draftCat.value } : x
-  );
+  if (!draftCat.value) {
+    message.warning('请选择分类');
+    return;
+  }
+  const desc = draftDesc.value.trim();
+  const batch: Item[] = pendingUploads.value.map((url) => ({
+    url,
+    category: draftCat.value as Cat,
+    desc,
+  }));
+  items.value = dedupe([...batch, ...items.value]);
   save();
-  message.success('已应用到最近上传');
+  pendingUploads.value = [];
+  draftDesc.value = '';
+  draftCat.value = undefined;
+  message.success(`已上传 ${batch.length} 张作品`);
 };
 
 onMounted(() => {
@@ -338,11 +406,12 @@ onMounted(() => {
   opacity: 1;
 }
 .meta {
-  padding: 10px 12px;
+  padding: 8px 12px 2px;
   display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  align-items: center;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 0;
+  align-items: flex-start;
 }
 .c {
   font-size: 12px;
@@ -355,12 +424,14 @@ onMounted(() => {
 }
 .d {
   color: #6b7280;
-  font-size: 12px;
-  text-align: right;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 13px;
+  text-align: left;
+  white-space: normal;
+  word-break: break-all;
   flex: 1;
+  line-height: 1.4;
+  margin-top: 12px;
+  margin-bottom: 0;
 }
 
 .panel {
@@ -381,16 +452,41 @@ onMounted(() => {
   font-weight: 900;
   color: #111827;
 }
+.pending-wrap {
+  margin-top: 10px;
+}
+.pending-title {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+.pending-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.pending-img :deep(img) {
+  width: 100%;
+  height: 68px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+}
 
 .pill {
   border-radius: 999px;
   background: var(--pink);
   border-color: var(--pink);
 }
+:deep(.ant-btn-primary.pill:hover),
+:deep(.ant-btn-primary.pill:focus) {
+  background: #ef3b5d;
+  border-color: #ef3b5d;
+}
 .pill.ghost {
-  background: rgba(255, 107, 139, 0.1);
-  border-color: rgba(255, 107, 139, 0.18);
-  color: #d6336c;
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.7);
+  color: #fff;
 }
 
 .stat {

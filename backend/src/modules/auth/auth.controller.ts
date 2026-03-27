@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Patch,
   Post,
   Request,
   UseGuards,
@@ -49,5 +50,31 @@ export class AuthController {
   @Get('profile')
   async getProfile(@Request() req) {
     return req.user;
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '修改密码（需登录）' })
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  async changePassword(
+    @Request() req: { user: { sub: number } },
+    @Body() body: { currentPassword: string; newPassword: string },
+  ) {
+    return this.authService.changePassword(
+      req.user.sub,
+      body.currentPassword,
+      body.newPassword,
+    );
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '绑定手机号（需登录）' })
+  @UseGuards(JwtAuthGuard)
+  @Patch('phone')
+  async bindPhone(
+    @Request() req: { user: { sub: number } },
+    @Body() body: { phone: string },
+  ) {
+    return this.authService.bindPhone(req.user.sub, body.phone);
   }
 }

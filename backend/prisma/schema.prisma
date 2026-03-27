@@ -17,6 +17,8 @@ model User {
   id        Int     @id @default(autoincrement()) @db.UnsignedInt
   email     String  @unique @db.VarChar(255)
   name      String  @db.VarChar(100)
+  /// 绑定手机号（11 位，可选唯一）
+  phone     String? @unique @db.VarChar(20)
   password  String  @db.VarChar(255)
   avatar    String? @db.LongText
   isActive  Boolean @default(true)

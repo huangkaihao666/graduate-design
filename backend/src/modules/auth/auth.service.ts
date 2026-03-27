@@ -3,8 +3,8 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { JwtService } from '@nestjs/jwt';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { UsersService } from '../users/users.service';
 
@@ -44,6 +44,7 @@ export class AuthService {
           id: user.id,
           email: user.email,
           name: user.name,
+          phone: (user as { phone?: string | null }).phone ?? null,
           role: user.role,
           workerPhotographerId: user.workerPhotographerId ?? null,
         },
@@ -76,12 +77,44 @@ export class AuthService {
           id: user.id,
           email: user.email,
           name: user.name,
+          phone: (user as { phone?: string | null }).phone ?? null,
           role: user.role,
           workerPhotographerId: user.workerPhotographerId ?? null,
         },
         ...tokens,
       },
     };
+  }
+
+  /** 已登录用户修改密码 */
+  async changePassword(
+    userId: number,
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    const user = await this.usersService.findOne(userId);
+    if (!user) {
+      throw new UnauthorizedException('用户不存在');
+    }
+    const ok = await bcrypt.compare(currentPassword, user.password);
+    if (!ok) {
+      throw new BadRequestException('当前密码错误');
+    }
+    const next = String(newPassword || '').trim();
+    if (next.length < 6) {
+      throw new BadRequestException('新密码至少 6 位');
+    }
+    if (await bcrypt.compare(next, user.password)) {
+      throw new BadRequestException('新密码不能与当前密码相同');
+    }
+    await this.usersService.resetPassword(userId, next);
+    return { statusCode: 200, message: '密码已更新' };
+  }
+
+  /** 已登录用户绑定手机号 */
+  async bindPhone(userId: number, phone: string) {
+    await this.usersService.bindPhone(userId, phone);
+    return { statusCode: 200, message: '手机号已绑定' };
   }
 
   async refreshToken(refreshToken: string) {

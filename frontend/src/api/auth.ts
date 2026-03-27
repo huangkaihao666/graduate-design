@@ -32,4 +32,7 @@ export const authApi = {
   register: (data: RegisterRequest) => httpClient.post<AuthResponse>('/auth/register', data),
   refreshToken: (refreshToken: string) => httpClient.post('/auth/refresh', { refreshToken }),
   getProfile: () => httpClient.get('/auth/profile'),
+  changePassword: (body: { currentPassword: string; newPassword: string }) =>
+    httpClient.post('/auth/change-password', body),
+  bindPhone: (body: { phone: string }) => httpClient.patch('/auth/phone', body),
 };
