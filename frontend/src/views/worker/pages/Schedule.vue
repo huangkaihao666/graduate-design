@@ -97,11 +97,7 @@
 <script setup lang="ts">
 import { httpClient } from '@/api/client';
 import { authApi } from '@/api/auth';
-import {
-  photographersApi,
-  type PhotographerAdmin,
-  type PhotographerPublic,
-} from '@/api/photographers';
+import { photographersApi, type PhotographerPublic } from '@/api/photographers';
 import { useAuthStore } from '@/store/auth';
 import { unwrapOrderListPayload } from '@/utils/workerOrders';
 import datePickerLocaleZhCN from 'ant-design-vue/es/date-picker/locale/zh_CN';
@@ -180,16 +176,13 @@ const resolveWorkerPhotographer = async (): Promise<number | null> => {
   const workerName = String(authStore.user?.name || '').trim();
   if (!workerName) return null;
   try {
-    const list = await photographersApi.listAdmin();
-    const hit = (Array.isArray(list) ? list : []).find(
-      (x: PhotographerAdmin) => String(x.name || '').trim() === workerName
-    );
-    if (hit?.id) {
-      photographerId.value = Number(hit.id);
+    const me = await photographersApi.getMine();
+    if (me?.id) {
+      photographerId.value = Number(me.id);
       return photographerId.value;
     }
   } catch {
-    // ignore and fallback public list
+    /* ignore */
   }
   try {
     const pub = await photographersApi.getPublic();
@@ -219,31 +212,22 @@ const resolveWorkerPhotographer = async (): Promise<number | null> => {
 };
 
 const pullAvailableDatesFromBackend = async () => {
-  const pid = await resolveWorkerPhotographer();
-  if (!pid) {
-    if (!missingBindingWarned.value) {
-      message.warning('当前账号未关联摄影师档案，档期只能本地显示，无法同步到用户端/管理员端');
-      missingBindingWarned.value = true;
-    }
-    return;
-  }
   try {
-    const list = await photographersApi.listAdmin();
-    const hit = (Array.isArray(list) ? list : []).find(
-      (x: PhotographerAdmin) => Number(x.id) === pid
-    );
-    if (!hit) return;
+    const hit = await photographersApi.getMine();
+    photographerId.value = hit.id;
     availableDates.value = new Set(dedupeSortedDates(hit.availableDates || []));
     restDates.value = new Set(dedupeSortedDates(hit.restDates || []));
     persistSchedule();
   } catch {
-    // 保留本地数据作为兜底
+    if (!missingBindingWarned.value) {
+      message.warning('当前账号未关联摄影师档案或无法拉取档期，将仅使用本地数据');
+      missingBindingWarned.value = true;
+    }
   }
 };
 
 const syncAvailableDatesToBackend = async () => {
-  const pid = await resolveWorkerPhotographer();
-  if (!pid) {
+  if (!authStore.user?.workerPhotographerId) {
     if (!missingBindingWarned.value) {
       message.warning('未找到可同步的摄影师档案，请先在个人中心完成档案关联');
       missingBindingWarned.value = true;
@@ -251,7 +235,7 @@ const syncAvailableDatesToBackend = async () => {
     return;
   }
   try {
-    await photographersApi.update(pid, {
+    await photographersApi.updateMine({
       availableDates: dedupeSortedDates(availableDates.value),
       restDates: dedupeSortedDates(restDates.value),
     });

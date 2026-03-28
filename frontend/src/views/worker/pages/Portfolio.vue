@@ -139,11 +139,7 @@
 
 <script setup lang="ts">
 import { authApi } from '@/api/auth';
-import {
-  photographersApi,
-  type PhotographerAdmin,
-  type PhotographerPublic,
-} from '@/api/photographers';
+import { photographersApi, type PhotographerPublic } from '@/api/photographers';
 import { useAuthStore } from '@/store/auth';
 import type { UploadProps } from 'ant-design-vue';
 import { message } from 'ant-design-vue';
@@ -201,12 +197,9 @@ const resolveWorkerPhotographer = async (): Promise<number | null> => {
   const workerName = String(authStore.user?.name || '').trim();
   if (!workerName) return null;
   try {
-    const list = await photographersApi.listAdmin();
-    const hit = (Array.isArray(list) ? list : []).find(
-      (x: PhotographerAdmin) => String(x.name || '').trim() === workerName
-    );
-    if (hit?.id) {
-      photographerId.value = Number(hit.id);
+    const me = await photographersApi.getMine();
+    if (me?.id) {
+      photographerId.value = Number(me.id);
       return photographerId.value;
     }
   } catch {
@@ -251,17 +244,23 @@ const saveLocalOnly = () => {
 };
 
 const syncPortfolioToBackend = async () => {
-  const pid = await resolveWorkerPhotographer();
-  if (!pid) {
+  if (!authStore.user?.workerPhotographerId && authStore.accessToken) {
+    try {
+      await authStore.getProfile();
+    } catch {
+      /* ignore */
+    }
+  }
+  if (!authStore.user?.workerPhotographerId) {
     if (!missingBindingWarned.value) {
-      message.warning('当前账号未关联摄影师档案，作品仅保存在本机，用户端与管理端无法看到');
+      message.warning('当前账号未关联摄影师档案，作品仅保存在本机，用户端无法展示');
       missingBindingWarned.value = true;
     }
     return;
   }
   const urls = dedupeUrls(items.value.map((x) => x.url).filter(Boolean));
   try {
-    await photographersApi.update(pid, { portfolioImages: urls });
+    await photographersApi.updateMine({ portfolioImages: urls });
     syncWarned.value = false;
   } catch {
     if (!syncWarned.value) {
@@ -279,42 +278,24 @@ const load = () => {
 };
 
 const pullPortfolioFromBackend = async () => {
-  const pid = await resolveWorkerPhotographer();
-  if (!pid) {
-    if (!missingBindingWarned.value) {
-      message.warning('当前账号未关联摄影师档案，无法从服务器拉取作品，请在个人资料中绑定摄影师');
-      missingBindingWarned.value = true;
-    }
-    return;
-  }
-
   const localSnapshot = [...items.value];
   const localByUrl = new Map<string, Item>();
   for (const it of localSnapshot) {
     if (it?.url) localByUrl.set(it.url, it);
   }
 
-  let serverUrls: string[] | null = null;
+  let serverUrls: string[] = [];
 
   try {
-    const list = await photographersApi.listAdmin();
-    const hit = (Array.isArray(list) ? list : []).find(
-      (x: PhotographerAdmin) => Number(x.id) === pid
-    );
-    if (hit) {
-      serverUrls = Array.isArray(hit.portfolioImages) ? [...hit.portfolioImages] : [];
-    }
+    const hit = await photographersApi.getMine();
+    photographerId.value = hit.id;
+    serverUrls = Array.isArray(hit.portfolioImages) ? [...hit.portfolioImages] : [];
   } catch {
-    /* ignore */
-  }
-
-  if (serverUrls === null) {
-    try {
-      const one = await photographersApi.getPublicOne(pid);
-      serverUrls = Array.isArray(one.portfolioImages) ? [...one.portfolioImages] : [];
-    } catch {
-      return;
+    if (!missingBindingWarned.value) {
+      message.warning('无法从服务器拉取作品（请确认已登录摄影师账号）');
+      missingBindingWarned.value = true;
     }
+    return;
   }
 
   const out: Item[] = [];
@@ -448,16 +429,17 @@ const applyDraft = () => {
     return;
   }
   const desc = draftDesc.value.trim();
+  const usedCat = draftCat.value as Cat;
   const batch: Item[] = pendingUploads.value.map((url) => ({
     url,
-    category: draftCat.value as Cat,
+    category: usedCat,
     desc,
   }));
   items.value = dedupe([...batch, ...items.value]);
   save();
   pendingUploads.value = [];
   draftDesc.value = '';
-  draftCat.value = undefined;
+  draftCat.value = usedCat;
   message.success(`已上传 ${batch.length} 张作品`);
 };
 

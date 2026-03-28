@@ -9,6 +9,9 @@ export interface RegisterRequest {
   email: string;
   password: string;
   name: string;
+  /** 摄影师入驻：创建 worker + 摄影师档案（draft，需提交审核） */
+  registerAsPhotographer?: boolean;
+  shootingStyleForPhotographer?: string;
 }
 
 export interface AuthResponse {

@@ -5,6 +5,8 @@ import {
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
+import { Prisma } from '@prisma/client';
+import { PrismaService } from '../../prisma/prisma.service';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { UsersService } from '../users/users.service';
 
@@ -13,10 +15,10 @@ export class AuthService {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
+    private prisma: PrismaService,
   ) {}
 
   async register(createUserDto: CreateUserDto) {
-    // 检查用户是否已存在
     const existingUser = await this.usersService.findByEmail(
       createUserDto.email,
     );
@@ -24,69 +26,150 @@ export class AuthService {
       throw new BadRequestException('用户已存在');
     }
 
-    // 密码加密
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
 
-    // 创建新用户
+    if (createUserDto.registerAsPhotographer) {
+      return this.registerPhotographer(createUserDto, hashedPassword);
+    }
+
     const user = await this.usersService.create({
-      ...createUserDto,
+      name: createUserDto.name,
+      email: createUserDto.email,
       password: hashedPassword,
+      avatar: createUserDto.avatar,
     });
 
-    // 生成 token
     const tokens = this.generateTokens(user.id);
+    const payloadUser = await this.buildAuthUserPayload(user.id);
 
     return {
       statusCode: 201,
       message: '注册成功',
       data: {
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          phone: (user as { phone?: string | null }).phone ?? null,
-          role: user.role,
-          workerPhotographerId: user.workerPhotographerId ?? null,
+        user: payloadUser,
+        ...tokens,
+      },
+    };
+  }
+
+  private async registerPhotographer(
+    dto: CreateUserDto,
+    hashedPassword: string,
+  ) {
+    const shootingStyle =
+      (dto.shootingStyleForPhotographer || '').trim() ||
+      '（请登录后在「个人资料」中补充拍摄风格说明）';
+
+    const newUserId = await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          name: dto.name,
+          email: dto.email,
+          password: hashedPassword,
+          role: 'worker',
         },
+      });
+
+      const ph = await tx.photographer.create({
+        data: {
+          name: dto.name,
+          shootingStyle,
+          yearsExperience: 0,
+          portfolioImages: [] as unknown as Prisma.InputJsonValue,
+          availableDates: [] as unknown as Prisma.InputJsonValue,
+          restDates: [] as unknown as Prisma.InputJsonValue,
+          enabled: false,
+          approvalStatus: 'draft',
+          approvalReviewNote: null,
+          sortOrder: 999,
+        },
+      });
+
+      await tx.user.update({
+        where: { id: user.id },
+        data: { workerPhotographerId: ph.id },
+      });
+
+      return user.id;
+    });
+
+    const tokens = this.generateTokens(newUserId);
+    const payloadUser = await this.buildAuthUserPayload(newUserId);
+
+    return {
+      statusCode: 201,
+      message: '摄影师账号已创建，请完善资料并提交管理员审核',
+      data: {
+        user: payloadUser,
         ...tokens,
       },
     };
   }
 
   async login(email: string, password: string) {
-    // 查找用户
     const user = await this.usersService.findByEmail(email);
     if (!user) {
       throw new UnauthorizedException('邮箱或密码错误');
     }
 
-    // 验证密码
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       throw new UnauthorizedException('邮箱或密码错误');
     }
 
-    // 生成 token
     const tokens = this.generateTokens(user.id);
+    const payloadUser = await this.buildAuthUserPayload(user.id);
 
     return {
       statusCode: 200,
       message: '登录成功',
       data: {
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          phone: (user as { phone?: string | null }).phone ?? null,
-          role: user.role,
-          workerPhotographerId: user.workerPhotographerId ?? null,
-        },
+        user: payloadUser,
         ...tokens,
       },
     };
   }
 
-  /** 已登录用户修改密码 */
+  async getProfile(userId: number) {
+    return this.buildAuthUserPayload(userId);
+  }
+
+  private async buildAuthUserPayload(userId: number) {
+    const user = await this.usersService.findOne(userId);
+    if (!user) {
+      throw new UnauthorizedException('用户不存在');
+    }
+    const { password: _pw, ...safe } = user as typeof user & {
+      password?: string;
+    };
+    return this.enrichPhotographerForUser(safe);
+  }
+
+  private async enrichPhotographerForUser(user: Record<string, unknown>) {
+    const widRaw = user.workerPhotographerId;
+    const wid =
+      typeof widRaw === 'number' && Number.isFinite(widRaw) ? widRaw : null;
+    if (!wid) {
+      return {
+        ...user,
+        photographerApprovalStatus: null,
+        photographerApprovalNote: null,
+        photographerCanTakeOrders: false,
+      };
+    }
+    const p = await this.prisma.photographer.findUnique({
+      where: { id: wid },
+      select: { approvalStatus: true, approvalReviewNote: true },
+    });
+    const st = p?.approvalStatus ?? null;
+    return {
+      ...user,
+      photographerApprovalStatus: st,
+      photographerApprovalNote: p?.approvalReviewNote ?? null,
+      photographerCanTakeOrders: st === 'approved',
+    };
+  }
+
   async changePassword(
     userId: number,
     currentPassword: string,
@@ -111,7 +194,6 @@ export class AuthService {
     return { statusCode: 200, message: '密码已更新' };
   }
 
-  /** 已登录用户绑定手机号 */
   async bindPhone(userId: number, phone: string) {
     await this.usersService.bindPhone(userId, phone);
     return { statusCode: 200, message: '手机号已绑定' };
@@ -130,7 +212,7 @@ export class AuthService {
         message: '刷新成功',
         data: tokens,
       };
-    } catch (error) {
+    } catch {
       throw new UnauthorizedException('刷新 Token 失败');
     }
   }

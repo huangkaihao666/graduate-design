@@ -7,10 +7,14 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PhotographersService } from '../photographers/photographers.service';
 
 @Injectable()
 export class OrdersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private photographersService: PhotographersService,
+  ) {}
 
   private normalizeDateStrings(v: unknown): string[] {
     const arr = Array.isArray(v) ? v.map((x) => String(x)) : [];
@@ -294,6 +298,8 @@ export class OrdersService {
       throw new ForbiddenException('仅工作人员可访问');
     }
 
+    await this.photographersService.assertPhotographerApprovedForWorker(userId);
+
     const order = (await this.prisma.bookingOrder.findUnique({
       where: { id: orderId },
     })) as any;
@@ -336,6 +342,8 @@ export class OrdersService {
     if (!user || user.role !== 'worker') {
       throw new ForbiddenException('仅工作人员可访问');
     }
+
+    await this.photographersService.assertPhotographerApprovedForWorker(userId);
 
     const order = (await this.prisma.bookingOrder.findUnique({
       where: { id: orderId },

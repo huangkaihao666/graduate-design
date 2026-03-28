@@ -8,36 +8,33 @@ export interface PhotographerPublic {
   shootingStyle: string;
   yearsExperience: number;
   bio?: string;
-  /** 性别，如：男、女、其他 */
   gender?: string;
-  /** 年龄（周岁） */
   age?: number;
-  /** 擅长题材 */
   specialtyTopics?: string;
-  /** 资质与获奖 */
   awards?: string;
   portfolioImages: string[];
-  /** 可预约日期 YYYY-MM-DD */
   availableDates?: string[];
-  /** 休息日 YYYY-MM-DD（与摄影师端一致） */
   restDates?: string[];
-  /** 档期说明 */
   scheduleNote?: string;
   sortOrder: number;
 }
 
 export interface PhotographerAdmin extends PhotographerPublic {
   enabled: boolean;
+  /** draft | pending | approved | rejected */
+  approvalStatus: string;
+  approvalReviewNote?: string | null;
   createdAt: string;
   updatedAt: string;
 }
+
+export type PhotographerMine = PhotographerAdmin;
 
 function unwrap<T>(res: unknown): T {
   const r = res as { data?: T };
   return (r?.data ?? res) as T;
 }
 
-/** 列表接口：兼容 axios 体为「数组」或 { data: 数组 }，避免解析错导致一直显示空列表 */
 function unwrapList<T>(res: unknown): T[] {
   if (Array.isArray(res)) {
     return res as T[];
@@ -57,7 +54,6 @@ function unwrapList<T>(res: unknown): T[] {
 }
 
 export const photographersApi = {
-  /** 用户端展示列表 */
   getPublic: () =>
     httpClient
       .get<unknown>('/photographers/public')
@@ -68,33 +64,13 @@ export const photographersApi = {
       .get<PhotographerPublic>(`/photographers/public/${id}`)
       .then((res) => unwrap<PhotographerPublic>(res)),
 
-  listAdmin: () =>
-    httpClient.get<unknown>('/photographers').then((res) => unwrapList<PhotographerAdmin>(res)),
+  /** 当前登录摄影师档案（工作人员 JWT） */
+  getMine: () =>
+    httpClient.get<unknown>('/photographers/me').then((res) => unwrap<PhotographerMine>(res)),
 
-  create: (body: {
-    name: string;
-    title?: string;
-    avatar?: string;
-    shootingStyle: string;
-    yearsExperience?: number;
-    bio?: string;
-    gender?: string;
-    age?: number;
-    specialtyTopics?: string;
-    awards?: string;
-    portfolioImages?: string[];
-    availableDates?: string[];
-    restDates?: string[];
-    scheduleNote?: string;
-    sortOrder?: number;
-    enabled?: boolean;
-  }) => httpClient.post<unknown>('/photographers', body).then((res) => unwrap(res)),
-
-  update: (
-    id: number,
+  updateMine: (
     body: Partial<{
       name: string;
-      title: string | null;
       avatar: string | null;
       shootingStyle: string;
       yearsExperience: number;
@@ -107,20 +83,36 @@ export const photographersApi = {
       availableDates: string[];
       restDates: string[];
       scheduleNote: string | null;
-      sortOrder: number;
-      enabled: boolean;
     }>
-  ) => httpClient.patch<unknown>(`/photographers/${id}`, body).then((res) => unwrap(res)),
+  ) =>
+    httpClient
+      .patch<unknown>('/photographers/me', body)
+      .then((res) => unwrap<PhotographerMine>(res)),
 
-  remove: (id: number) => httpClient.delete(`/photographers/${id}`).then((res) => unwrap(res)),
+  submitApproval: () =>
+    httpClient.post<unknown>('/photographers/me/submit-approval', {}).then((res) => unwrap(res)),
 
-  /**
-   * 管理员上传图片（multipart），返回 data URL；使用 fetch 避免 axios 默认 Content-Type 影响 boundary
-   */
+  /** 管理员演示 Token */
+  listAdmin: () =>
+    httpClient.get<unknown>('/photographers').then((res) => unwrapList<PhotographerAdmin>(res)),
+
+  setApproval: (id: number, body: { approved: boolean; reviewNote?: string | null }) =>
+    httpClient.patch<unknown>(`/photographers/${id}/approval`, body).then((res) => unwrap(res)),
+
+  setEnabled: (id: number, enabled: boolean) =>
+    httpClient
+      .patch<unknown>(`/photographers/${id}/enabled`, { enabled })
+      .then((res) => unwrap(res)),
+
+  /** 管理员：设置头衔 */
+  setAdminTitle: (id: number, body: { title: string | null }) =>
+    httpClient
+      .patch<unknown>(`/photographers/${id}/title`, body)
+      .then((res) => unwrap<PhotographerAdmin>(res)),
+
   uploadImage: async (file: File): Promise<{ url: string }> => {
     const fd = new FormData();
     fd.append('file', file);
-    /** 与 axios 实例一致，避免 .env 与手写逻辑不一致导致请求到错误路径（缺 /api/v1 会 404） */
     const base = String(axiosInstance.defaults.baseURL || '/api/v1').replace(/\/$/, '');
     let token: string | null = null;
     try {

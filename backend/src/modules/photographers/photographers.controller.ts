@@ -1,12 +1,12 @@
 import {
   Body,
   Controller,
-  Delete,
   Get,
   Param,
   ParseIntPipe,
   Patch,
   Post,
+  Request,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -19,6 +19,8 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { AdminOrJwtAuthGuard } from '../auth/admin-or-jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { LocalAdminBearerGuard } from '../auth/local-admin-bearer.guard';
 import type { AvatarUploadFile } from '../users/users.service';
 import { PhotographersService } from './photographers.service';
 
@@ -27,11 +29,53 @@ import { PhotographersService } from './photographers.service';
 export class PhotographersController {
   constructor(private readonly photographersService: PhotographersService) {}
 
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '当前登录摄影师的档案（工作人员 JWT）' })
+  findMine(@Request() req: { user: { sub: number } }) {
+    return this.photographersService.findMineByUserId(req.user.sub);
+  }
+
+  @Patch('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '摄影师自助修改档案' })
+  patchMine(
+    @Request() req: { user: { sub: number } },
+    @Body()
+    body: Partial<{
+      name: string;
+      avatar: string | null;
+      shootingStyle: string;
+      yearsExperience: number;
+      bio: string | null;
+      gender: string | null;
+      age: number | null;
+      specialtyTopics: string | null;
+      awards: string | null;
+      portfolioImages: string[];
+      availableDates: string[];
+      restDates: string[];
+      scheduleNote: string | null;
+    }>,
+  ) {
+    return this.photographersService.updateMineByUserId(req.user.sub, body);
+  }
+
+  @Post('me/submit-approval')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '提交管理员审核（draft / rejected → pending）' })
+  submitApproval(@Request() req: { user: { sub: number } }) {
+    return this.photographersService.submitForApprovalByUserId(req.user.sub);
+  }
+
   @Post('upload/image')
   @UseGuards(AdminOrJwtAuthGuard)
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: '上传图片（管理员），返回 data URL，用于头像/作品' })
+  @ApiOperation({ summary: '上传图片，返回 data URL' })
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }),
   )
@@ -52,75 +96,47 @@ export class PhotographersController {
   }
 
   @Get()
-  @UseGuards(AdminOrJwtAuthGuard)
+  @UseGuards(LocalAdminBearerGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: '摄影师列表（管理员）' })
+  @ApiOperation({ summary: '摄影师列表（仅管理员演示 Token）' })
   findAllAdmin() {
     return this.photographersService.findAllAdmin();
   }
 
-  @Post()
-  @UseGuards(AdminOrJwtAuthGuard)
+  @Patch(':id/approval')
+  @UseGuards(LocalAdminBearerGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: '新增摄影师' })
-  create(
-    @Body()
-    body: {
-      name: string;
-      title?: string;
-      avatar?: string;
-      shootingStyle: string;
-      yearsExperience?: number;
-      bio?: string;
-      gender?: string;
-      age?: number;
-      specialtyTopics?: string;
-      awards?: string;
-      portfolioImages?: string[];
-      availableDates?: string[];
-      restDates?: string[];
-      scheduleNote?: string;
-      sortOrder?: number;
-      enabled?: boolean;
-    },
-  ) {
-    return this.photographersService.create(body);
-  }
-
-  @Patch(':id')
-  @UseGuards(AdminOrJwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: '更新摄影师' })
-  update(
+  @ApiOperation({ summary: '审核通过 / 驳回' })
+  setApproval(
     @Param('id', ParseIntPipe) id: number,
-    @Body()
-    body: Partial<{
-      name: string;
-      title: string | null;
-      avatar: string | null;
-      shootingStyle: string;
-      yearsExperience: number;
-      bio: string | null;
-      gender: string | null;
-      age: number | null;
-      specialtyTopics: string | null;
-      awards: string | null;
-      portfolioImages: string[];
-      availableDates: string[];
-      restDates: string[];
-      scheduleNote: string | null;
-      sortOrder: number;
-      enabled: boolean;
-    }>,
+    @Body() body: { approved: boolean; reviewNote?: string | null },
   ) {
-    return this.photographersService.update(id, body);
+    return this.photographersService.setAdminApproval(
+      id,
+      !!body?.approved,
+      body?.reviewNote,
+    );
   }
 
-  @Delete(':id')
-  @UseGuards(AdminOrJwtAuthGuard)
+  @Patch(':id/enabled')
+  @UseGuards(LocalAdminBearerGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: '删除摄影师' })
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.photographersService.remove(id);
+  @ApiOperation({ summary: '启用 / 禁用前台展示' })
+  setEnabled(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { enabled: boolean },
+  ) {
+    return this.photographersService.setAdminEnabled(id, !!body?.enabled);
+  }
+
+  @Patch(':id/title')
+  @UseGuards(LocalAdminBearerGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '设置摄影师头衔（仅管理员）' })
+  setTitle(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { title?: string | null },
+  ) {
+    return this.photographersService.setAdminTitle(id, body?.title ?? null);
   }
 }

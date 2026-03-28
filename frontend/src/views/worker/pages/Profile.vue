@@ -2,46 +2,92 @@
   <div class="page">
     <div class="grid">
       <section class="main">
+        <a-alert
+          v-if="approvalBanner"
+          :type="approvalBanner.type as any"
+          show-icon
+          class="approval-alert"
+        >
+          <template #message>{{ approvalBanner.title }}</template>
+          <template #description>
+            <div>{{ approvalBanner.desc }}</div>
+            <div
+              v-if="approvalBanner.showSubmit && approvalProfileMissing.length"
+              class="approval-missing-tip"
+            >
+              暂不可提交：请先点击「保存」将资料同步到服务器，并补充：{{
+                approvalProfileMissing.join('、')
+              }}
+            </div>
+            <a-button
+              v-if="approvalBanner.showSubmit"
+              type="primary"
+              size="small"
+              class="pill"
+              :loading="submitApprovalLoading"
+              :disabled="submitApprovalLoading || approvalProfileMissing.length > 0"
+              style="margin-top: 10px"
+              @click="submitApproval"
+            >
+              提交管理员审核
+            </a-button>
+          </template>
+        </a-alert>
+
         <div class="panel">
           <div class="panel-h">
-            <div class="panel-title">资料编辑</div>
+            <div class="panel-title profile-edit-heading">资料编辑</div>
             <a-button type="primary" class="pill" :loading="saving" @click="save">保存</a-button>
           </div>
-          <a-form layout="vertical">
-            <a-form-item label="头像">
-              <div class="upload-row">
-                <a-upload
-                  accept="image/*"
-                  :show-upload-list="false"
-                  :custom-request="handleAvatarUpload"
-                >
-                  <a-button :loading="uploadingAvatar">
-                    <template #icon><UploadOutlined /></template>
-                    从本机选择并上传
-                  </a-button>
-                </a-upload>
-                <span class="upload-hint">支持常见图片格式，单张不超过 5MB</span>
-              </div>
-              <div v-if="form.avatar" class="avatar-preview">
-                <a-image
-                  :src="form.avatar"
-                  :width="96"
-                  :height="96"
-                  style="object-fit: cover; border-radius: 8px"
-                />
-                <a-button type="link" danger size="small" @click="form.avatar = ''"
-                  >清除头像</a-button
-                >
-              </div>
-              <a-input
-                v-model:value="form.avatar"
-                placeholder="或直接粘贴图片链接（与上传二选一或补充）"
-                allow-clear
-                class="avatar-url-fallback"
-              />
-            </a-form-item>
+          <a-form layout="vertical" class="profile-edit-form">
+            <a-row :gutter="[20, 16]" align="top" class="avatar-title-row">
+              <a-col :xs="24" :lg="15">
+                <a-form-item label="头像">
+                  <div class="upload-row">
+                    <a-upload
+                      accept="image/*"
+                      :show-upload-list="false"
+                      :custom-request="handleAvatarUpload"
+                    >
+                      <a-button :loading="uploadingAvatar">
+                        <template #icon><UploadOutlined /></template>
+                        从本机选择并上传
+                      </a-button>
+                    </a-upload>
+                    <span class="upload-hint">支持常见图片格式，单张不超过 5MB</span>
+                  </div>
+                  <div v-if="form.avatar" class="avatar-preview">
+                    <a-image
+                      :src="form.avatar"
+                      :width="96"
+                      :height="96"
+                      style="object-fit: cover; border-radius: 8px"
+                    />
+                    <a-button type="link" danger size="small" @click="form.avatar = ''"
+                      >清除头像</a-button
+                    >
+                  </div>
+                  <a-input
+                    v-model:value="form.avatar"
+                    placeholder="或直接粘贴图片链接（与上传二选一或补充）"
+                    allow-clear
+                    class="avatar-url-fallback"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :xs="24" :lg="9">
+                <a-form-item label="头衔">
+                  <div class="title-readonly-box">
+                    <span class="title-readonly">{{ mineTitleDisplay }}</span>
+                  </div>
+                  <div class="title-readonly-hint">
+                    由管理员在后台设置；如需修改请联系门店管理员。
+                  </div>
+                </a-form-item>
+              </a-col>
+            </a-row>
             <a-row :gutter="16">
-              <a-col :span="8">
+              <a-col :span="12">
                 <a-form-item label="职位">
                   <a-select v-model:value="form.role" class="pill-input">
                     <a-select-option value="photographer">摄影师</a-select-option>
@@ -50,16 +96,7 @@
                   </a-select>
                 </a-form-item>
               </a-col>
-              <a-col :span="8">
-                <a-form-item label="头衔">
-                  <a-input
-                    v-model:value="form.title"
-                    class="pill-input"
-                    placeholder="如：首席摄影师"
-                  />
-                </a-form-item>
-              </a-col>
-              <a-col :span="8">
+              <a-col :span="12">
                 <a-form-item label="联系方式">
                   <a-input
                     v-model:value="form.phone"
@@ -69,20 +106,6 @@
                 </a-form-item>
               </a-col>
             </a-row>
-            <a-form-item label="擅长风格">
-              <a-textarea
-                v-model:value="form.style"
-                :rows="2"
-                placeholder="如：清透韩系 / 复古胶片 / 法式浪漫"
-              />
-            </a-form-item>
-            <a-form-item label="个人简介">
-              <a-textarea
-                v-model:value="form.bio"
-                :rows="3"
-                placeholder="介绍你的风格、经验、服务流程等"
-              />
-            </a-form-item>
             <a-row :gutter="16">
               <a-col :span="8">
                 <a-form-item label="性别">
@@ -120,6 +143,13 @@
                 </a-form-item>
               </a-col>
             </a-row>
+            <a-form-item label="擅长风格">
+              <a-textarea
+                v-model:value="form.style"
+                :rows="2"
+                placeholder="如：清透韩系 / 复古胶片 / 法式浪漫"
+              />
+            </a-form-item>
             <a-form-item label="擅长题材">
               <a-textarea
                 v-model:value="form.specialtyTopics"
@@ -134,11 +164,11 @@
                 placeholder="如：协会会员、比赛奖项、平台认证等"
               />
             </a-form-item>
-            <a-form-item label="可预约日期">
+            <a-form-item label="个人简介">
               <a-textarea
-                v-model:value="form.availableDatesText"
+                v-model:value="form.bio"
                 :rows="3"
-                placeholder="每行一个日期，格式 YYYY-MM-DD"
+                placeholder="介绍你的风格、经验、服务流程等"
               />
             </a-form-item>
             <a-form-item label="档期说明">
@@ -148,12 +178,23 @@
                 placeholder="例如：每周二店休；节假日可约"
               />
             </a-form-item>
-            <a-form-item label="作品链接（每行一个）">
-              <a-textarea
-                v-model:value="form.portfolioText"
-                :rows="3"
-                placeholder="可粘贴作品图片链接，展示时可直接复用"
-              />
+            <a-form-item label="可预约日期">
+              <div class="title-readonly-box">
+                <p class="schedule-dates-hint">
+                  请移步去<router-link to="/worker/schedule" class="schedule-dates-link"
+                    >档期管理</router-link
+                  >页面设置预约日期
+                </p>
+              </div>
+            </a-form-item>
+            <a-form-item label="上传作品">
+              <div class="title-readonly-box">
+                <p class="schedule-dates-hint">
+                  请移步去<router-link to="/worker/portfolio" class="schedule-dates-link"
+                    >作品管理</router-link
+                  >页面上传作品
+                </p>
+              </div>
             </a-form-item>
           </a-form>
         </div>
@@ -243,14 +284,14 @@
 <script setup lang="ts">
 import { authApi } from '@/api/auth';
 import { ordersApi } from '@/api/orders';
-import { photographersApi } from '@/api/photographers';
+import { photographersApi, type PhotographerMine } from '@/api/photographers';
 import { useAuthStore } from '@/store/auth';
 import { getApiErrorMessage } from '@/utils/apiError';
 import { unwrapOrderListPayload } from '@/utils/workerOrders';
 import { UploadOutlined } from '@ant-design/icons-vue';
 import type { UploadProps } from 'ant-design-vue';
 import { message } from 'ant-design-vue';
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 
 const authStore = useAuthStore();
 const saving = ref(false);
@@ -278,12 +319,87 @@ type NoticeItem = {
 };
 const notices = ref<NoticeItem[]>([]);
 
+const mineProfile = ref<PhotographerMine | null>(null);
+const submitApprovalLoading = ref(false);
+
+/** 与后端提交审核校验一致（基于已保存到服务器的档案） */
+function approvalProfileMissingLabels(
+  mine: PhotographerMine | null,
+  phone: string | undefined | null
+): string[] {
+  const missing: string[] = [];
+  if (!mine) return ['摄影师档案'];
+  const nameOk = String(mine.name || '').trim();
+  if (!nameOk) missing.push('姓名');
+  if (!String(mine.avatar || '').trim()) missing.push('头像');
+  const bio = String(mine.bio || '').trim();
+  if (!bio || bio.length < 10) missing.push('个人简介（至少10个字）');
+  const style = String(mine.shootingStyle || '').trim();
+  if (!style || style === '（请补充拍摄风格）') missing.push('擅长风格');
+  const p = String(phone || '').trim();
+  if (!/^1[3-9]\d{9}$/.test(p)) missing.push('绑定11位手机号');
+  if (!String(mine.specialtyTopics || '').trim()) missing.push('擅长题材');
+  const imgs = Array.isArray(mine.portfolioImages) ? mine.portfolioImages.filter(Boolean) : [];
+  if (imgs.length < 1) missing.push('至少一张作品');
+  return missing;
+}
+
+const approvalProfileMissing = computed(() => {
+  if (!authStore.user?.workerPhotographerId) return [];
+  const st = String(
+    mineProfile.value?.approvalStatus ?? authStore.user?.photographerApprovalStatus ?? ''
+  );
+  if (!['draft', 'rejected'].includes(st)) return [];
+  return approvalProfileMissingLabels(mineProfile.value, authStore.user?.phone);
+});
+
+const approvalBanner = computed(() => {
+  if (!authStore.user?.workerPhotographerId) return null;
+  const st = String(
+    mineProfile.value?.approvalStatus ?? authStore.user?.photographerApprovalStatus ?? ''
+  );
+  if (st === 'draft') {
+    return {
+      type: 'info' as const,
+      title: '资料待提交审核',
+      desc: '请完善左侧资料并保存后，点击「提交管理员审核」。审核通过后方可接单。',
+      showSubmit: true,
+    };
+  }
+  if (st === 'pending') {
+    return {
+      type: 'warning' as const,
+      title: '审核中',
+      desc: '管理员正在审核你的摄影师档案，请耐心等待。',
+      showSubmit: false,
+    };
+  }
+  if (st === 'rejected') {
+    const note =
+      mineProfile.value?.approvalReviewNote ?? authStore.user?.photographerApprovalNote ?? '';
+    return {
+      type: 'error' as const,
+      title: '审核未通过',
+      desc: (note ? `${note} — ` : '') + '请在「个人中心」修改后重新提交审核。',
+      showSubmit: true,
+    };
+  }
+  if (st === 'approved') {
+    return {
+      type: 'success' as const,
+      title: '审核已通过',
+      desc: '你已具备接单权限。若用户端「本店摄影师」暂未展示，需管理员在后台启用前台展示。',
+      showSubmit: false,
+    };
+  }
+  return null;
+});
+
 const storageKey = computed(() => `worker_profile_local_v1_${authStore.user?.id ?? 'guest'}`);
 const noticeReadKey = computed(() => `worker_notice_read_ids_v1_${authStore.user?.id ?? 'guest'}`);
 
 const form = reactive({
   role: 'photographer',
-  title: '',
   avatar: '',
   phone: '',
   style: '',
@@ -293,12 +409,15 @@ const form = reactive({
   yearsExperience: 0,
   specialtyTopics: '',
   awards: '',
-  availableDatesText: '',
   scheduleNote: '',
-  portfolioText: '',
 });
 
 const displayName = computed(() => String(authStore.user?.name || '工作人员'));
+
+const mineTitleDisplay = computed(() => {
+  const t = String(mineProfile.value?.title || '').trim();
+  return t || '（尚未设置）';
+});
 
 const positionLabel = computed(() => {
   if (form.role === 'photographer') return '摄影师';
@@ -317,14 +436,37 @@ const load = () => {
   }
 };
 
-const hydrateFromPhotographerLibrary = async () => {
+const applyMineToForm = (hit: PhotographerMine) => {
+  mineProfile.value = hit;
+  form.avatar = hit.avatar || '';
+  form.style = hit.shootingStyle || '';
+  form.bio = hit.bio || '';
+  form.gender = hit.gender || '';
+  form.age = hit.age;
+  form.yearsExperience = Number(hit.yearsExperience || 0);
+  form.specialtyTopics = hit.specialtyTopics || '';
+  form.awards = hit.awards || '';
+  form.scheduleNote = hit.scheduleNote || '';
+};
+
+const hydrateFromMine = async () => {
+  if (!authStore.user?.workerPhotographerId) return;
+  try {
+    const hit = await photographersApi.getMine();
+    applyMineToForm(hit);
+  } catch {
+    /* ignore */
+  }
+};
+
+/** 无后端档案时的兜底（演示账号等） */
+const hydrateFromPublicByName = async () => {
   const name = displayName.value.trim();
   if (!name) return;
   try {
     const list = await photographersApi.getPublic();
     const hit = list.find((x) => String(x.name || '').trim() === name);
     if (!hit) return;
-    if (!form.title) form.title = hit.title || '';
     if (!form.avatar) form.avatar = hit.avatar || '';
     if (!form.style) form.style = hit.shootingStyle || '';
     if (!form.bio) form.bio = hit.bio || '';
@@ -333,9 +475,7 @@ const hydrateFromPhotographerLibrary = async () => {
     if (!form.yearsExperience) form.yearsExperience = Number(hit.yearsExperience || 0);
     if (!form.specialtyTopics) form.specialtyTopics = hit.specialtyTopics || '';
     if (!form.awards) form.awards = hit.awards || '';
-    if (!form.availableDatesText) form.availableDatesText = (hit.availableDates || []).join('\n');
     if (!form.scheduleNote) form.scheduleNote = hit.scheduleNote || '';
-    if (!form.portfolioText) form.portfolioText = (hit.portfolioImages || []).join('\n');
   } catch {
     /* ignore */
   }
@@ -360,29 +500,6 @@ const handleAvatarUpload: UploadProps['customRequest'] = async (options) => {
   } finally {
     uploadingAvatar.value = false;
   }
-};
-
-const parseLineValues = (text: string): string[] =>
-  String(text || '')
-    .split(/\r?\n/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-const parseAvailableDates = (text: string): string[] => {
-  const tokens = String(text || '')
-    .split(/\r?\n/)
-    .flatMap((line) => line.split(/[,，]/))
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const re = /^\d{4}-\d{2}-\d{2}$/;
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const t of tokens) {
-    if (!re.test(t) || seen.has(t)) continue;
-    seen.add(t);
-    out.push(t);
-  }
-  return out.sort();
 };
 
 const formatNoticeTime = (ts: number) => {
@@ -421,34 +538,50 @@ const save = async () => {
     message.success('已保存本地资料');
     return;
   }
+  if (!authStore.user?.workerPhotographerId) {
+    message.warning('已保存本地资料；当前账号未关联摄影师档案，无法同步服务器');
+    return;
+  }
   saving.value = true;
   try {
-    const list = await photographersApi.getPublic();
-    const hit = list.find((x) => String(x.name || '').trim() === name);
-    if (!hit?.id) {
-      message.warning('已保存本地资料；未在摄影师管理中匹配到同名记录，暂未同步后端');
-      return;
-    }
-
-    await photographersApi.update(hit.id, {
-      title: form.title.trim() || null,
+    const hit = await photographersApi.updateMine({
+      name,
       avatar: form.avatar.trim() || null,
-      shootingStyle: form.style.trim() || '',
+      shootingStyle: form.style.trim() || '（请补充拍摄风格）',
       yearsExperience: Number(form.yearsExperience || 0),
       bio: form.bio.trim() || null,
       gender: form.gender?.trim() || null,
       age: form.age ?? null,
       specialtyTopics: form.specialtyTopics.trim() || null,
       awards: form.awards.trim() || null,
-      portfolioImages: parseLineValues(form.portfolioText),
-      availableDates: parseAvailableDates(form.availableDatesText),
       scheduleNote: form.scheduleNote.trim() || null,
     });
-    message.success('已保存并同步到摄影师管理后端');
+    applyMineToForm(hit);
+    await authStore.getProfile();
+    message.success('已保存并同步到服务器');
   } catch {
-    message.warning('已保存本地资料；同步后端失败，请稍后重试');
+    message.warning('已保存本地资料；同步服务器失败，请稍后重试');
   } finally {
     saving.value = false;
+  }
+};
+
+const submitApproval = async () => {
+  const missing = approvalProfileMissingLabels(mineProfile.value, authStore.user?.phone);
+  if (missing.length) {
+    message.warning(`请先完善个人信息并保存后再提交，尚缺：${missing.join('、')}`);
+    return;
+  }
+  submitApprovalLoading.value = true;
+  try {
+    await photographersApi.submitApproval();
+    await authStore.getProfile();
+    await hydrateFromMine();
+    message.success('已提交管理员审核');
+  } catch (e: unknown) {
+    message.error(getApiErrorMessage(e));
+  } finally {
+    submitApprovalLoading.value = false;
   }
 };
 
@@ -550,7 +683,7 @@ const loadNotices = async () => {
     ).length;
 
     const realOrderNotices: Array<Omit<NoticeItem, 'read' | 'timeText'>> = [];
-    if (pendingTake > 0) {
+    if (pendingTake > 0 && authStore.user?.photographerCanTakeOrders) {
       const latestTs = Math.max(
         ...rows
           .filter(
@@ -655,10 +788,22 @@ const loadNotices = async () => {
   }
 };
 
+watch(
+  () => authStore.user?.photographerApprovalStatus,
+  () => {
+    if (mineProfile.value && authStore.user?.photographerApprovalStatus) {
+      mineProfile.value = {
+        ...mineProfile.value,
+        approvalStatus: String(authStore.user.photographerApprovalStatus),
+        approvalReviewNote: authStore.user.photographerApprovalNote ?? null,
+      };
+    }
+  }
+);
+
 onMounted(async () => {
   authStore.initializeAuth();
   load();
-  hydrateFromPhotographerLibrary();
   if (authStore.accessToken && authStore.user?.id) {
     try {
       await authStore.getProfile();
@@ -669,6 +814,10 @@ onMounted(async () => {
       /* ignore */
     }
   }
+  await hydrateFromMine();
+  if (!mineProfile.value) {
+    await hydrateFromPublicByName();
+  }
   void loadNotices();
 });
 </script>
@@ -678,6 +827,34 @@ onMounted(async () => {
   --pink: #ff6b8b;
   --r: 12px;
 }
+
+.approval-alert {
+  margin-bottom: 14px;
+}
+
+.approval-missing-tip {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #b45309;
+  line-height: 1.5;
+}
+
+.schedule-dates-hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.schedule-dates-link {
+  color: #b91c1c;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  margin: 0 2px;
+}
+
 .head {
   margin-bottom: 14px;
 }
@@ -719,6 +896,20 @@ onMounted(async () => {
   font-weight: 900;
   color: #111827;
 }
+
+.profile-edit-heading {
+  font-size: 18px;
+  line-height: 1.3;
+}
+
+.profile-edit-form :deep(.ant-form-item-label > label) {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  height: auto;
+  line-height: 1.45;
+}
+
 .pill {
   border-radius: 999px;
   background: var(--pink);
@@ -737,6 +928,32 @@ onMounted(async () => {
 .pill-input :deep(.ant-select-selector),
 .pill-input :deep(.ant-input) {
   border-radius: 999px !important;
+}
+
+.title-readonly-box {
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  padding: 6px 10px;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  background: #fafafa;
+  box-sizing: border-box;
+}
+
+.title-readonly {
+  font-size: 14px;
+  font-weight: 400;
+  color: #111827;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.title-readonly-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.45;
 }
 .profile-card {
   background: linear-gradient(135deg, rgba(255, 107, 139, 0.14) 0%, rgba(255, 155, 180, 0.1) 100%);
@@ -762,6 +979,20 @@ onMounted(async () => {
 .av.real {
   box-shadow: 0 12px 24px rgba(255, 107, 139, 0.22);
 }
+.avatar-title-row {
+  margin-bottom: 0;
+}
+
+.avatar-title-row :deep(.ant-col) {
+  display: flex;
+}
+
+.avatar-title-row :deep(.ant-form-item) {
+  flex: 1;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
 .upload-row {
   display: flex;
   flex-wrap: wrap;

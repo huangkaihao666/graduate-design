@@ -278,6 +278,10 @@ model Photographer {
   scheduleNote     String? @db.Text
   sortOrder        Int     @default(0) @db.UnsignedInt
   enabled          Boolean @default(true)
+  /// draft=待提交审核 | pending=审核中 | approved=已通过 | rejected=已驳回
+  approvalStatus     String  @default("approved") @db.VarChar(32)
+  /// 驳回原因（管理员填写）
+  approvalReviewNote String? @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -286,6 +290,7 @@ model Photographer {
 
   @@map("photographers")
   @@index([enabled, sortOrder])
+  @@index([approvalStatus])
 }
 
 /// 收藏模型（套餐收藏）

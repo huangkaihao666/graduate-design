@@ -79,6 +79,16 @@
       </header>
 
       <section class="content">
+        <a-alert
+          v-if="workerApprovalBanner"
+          :type="workerApprovalBanner.type as any"
+          show-icon
+          closable
+          class="shell-approval-alert"
+        >
+          <template #message>{{ workerApprovalBanner.title }}</template>
+          <template #description>{{ workerApprovalBanner.desc }}</template>
+        </a-alert>
         <router-view />
       </section>
     </div>
@@ -88,12 +98,47 @@
 <script setup lang="ts">
 import { useAuthStore } from '@/store/auth';
 import { message } from 'ant-design-vue';
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 const authStore = useAuthStore();
 const route = useRoute();
 const router = useRouter();
+
+const workerApprovalBanner = computed(() => {
+  if (!authStore.user?.workerPhotographerId) return null;
+  const st = String(authStore.user.photographerApprovalStatus || '');
+  if (st === 'draft') {
+    return {
+      type: 'info' as const,
+      title: '摄影师档案待提交审核',
+      desc: '请前往「个人中心」完善资料并点击「提交管理员审核」。',
+    };
+  }
+  if (st === 'pending') {
+    return {
+      type: 'warning' as const,
+      title: '入驻审核中',
+      desc: '管理员审核通过前无法接单。',
+    };
+  }
+  // 「审核未通过」仅在「个人中心」展示，避免与各子页顶栏重复
+  if (st === 'rejected') {
+    return null;
+  }
+  return null;
+});
+
+onMounted(async () => {
+  authStore.initializeAuth();
+  if (authStore.accessToken && authStore.isWorker) {
+    try {
+      await authStore.getProfile();
+    } catch {
+      /* ignore */
+    }
+  }
+});
 
 const sideItems = computed(() => [
   { label: '工作台', to: '/worker/dashboard', icon: '🧁' },
@@ -358,6 +403,10 @@ const handleLogout = () => {
   font-size: 12px;
   color: #6b7280;
   margin-left: -2px;
+}
+
+.shell-approval-alert {
+  margin-bottom: 12px;
 }
 
 .content {

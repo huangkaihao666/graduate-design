@@ -76,6 +76,22 @@
               </a-input-password>
             </a-form-item>
 
+            <a-form-item v-if="!isLogin" class="worker-reg">
+              <a-checkbox v-model:checked="formState.registerAsPhotographer">
+                注册为摄影师（需管理员审核通过后方可接单）
+              </a-checkbox>
+            </a-form-item>
+            <a-form-item
+              v-if="!isLogin && formState.registerAsPhotographer"
+              label="拍摄风格（选填）"
+            >
+              <a-input
+                v-model:value="formState.shootingStyleForPhotographer"
+                placeholder="如：纪实旅拍、韩系清新"
+                size="large"
+              />
+            </a-form-item>
+
             <div class="form-actions">
               <a-button
                 type="primary"
@@ -118,6 +134,8 @@ const formState = reactive({
   password: '',
   name: '',
   confirmPassword: '',
+  registerAsPhotographer: false,
+  shootingStyleForPhotographer: '',
 });
 
 const toggleMode = () => {
@@ -126,6 +144,8 @@ const toggleMode = () => {
   formState.password = '';
   formState.name = '';
   formState.confirmPassword = '';
+  formState.registerAsPhotographer = false;
+  formState.shootingStyleForPhotographer = '';
 };
 
 const handleSubmit = async () => {
@@ -169,9 +189,16 @@ const handleSubmit = async () => {
         email: formState.email,
         password: formState.password,
         name: formState.name,
+        registerAsPhotographer: !!formState.registerAsPhotographer,
+        shootingStyleForPhotographer: formState.shootingStyleForPhotographer.trim() || undefined,
       });
-      message.success('注册成功，请登录');
-      isLogin.value = true;
+      if (formState.registerAsPhotographer) {
+        message.success('摄影师账号已创建，请完善资料并提交管理员审核');
+        router.push('/worker/profile');
+      } else {
+        message.success('注册成功');
+        router.push('/dashboard');
+      }
     }
   } catch (error: any) {
     message.error(error.message || (isLogin.value ? '登录失败' : '注册失败'));

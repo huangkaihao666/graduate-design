@@ -84,13 +84,18 @@
             <div class="panel-title">操作</div>
           </div>
           <div class="btns">
-            <a-button
+            <a-tooltip
               v-if="selected && selected.uiStatus === 'pending'"
-              class="pill take-btn"
-              @click="openTakeConfirm"
+              :title="
+                canTakeOrders
+                  ? ''
+                  : '需管理员审核通过摄影师档案后方可接单，请到「个人中心」查看状态'
+              "
             >
-              确认接单
-            </a-button>
+              <a-button class="pill take-btn" :disabled="!canTakeOrders" @click="openTakeConfirm">
+                确认接单
+              </a-button>
+            </a-tooltip>
             <a-button type="primary" class="pill ghost" @click="reschedule">修改时间</a-button>
             <a-button type="primary" class="pill ghost" @click="contact">联系客户</a-button>
           </div>
@@ -288,6 +293,8 @@ const styleMap: Record<string, string> = { ...TRAVEL_STYLE_LABELS };
 const router = useRouter();
 const authStore = useAuthStore();
 
+const canTakeOrders = computed(() => !!authStore.user?.photographerCanTakeOrders);
+
 const loading = ref(false);
 const rows = ref<OrderRow[]>([]);
 const selected = ref<OrderRow | null>(null);
@@ -401,6 +408,10 @@ const openTakeConfirm = () => {
     message.warning('请先选择一条订单');
     return;
   }
+  if (!canTakeOrders.value) {
+    message.warning('需管理员审核通过后方可接单');
+    return;
+  }
   takeConfirmOpen.value = true;
 };
 
@@ -439,6 +450,10 @@ const confirm = () => {
 const reschedule = () => {
   if (!selected.value) {
     message.warning('请先选择一条订单');
+    return;
+  }
+  if (authStore.user?.workerPhotographerId && !canTakeOrders.value) {
+    message.warning('需管理员审核通过后方可处理改期');
     return;
   }
   rescheduleDate.value = selected.value.shootingDate
@@ -497,8 +512,15 @@ const openDeepDetail = () => {
   deepDetailOpen.value = true;
 };
 
-onMounted(() => {
+onMounted(async () => {
   authStore.initializeAuth();
+  if (authStore.accessToken) {
+    try {
+      await authStore.getProfile();
+    } catch {
+      /* ignore */
+    }
+  }
   load();
 });
 </script>

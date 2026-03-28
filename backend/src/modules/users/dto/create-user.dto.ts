@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsEmail,
   IsString,
   IsNotEmpty,
@@ -45,4 +46,21 @@ export class CreateUserDto {
   @IsString()
   @IsOptional()
   avatar?: string;
+
+  @ApiProperty({
+    description: '是否注册为摄影师（需管理员审核后接单）',
+    required: false,
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  registerAsPhotographer?: boolean;
+
+  @ApiProperty({
+    description: '摄影师注册时填写的拍摄风格（可选）',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  shootingStyleForPhotographer?: string;
 }

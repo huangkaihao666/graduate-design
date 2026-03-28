@@ -50,12 +50,15 @@ export type AvatarUploadFile = {
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createUserDto: CreateUserDto): Promise<any> {
+  async create(
+    createUserDto: CreateUserDto & { password: string },
+  ): Promise<any> {
     return this.prisma.user.create({
       data: {
         name: createUserDto.name,
         email: createUserDto.email,
         password: createUserDto.password,
+        avatar: createUserDto.avatar,
       },
       select: userSafeSelect,
     });

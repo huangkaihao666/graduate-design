@@ -48,8 +48,8 @@ export class AuthController {
   @ApiResponse({ status: 200, description: '返回当前用户信息' })
   @UseGuards(JwtAuthGuard)
   @Get('profile')
-  async getProfile(@Request() req) {
-    return req.user;
+  async getProfile(@Request() req: { user: { sub: number } }) {
+    return this.authService.getProfile(req.user.sub);
   }
 
   @ApiBearerAuth()
