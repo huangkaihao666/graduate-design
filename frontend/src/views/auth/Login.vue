@@ -177,7 +177,7 @@ const handleSubmit = async () => {
         email: formState.email,
         password: formState.password,
       });
-      message.success('欢迎回来！');
+      message.success({ content: '欢迎回来！', duration: 1.5 });
       // 登录成功后按角色跳转
       if (authStore.isWorker) {
         router.push('/worker/dashboard');

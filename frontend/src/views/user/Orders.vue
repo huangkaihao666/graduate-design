@@ -679,12 +679,14 @@ const clearAllOrders = () => {
 };
 
 const goChatWithPhotographer = (o: BookingOrder) => {
+  const pid = Number(o.photographerId ?? 0);
   router.push({
     path: '/user/chat',
     query: {
       orderNo: o.orderNo,
       peerName: o.photographerName || '工作人员',
       shootingDate: String(o.shootingDate || ''),
+      ...(Number.isFinite(pid) && pid > 0 ? { photographerId: String(pid) } : {}),
     },
   });
 };

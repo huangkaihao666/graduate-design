@@ -182,15 +182,17 @@
 <script setup lang="ts">
 import { useAuthStore } from '@/store/auth';
 import {
+  forEachSharedOrderMessageStorageKey,
   isOrderThreadId,
   orderNoFromThreadId,
   orderThreadId,
+  previewLastMessageFromOrderStorage,
   sharedOrderMessagesStorageKey,
 } from '@/utils/orderChatStorage';
 import type { UploadProps } from 'ant-design-vue';
 import { message } from 'ant-design-vue';
 import dayjs from 'dayjs';
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 
 type UConv = {
@@ -200,6 +202,10 @@ type UConv = {
   unread: number;
   orderNo: string;
   time: string;
+  /** 本店摄影师档案 id，用于隔离不同摄影师的订单会话存储 */
+  photographerId?: number;
+  /** 左侧列表已同步到的最后一条消息 id，用于摄影师新消息时累加未读 */
+  listTailMsgId?: string;
 };
 type Msg = { id: string; from: 'staff' | 'customer'; content: string; at: string };
 
@@ -269,9 +275,11 @@ const openFaq = (key: FaqKey) => {
 const convListKey = () => `user_${uid()}_chat_convs_v1`;
 const lastSelKey = () => `user_${uid()}_chat_last_conv`;
 
-const threadStorageKey = (id: string) => {
-  if (isOrderThreadId(id)) return sharedOrderMessagesStorageKey(orderNoFromThreadId(id));
-  return `user_${uid()}_msg_thread_${id}`;
+const threadStorageKeyForConv = (c: UConv) => {
+  if (isOrderThreadId(c.id)) {
+    return sharedOrderMessagesStorageKey(c.orderNo, c.photographerId);
+  }
+  return `user_${uid()}_msg_thread_${c.id}`;
 };
 
 const filteredConvs = computed(() => {
@@ -317,6 +325,103 @@ const saveConvs = () => {
   }
 };
 
+const storageKeyMatchesConv = (storageKey: string, c: UConv) => {
+  const no = String(c.orderNo || orderNoFromThreadId(c.id) || '').trim();
+  if (!no) return false;
+  return (
+    storageKey === threadStorageKeyForConv(c) ||
+    storageKey === `shared_order_chat_${no}` ||
+    storageKey.endsWith(`_${no}`)
+  );
+};
+
+/** 从共用 localStorage 同步订单会话的最后预览与未读（摄影师在另一端发送后左侧可见） */
+const syncSharedOrderConvsFromStorage = () => {
+  let changed = false;
+  const additions: UConv[] = [];
+
+  forEachSharedOrderMessageStorageKey((info) => {
+    let raw: string | null = null;
+    try {
+      raw = localStorage.getItem(info.storageKey);
+    } catch {
+      return;
+    }
+    const lastPreview = previewLastMessageFromOrderStorage(raw);
+    let msgs: Msg[] = [];
+    try {
+      msgs = normalizeMsgs(raw ? JSON.parse(raw) : []);
+    } catch {
+      return;
+    }
+    const lastMsg = msgs[msgs.length - 1];
+    const tailId = lastMsg?.id != null ? String(lastMsg.id) : '';
+    const id = orderThreadId(info.orderNo);
+
+    const idx = convs.value.findIndex((c) => c.id === id);
+    if (idx < 0) {
+      additions.push({
+        id,
+        peerName: '工作人员',
+        last: lastPreview,
+        unread: lastMsg?.from === 'staff' ? 1 : 0,
+        orderNo: info.orderNo,
+        time: dayjs().format('YYYY-MM-DD'),
+        photographerId: info.photographerId,
+      });
+      changed = true;
+      return;
+    }
+
+    const row = convs.value[idx];
+    if (info.photographerId && !row.photographerId) {
+      row.photographerId = info.photographerId;
+      changed = true;
+    }
+    if (row.last !== lastPreview) {
+      row.last = lastPreview;
+      changed = true;
+    }
+
+    if (!tailId) return;
+
+    if (row.listTailMsgId === undefined) {
+      if (lastMsg?.from === 'staff' && selected.value?.id !== row.id) {
+        row.unread = Math.max(row.unread || 0, 1);
+        changed = true;
+      }
+      row.listTailMsgId = tailId;
+      changed = true;
+      return;
+    }
+
+    if (
+      tailId !== row.listTailMsgId &&
+      lastMsg?.from === 'staff' &&
+      selected.value?.id !== row.id
+    ) {
+      row.unread = (row.unread || 0) + 1;
+      changed = true;
+    }
+  });
+
+  if (additions.length) {
+    convs.value = [...additions, ...convs.value];
+    changed = true;
+  }
+  if (changed) saveConvs();
+};
+
+/** 进入会话或收到当前会话新消息时：对齐尾部 id 并清零未读 */
+const acknowledgePeek = (c: UConv) => {
+  const idx = convs.value.findIndex((x) => x.id === c.id);
+  if (idx < 0) return;
+  const tailId = messages.value[messages.value.length - 1]?.id;
+  if (tailId != null && String(tailId)) convs.value[idx].listTailMsgId = String(tailId);
+  convs.value[idx].unread = 0;
+  saveConvs();
+};
+
 const loadConvs = () => {
   try {
     const raw = localStorage.getItem(convListKey());
@@ -347,6 +452,8 @@ const upsertFromQuery = () => {
   if (!orderNo) return;
   const peerName = String(q.peerName || q.photographerName || '工作人员').trim();
   const time = String(q.time || q.shootingDate || '').trim() || dayjs().format('YYYY-MM-DD');
+  const pidRaw = Number(q.photographerId ?? q.pid ?? 0);
+  const photographerId = Number.isFinite(pidRaw) && pidRaw > 0 ? Math.floor(pidRaw) : undefined;
   const id = orderThreadId(orderNo);
   let ex = convs.value.find((c) => c.id === id);
   if (!ex) {
@@ -357,11 +464,13 @@ const upsertFromQuery = () => {
       unread: 0,
       orderNo,
       time,
+      photographerId,
     };
     convs.value.unshift(ex);
   } else {
     ex.peerName = peerName || ex.peerName;
     ex.time = time || ex.time;
+    if (photographerId) ex.photographerId = photographerId;
   }
   selected.value = ex;
   try {
@@ -373,7 +482,7 @@ const upsertFromQuery = () => {
 };
 
 const loadMessages = (c: UConv) => {
-  const raw = localStorage.getItem(threadStorageKey(c.id));
+  const raw = localStorage.getItem(threadStorageKeyForConv(c));
   const list = raw ? JSON.parse(raw) : [];
   messages.value = normalizeMsgs(list);
   nextTick(() => scrollToBottom());
@@ -387,12 +496,13 @@ const scrollToBottom = () => {
 
 const persist = () => {
   if (!selected.value) return;
-  localStorage.setItem(threadStorageKey(selected.value.id), JSON.stringify(messages.value));
+  localStorage.setItem(threadStorageKeyForConv(selected.value), JSON.stringify(messages.value));
 };
 
 const select = (c: UConv) => {
   selected.value = c;
   loadMessages(c);
+  acknowledgePeek(c);
   try {
     localStorage.setItem(lastSelKey(), c.id);
   } catch {
@@ -404,8 +514,9 @@ const sendText = () => {
   if (!selected.value) return;
   const text = draft.value.trim();
   if (!text) return;
+  const mid = String(Date.now());
   messages.value.push({
-    id: String(Date.now()),
+    id: mid,
     from: 'customer',
     content: text,
     at: dayjs().format('MM-DD HH:mm'),
@@ -413,7 +524,11 @@ const sendText = () => {
   draft.value = '';
   persist();
   const idx = convs.value.findIndex((x) => x.id === selected.value?.id);
-  if (idx >= 0) convs.value[idx].last = text;
+  if (idx >= 0) {
+    convs.value[idx].last = text;
+    convs.value[idx].listTailMsgId = mid;
+    convs.value[idx].unread = 0;
+  }
   saveConvs();
   nextTick(() => scrollToBottom());
 };
@@ -439,15 +554,20 @@ const sendImage: UploadProps['customRequest'] = async (options) => {
   reader.onload = () => {
     const url = String(reader.result || '');
     if (!url) return;
+    const mid = String(Date.now());
     messages.value.push({
-      id: String(Date.now()),
+      id: mid,
       from: 'customer',
       content: url,
       at: dayjs().format('MM-DD HH:mm'),
     });
     persist();
     const idx = convs.value.findIndex((x) => x.id === selected.value?.id);
-    if (idx >= 0) convs.value[idx].last = '[图片]';
+    if (idx >= 0) {
+      convs.value[idx].last = '[图片]';
+      convs.value[idx].listTailMsgId = mid;
+      convs.value[idx].unread = 0;
+    }
     saveConvs();
     options.onSuccess?.(url);
     message.success('已发送');
@@ -461,19 +581,43 @@ const bootstrap = () => {
   if (!loadConvs()) convs.value = [];
   upsertFromQuery();
   restoreLast();
-  if (selected.value) loadMessages(selected.value);
+  syncSharedOrderConvsFromStorage();
+  if (selected.value) {
+    loadMessages(selected.value);
+    acknowledgePeek(selected.value);
+  }
+};
+
+const onStorage = (e: StorageEvent) => {
+  if (!e.key || !e.key.startsWith('shared_order_chat_')) return;
+  syncSharedOrderConvsFromStorage();
+  if (selected.value && isOrderThreadId(selected.value.id)) {
+    if (storageKeyMatchesConv(e.key, selected.value)) {
+      loadMessages(selected.value);
+      acknowledgePeek(selected.value);
+    }
+  }
 };
 
 onMounted(() => {
   authStore.initializeAuth();
   bootstrap();
+  window.addEventListener('storage', onStorage);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('storage', onStorage);
 });
 
 watch(
-  () => route.query.orderNo,
+  () => [route.query.orderNo, route.query.photographerId],
   () => {
     upsertFromQuery();
-    if (selected.value) loadMessages(selected.value);
+    syncSharedOrderConvsFromStorage();
+    if (selected.value) {
+      loadMessages(selected.value);
+      acknowledgePeek(selected.value);
+    }
   }
 );
 </script>
@@ -623,18 +767,26 @@ watch(
 .conv-item {
   display: flex;
   gap: 10px;
-  padding: 10px;
+  padding: 10px 12px;
   border-radius: var(--r);
-  border: 1px solid transparent;
+  border: 1px solid rgba(17, 24, 39, 0.1);
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.04);
   cursor: pointer;
-  transition: all 0.2s;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
 }
 .conv-item:hover {
   background: rgba(255, 107, 139, 0.06);
+  border-color: rgba(255, 107, 139, 0.22);
+  box-shadow: 0 4px 12px rgba(17, 24, 39, 0.06);
 }
 .conv-item.active {
   background: linear-gradient(135deg, rgba(255, 107, 139, 0.12) 0%, rgba(255, 155, 180, 0.08) 100%);
-  border-color: rgba(255, 107, 139, 0.25);
+  border-color: rgba(255, 107, 139, 0.35);
+  box-shadow: 0 4px 14px rgba(255, 107, 139, 0.14);
 }
 .meta {
   min-width: 0;
