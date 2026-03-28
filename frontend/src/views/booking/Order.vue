@@ -82,11 +82,12 @@
           </a-form-item>
 
           <a-form-item label="拍摄日期" name="shootingDate" :rules="shootingDateRules">
-            <div v-if="restrictShootingDateToPhotographerSchedule" class="schedule-calendar">
+            <div v-if="usePhotographerScheduleCalendar" class="schedule-calendar">
               <div class="calendar-legend">
                 <span class="legend-item available">可约</span>
                 <span class="legend-item booked">已约</span>
-                <span class="legend-item unavailable">不可约</span>
+                <span class="legend-item rest">休息</span>
+                <span class="legend-item unavailable">未开放</span>
               </div>
               <div class="calendar-header">
                 <a-button size="small" @click="goPrevCalendarMonth">上个月</a-button>
@@ -126,10 +127,12 @@
               档期说明：{{ photographerScheduleNote }}
             </div>
             <div
-              v-else-if="selectedPhotographerId && !restrictShootingDateToPhotographerSchedule"
+              v-else-if="
+                usePhotographerScheduleCalendar && !photographerAvailableDatesSorted.length
+              "
               class="schedule-tip muted"
             >
-              该摄影师暂未配置可约日期列表，可自由选择拍摄日；建议备注或与客服确认。
+              该摄影师尚未开放可约日期，请稍后再试或联系客服。
             </div>
           </a-form-item>
 
@@ -428,16 +431,29 @@ const photographerAvailableDatesSorted = computed(() => {
 const photographerAvailableDateSet = computed(
   () => new Set(photographerAvailableDatesSorted.value)
 );
+
+/** 休息日（与摄影师端「休息」一致） */
+const photographerRestDatesSorted = computed(() => {
+  const raw = photographerScheduleDetail.value?.restDates;
+  if (!raw?.length) return [];
+  const re = /^\d{4}-\d{2}-\d{2}$/;
+  return [...raw]
+    .filter((x) => re.test(String(x).trim()))
+    .map((x) => String(x).trim())
+    .sort();
+});
+const photographerRestDateSet = computed(() => new Set(photographerRestDatesSorted.value));
+
 const photographerBookedDates = ref<string[]>([]);
 const photographerBookedDateSet = computed(() => new Set(photographerBookedDates.value));
 const calendarMonthCursor = ref(new Date());
 const calendarWeekLabels = ['日', '一', '二', '三', '四', '五', '六'];
 type CalendarCell = { dateKey: string; day: number; inCurrentMonth: boolean };
 
-/** 已选摄影师且在后台配置了可约日期时，拍摄日仅限这些日期 */
-const restrictShootingDateToPhotographerSchedule = computed(
-  () => !!selectedPhotographerId.value && photographerAvailableDatesSorted.value.length > 0
-);
+/**
+ * 已选摄影师时使用月历档期（与摄影师端同一套数据：可约 / 休息 / 已约 / 未开放）
+ */
+const usePhotographerScheduleCalendar = computed(() => !!selectedPhotographerId.value);
 
 const photographerScheduleNote = computed(() => {
   if (!selectedPhotographerId.value) return '';
@@ -457,12 +473,13 @@ const formatShootingDateLabel = (iso: string) => {
 const scheduleCellStatus = (
   iso: string,
   inCurrentMonth = true
-): 'available' | 'booked' | 'unavailable' => {
+): 'available' | 'booked' | 'rest' | 'unavailable' => {
   if (!inCurrentMonth) return 'unavailable';
   if (iso < todayKey()) return 'unavailable';
-  if (!photographerAvailableDateSet.value.has(iso)) return 'unavailable';
   if (photographerBookedDateSet.value.has(iso)) return 'booked';
-  return 'available';
+  if (photographerRestDateSet.value.has(iso)) return 'rest';
+  if (photographerAvailableDateSet.value.has(iso)) return 'available';
+  return 'unavailable';
 };
 
 const todayKey = () => {
@@ -538,15 +555,18 @@ const shootingDateRules = computed(() => {
   const list: Array<Record<string, any>> = [
     { required: true, message: '请选择拍摄日期', trigger: 'change' },
   ];
-  if (restrictShootingDateToPhotographerSchedule.value) {
+  if (usePhotographerScheduleCalendar.value) {
     list.push({
       validator: async (_rule: unknown, value: string) => {
         if (!value) return Promise.reject('请选择拍摄日期');
         if (!photographerAvailableDatesSorted.value.includes(value)) {
-          return Promise.reject('所选日期不在该摄影师可约档期内，请在月历中选择绿色日期');
+          return Promise.reject('所选日期不在该摄影师可约档期内，请在月历中选择「可约」日期');
         }
         if (photographerBookedDateSet.value.has(value)) {
           return Promise.reject('该日期已约满，请选择其他可约日期');
+        }
+        if (photographerRestDateSet.value.has(value)) {
+          return Promise.reject('该日期为摄影师休息日');
         }
         return Promise.resolve();
       },
@@ -556,7 +576,11 @@ const shootingDateRules = computed(() => {
   return list;
 });
 
-/** 同步摄影师详情（含档期），供列表未包含该摄影师时使用 */
+/**
+ * 同步摄影师详情（含档期、档期说明）。
+ * 必须请求 getPublicOne：列表接口可能在进入页面时缓存，与摄影师端刚保存的后端数据不一致；
+ * 仅用列表会导致用户端档期与摄影师端/数据库不同步。
+ */
 const refreshPhotographerScheduleDetail = async () => {
   const id = selectedPhotographerId.value;
   if (!id) {
@@ -564,14 +588,10 @@ const refreshPhotographerScheduleDetail = async () => {
     return;
   }
   const fromList = photographerPublicList.value.find((x) => x.id === id);
-  if (fromList) {
-    photographerScheduleDetail.value = fromList;
-    return;
-  }
   try {
     photographerScheduleDetail.value = await photographersApi.getPublicOne(id);
   } catch {
-    photographerScheduleDetail.value = null;
+    photographerScheduleDetail.value = fromList ?? null;
   }
 };
 
@@ -594,22 +614,30 @@ const refreshPhotographerBookedDates = async () => {
 
 /** 会话恢复或切换摄影师后，若当前拍摄日不在档期内则清空并提示 */
 const ensureShootingDateMatchesSchedule = () => {
-  if (!restrictShootingDateToPhotographerSchedule.value) return;
+  if (!usePhotographerScheduleCalendar.value) return;
   const d = orderForm.shootingDate?.trim();
   if (!d) return;
-  if (!photographerAvailableDatesSorted.value.includes(d)) {
+  if (
+    !photographerAvailableDatesSorted.value.includes(d) ||
+    photographerBookedDateSet.value.has(d) ||
+    photographerRestDateSet.value.has(d)
+  ) {
     orderForm.shootingDate = '';
     message.warning('当前拍摄日期不在该摄影师可约档期内，请重新选择可约日期。');
   }
 };
 
 const onScheduleCalendarSelect = (dateValue: any) => {
-  if (!restrictShootingDateToPhotographerSchedule.value) return;
+  if (!usePhotographerScheduleCalendar.value) return;
   const iso = typeof dateValue?.dateKey === 'string' ? dateValue.dateKey : '';
   if (!iso) return;
   const status = scheduleCellStatus(iso, true);
   if (status === 'unavailable') {
-    message.warning('该日期不可约，请选择可约日期。');
+    message.warning('该日期未开放预约，请在摄影师已标注「可约」的日期中选择。');
+    return;
+  }
+  if (status === 'rest') {
+    message.warning('该日期为摄影师休息日，请选择其他可约日期。');
     return;
   }
   if (status === 'booked') {
@@ -1166,8 +1194,8 @@ watch(
   }
 );
 
-watch(restrictShootingDateToPhotographerSchedule, (restricted) => {
-  if (restricted) {
+watch(usePhotographerScheduleCalendar, (useCal) => {
+  if (useCal) {
     ensureShootingDateMatchesSchedule();
     syncCalendarMonthByCurrentContext();
   }
@@ -1432,6 +1460,9 @@ onUnmounted(() => {
   &.unavailable {
     color: #94a3b8;
   }
+  &.rest {
+    color: #4b5563;
+  }
 }
 
 .calendar-weekdays {
@@ -1482,6 +1513,11 @@ onUnmounted(() => {
   &.unavailable {
     background: #f1f5f9;
     color: #94a3b8;
+  }
+
+  &.rest {
+    background: rgba(107, 114, 128, 0.14);
+    color: #4b5563;
   }
 
   &.selected {

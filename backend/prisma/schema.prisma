@@ -272,6 +272,8 @@ model Photographer {
   portfolioImages  Json
   /// 可预约日期（ISO 日期字符串 YYYY-MM-DD 数组，JSON）
   availableDates   Json    @default("[]")
+  /// 休息日（YYYY-MM-DD 数组，与摄影师端「休息」一致；不可预约）
+  restDates        Json    @default("[]")
   /// 档期说明（如：每周二店休、节假日可约等）
   scheduleNote     String? @db.Text
   sortOrder        Int     @default(0) @db.UnsignedInt

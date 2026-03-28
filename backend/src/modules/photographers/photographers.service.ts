@@ -29,6 +29,15 @@ function normalizeDateStrings(v: unknown): string[] {
   return out.sort();
 }
 
+/** 休息日与可约日互斥时，输出层以可约为准 */
+function restDatesMinusAvailable(
+  rest: string[],
+  available: string[],
+): string[] {
+  const a = new Set(available);
+  return rest.filter((d) => !a.has(d));
+}
+
 type PhotographerRow = {
   id: number;
   name: string;
@@ -43,6 +52,7 @@ type PhotographerRow = {
   awards: string | null;
   portfolioImages: unknown;
   availableDates: unknown;
+  restDates: unknown;
   scheduleNote: string | null;
   sortOrder: number;
   enabled: boolean;
@@ -73,6 +83,11 @@ export class PhotographersService {
   }
 
   private mapPublic(row: PhotographerRow) {
+    const availableDates = normalizeDateStrings(row.availableDates);
+    const restDates = restDatesMinusAvailable(
+      normalizeDateStrings(row.restDates),
+      availableDates,
+    );
     return {
       id: row.id,
       name: row.name,
@@ -86,7 +101,8 @@ export class PhotographersService {
       specialtyTopics: row.specialtyTopics ?? undefined,
       awards: row.awards ?? undefined,
       portfolioImages: asStringArray(row.portfolioImages),
-      availableDates: normalizeDateStrings(row.availableDates),
+      availableDates,
+      restDates,
       scheduleNote: row.scheduleNote ?? undefined,
       sortOrder: row.sortOrder,
     };
@@ -136,6 +152,7 @@ export class PhotographersService {
     awards?: string;
     portfolioImages?: string[];
     availableDates?: string[];
+    restDates?: string[];
     scheduleNote?: string;
     sortOrder?: number;
     enabled?: boolean;
@@ -144,6 +161,10 @@ export class PhotographersService {
       ? data.portfolioImages
       : [];
     const availableDates = normalizeDateStrings(data.availableDates ?? []);
+    const restDates = restDatesMinusAvailable(
+      normalizeDateStrings(data.restDates ?? []),
+      availableDates,
+    );
     return this.prisma.photographer.create({
       data: {
         name: data.name,
@@ -158,6 +179,7 @@ export class PhotographersService {
         awards: data.awards,
         portfolioImages: portfolioImages as unknown as Prisma.InputJsonValue,
         availableDates: availableDates as unknown as Prisma.InputJsonValue,
+        restDates: restDates as unknown as Prisma.InputJsonValue,
         scheduleNote: data.scheduleNote,
         sortOrder: data.sortOrder ?? 0,
         enabled: data.enabled ?? true,
@@ -180,6 +202,7 @@ export class PhotographersService {
       awards: string | null;
       portfolioImages: string[];
       availableDates: string[];
+      restDates: string[];
       scheduleNote: string | null;
       sortOrder: number;
       enabled: boolean;
@@ -206,10 +229,33 @@ export class PhotographersService {
       patch.portfolioImages =
         data.portfolioImages as unknown as Prisma.InputJsonValue;
     }
-    if (data.availableDates !== undefined) {
-      patch.availableDates = normalizeDateStrings(
-        data.availableDates,
-      ) as unknown as Prisma.InputJsonValue;
+    if (data.availableDates !== undefined || data.restDates !== undefined) {
+      let availNorm: string[];
+      if (data.availableDates !== undefined) {
+        availNorm = normalizeDateStrings(data.availableDates);
+        patch.availableDates = availNorm as unknown as Prisma.InputJsonValue;
+      } else {
+        const row = await this.prisma.photographer.findUnique({
+          where: { id },
+          select: { availableDates: true },
+        });
+        availNorm = normalizeDateStrings(row?.availableDates);
+      }
+      if (data.restDates !== undefined) {
+        patch.restDates = restDatesMinusAvailable(
+          normalizeDateStrings(data.restDates),
+          availNorm,
+        ) as unknown as Prisma.InputJsonValue;
+      } else if (data.availableDates !== undefined) {
+        const row = await this.prisma.photographer.findUnique({
+          where: { id },
+          select: { restDates: true },
+        });
+        patch.restDates = restDatesMinusAvailable(
+          normalizeDateStrings(row?.restDates),
+          availNorm,
+        ) as unknown as Prisma.InputJsonValue;
+      }
     }
     if (data.scheduleNote !== undefined) patch.scheduleNote = data.scheduleNote;
     if (data.sortOrder !== undefined) patch.sortOrder = data.sortOrder;

@@ -333,6 +333,7 @@
           <div class="calendar-legend">
             <span class="legend-item available">可改</span>
             <span class="legend-item booked">已约</span>
+            <span class="legend-item rest">休息</span>
             <span class="legend-item unavailable">不可改</span>
           </div>
           <div class="calendar-weekdays">
@@ -361,7 +362,9 @@
                     ? '可改'
                     : cell.status === 'booked'
                       ? '已约'
-                      : '不可改'
+                      : cell.status === 'rest'
+                        ? '休息'
+                        : '不可改'
                 }}
               </span>
             </button>
@@ -482,6 +485,7 @@ const rescheduleForm = ref({
   reason: '',
 });
 const rescheduleAvailableDates = ref<string[]>([]);
+const rescheduleRestDates = ref<string[]>([]);
 const rescheduleBookedDates = ref<string[]>([]);
 const rescheduleCalendarMonth = ref(new Date());
 
@@ -531,6 +535,7 @@ const toIsoDate = (d: Date) => {
 };
 
 const rescheduleAvailableSet = computed(() => new Set(rescheduleAvailableDates.value));
+const rescheduleRestSet = computed(() => new Set(rescheduleRestDates.value));
 const rescheduleBookedSet = computed(() => new Set(rescheduleBookedDates.value));
 
 const rescheduleCalendarTitle = computed(() => {
@@ -539,9 +544,10 @@ const rescheduleCalendarTitle = computed(() => {
   return `${y}年${m}月`;
 });
 
-const getRescheduleDateStatus = (iso: string): 'available' | 'booked' | 'unavailable' => {
+const getRescheduleDateStatus = (iso: string): 'available' | 'booked' | 'rest' | 'unavailable' => {
   const todayIso = toIsoDate(new Date());
   if (rescheduleBookedSet.value.has(iso)) return 'booked';
+  if (rescheduleRestSet.value.has(iso)) return 'rest';
   if (rescheduleAvailableSet.value.has(iso) && iso >= todayIso) return 'available';
   return 'unavailable';
 };
@@ -719,6 +725,7 @@ const openRescheduleModal = (order: BookingOrder) => {
     reason: '',
   };
   rescheduleAvailableDates.value = [];
+  rescheduleRestDates.value = [];
   rescheduleBookedDates.value = [];
   const [y, m] = String(order.shootingDate || '')
     .split('-')
@@ -731,6 +738,7 @@ const openRescheduleModal = (order: BookingOrder) => {
 const closeRescheduleModal = () => {
   rescheduleTarget.value = null;
   rescheduleAvailableDates.value = [];
+  rescheduleRestDates.value = [];
   rescheduleBookedDates.value = [];
   rescheduleModalVisible.value = false;
 };
@@ -743,7 +751,11 @@ const loadRescheduleCalendar = async (order: BookingOrder) => {
       ordersApi.getPhotographerBookedDates(order.photographerId),
     ]);
     const available = Array.isArray(p.availableDates) ? p.availableDates : [];
+    const rest = Array.isArray(p.restDates) ? p.restDates : [];
     rescheduleAvailableDates.value = available
+      .map((x) => String(x).trim())
+      .filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(x));
+    rescheduleRestDates.value = rest
       .map((x) => String(x).trim())
       .filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(x));
     rescheduleBookedDates.value = (Array.isArray(booked) ? booked : [])
@@ -751,6 +763,7 @@ const loadRescheduleCalendar = async (order: BookingOrder) => {
       .filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(x));
   } catch {
     rescheduleAvailableDates.value = [];
+    rescheduleRestDates.value = [];
     rescheduleBookedDates.value = [];
   }
 };
@@ -1325,6 +1338,11 @@ onUnmounted(() => {
     background: #f1f5f9;
     border-color: #cbd5e1;
   }
+  &.rest {
+    color: #374151;
+    background: #f3f4f6;
+    border-color: #d1d5db;
+  }
 }
 
 .calendar-weekdays {
@@ -1384,6 +1402,14 @@ onUnmounted(() => {
     background: #fef2f2;
     .day-status {
       color: #dc2626;
+    }
+  }
+
+  &.rest {
+    border-color: #d1d5db;
+    background: rgba(107, 114, 128, 0.1);
+    .day-status {
+      color: #4b5563;
     }
   }
 

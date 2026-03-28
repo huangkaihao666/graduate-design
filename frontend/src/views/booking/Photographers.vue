@@ -76,12 +76,21 @@
             <p v-if="selected.scheduleNote" class="body-text schedule-note">
               {{ selected.scheduleNote }}
             </p>
-            <div v-if="displayDates.length" class="date-tags">
-              <a-tag v-for="d in displayDates" :key="d" color="pink">{{ d }}</a-tag>
+            <div v-if="displayAvailableDates.length" class="date-tags">
+              <span class="date-tags-label">可约</span>
+              <a-tag v-for="d in displayAvailableDates" :key="'a-' + d" color="success">{{
+                d
+              }}</a-tag>
+            </div>
+            <div v-if="displayRestDates.length" class="date-tags">
+              <span class="date-tags-label">休息</span>
+              <a-tag v-for="d in displayRestDates" :key="'r-' + d" color="default">{{ d }}</a-tag>
             </div>
             <a-empty
-              v-if="!selected.scheduleNote && !displayDates.length"
-              description="档期未配置，预约时可在备注中说明期望时间"
+              v-if="
+                !selected.scheduleNote && !displayAvailableDates.length && !displayRestDates.length
+              "
+              description="档期未配置，请在下单页查看或与客服确认"
             />
           </a-card>
 
@@ -121,10 +130,19 @@ const loading = ref(false);
 const list = ref<PhotographerPublic[]>([]);
 const selected = ref<PhotographerPublic | null>(null);
 
-const displayDates = computed(() => {
+const sortIso = (arr: string[]) =>
+  [...arr].filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(String(x).trim())).sort();
+
+const displayAvailableDates = computed(() => {
   const raw = selected.value?.availableDates;
   if (!raw?.length) return [];
-  return [...raw].sort();
+  return sortIso(raw.map((x) => String(x).trim()));
+});
+
+const displayRestDates = computed(() => {
+  const raw = selected.value?.restDates;
+  if (!raw?.length) return [];
+  return sortIso(raw.map((x) => String(x).trim()));
 });
 
 const load = async () => {
@@ -373,6 +391,19 @@ onMounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+
+  &:first-of-type {
+    margin-top: 0;
+  }
+}
+
+.date-tags-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  margin-right: 4px;
 }
 
 .book-bar {

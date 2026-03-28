@@ -78,6 +78,7 @@ export class PhotographersController {
       awards?: string;
       portfolioImages?: string[];
       availableDates?: string[];
+      restDates?: string[];
       scheduleNote?: string;
       sortOrder?: number;
       enabled?: boolean;
@@ -106,6 +107,7 @@ export class PhotographersController {
       awards: string | null;
       portfolioImages: string[];
       availableDates: string[];
+      restDates: string[];
       scheduleNote: string | null;
       sortOrder: number;
       enabled: boolean;

@@ -234,6 +234,7 @@ const pullAvailableDatesFromBackend = async () => {
     );
     if (!hit) return;
     availableDates.value = new Set(dedupeSortedDates(hit.availableDates || []));
+    restDates.value = new Set(dedupeSortedDates(hit.restDates || []));
     persistSchedule();
   } catch {
     // 保留本地数据作为兜底
@@ -252,6 +253,7 @@ const syncAvailableDatesToBackend = async () => {
   try {
     await photographersApi.update(pid, {
       availableDates: dedupeSortedDates(availableDates.value),
+      restDates: dedupeSortedDates(restDates.value),
     });
     syncWarned.value = false;
     missingBindingWarned.value = false;

@@ -138,6 +138,12 @@
 </template>
 
 <script setup lang="ts">
+import { authApi } from '@/api/auth';
+import {
+  photographersApi,
+  type PhotographerAdmin,
+  type PhotographerPublic,
+} from '@/api/photographers';
 import { useAuthStore } from '@/store/auth';
 import type { UploadProps } from 'ant-design-vue';
 import { message } from 'ant-design-vue';
@@ -166,6 +172,10 @@ const catOptions = [
 const cat = ref<string>('all');
 const items = ref<Item[]>([]);
 
+const photographerId = ref<number | null>(null);
+const missingBindingWarned = ref(false);
+const syncWarned = ref(false);
+
 const draftDesc = ref('');
 const draftCat = ref<Cat | undefined>('wedding');
 const pendingUploads = ref<string[]>([]);
@@ -173,17 +183,155 @@ const pendingUploads = ref<string[]>([]);
 const likes = computed(() => Math.max(0, items.value.length * 13));
 const reviews = computed(() => Math.max(0, Math.floor(items.value.length * 1.6)));
 
+const resolveWorkerPhotographer = async (): Promise<number | null> => {
+  if (photographerId.value) return photographerId.value;
+  let boundId = Number(authStore.user?.workerPhotographerId || 0);
+  if (!Number.isFinite(boundId) || boundId <= 0) {
+    try {
+      await authStore.getProfile();
+      boundId = Number(authStore.user?.workerPhotographerId || 0);
+    } catch {
+      /* ignore */
+    }
+  }
+  if (Number.isFinite(boundId) && boundId > 0) {
+    photographerId.value = boundId;
+    return photographerId.value;
+  }
+  const workerName = String(authStore.user?.name || '').trim();
+  if (!workerName) return null;
+  try {
+    const list = await photographersApi.listAdmin();
+    const hit = (Array.isArray(list) ? list : []).find(
+      (x: PhotographerAdmin) => String(x.name || '').trim() === workerName
+    );
+    if (hit?.id) {
+      photographerId.value = Number(hit.id);
+      return photographerId.value;
+    }
+  } catch {
+    /* ignore */
+  }
+  try {
+    const pub = await photographersApi.getPublic();
+    const hit = (Array.isArray(pub) ? pub : []).find(
+      (x: PhotographerPublic) => String(x.name || '').trim() === workerName
+    );
+    if (hit?.id) {
+      photographerId.value = Number(hit.id);
+      return photographerId.value;
+    }
+  } catch {
+    /* ignore */
+  }
+  try {
+    const p: unknown = await authApi.getProfile();
+    const data =
+      (p as { data?: { data?: unknown } })?.data?.data ?? (p as { data?: unknown })?.data ?? p;
+    const pid = Number((data as { workerPhotographerId?: number })?.workerPhotographerId || 0);
+    if (Number.isFinite(pid) && pid > 0) {
+      photographerId.value = pid;
+      return photographerId.value;
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+};
+
+const defaultItem = (url: string): Item => ({
+  url,
+  category: 'wedding',
+  desc: '',
+});
+
+const saveLocalOnly = () => {
+  localStorage.setItem(storageKey.value, JSON.stringify(items.value));
+  localStorage.setItem(urlsKey.value, JSON.stringify(items.value.map((x) => x.url)));
+};
+
+const syncPortfolioToBackend = async () => {
+  const pid = await resolveWorkerPhotographer();
+  if (!pid) {
+    if (!missingBindingWarned.value) {
+      message.warning('当前账号未关联摄影师档案，作品仅保存在本机，用户端与管理端无法看到');
+      missingBindingWarned.value = true;
+    }
+    return;
+  }
+  const urls = dedupeUrls(items.value.map((x) => x.url).filter(Boolean));
+  try {
+    await photographersApi.update(pid, { portfolioImages: urls });
+    syncWarned.value = false;
+  } catch {
+    if (!syncWarned.value) {
+      message.warning('作品同步到服务器失败，请检查网络或重新登录');
+      syncWarned.value = true;
+    }
+  }
+};
+
 const load = () => {
   const raw = localStorage.getItem(storageKey.value);
   const list = raw ? (JSON.parse(raw) as Item[]) : [];
   items.value = Array.isArray(list) ? list : [];
-  // 兼容 Dashboard 读取
   localStorage.setItem(urlsKey.value, JSON.stringify(items.value.map((x) => x.url)));
 };
 
+const pullPortfolioFromBackend = async () => {
+  const pid = await resolveWorkerPhotographer();
+  if (!pid) {
+    if (!missingBindingWarned.value) {
+      message.warning('当前账号未关联摄影师档案，无法从服务器拉取作品，请在个人资料中绑定摄影师');
+      missingBindingWarned.value = true;
+    }
+    return;
+  }
+
+  const localSnapshot = [...items.value];
+  const localByUrl = new Map<string, Item>();
+  for (const it of localSnapshot) {
+    if (it?.url) localByUrl.set(it.url, it);
+  }
+
+  let serverUrls: string[] | null = null;
+
+  try {
+    const list = await photographersApi.listAdmin();
+    const hit = (Array.isArray(list) ? list : []).find(
+      (x: PhotographerAdmin) => Number(x.id) === pid
+    );
+    if (hit) {
+      serverUrls = Array.isArray(hit.portfolioImages) ? [...hit.portfolioImages] : [];
+    }
+  } catch {
+    /* ignore */
+  }
+
+  if (serverUrls === null) {
+    try {
+      const one = await photographersApi.getPublicOne(pid);
+      serverUrls = Array.isArray(one.portfolioImages) ? [...one.portfolioImages] : [];
+    } catch {
+      return;
+    }
+  }
+
+  const out: Item[] = [];
+  const seen = new Set<string>();
+  for (const u of serverUrls) {
+    const url = String(u || '').trim();
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    out.push(localByUrl.get(url) ?? defaultItem(url));
+  }
+  items.value = out;
+  saveLocalOnly();
+};
+
 const save = () => {
-  localStorage.setItem(storageKey.value, JSON.stringify(items.value));
-  localStorage.setItem(urlsKey.value, JSON.stringify(items.value.map((x) => x.url)));
+  saveLocalOnly();
+  void syncPortfolioToBackend();
 };
 
 const filtered = computed(() => {
@@ -313,9 +461,10 @@ const applyDraft = () => {
   message.success(`已上传 ${batch.length} 张作品`);
 };
 
-onMounted(() => {
+onMounted(async () => {
   authStore.initializeAuth();
   load();
+  await pullPortfolioFromBackend();
 });
 </script>
 

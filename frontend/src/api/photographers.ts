@@ -19,6 +19,8 @@ export interface PhotographerPublic {
   portfolioImages: string[];
   /** 可预约日期 YYYY-MM-DD */
   availableDates?: string[];
+  /** 休息日 YYYY-MM-DD（与摄影师端一致） */
+  restDates?: string[];
   /** 档期说明 */
   scheduleNote?: string;
   sortOrder: number;
@@ -82,6 +84,7 @@ export const photographersApi = {
     awards?: string;
     portfolioImages?: string[];
     availableDates?: string[];
+    restDates?: string[];
     scheduleNote?: string;
     sortOrder?: number;
     enabled?: boolean;
@@ -102,6 +105,7 @@ export const photographersApi = {
       awards: string | null;
       portfolioImages: string[];
       availableDates: string[];
+      restDates: string[];
       scheduleNote: string | null;
       sortOrder: number;
       enabled: boolean;
