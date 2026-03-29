@@ -579,11 +579,16 @@ onMounted(() => {
 .itinerary-planning-container {
   min-height: 100vh;
   background: linear-gradient(180deg, #fff5f7 0%, #ffffff 32%);
-  padding: 40px 20px;
+  padding: 0 80px 40px;
+
+  @media (max-width: 768px) {
+    padding: 0 36px 32px;
+  }
 }
 
 .page-header {
   text-align: center;
+  padding-top: 28px;
   margin-bottom: 40px;
   color: #334155;
   text-shadow: none;

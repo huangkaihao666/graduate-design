@@ -956,7 +956,7 @@ onUnmounted(() => {
 .orders-container {
   min-height: 100vh;
   background: linear-gradient(180deg, #fff5f7 0%, #ffffff 32%);
-  padding: 40px 20px;
+  padding: 0 0 40px;
 }
 
 .page-header {

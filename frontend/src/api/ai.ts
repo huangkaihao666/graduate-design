@@ -89,6 +89,18 @@ export const aiApi = {
   getCustomerSupportHistory: (params?: { page?: number; pageSize?: number }) =>
     httpClient.get('/ai/customer-support/history', { params }),
 
+  /** 更新客服历史自定义标题 */
+  updateCustomerSupportHistoryTitle: (id: number, data: { title: string }) =>
+    httpClient.patch(`/ai/customer-support/history/${id}`, data),
+
+  /** 置顶 / 取消置顶 */
+  toggleCustomerSupportHistoryPin: (id: number) =>
+    httpClient.post(`/ai/customer-support/history/${id}/pin`, {}),
+
+  /** 删除单条客服历史 */
+  deleteCustomerSupportHistory: (id: number) =>
+    httpClient.delete(`/ai/customer-support/history/${id}`),
+
   /**
    * 保存 AI 生成历史
    */

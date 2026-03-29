@@ -69,6 +69,9 @@ export interface CustomerSupportHistoryList {
     id: number;
     question: string;
     answer: string;
+    title: string | null;
+    isPinned: boolean;
+    pinnedAt: Date | null;
     createdAt: Date;
   }>;
   pagination: {
@@ -76,10 +79,44 @@ export interface CustomerSupportHistoryList {
     page: number;
     pageSize: number;
   };
+  /** 中国时区日历日，供前端「今天/昨天」分组，避免客户端系统日期或时区不一致 */
+  grouping: {
+    today: string;
+    yesterday: string;
+  };
 }
 
 @Injectable()
 export class AiService {
+  /** 中国时区 YYYY-MM-DD，与前端历史分组一致 */
+  private static shanghaiYmd(d: Date): string {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Shanghai',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(d);
+    const y = parts.find((p) => p.type === 'year')?.value;
+    const m = parts.find((p) => p.type === 'month')?.value;
+    const day = parts.find((p) => p.type === 'day')?.value;
+    if (y && m && day) return `${y}-${m}-${day}`;
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Shanghai',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(d);
+  }
+
+  private static shanghaiYesterdayYmd(todayYmd: string): string {
+    const [y, m, d] = todayYmd.split('-').map(Number);
+    const noon = new Date(
+      `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}T12:00:00+08:00`,
+    );
+    const prev = new Date(noon.getTime() - 86400000);
+    return AiService.shanghaiYmd(prev);
+  }
+
   // 火山引擎（字节跳动）图像生成 API 配置
   private readonly volcesApiKey =
     process.env.VOLCES_API_KEY || 'b36d35f5-5fc6-45ff-a279-5650574d947d';
@@ -958,10 +995,13 @@ export class AiService {
     const cleanAnswer = answer.trim();
     if (!cleanQuestion || !cleanAnswer) return;
 
-    await this.prisma.$executeRaw`
-      INSERT INTO customer_support_histories (userId, question, answer, createdAt, updatedAt)
-      VALUES (${userId}, ${cleanQuestion}, ${cleanAnswer}, NOW(), NOW())
-    `;
+    await this.prisma.customerSupportHistory.create({
+      data: {
+        userId,
+        question: cleanQuestion,
+        answer: cleanAnswer,
+      },
+    });
   }
 
   /**
@@ -977,12 +1017,22 @@ export class AiService {
     const skip = (safePage - 1) * safePageSize;
 
     const items = await this.prisma.$queryRaw<
-      Array<{ id: bigint; question: string; answer: string; createdAt: Date }>
+      Array<{
+        id: bigint;
+        question: string;
+        answer: string;
+        title: string | null;
+        isPinned: boolean;
+        pinnedAt: Date | null;
+        createdAt: Date;
+      }>
     >`
-      SELECT id, question, answer, createdAt
+      SELECT id, question, answer, title, isPinned, pinnedAt, createdAt
       FROM customer_support_histories
       WHERE userId = ${userId}
-      ORDER BY createdAt ASC
+      ORDER BY isPinned DESC,
+        IF(isPinned = 1, pinnedAt, createdAt) DESC,
+        id DESC
       LIMIT ${safePageSize} OFFSET ${skip}
     `;
     const totalRows = await this.prisma.$queryRaw<Array<{ count: bigint }>>`
@@ -992,19 +1042,128 @@ export class AiService {
     `;
     const total = Number(totalRows[0]?.count || 0);
 
+    const now = new Date();
+    const todayYmd = AiService.shanghaiYmd(now);
+    const yesterdayYmd = AiService.shanghaiYesterdayYmd(todayYmd);
+
     return {
-      items: items.map((item) => ({
-        id: Number(item.id),
-        question: item.question,
-        answer: item.answer,
-        createdAt: item.createdAt,
-      })),
+      items: items.map((item) => {
+        const row = item as Record<string, unknown>;
+        /** MySQL 驱动常把列名以小写返回，避免 createdAt 丢失导致前端无法分组 */
+        const rawCreated = row.createdAt ?? row.createdat ?? row['createdAt'];
+        let createdAt: Date;
+        if (rawCreated instanceof Date) {
+          createdAt = rawCreated;
+        } else if (
+          typeof rawCreated === 'string' ||
+          typeof rawCreated === 'number'
+        ) {
+          createdAt = new Date(rawCreated);
+        } else {
+          createdAt = new Date(0);
+        }
+        const titleRaw = row.title ?? row.Title;
+        const pinRaw = row.isPinned ?? row.ispinned;
+        const pinnedAtRaw = row.pinnedAt ?? row.pinnedat;
+        return {
+          id: Number(item.id),
+          question: item.question,
+          answer: item.answer,
+          title:
+            typeof titleRaw === 'string'
+              ? titleRaw
+              : titleRaw != null
+                ? String(titleRaw)
+                : null,
+          isPinned: Boolean(pinRaw),
+          pinnedAt:
+            pinnedAtRaw instanceof Date
+              ? pinnedAtRaw
+              : pinnedAtRaw
+                ? new Date(String(pinnedAtRaw))
+                : null,
+          createdAt,
+        };
+      }),
       pagination: {
         total,
         page: safePage,
         pageSize: safePageSize,
       },
+      grouping: {
+        today: todayYmd,
+        yesterday: yesterdayYmd,
+      },
     };
+  }
+
+  /**
+   * 更新客服历史自定义标题（仅本人）
+   */
+  async updateCustomerSupportHistoryTitle(
+    userId: number,
+    id: number,
+    title: string,
+  ): Promise<void> {
+    const t = title.trim();
+    const row = await this.prisma.customerSupportHistory.findFirst({
+      where: { id, userId },
+    });
+    if (!row) {
+      throw new HttpException(
+        { statusCode: 404, message: '记录不存在' },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    await this.prisma.customerSupportHistory.update({
+      where: { id },
+      data: { title: t.length > 0 ? t.slice(0, 400) : null },
+    });
+  }
+
+  /**
+   * 置顶 / 取消置顶（仅本人）
+   */
+  async toggleCustomerSupportHistoryPin(
+    userId: number,
+    id: number,
+  ): Promise<{ isPinned: boolean }> {
+    const row = await this.prisma.customerSupportHistory.findFirst({
+      where: { id, userId },
+    });
+    if (!row) {
+      throw new HttpException(
+        { statusCode: 404, message: '记录不存在' },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    const next = !row.isPinned;
+    await this.prisma.customerSupportHistory.update({
+      where: { id },
+      data: {
+        isPinned: next,
+        pinnedAt: next ? new Date() : null,
+      },
+    });
+    return { isPinned: next };
+  }
+
+  /**
+   * 删除单条客服历史（仅本人）
+   */
+  async deleteCustomerSupportHistory(
+    userId: number,
+    id: number,
+  ): Promise<void> {
+    const res = await this.prisma.customerSupportHistory.deleteMany({
+      where: { id, userId },
+    });
+    if (res.count === 0) {
+      throw new HttpException(
+        { statusCode: 404, message: '记录不存在' },
+        HttpStatus.NOT_FOUND,
+      );
+    }
   }
 
   /**

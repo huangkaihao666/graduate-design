@@ -44,7 +44,7 @@
             active-class="active"
           >
             <span class="icon">📝</span>
-            <span v-if="!isCollapsed" class="label">个性化行程·下单</span>
+            <span v-if="!isCollapsed" class="label">在线下单</span>
           </router-link>
         </div>
 

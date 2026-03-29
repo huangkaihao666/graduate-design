@@ -1185,12 +1185,12 @@ onMounted(async () => {
 }
 
 .photographer-booking-banner {
-  max-width: 1200px;
-  margin: 0 auto 16px;
-  padding: 0 24px;
+  max-width: none;
+  margin: 0 0 16px;
+  padding: 0 80px;
 
   @media (max-width: 768px) {
-    padding: 0 16px;
+    padding: 0 36px;
   }
 }
 
@@ -1236,7 +1236,13 @@ onMounted(async () => {
     position: relative;
     z-index: 1;
     max-width: 800px;
-    padding: 12px 20px;
+    width: 100%;
+    padding: 12px 80px;
+    box-sizing: border-box;
+
+    @media (max-width: 768px) {
+      padding: 12px 36px;
+    }
 
     .title {
       font-size: 2.5rem;
@@ -1309,7 +1315,7 @@ onMounted(async () => {
 // 筛选栏
 .filters-section {
   background: #fff5f7;
-  padding: 20px 0;
+  padding: 20px 80px;
   border-bottom: 1px solid rgba(255, 182, 193, 0.35);
 
   :deep(.ant-select-selector) {
@@ -1325,9 +1331,9 @@ onMounted(async () => {
   }
 
   .filters-content {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 20px;
+    max-width: none;
+    margin: 0;
+    padding: 0;
     display: flex;
     flex-wrap: wrap;
     gap: 20px;
@@ -1366,9 +1372,9 @@ onMounted(async () => {
   }
 
   .hot-tags-row {
-    max-width: 1200px;
-    margin: 16px auto 0;
-    padding: 0 20px;
+    max-width: none;
+    margin: 16px 0 0;
+    padding: 0;
     display: flex;
     align-items: center;
     flex-wrap: wrap;
@@ -1432,9 +1438,9 @@ onMounted(async () => {
 }
 
 .recommend-section {
-  max-width: 1200px;
-  margin: 24px auto 0;
-  padding: 0 20px;
+  max-width: none;
+  margin: 24px 0 0;
+  padding: 0 80px;
 
   .section-header {
     text-align: center;
@@ -1584,9 +1590,9 @@ onMounted(async () => {
 
 // 套餐列表区域
 .packages-section {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 60px 20px;
+  max-width: none;
+  margin: 0;
+  padding: 60px 80px;
 
   .section-header {
     text-align: center;
@@ -1611,7 +1617,7 @@ onMounted(async () => {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 80px 20px;
+    padding: 80px 0;
     color: #999;
 
     .empty-icon {
@@ -1976,7 +1982,7 @@ onMounted(async () => {
 .footer {
   background: #333;
   color: white;
-  padding: 60px 20px 20px;
+  padding: 60px 80px 20px;
   margin-top: 80px;
 
   .footer-content {
@@ -2032,6 +2038,26 @@ onMounted(async () => {
 
 // 响应式
 @media (max-width: 768px) {
+  .filters-section {
+    padding: 20px 36px;
+  }
+
+  .recommend-section:not(.drawer-mode) {
+    padding: 0 36px;
+  }
+
+  .packages-section {
+    padding: 40px 36px;
+  }
+
+  .photographer-booking-banner {
+    padding: 0 36px;
+  }
+
+  .footer {
+    padding: 40px 36px 20px;
+  }
+
   .hero-section {
     .hero-content {
       .title {

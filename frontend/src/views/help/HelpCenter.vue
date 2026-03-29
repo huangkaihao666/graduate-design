@@ -1,8 +1,10 @@
 <template>
   <div class="help-center-page">
     <div class="page-header">
-      <h1>💬 帮助中心</h1>
-      <p>智能客服在线答疑，支持订单、套餐、预约与 AI 功能相关问题</p>
+      <p class="page-intro">
+        <img :src="helpBubbleIcon" alt="" class="intro-bubble-icon" width="88" height="88" />
+        <span class="intro-text">智能客服在线答疑，支持订单、套餐、预约与 AI 功能相关问题</span>
+      </p>
     </div>
 
     <div class="help-layout">
@@ -92,39 +94,139 @@
         <div v-if="!authStore.isAuthenticated" class="history-empty">登录后可查看历史记录</div>
         <div v-else-if="historyItems.length === 0" class="history-empty">暂无历史记录</div>
         <div v-else class="history-list">
-          <template v-for="group in groupedHistory" :key="group.label">
+          <template v-for="(group, idx) in groupedHistory" :key="idx">
             <div v-if="group.items.length" class="history-group">
-              <div class="history-group-title">{{ group.label }}</div>
+              <div v-if="group.label" class="history-group-title">{{ group.label }}</div>
               <div
                 v-for="item in group.items"
                 :key="item.id"
-                class="history-item"
-                :class="{ active: selectedHistoryId === item.id }"
-                @click="openHistoryItem(item.id)"
+                class="history-item-outer"
+                @mouseenter="hoverHistoryId = item.id"
+                @mouseleave="onHistoryRowLeave"
               >
-                <div class="history-question">{{ item.question }}</div>
-                <div class="history-time">{{ formatTime(item.createdAt) }}</div>
+                <div class="history-item" :class="{ active: selectedHistoryId === item.id }">
+                  <div class="history-item-body" @click="openHistoryItem(item.id)">
+                    <div class="history-question">{{ historyDisplayTitle(item) }}</div>
+                    <div class="history-time">{{ formatTime(item.createdAt) }}</div>
+                  </div>
+                  <div
+                    v-show="hoverHistoryId === item.id || menuOpenId === item.id"
+                    class="history-item-actions"
+                  >
+                    <button
+                      type="button"
+                      class="history-more-btn"
+                      aria-label="更多操作"
+                      @click.stop="toggleHistoryMenu(item.id)"
+                    >
+                      <span class="history-more-dots" aria-hidden="true">⋯</span>
+                    </button>
+                    <div
+                      v-if="menuOpenId === item.id"
+                      class="history-dropdown"
+                      role="menu"
+                      @click.stop
+                    >
+                      <button type="button" class="history-dd-item" @click="openEditTitle(item)">
+                        <span class="history-dd-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+                            <path
+                              d="M4 20h4l9.5-9.5a2 2 0 0 0-2.83-2.83L4 16.17V20zM18.5 5.5 19.5 4.5a2 2 0 0 0-2.83 0l-1.06 1.06 4.24 4.24 1.06-1.06a2 2 0 0 0 0-2.83z"
+                              fill="currentColor"
+                            />
+                          </svg>
+                        </span>
+                        编辑标题
+                      </button>
+                      <button type="button" class="history-dd-item" @click="togglePinHistory(item)">
+                        <span class="history-dd-icon" aria-hidden="true">
+                          <svg
+                            v-if="!item.isPinned"
+                            viewBox="0 0 24 24"
+                            width="16"
+                            height="16"
+                            fill="none"
+                          >
+                            <path
+                              d="M12 4v12M8 8l4-4 4 4M5 20h14"
+                              stroke="currentColor"
+                              stroke-width="1.75"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                            />
+                          </svg>
+                          <svg v-else viewBox="0 0 24 24" width="16" height="16" fill="none">
+                            <path d="M12 2l4 6H8l4-6zM12 22l-4-6h8l-4 6z" fill="currentColor" />
+                          </svg>
+                        </span>
+                        {{ item.isPinned ? '取消置顶' : '置顶' }}
+                      </button>
+                      <button
+                        type="button"
+                        class="history-dd-item danger"
+                        @click="confirmDeleteHistory(item)"
+                      >
+                        <span class="history-dd-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+                            <path
+                              d="M6 7h12M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7h12zM10 11v6M14 11v6"
+                              stroke="currentColor"
+                              stroke-width="1.5"
+                              stroke-linecap="round"
+                            />
+                          </svg>
+                        </span>
+                        删除
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </template>
         </div>
       </aside>
     </div>
+
+    <a-modal
+      v-model:open="editTitleModalVisible"
+      title="编辑标题"
+      ok-text="保存"
+      cancel-text="取消"
+      :confirm-loading="editTitleSaving"
+      destroy-on-close
+      @ok="submitEditTitle"
+    >
+      <a-input v-model:value="editTitleValue" :maxlength="400" show-count placeholder="输入标题" />
+    </a-modal>
   </div>
 </template>
 
 <script setup lang="ts">
+import helpBubbleIcon from '@/assets/images/help-chat-bubble.png';
 import { aiApi, type CustomerSupportMessage } from '@/api/ai';
 import { useAuthStore } from '@/store/auth';
-import { message } from 'ant-design-vue';
+import { message, Modal } from 'ant-design-vue';
 import { computed, nextTick, onMounted, ref } from 'vue';
 
 interface HistoryItem {
   id: number;
   question: string;
   answer: string;
-  createdAt: string;
+  createdAt: string | number;
+  title?: string | null;
+  isPinned?: boolean;
+  pinnedAt?: string | number;
 }
+
+/** 兼容 camelCase / snake_case / MySQL 小写列名 */
+const pickCreatedAt = (item: Record<string, unknown>): string | number | undefined => {
+  const v = item.createdAt ?? item.created_at ?? item.createdat ?? item['createdAt'];
+  if (v == null) return undefined;
+  if (typeof v === 'number' || typeof v === 'string') return v;
+  if (v instanceof Date) return v.getTime();
+  return undefined;
+};
 
 const question = ref('');
 const loading = ref(false);
@@ -132,7 +234,15 @@ const messages = ref<CustomerSupportMessage[]>([]);
 const messagesRef = ref<HTMLElement | null>(null);
 const authStore = useAuthStore();
 const historyItems = ref<HistoryItem[]>([]);
+/** 服务端返回的中国时区「今天/昨天」锚点，避免本机系统日期错误导致分组异常 */
+const historyGrouping = ref<{ today: string; yesterday: string } | null>(null);
 const selectedHistoryId = ref<number | null>(null);
+const hoverHistoryId = ref<number | null>(null);
+const menuOpenId = ref<number | null>(null);
+const editTitleModalVisible = ref(false);
+const editTitleValue = ref('');
+const editingItemId = ref<number | null>(null);
+const editTitleSaving = ref(false);
 
 const scrollToBottom = async () => {
   await nextTick();
@@ -141,9 +251,88 @@ const scrollToBottom = async () => {
   }
 };
 
-const formatTime = (time: string) => {
-  const d = new Date(time);
-  if (Number.isNaN(d.getTime())) return '';
+/**
+ * 解析后端返回的创建时间（ISO、时间戳、MySQL 风格 "YYYY-MM-DD HH:mm:ss" 等）
+ */
+const parseCreatedAt = (raw: string | number | Date | undefined | null): Date | null => {
+  if (raw == null || raw === '') return null;
+  if (raw instanceof Date) {
+    return Number.isNaN(raw.getTime()) ? null : raw;
+  }
+  if (typeof raw === 'number') {
+    const ms = raw < 1e12 ? raw * 1000 : raw;
+    const d = new Date(ms);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  const s = String(raw).trim();
+  if (!s) return null;
+  let d = new Date(s);
+  if (!Number.isNaN(d.getTime())) return d;
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (m) {
+    d = new Date(
+      Number(m[1]),
+      Number(m[2]) - 1,
+      Number(m[3]),
+      Number(m[4]),
+      Number(m[5]),
+      m[6] != null ? Number(m[6]) : 0
+    );
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  const dm = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dm) {
+    d = new Date(Number(dm[1]), Number(dm[2]) - 1, Number(dm[3]));
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  return null;
+};
+
+/** 中国时区日历日 YYYY-MM-DD，与列表时间展示、后端 grouping 一致 */
+const formatYmdInShanghai = (d: Date): string => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(d);
+  const y = parts.find((p) => p.type === 'year')?.value;
+  const m = parts.find((p) => p.type === 'month')?.value;
+  const day = parts.find((p) => p.type === 'day')?.value;
+  if (y && m && day) return `${y}-${m}-${day}`;
+  return '';
+};
+
+const shanghaiYesterdayYmdFrom = (todayYmd: string): string => {
+  const [y, mo, d] = todayYmd.split('-').map(Number);
+  if (!y || !mo || !d) return '';
+  const noon = new Date(
+    `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}T12:00:00+08:00`
+  );
+  return formatYmdInShanghai(new Date(noon.getTime() - 86400000));
+};
+
+/** 用 Asia/Shanghai 日历日 + 服务端锚点（若有）分组 */
+const getHistoryBucket = (
+  createdAt: string | number | undefined
+): 'today' | 'yesterday' | 'earlier' => {
+  const itemDate = parseCreatedAt(createdAt);
+  if (!itemDate) return 'earlier';
+
+  const itemYmd = formatYmdInShanghai(itemDate);
+  if (!itemYmd) return 'earlier';
+
+  const todayYmd = historyGrouping.value?.today ?? formatYmdInShanghai(new Date());
+  const yesterdayYmd = historyGrouping.value?.yesterday ?? shanghaiYesterdayYmdFrom(todayYmd);
+
+  if (itemYmd === todayYmd) return 'today';
+  if (itemYmd === yesterdayYmd) return 'yesterday';
+  return 'earlier';
+};
+
+const formatTime = (time: string | number) => {
+  const d = parseCreatedAt(time);
+  if (!d) return '';
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
@@ -152,23 +341,10 @@ const formatTime = (time: string) => {
   return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
 };
 
-const toDateKey = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-const getHistoryBucket = (createdAt: string): 'today' | 'yesterday' | 'earlier' => {
-  const itemDate = new Date(createdAt);
-  if (Number.isNaN(itemDate.getTime())) return 'earlier';
-
-  const now = new Date();
-  const todayKey = toDateKey(now);
-  const y = new Date(now);
-  y.setDate(y.getDate() - 1);
-  const yesterdayKey = toDateKey(y);
-  const itemKey = toDateKey(itemDate);
-
-  if (itemKey === todayKey) return 'today';
-  if (itemKey === yesterdayKey) return 'yesterday';
-  return 'earlier';
+const historyDisplayTitle = (item: HistoryItem) => {
+  const t = item.title?.trim();
+  if (t) return t;
+  return item.question;
 };
 
 const groupedHistory = computed(() => {
@@ -176,13 +352,23 @@ const groupedHistory = computed(() => {
   const yesterday: HistoryItem[] = [];
   const earlier: HistoryItem[] = [];
 
-  const sorted = [...historyItems.value].sort((a, b) => {
-    const ta = new Date(a.createdAt).getTime();
-    const tb = new Date(b.createdAt).getTime();
+  const pinned = historyItems.value.filter((x) => x.isPinned);
+  const unpinned = historyItems.value.filter((x) => !x.isPinned);
+
+  /** 置顶：统一排在列表最上方，按置顶时间倒序（新置顶的在前） */
+  const pinnedSorted = [...pinned].sort((a, b) => {
+    const pa = parseCreatedAt(a.pinnedAt)?.getTime() ?? parseCreatedAt(a.createdAt)?.getTime() ?? 0;
+    const pb = parseCreatedAt(b.pinnedAt)?.getTime() ?? parseCreatedAt(b.createdAt)?.getTime() ?? 0;
+    return pb - pa;
+  });
+
+  const sortedUnpinned = [...unpinned].sort((a, b) => {
+    const ta = parseCreatedAt(a.createdAt)?.getTime() ?? 0;
+    const tb = parseCreatedAt(b.createdAt)?.getTime() ?? 0;
     return tb - ta;
   });
 
-  for (const item of sorted) {
+  for (const item of sortedUnpinned) {
     const bucket = getHistoryBucket(item.createdAt);
     if (bucket === 'today') today.push(item);
     else if (bucket === 'yesterday') yesterday.push(item);
@@ -190,9 +376,10 @@ const groupedHistory = computed(() => {
   }
 
   return [
-    { label: '今天', items: today },
-    { label: '昨天', items: yesterday },
-    { label: '更早', items: earlier },
+    { label: '已置顶', items: pinnedSorted },
+    { label: '', items: today },
+    { label: '', items: yesterday },
+    { label: '', items: earlier },
   ];
 });
 
@@ -211,6 +398,81 @@ const openHistoryItem = (id: number) => {
     { role: 'assistant', content: item.answer },
   ];
   scrollToBottom();
+};
+
+const onHistoryRowLeave = () => {
+  hoverHistoryId.value = null;
+  menuOpenId.value = null;
+};
+
+const toggleHistoryMenu = (id: number) => {
+  menuOpenId.value = menuOpenId.value === id ? null : id;
+};
+
+const openEditTitle = (item: HistoryItem) => {
+  menuOpenId.value = null;
+  editingItemId.value = item.id;
+  editTitleValue.value = item.title?.trim() ? item.title.trim() : item.question;
+  editTitleModalVisible.value = true;
+};
+
+const submitEditTitle = async () => {
+  if (editingItemId.value == null) {
+    return Promise.reject();
+  }
+  editTitleSaving.value = true;
+  try {
+    await aiApi.updateCustomerSupportHistoryTitle(editingItemId.value, {
+      title: editTitleValue.value.trim(),
+    });
+    message.success('标题已更新');
+    editTitleModalVisible.value = false;
+    await loadHistory();
+  } catch (e: unknown) {
+    const err = e as { message?: string };
+    message.error(err?.message || '保存失败');
+    throw e;
+  } finally {
+    editTitleSaving.value = false;
+  }
+};
+
+const togglePinHistory = async (item: HistoryItem) => {
+  menuOpenId.value = null;
+  try {
+    await aiApi.toggleCustomerSupportHistoryPin(item.id);
+    message.success('已更新');
+    await loadHistory();
+  } catch (e: unknown) {
+    const err = e as { message?: string };
+    message.error(err?.message || '操作失败');
+  }
+};
+
+const confirmDeleteHistory = (item: HistoryItem) => {
+  menuOpenId.value = null;
+  Modal.confirm({
+    title: '删除此条历史？',
+    content: '删除后无法恢复。',
+    okText: '删除',
+    okType: 'danger',
+    cancelText: '取消',
+    async onOk() {
+      try {
+        await aiApi.deleteCustomerSupportHistory(item.id);
+        message.success('已删除');
+        if (selectedHistoryId.value === item.id) {
+          selectedHistoryId.value = null;
+          messages.value = [];
+        }
+        await loadHistory();
+      } catch (e: unknown) {
+        const err = e as { message?: string };
+        message.error(err?.message || '删除失败');
+        throw e;
+      }
+    },
+  });
 };
 
 const handleSend = async () => {
@@ -268,13 +530,41 @@ const loadHistory = async () => {
       page: 1,
       pageSize: 100,
     });
-    const items = response?.data?.data?.items || response?.data?.items || [];
-    historyItems.value = items.map((item: HistoryItem) => ({
-      id: item.id,
-      question: item.question,
-      answer: item.answer,
-      createdAt: item.createdAt,
-    }));
+    const body = response as Record<string, unknown>;
+    const inner = (body?.data as Record<string, unknown> | undefined)?.data ?? body?.data;
+    const innerObj = inner as Record<string, unknown> | undefined;
+    const items = Array.isArray(innerObj?.items)
+      ? (innerObj.items as (HistoryItem & Record<string, unknown>)[])
+      : [];
+    const g = innerObj?.grouping as { today?: string; yesterday?: string } | undefined;
+    if (g?.today && g?.yesterday) {
+      historyGrouping.value = { today: g.today, yesterday: g.yesterday };
+    } else {
+      historyGrouping.value = null;
+    }
+
+    historyItems.value = items.map((item: HistoryItem & Record<string, unknown>) => {
+      const createdAt = pickCreatedAt(item) ?? item.createdAt ?? '';
+      const titleRaw = item.title;
+      const title = typeof titleRaw === 'string' && titleRaw.trim() ? titleRaw.trim() : null;
+      const pinRaw = item.isPinned ?? item.ispinned;
+      const pinnedRaw = item.pinnedAt ?? item.pinnedat;
+      let pinnedAt: string | number | undefined;
+      if (typeof pinnedRaw === 'string' || typeof pinnedRaw === 'number') {
+        pinnedAt = pinnedRaw;
+      } else if (pinnedRaw instanceof Date) {
+        pinnedAt = pinnedRaw.getTime();
+      }
+      return {
+        id: Number(item.id),
+        question: String(item.question ?? ''),
+        answer: String(item.answer ?? ''),
+        createdAt,
+        title,
+        isPinned: Boolean(pinRaw),
+        pinnedAt,
+      };
+    });
   } catch (error) {
     console.warn('加载客服历史失败:', error);
   }
@@ -287,25 +577,48 @@ onMounted(() => {
 
 <style scoped lang="less">
 .help-center-page {
-  min-height: calc(100vh - 140px);
-  padding: 8px 0 24px;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #fff5f7 0%, #ffffff 32%);
+  padding: 0 96px 40px;
+
+  @media (max-width: 768px) {
+    padding: 0 40px 32px;
+  }
 }
 
 .page-header {
-  margin-bottom: 16px;
+  text-align: center;
+  padding-top: 8px;
+  margin-bottom: 2px;
+  color: #334155;
+  text-shadow: none;
+}
 
-  h1 {
-    margin: 0 0 8px;
-    font-size: 28px;
-    font-weight: 700;
-    color: #222;
-  }
+.page-intro {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  max-width: 720px;
+  margin: 0 auto;
+  font-size: 1.1rem;
+  line-height: 1.45;
+  opacity: 0.9;
+  text-align: left;
+}
 
-  p {
-    margin: 0;
-    color: #666;
-    font-size: 14px;
-  }
+.intro-bubble-icon {
+  flex-shrink: 0;
+  width: 88px;
+  height: 88px;
+  object-fit: contain;
+  display: block;
+  transform: translateY(-1px);
+}
+
+.intro-text {
+  flex: 1;
+  min-width: 0;
 }
 
 .help-layout {
@@ -334,7 +647,7 @@ onMounted(() => {
   border: 1px solid #f0f0f0;
   border-radius: 12px;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.04);
-  padding: 12px;
+  padding: 20px 12px 12px;
   display: flex;
   flex-direction: column;
   min-height: 596px;
@@ -422,22 +735,122 @@ onMounted(() => {
   letter-spacing: 0.02em;
 }
 
+.history-item-outer {
+  position: relative;
+}
+
 .history-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
   border: 1px solid #eee;
   border-radius: 8px;
   padding: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
 
   &:hover {
     border-color: #ffc4d3;
-    background: #fff8fa;
+    background: #f5f5f5;
   }
 
   &.active {
     border-color: #ff89a5;
     background: #fff1f5;
+
+    &:hover {
+      background: #fff1f5;
+    }
   }
+}
+
+.history-item-body {
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.history-item-actions {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+}
+
+.history-more-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: #f0f0f0;
+  color: #666;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: #e5e5e5;
+    color: #333;
+  }
+}
+
+.history-more-dots {
+  font-size: 16px;
+  line-height: 1;
+  letter-spacing: -2px;
+}
+
+.history-dropdown {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 4px;
+  min-width: 148px;
+  padding: 6px 0;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+  border: 1px solid #f0f0f0;
+  z-index: 20;
+}
+
+.history-dd-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  color: #333;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: #f7f7f7;
+  }
+
+  &.danger {
+    color: #ff4d4f;
+
+    &:hover {
+      background: #fff2f0;
+    }
+  }
+}
+
+.history-dd-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: inherit;
 }
 
 .history-question {

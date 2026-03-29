@@ -186,7 +186,7 @@ const routes: RouteRecordRaw[] = [
         name: 'Order',
         component: Order,
         meta: {
-          title: '在线预约',
+          title: '在线下单',
           requiresAuth: true,
           layout: 'default',
         },

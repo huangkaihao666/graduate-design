@@ -168,6 +168,10 @@ model CustomerSupportHistory {
   id        Int      @id @default(autoincrement()) @db.UnsignedInt
   question  String   @db.Text
   answer    String   @db.LongText
+  /// 用户自定义标题，为空时前端展示 question 摘要
+  title     String?  @db.VarChar(400)
+  isPinned  Boolean  @default(false)
+  pinnedAt  DateTime?
 
   // 用户关联
   userId    Int      @db.UnsignedInt
@@ -179,6 +183,7 @@ model CustomerSupportHistory {
   @@map("customer_support_histories")
   @@index([userId])
   @@index([createdAt])
+  @@index([userId, isPinned])
 }
 
 // ============ 收藏功能数据模型 ============

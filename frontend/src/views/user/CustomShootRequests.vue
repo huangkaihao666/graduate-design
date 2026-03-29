@@ -343,9 +343,9 @@ onMounted(() => {
 
 <style scoped lang="less">
 .csr-page {
-  max-width: 880px;
-  margin: 0 auto;
-  padding: 24px 16px 40px;
+  max-width: none;
+  margin: 0;
+  padding: 0 0 40px;
 }
 .page-header {
   margin-bottom: 20px;

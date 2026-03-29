@@ -910,12 +910,13 @@ const showResultImagePlaceholder = (target: any) => {
 .virtual-try-on-container {
   min-height: 100vh;
   background: linear-gradient(180deg, #fff5f7 0%, #ffffff 32%);
-  padding: 24px 16px 40px;
+  padding: 0 0 40px;
 }
 
 .page-header {
   text-align: center;
-  margin-top: 10px;
+  padding-top: 28px;
+  margin-top: 0;
   margin-bottom: 23px;
   color: #334155;
   text-shadow: none;

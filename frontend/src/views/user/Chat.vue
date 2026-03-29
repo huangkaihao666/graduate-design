@@ -52,6 +52,18 @@
               </div>
               <div class="row2">{{ c.last }}</div>
             </div>
+            <a-popconfirm
+              title="删除该会话？"
+              ok-text="删除"
+              cancel-text="取消"
+              ok-type="danger"
+              placement="left"
+              @confirm="removeConv(c)"
+            >
+              <a-button type="text" danger size="small" class="conv-del-btn" @click.stop>
+                删除
+              </a-button>
+            </a-popconfirm>
           </div>
           <a-empty
             v-if="!filteredConvs.length"
@@ -117,7 +129,7 @@
               <span class="k">订单号</span><span class="v">{{ selected.orderNo }}</span>
             </div>
             <div class="kv">
-              <span class="k">拍摄日</span><span class="v">{{ selected.time }}</span>
+              <span class="k">拍摄日期</span><span class="v">{{ sessionShootingDateDisplay }}</span>
             </div>
           </div>
           <div v-else class="empty">请选择左侧会话</div>
@@ -209,6 +221,70 @@ type UConv = {
 };
 type Msg = { id: string; from: 'staff' | 'customer'; content: string; at: string };
 
+/** 与「我的订单」本地存储一致，用于补全会话里的拍摄日 */
+const ORDER_HISTORY_STORAGE_KEY = 'online-order-history';
+
+function isFullYmd(s: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(s || '').trim());
+}
+
+/** 将路由参数、订单字段等统一为 YYYY-MM-DD；无法识别时返回原字符串便于后续从订单补全 */
+function normalizeShootingDate(raw: unknown): string {
+  if (raw == null || raw === '') return '';
+  const first = Array.isArray(raw) ? raw[0] : raw;
+  const s = String(first).trim();
+  if (!s) return '';
+  const ymd = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (ymd) return ymd[1];
+  const d = dayjs(s);
+  if (d.isValid() && (s.includes('T') || s.includes('-') || s.length >= 8)) {
+    return d.format('YYYY-MM-DD');
+  }
+  return s;
+}
+
+function shootingDateFromOrderHistory(orderNo: string): string | null {
+  if (!orderNo) return null;
+  try {
+    const raw = localStorage.getItem(ORDER_HISTORY_STORAGE_KEY);
+    if (!raw) return null;
+    const list = JSON.parse(raw) as { orderNo?: string; shootingDate?: unknown }[];
+    if (!Array.isArray(list)) return null;
+    const o = list.find((x) => x.orderNo === orderNo);
+    if (!o || o.shootingDate == null) return null;
+    const n = normalizeShootingDate(o.shootingDate);
+    return isFullYmd(n) ? n : null;
+  } catch {
+    return null;
+  }
+}
+
+/** 列表里存的 time 不完整时，用订单本地记录写回并持久化 */
+function patchConvShootingDateFromOrder(c: UConv): void {
+  if (!c.orderNo) return;
+  const cur = normalizeShootingDate(c.time);
+  if (isFullYmd(cur)) return;
+  const fromO = shootingDateFromOrderHistory(c.orderNo);
+  if (!fromO) return;
+  const idx = convs.value.findIndex((x) => x.id === c.id);
+  if (idx < 0) return;
+  convs.value[idx].time = fromO;
+  if (selected.value?.id === c.id) selected.value = convs.value[idx];
+  saveConvs();
+}
+
+const sessionShootingDateDisplay = computed(() => {
+  const c = selected.value;
+  if (!c) return '';
+  let t = normalizeShootingDate(c.time);
+  if (!isFullYmd(t) && c.orderNo) {
+    const fromO = shootingDateFromOrderHistory(c.orderNo);
+    if (fromO) t = fromO;
+  }
+  if (isFullYmd(t)) return t;
+  return t || '—';
+});
+
 const authStore = useAuthStore();
 const route = useRoute();
 const uid = () => authStore.user?.id ?? 'guest';
@@ -236,10 +312,11 @@ const faqItems: FaqItem[] = [
     label: '拍摄流程',
     icon: '🧾',
     detail: [
-      '1）沟通确认：确定风格、地点、时间与套餐内容。',
-      '2）到店/集合：核对信息，协助更衣与补妆（如含妆造）。',
-      '3）正式拍摄：摄影师引导姿势与情绪，边拍边调整细节。',
-      '4）选片与精修：按规则选片，进入精修与交付流程。',
+      '1）预约与沟通：下单或确认订单后，可在「消息中心」与摄影师/客服对齐拍摄风格、集合地点、档期与套餐包含项（服装套数、场景数量等）。建议提前说明身体不便、忌口道具等个性化需求。',
+      '2）行前准备：按约定时间到达集合点或门店，携带身份证（如需）、合同或订单号；若含妆造，请预留化妆与试光时间，避免压缩正式拍摄时段。',
+      '3）拍摄执行：摄影师会引导站位、表情与互动，也会根据光线与现场微调路线；若遇小雨、人流高峰等，会协商替代取景或短暂等待，请尽量配合现场安全提示。',
+      '4）休息与补拍：长时间外景可安排短休、补水；若对某一组镜头不满意，可在当场提出补拍或调整，具体以现场时间与套餐约定为准。',
+      '5）选片与交付：拍摄结束后进入选片与精修排期；成片交付方式（网盘/邮箱/线下拷贝）与周期以套餐及门店说明为准。',
     ],
   },
   {
@@ -247,9 +324,11 @@ const faqItems: FaqItem[] = [
     label: '选片规则',
     icon: '✅',
     detail: [
-      '一般会提供预览片供挑选（具体数量以套餐为准）。',
-      '精修张数按套餐包含数量，超出部分可按张加修。',
-      '如需特殊风格（胶片、复古、电影感等），请提前说明。',
+      '1）预览与初筛：通常会先提供缩略图或小样供筛选「入选片」，再对入选照片做精修；每套套餐的「可选预览数量」「赠送精修张数」以套餐页与合同为准。',
+      '2）加片与加修：超出套餐包含张数的部分，可按张计费加修；不同门店单价可能不同，选片前可向客服确认当前价目与是否含调色、磨皮、瘦身等范围。',
+      '3）风格与备注：若希望统一成某种色调（如日系、胶片、电影感），请在选片时一次性备注清楚，避免精修中途反复大改导致周期延长。',
+      '4）定稿与修改：精修初稿确认后，一般可在约定次数内提出局部修改（如肤色、构图微调）；超出次数或整体重调可能产生额外费用，以门店规则为准。',
+      '5）底片与原片：是否赠送全部底片、原片格式与分辨率，以套餐说明为准；未包含的项目请勿自行商用传播，以免产生版权纠纷。',
     ],
   },
   {
@@ -257,9 +336,11 @@ const faqItems: FaqItem[] = [
     label: '售后政策',
     icon: '🛡️',
     detail: [
-      '交付内容：精修照片/原片是否赠送以套餐说明为准。',
-      '改期规则：如需改期请尽早沟通，以档期与规则为准。',
-      '问题反馈：如对精修效果有调整建议，可在交付周期内沟通修改。',
+      '1）交付与验收：收到成片后请尽快下载并验收；若链接失效或文件损坏，请在交付说明中的期限内联系补发，逾期可能需重新申请导出。',
+      '2）改期与取消：因天气、身体等原因需改期，请尽早通过消息或电话说明；距拍摄日较近的改期可能涉及档期占用费，具体以门店公示或合同为准。',
+      '3）精修异议：对色调、胖瘦、瑕疵处理等有意见，请在「首次交付后的反馈窗口期」内集中提出，便于一次性返工；超时后再提出大范围重做可能无法免费支持。',
+      '4）退款与争议：若因门店原因无法履约，按合同约定办理延期或退款；因个人原因临时取消，已发生成本（档期、化妆师、场地等）可能按规则扣除，建议下单前仔细阅读套餐须知。',
+      '5）隐私与使用：门店与摄影师通常仅在宣传授权范围内使用样片；若您不同意公开展示，请在签约或拍摄前书面/消息中明确说明。',
     ],
   },
 ];
@@ -451,7 +532,14 @@ const upsertFromQuery = () => {
   const orderNo = String(q.orderNo || '').trim();
   if (!orderNo) return;
   const peerName = String(q.peerName || q.photographerName || '工作人员').trim();
-  const time = String(q.time || q.shootingDate || '').trim() || dayjs().format('YYYY-MM-DD');
+  let time = normalizeShootingDate(q.time ?? q.shootingDate);
+  if (!isFullYmd(time)) {
+    const fromO = shootingDateFromOrderHistory(orderNo);
+    if (fromO) time = fromO;
+  }
+  /* 仍非完整日期（如仅「11」）则清空，避免写入错误片段；无日期时再默认当天 */
+  if (!isFullYmd(time)) time = '';
+  if (!time) time = dayjs().format('YYYY-MM-DD');
   const pidRaw = Number(q.photographerId ?? q.pid ?? 0);
   const photographerId = Number.isFinite(pidRaw) && pidRaw > 0 ? Math.floor(pidRaw) : undefined;
   const id = orderThreadId(orderNo);
@@ -469,7 +557,11 @@ const upsertFromQuery = () => {
     convs.value.unshift(ex);
   } else {
     ex.peerName = peerName || ex.peerName;
-    ex.time = time || ex.time;
+    const merged = isFullYmd(time)
+      ? time
+      : shootingDateFromOrderHistory(orderNo) ||
+        (isFullYmd(normalizeShootingDate(ex.time)) ? ex.time : '');
+    ex.time = isFullYmd(merged) ? merged : ex.time;
     if (photographerId) ex.photographerId = photographerId;
   }
   selected.value = ex;
@@ -500,14 +592,51 @@ const persist = () => {
 };
 
 const select = (c: UConv) => {
-  selected.value = c;
-  loadMessages(c);
-  acknowledgePeek(c);
+  patchConvShootingDateFromOrder(c);
+  const fresh = convs.value.find((x) => x.id === c.id) || c;
+  selected.value = fresh;
+  loadMessages(fresh);
+  acknowledgePeek(fresh);
   try {
-    localStorage.setItem(lastSelKey(), c.id);
+    localStorage.setItem(lastSelKey(), fresh.id);
   } catch {
     /* ignore */
   }
+};
+
+/** 删除左侧会话：移除列表项并清空本地消息存储 */
+const removeConv = (c: UConv) => {
+  const key = threadStorageKeyForConv(c);
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    /* ignore */
+  }
+  const idx = convs.value.findIndex((x) => x.id === c.id);
+  if (idx >= 0) convs.value.splice(idx, 1);
+  saveConvs();
+
+  if (selected.value?.id === c.id) {
+    const next = convs.value[0] ?? null;
+    selected.value = next;
+    messages.value = [];
+    if (next) {
+      loadMessages(next);
+      acknowledgePeek(next);
+      try {
+        localStorage.setItem(lastSelKey(), next.id);
+      } catch {
+        /* ignore */
+      }
+    } else {
+      try {
+        localStorage.removeItem(lastSelKey());
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  message.success('已删除会话');
 };
 
 const sendText = () => {
@@ -582,9 +711,15 @@ const bootstrap = () => {
   upsertFromQuery();
   restoreLast();
   syncSharedOrderConvsFromStorage();
+  convs.value.forEach((c) => {
+    if (c.orderNo) patchConvShootingDateFromOrder(c);
+  });
   if (selected.value) {
-    loadMessages(selected.value);
-    acknowledgePeek(selected.value);
+    patchConvShootingDateFromOrder(selected.value);
+    const cur = convs.value.find((x) => x.id === selected.value?.id) || selected.value;
+    selected.value = cur;
+    loadMessages(cur);
+    acknowledgePeek(cur);
   }
 };
 
@@ -629,9 +764,13 @@ watch(
   --chat-height: 700px;
   min-height: calc(100vh - 72px);
   background: linear-gradient(180deg, #fff5f7 0%, #ffffff 45%);
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 28px 20px 32px;
+  max-width: none;
+  margin: 0;
+  padding: 20px 40px 32px;
+
+  @media (max-width: 768px) {
+    padding: 16px 40px 24px;
+  }
 }
 .head {
   margin-bottom: 18px;
@@ -788,6 +927,24 @@ watch(
   border-color: rgba(255, 107, 139, 0.35);
   box-shadow: 0 4px 14px rgba(255, 107, 139, 0.14);
 }
+
+.conv-del-btn {
+  flex-shrink: 0;
+  font-size: 12px;
+  padding: 0 4px;
+  height: auto;
+  line-height: 1.2;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.conv-item:hover .conv-del-btn,
+.conv-item:focus-within .conv-del-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .meta {
   min-width: 0;
   flex: 1;
@@ -937,11 +1094,16 @@ watch(
   font-size: 14px;
 }
 .k {
+  flex-shrink: 0;
   color: #6b7280;
 }
 .v {
+  flex: 1;
+  min-width: 0;
   color: #111827;
   text-align: right;
+  white-space: normal;
+  word-break: break-word;
 }
 .empty {
   color: #9ca3af;

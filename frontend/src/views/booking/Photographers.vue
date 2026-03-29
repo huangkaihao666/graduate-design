@@ -1,12 +1,5 @@
 <template>
   <div class="photographers-page">
-    <div class="page-header">
-      <h1>本店摄影师</h1>
-      <p class="subtitle">
-        了解每位老师的擅长题材、资质与拍摄风格、从业年限与代表作品，选择与您契合的摄影师。
-      </p>
-    </div>
-
     <a-spin :spinning="loading">
       <div v-if="!list.length && !loading" class="empty-hint">
         <a-empty description="暂无摄影师信息，敬请期待" />
@@ -195,26 +188,11 @@ onMounted(() => {
 <style scoped lang="less">
 .photographers-page {
   min-height: calc(100vh - 64px);
-  padding: 24px 32px 48px;
+  padding: 16px 80px 48px;
   background: linear-gradient(180deg, #fff5f7 0%, #ffffff 32%);
-}
 
-.page-header {
-  margin-bottom: 24px;
-
-  h1 {
-    margin: 0 0 8px;
-    font-size: 26px;
-    font-weight: 700;
-    color: #1f2937;
-  }
-
-  .subtitle {
-    margin: 0;
-    color: #6b7280;
-    font-size: 14px;
-    max-width: 640px;
-    line-height: 1.6;
+  @media (max-width: 768px) {
+    padding: 16px 36px 40px;
   }
 }
 

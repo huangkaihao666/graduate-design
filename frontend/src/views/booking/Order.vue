@@ -3,7 +3,7 @@
     <!-- 页面标题（有套餐时为标准下单；无套餐时为个性化入口） -->
     <div class="page-header" :class="{ 'header-hub': packageMissing }">
       <template v-if="packageMissing">
-        <h1>✨ 制定个性化行程</h1>
+        <h1>📝 在线下单</h1>
         <p>
           从这里开始：用 AI
           规划拍摄路线与日程，或发布定制旅拍需求由摄影师接单；若已选好固定套餐，也可从下方进入套餐下单。
@@ -1255,19 +1255,25 @@ onUnmounted(() => {
 .order-container {
   min-height: 100vh;
   background: linear-gradient(180deg, #fff5f7 0%, #ffffff 55%);
-  padding: 40px 20px;
+  padding: 0 80px 40px;
+
+  @media (max-width: 768px) {
+    padding: 0 36px 32px;
+  }
 }
 
+/* 与行程规划页 .page-header 一致：上间距、标题字号与段落下间距 */
 .page-header {
   text-align: center;
-  margin-bottom: 32px;
+  padding-top: 28px;
+  margin-bottom: 40px;
   color: #334155;
   text-shadow: none;
 
   h1 {
     font-size: 2.5rem;
     font-weight: 700;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
   }
 
   p {
@@ -1279,16 +1285,13 @@ onUnmounted(() => {
   &.header-hub p {
     max-width: 640px;
     margin: 0 auto;
-    line-height: 1.65;
-    color: #64748b;
-    opacity: 1;
   }
 }
 
 .personalize-hub {
   max-width: 920px;
   margin: 0 auto;
-  padding: 8px 0 48px;
+  padding: 0 0 48px;
 }
 
 .hub-cards {

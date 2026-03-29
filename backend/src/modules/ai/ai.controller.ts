@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
   Req,
@@ -258,6 +259,122 @@ export class AiController {
         {
           statusCode: error.status || 400,
           message: error.message || '获取客服历史失败',
+        },
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
+   * 更新客服历史标题（仅登录用户本人）
+   */
+  @UseGuards(JwtAuthGuard)
+  @Patch('customer-support/history/:id')
+  async patchCustomerSupportHistoryTitle(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { title: string },
+  ) {
+    try {
+      const userId = req.user?.sub ? parseInt(req.user.sub, 10) : undefined;
+      if (!userId) {
+        throw new HttpException(
+          { statusCode: 401, message: '未登录' },
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+      await this.aiService.updateCustomerSupportHistoryTitle(
+        userId,
+        id,
+        body?.title ?? '',
+      );
+      return {
+        statusCode: 200,
+        message: '标题已更新',
+        data: { id },
+      };
+    } catch (error: any) {
+      if (error instanceof HttpException) throw error;
+      console.error('[AI Controller] 更新客服历史标题失败:', error);
+      throw new HttpException(
+        {
+          statusCode: error.status || 400,
+          message: error.message || '更新失败',
+        },
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
+   * 置顶 / 取消置顶
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('customer-support/history/:id/pin')
+  async toggleCustomerSupportHistoryPin(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    try {
+      const userId = req.user?.sub ? parseInt(req.user.sub, 10) : undefined;
+      if (!userId) {
+        throw new HttpException(
+          { statusCode: 401, message: '未登录' },
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+      const data = await this.aiService.toggleCustomerSupportHistoryPin(
+        userId,
+        id,
+      );
+      return {
+        statusCode: 200,
+        message: data.isPinned ? '已置顶' : '已取消置顶',
+        data,
+      };
+    } catch (error: any) {
+      if (error instanceof HttpException) throw error;
+      console.error('[AI Controller] 置顶客服历史失败:', error);
+      throw new HttpException(
+        {
+          statusCode: error.status || 400,
+          message: error.message || '操作失败',
+        },
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
+   * 删除单条客服历史
+   */
+  @UseGuards(JwtAuthGuard)
+  @Delete('customer-support/history/:id')
+  async deleteCustomerSupportHistory(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    try {
+      const userId = req.user?.sub ? parseInt(req.user.sub, 10) : undefined;
+      if (!userId) {
+        throw new HttpException(
+          { statusCode: 401, message: '未登录' },
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+      await this.aiService.deleteCustomerSupportHistory(userId, id);
+      return {
+        statusCode: 200,
+        message: '已删除',
+        data: { id },
+      };
+    } catch (error: any) {
+      if (error instanceof HttpException) throw error;
+      console.error('[AI Controller] 删除客服历史失败:', error);
+      throw new HttpException(
+        {
+          statusCode: error.status || 400,
+          message: error.message || '删除失败',
         },
         error.status || HttpStatus.BAD_REQUEST,
       );

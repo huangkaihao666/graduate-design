@@ -3,7 +3,7 @@
     <!-- 顶部导航栏 (仅在 layout: 'default' 时显示) -->
     <Header v-if="showHeader" />
 
-    <div class="layout-body" :class="{ 'has-header': showHeader }">
+    <div class="layout-body">
       <!-- 侧边菜单（仅管理员保留） -->
       <Sidebar v-if="showSidebar" />
 
@@ -14,6 +14,7 @@
           :class="{
             'dashboard-home-wrapper': isDashboardHome,
             'full-bleed-wrapper': isFullBleed || isWorkerShell,
+            'user-end-bleed': isUserEndLayout,
           }"
         >
           <slot />
@@ -40,6 +41,14 @@ const isFullBleed = computed(() => route.meta?.layout === 'full');
 const isWorkerShell = computed(() => route.path.startsWith('/worker'));
 const isAdmin = computed(() => authStore.user?.role === 'admin');
 const isDashboardHome = computed(() => route.path === '/dashboard');
+
+/** 普通用户端：主内容贴顶、左右铺满（不含管理员后台、工作台、已 full 布局页） */
+const isUserEndLayout = computed(() => {
+  const p = route.path;
+  if (p.startsWith('/admin') || p.startsWith('/worker')) return false;
+  if (isFullBleed.value || isWorkerShell.value) return false;
+  return true;
+});
 
 // 用户端改为顶部导航，管理员保留侧边栏
 const showHeader = computed(() => isHeaderLayout.value && !route.meta?.hideHeader);
@@ -75,11 +84,8 @@ const showSidebar = computed(() => {
     display: flex;
     flex: 1;
     margin-top: 0;
-    transition: margin-top 0.3s;
 
-    &.has-header {
-      margin-top: 72px;
-    }
+    /* Header 为 sticky 已在文档流中占位，勿再 margin-top，避免与顶栏之间出现白条 */
 
     main {
       flex: 1;
@@ -95,7 +101,8 @@ const showSidebar = computed(() => {
           padding-top: 8px;
         }
 
-        &.full-bleed-wrapper {
+        &.full-bleed-wrapper,
+        &.user-end-bleed {
           padding: 0;
           max-width: none;
           margin: 0;
@@ -113,8 +120,13 @@ const showSidebar = computed(() => {
       main {
         margin-left: 0 !important;
 
-        .content-wrapper {
+        .content-wrapper:not(.user-end-bleed):not(.full-bleed-wrapper) {
           padding: 16px;
+        }
+
+        .content-wrapper.user-end-bleed,
+        .content-wrapper.full-bleed-wrapper {
+          padding: 0;
         }
       }
     }
