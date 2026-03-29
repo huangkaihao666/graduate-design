@@ -502,6 +502,7 @@
 
 <script setup lang="ts">
 import { favoritesApi } from '@/api/favorites';
+import { insightsApi } from '@/api/insights';
 import { packagesApi, type Package, type PackageListResponse } from '@/api/packages';
 import { photographersApi } from '@/api/photographers';
 import { styleTagsApi } from '@/api/styleTags';
@@ -832,6 +833,7 @@ const saveBrowseBehavior = (pkg: Package) => {
   ].slice(0, 30);
   localStorage.setItem(BROWSE_HISTORY_KEY, JSON.stringify(next));
   updateBehaviorProfile();
+  void insightsApi.logBrowse(pkg.id, 'detail_modal');
 };
 
 const loadCollaborativeRecommendations = async () => {
@@ -1068,6 +1070,7 @@ const handleBook = (pkg: Package) => {
     return;
   }
 
+  void insightsApi.logBrowse(pkg.id, 'book_click');
   const pid = pendingPhotographer.value?.id;
   if (pid) {
     router.push(`/booking/order?packageId=${pkg.id}&photographerId=${pid}`);

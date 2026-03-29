@@ -88,9 +88,23 @@ instance.interceptors.response.use(
           : '请求参数错误';
       message.error(text);
     } else if (error.response?.status === 403) {
-      message.error('权限不足');
+      const raw403 = error.response?.data?.message;
+      const text403 = Array.isArray(raw403)
+        ? raw403.join('; ')
+        : typeof raw403 === 'string' && raw403.trim()
+          ? raw403
+          : '权限不足';
+      message.error(text403);
     } else if (error.response?.status === 404) {
       message.error('请求的资源不存在');
+    } else if (error.response?.status === 409) {
+      const raw409 = error.response?.data?.message;
+      const text409 = Array.isArray(raw409)
+        ? raw409.join('; ')
+        : typeof raw409 === 'string' && raw409.trim()
+          ? raw409
+          : '操作冲突';
+      message.error(text409);
     } else if (error.response?.status === 500) {
       message.error('服务器内部错误');
     } else if (error.message === 'Network Error') {

@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AdminInsightsModule } from './modules/admin-insights/admin-insights.module';
+import { CustomShootRequestsModule } from './modules/custom-shoot-requests/custom-shoot-requests.module';
 import { AiModule } from './modules/ai/ai.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { FavoritesModule } from './modules/favorites/favorites.module';
@@ -18,6 +20,8 @@ import { PrismaModule } from './prisma/prisma.module';
   imports: [
     PrismaModule,
     HealthModule,
+    AdminInsightsModule,
+    CustomShootRequestsModule,
     UsersModule,
     AuthModule,
     AiModule,

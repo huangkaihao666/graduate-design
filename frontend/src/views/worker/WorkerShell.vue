@@ -58,6 +58,9 @@
                 <a-menu-item key="worker-messages">
                   <router-link to="/worker/messages">消息中心</router-link>
                 </a-menu-item>
+                <a-menu-item key="worker-custom-market">
+                  <router-link to="/worker/custom-market">定制需求广场</router-link>
+                </a-menu-item>
                 <a-menu-item key="worker-profile">
                   <router-link to="/worker/profile">个人中心</router-link>
                 </a-menu-item>
@@ -143,6 +146,7 @@ onMounted(async () => {
 const sideItems = computed(() => [
   { label: '工作台', to: '/worker/dashboard', icon: '🧁' },
   { label: '订单列表', to: '/worker/orders', icon: '🧾' },
+  { label: '定制需求广场', to: '/worker/custom-market', icon: '🎯' },
   { label: '档期日历', to: '/worker/schedule', icon: '🗓️' },
   { label: '作品相册', to: '/worker/portfolio', icon: '🖼️' },
   { label: '消息中心', to: '/worker/messages', icon: '💬' },
@@ -152,6 +156,7 @@ const sideItems = computed(() => [
 const topTabs = computed(() => [
   { label: '工作台', to: '/worker/dashboard' },
   { label: '我的订单', to: '/worker/orders' },
+  { label: '定制需求广场', to: '/worker/custom-market' },
   { label: '档期管理', to: '/worker/schedule' },
   { label: '作品管理', to: '/worker/portfolio' },
   { label: '消息中心', to: '/worker/messages' },

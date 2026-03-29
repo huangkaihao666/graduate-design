@@ -38,6 +38,9 @@ model User {
   itineraryPlanningHistories     ItineraryPlanningHistory[]    @relation("ItineraryPlanningHistories")
   customerSupportHistories       CustomerSupportHistory[]      @relation("CustomerSupportHistories")
   favorites                      Favorite[]
+  packageBrowseLogs              PackageBrowseLog[]
+  customShootRequests            CustomShootRequest[] @relation("UserCustomShootRequests")
+  bookingOrders                  BookingOrder[]       @relation("UserBookingOrders")
 
   @@map("users")
   @@index([email])
@@ -287,10 +290,27 @@ model Photographer {
   updatedAt DateTime @updatedAt
 
   workerAccounts User[] @relation("WorkerPhotographer")
+  customShootRequests CustomShootRequest[]
 
   @@map("photographers")
   @@index([enabled, sortOrder])
   @@index([approvalStatus])
+}
+
+/// 套餐浏览埋点（详情弹窗 / 下单入口），供运营报告统计兴趣热度
+model PackageBrowseLog {
+  id        Int      @id @default(autoincrement()) @db.UnsignedInt
+  userId    Int?     @db.UnsignedInt
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  packageId Int      @db.UnsignedInt
+  /// 如 detail_modal、book_click
+  context   String?  @db.VarChar(40)
+  createdAt DateTime @default(now())
+
+  @@map("package_browse_logs")
+  @@index([packageId, createdAt])
+  @@index([userId, createdAt])
+  @@index([createdAt])
 }
 
 /// 收藏模型（套餐收藏）
@@ -315,11 +335,47 @@ model Favorite {
   @@index([createdAt])
 }
 
+/// 用户发布的定制旅拍需求（摄影师接单后需用户确认方可推进）
+model CustomShootRequest {
+  id           Int    @id @default(autoincrement()) @db.UnsignedInt
+  requestNo    String @unique @db.VarChar(64)
+  userId       Int    @db.UnsignedInt
+  user         User   @relation("UserCustomShootRequests", fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  title        String? @db.VarChar(200)
+  description  String? @db.Text
+  location     String @db.VarChar(120)
+  style        String @db.VarChar(100)
+  shootingDate String @db.VarChar(40)
+  duration     Int    @default(1) @db.UnsignedInt
+  numberOfPeople Int  @default(2) @db.UnsignedInt
+  budgetHint   Int?   @db.UnsignedInt
+  contactName  String @db.VarChar(100)
+  phone        String @db.VarChar(40)
+  /// open | pending_user_confirm | confirmed | cancelled
+  status       String @default("open") @db.VarChar(40)
+  photographerId Int?     @db.UnsignedInt
+  photographer   Photographer? @relation(fields: [photographerId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  claimedWorkerUserId Int? @db.UnsignedInt
+  claimMessage   String? @db.VarChar(500)
+  claimedAt      DateTime?
+  userConfirmedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  linkedBookingOrder BookingOrder?
+
+  @@map("custom_shoot_requests")
+  @@index([userId, status])
+  @@index([status, createdAt])
+  @@index([photographerId])
+}
+
 /// 预约订单模型
 model BookingOrder {
   id             Int      @id @default(autoincrement()) @db.UnsignedInt
   orderNo        String   @unique @db.VarChar(64)
-  packageId      Int      @db.UnsignedInt
+  /// 套餐下单必填；定制旅拍确认合作后可为空
+  packageId      Int?     @db.UnsignedInt
   packageName    String   @db.VarChar(255)
   location       String   @db.VarChar(100)
   style          String   @db.VarChar(100)
@@ -355,6 +411,14 @@ model BookingOrder {
   workerName      String?  @db.VarChar(100)
   workerTakenAt   DateTime?
 
+  /// 下单用户（定制旅拍等场景写入，便于按用户查询）
+  userId Int? @db.UnsignedInt
+  user   User? @relation("UserBookingOrders", fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  /// 由定制旅拍需求确认合作生成的订单（一对一）
+  customShootRequestId Int?              @unique @db.UnsignedInt
+  customShootRequest   CustomShootRequest? @relation(fields: [customShootRequestId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -364,4 +428,5 @@ model BookingOrder {
   @@index([paymentStatus])
   @@index([photographerId])
   @@index([workerUserId, createdAt])
+  @@index([userId])
 }

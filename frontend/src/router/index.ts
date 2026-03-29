@@ -35,6 +35,7 @@ const WorkerSchedule = () => import('../views/worker/pages/Schedule.vue');
 const WorkerPortfolio = () => import('../views/worker/pages/Portfolio.vue');
 const WorkerMessages = () => import('../views/worker/pages/Messages.vue');
 const WorkerProfile = () => import('../views/worker/pages/Profile.vue');
+const WorkerCustomMarket = () => import('../views/worker/pages/CustomMarket.vue');
 
 // 预约模块 (延迟加载)
 const Packages = () => import('../views/booking/Packages.vue');
@@ -47,6 +48,7 @@ const UserOrders = () => import('../views/user/Orders.vue');
 const UserFavorites = () => import('../views/user/Favorites.vue');
 const UserAIHistory = () => import('../views/user/AIHistory.vue');
 const UserChat = () => import('../views/user/Chat.vue');
+const UserCustomShootRequests = () => import('../views/user/CustomShootRequests.vue');
 
 // 后台管理 (延迟加载)
 const AdminDashboard = () => import('../views/admin/Dashboard.vue');
@@ -56,6 +58,7 @@ const AdminStyles = () => import('../views/admin/content/Styles.vue');
 const AdminPhotographers = () => import('../views/admin/content/Photographers.vue');
 const AdminOrders = () => import('../views/admin/Orders.vue');
 const AdminUsers = () => import('../views/admin/Users.vue');
+const AdminInsights = () => import('../views/admin/Insights.vue');
 
 // 路由配置
 const routes: RouteRecordRaw[] = [
@@ -239,6 +242,14 @@ const routes: RouteRecordRaw[] = [
           title: '消息',
         },
       },
+      {
+        path: 'custom-requests',
+        name: 'UserCustomShootRequests',
+        component: UserCustomShootRequests,
+        meta: {
+          title: '定制旅拍需求',
+        },
+      },
     ],
   },
 
@@ -266,6 +277,12 @@ const routes: RouteRecordRaw[] = [
         name: 'WorkerOrders',
         component: WorkerOrders,
         meta: { title: '我的订单' },
+      },
+      {
+        path: 'custom-market',
+        name: 'WorkerCustomMarket',
+        component: WorkerCustomMarket,
+        meta: { title: '定制需求广场' },
       },
       {
         path: 'schedule',
@@ -310,6 +327,14 @@ const routes: RouteRecordRaw[] = [
         component: AdminDashboard,
         meta: {
           title: '数据看板',
+        },
+      },
+      {
+        path: 'insights',
+        name: 'AdminInsights',
+        component: AdminInsights,
+        meta: {
+          title: '运营洞察',
         },
       },
       {

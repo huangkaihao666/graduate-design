@@ -131,7 +131,9 @@ export class PackagesService {
     };
 
     for (const o of orders as any[]) {
+      if (o.packageId == null) continue;
       const pid = Number(o.packageId);
+      if (!Number.isFinite(pid) || pid <= 0) continue;
       const status = String(o.paymentStatus || '').toLowerCase();
       const weight = status === 'paid' || status === 'completed' ? 6 : 4;
       const pseudoUid = getPseudoUid(

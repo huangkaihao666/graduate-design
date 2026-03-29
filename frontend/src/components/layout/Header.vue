@@ -16,7 +16,7 @@
           <router-link to="/ai/itinerary-planning" class="nav-item">行程规划</router-link>
           <router-link to="/booking/packages" class="nav-item">套餐浏览</router-link>
           <router-link to="/booking/photographers" class="nav-item">本店摄影师</router-link>
-          <router-link to="/booking/order" class="nav-item">在线下单</router-link>
+          <router-link to="/booking/order" class="nav-item">个性化行程·下单</router-link>
           <router-link v-if="!authStore.isWorker" to="/user/chat" class="nav-item"
             >消息中心</router-link
           >

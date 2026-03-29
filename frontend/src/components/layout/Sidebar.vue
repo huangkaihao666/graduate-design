@@ -9,8 +9,8 @@
 
       <!-- 菜单项 -->
       <nav class="sidebar-nav">
-        <!-- AI 功能 -->
-        <div v-if="authStore.isAuthenticated && !isAdmin" class="nav-group">
+        <!-- AI 功能（工作人员走独立工作台，不展示） -->
+        <div v-if="authStore.isAuthenticated && !isAdmin && !isWorker" class="nav-group">
           <div class="group-title" :class="{ collapsed: isCollapsed }">🤖 AI 功能</div>
           <router-link to="/ai/virtual-try-on" class="nav-link" active-class="active">
             <span class="icon">✨</span>
@@ -38,18 +38,18 @@
             <span v-if="!isCollapsed" class="label">本店摄影师</span>
           </router-link>
           <router-link
-            v-if="authStore.isAuthenticated"
+            v-if="authStore.isAuthenticated && !isWorker"
             to="/booking/order"
             class="nav-link"
             active-class="active"
           >
             <span class="icon">📝</span>
-            <span v-if="!isCollapsed" class="label">在线下单</span>
+            <span v-if="!isCollapsed" class="label">个性化行程·下单</span>
           </router-link>
         </div>
 
         <!-- 用户中心 -->
-        <div v-if="authStore.isAuthenticated && !isAdmin" class="nav-group">
+        <div v-if="authStore.isAuthenticated && !isAdmin && !isWorker" class="nav-group">
           <div class="group-title" :class="{ collapsed: isCollapsed }">👤 个人中心</div>
           <router-link to="/user/profile" class="nav-link" active-class="active">
             <span class="icon">👤</span>
@@ -58,6 +58,10 @@
           <router-link to="/user/orders" class="nav-link" active-class="active">
             <span class="icon">📦</span>
             <span v-if="!isCollapsed" class="label">订单管理</span>
+          </router-link>
+          <router-link to="/user/custom-requests" class="nav-link" active-class="active">
+            <span class="icon">🎯</span>
+            <span v-if="!isCollapsed" class="label">定制旅拍需求</span>
           </router-link>
           <router-link to="/user/chat" class="nav-link" active-class="active">
             <span class="icon">💬</span>
@@ -79,6 +83,10 @@
           <router-link to="/admin/dashboard" class="nav-link admin-link" active-class="active">
             <span class="icon"><DashboardOutlined /></span>
             <span v-if="!isCollapsed" class="label">数据看板</span>
+          </router-link>
+          <router-link to="/admin/insights" class="nav-link admin-link" active-class="active">
+            <span class="icon"><LineChartOutlined /></span>
+            <span v-if="!isCollapsed" class="label">运营洞察</span>
           </router-link>
           <router-link to="/admin/content/spots" class="nav-link admin-link" active-class="active">
             <span class="icon"><EnvironmentOutlined /></span>
@@ -124,6 +132,7 @@ import {
   AppstoreOutlined,
   CameraOutlined,
   DashboardOutlined,
+  LineChartOutlined,
   EnvironmentOutlined,
   FileTextOutlined,
   TagsOutlined,
@@ -138,6 +147,7 @@ const isCollapsed = ref(false);
 const isAdmin = computed(() => {
   return authStore.user?.role === 'admin';
 });
+const isWorker = computed(() => authStore.user?.role === 'worker');
 </script>
 
 <style scoped lang="less">

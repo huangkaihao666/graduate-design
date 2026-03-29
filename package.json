@@ -26,6 +26,9 @@
     "backend:start": "pnpm --filter backend start",
     "backend:lint": "pnpm --filter backend lint",
     "backend:format": "pnpm --filter backend format",
+    "db:migrate": "pnpm --filter backend exec prisma migrate deploy",
+    "db:migrate:dev": "pnpm --filter backend exec prisma migrate dev",
+    "db:generate": "pnpm --filter backend exec prisma generate",
     "dev": "pnpm frontend:dev & pnpm backend:dev",
     "build": "pnpm frontend:build && pnpm backend:build",
     "install-all": "pnpm install"
