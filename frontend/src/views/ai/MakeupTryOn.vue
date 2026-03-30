@@ -3,7 +3,7 @@
     <div class="page-shell">
       <div class="page-header">
         <h1>💄 AI 一键试妆</h1>
-        <p>上传证件照/正面照，选择妆容风格，生成仅面部妆容变化效果（不换装、不换背景）</p>
+        <p>上传证件照/正面照，选择妆容风格，快速体验不同妆容效果</p>
       </div>
 
       <div class="step-progress card-base">
@@ -143,6 +143,9 @@
             </p>
             <p v-else class="auto-save-hint guest">登录后将自动保存生成记录到「AI 生成历史」</p>
             <a-button @click="handleReset">🔄 重新生成</a-button>
+            <a-button type="primary" class="sync-vto-btn" @click="syncToVirtualTryOn">
+              带入虚拍试衣
+            </a-button>
           </div>
         </div>
       </div>
@@ -155,6 +158,7 @@ import { aiApi } from '@/api/ai';
 import { useAuthStore } from '@/store/auth';
 import { message } from 'ant-design-vue';
 import { computed, onMounted, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 
 type MakeupStyleId =
   | 'korean'
@@ -172,6 +176,7 @@ const generating = ref(false);
 const resultImage = ref('');
 const hasGenerated = ref(false);
 const authStore = useAuthStore();
+const router = useRouter();
 const STORAGE_KEY = 'makeup_try_on_state_v1';
 const currentStep = computed(() => {
   if (!uploadedImage.value) return 1;
@@ -244,6 +249,14 @@ const styleFeaturePrompt: Record<MakeupStyleId, string> = {
     '法式复古妆：底妆雾面高级，慵懒优雅；眉形微挑有弧度；眼尾眼线微扬；睫毛浓密卷翘，存在感强，复古氛围感拉满；搭配复古腮红与红唇；气质优雅迷人，适合复古、法式、教堂拍摄。',
   'light-thai':
     '轻泰妆：底妆干净紧致，立体精致；毛流眉清晰有力；眼妆轮廓感强；睫毛浓密纤长、卷翘上扬，放大双眼效果明显；鼻影自然立体，唇色红棕、橘棕调；整体明艳高级，上镜超好看。',
+};
+const makeupToVtoSyncMap: Record<MakeupStyleId, { vtoStyle: string; makeupValue: string }> = {
+  korean: { vtoStyle: 'minimalist', makeupValue: 'ks_bare' },
+  'japanese-magazine': { vtoStyle: 'artistic', makeupValue: 'js_soft' },
+  'new-chinese': { vtoStyle: 'classical', makeupValue: 'gf_red_brow' },
+  forest: { vtoStyle: 'romantic', makeupValue: 'sx_fresh' },
+  'french-retro': { vtoStyle: 'artistic', makeupValue: 'js_wine' },
+  'light-thai': { vtoStyle: 'adventure', makeupValue: 'ky_contour' },
 };
 const mockFilterStyle = computed(() => ({
   filter: makeupStyles.find((x) => x.id === selectedStyle.value)?.filter || '',
@@ -338,6 +351,24 @@ const handleReset = () => {
   if (fileInput.value) fileInput.value.value = '';
   sessionStorage.removeItem(STORAGE_KEY);
   message.info('已清空，可以重新开始生成');
+};
+
+const syncToVirtualTryOn = () => {
+  if (!hasGenerated.value) {
+    message.warning('请先生成并确认喜欢的试妆效果');
+    return;
+  }
+  const sync = makeupToVtoSyncMap[selectedStyle.value];
+  router.push({
+    path: '/ai/virtual-try-on',
+    query: {
+      syncMakeup: '1',
+      vtoStyle: sync.vtoStyle,
+      makeupValue: sync.makeupValue,
+      makeupStyle: selectedStyle.value,
+      makeupCorePrompt: styleFeaturePrompt[selectedStyle.value],
+    },
+  });
 };
 
 const generateTryOn = async () => {
@@ -824,6 +855,17 @@ onMounted(() => {
   button {
     flex: 1;
     min-width: 120px;
+  }
+}
+
+.sync-vto-btn {
+  background: #ff6b8b;
+  border-color: #ff6b8b;
+
+  &:hover,
+  &:focus {
+    background: #f0547b;
+    border-color: #f0547b;
   }
 }
 

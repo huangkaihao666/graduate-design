@@ -167,7 +167,7 @@ const sideItems = computed(() => [
   { label: '档期日历', to: '/worker/schedule', icon: '🗓️' },
   { label: '作品相册', to: '/worker/portfolio', icon: '🖼️' },
   { label: '消息中心', to: '/worker/messages', icon: '💬' },
-  ...(isMakeupWorker.value ? [{ label: '智能试妆', to: '/worker/makeup-ai', icon: '💄' }] : []),
+  ...(isMakeupWorker.value ? [{ label: '妆容建议', to: '/worker/makeup-ai', icon: '💄' }] : []),
   { label: '个人中心', to: '/worker/profile', icon: '👤' },
 ]);
 
@@ -178,7 +178,7 @@ const topTabs = computed(() => [
   { label: '档期管理', to: '/worker/schedule' },
   { label: '作品管理', to: '/worker/portfolio' },
   { label: '消息中心', to: '/worker/messages' },
-  ...(isMakeupWorker.value ? [{ label: '智能试妆', to: '/worker/makeup-ai' }] : []),
+  ...(isMakeupWorker.value ? [{ label: '妆容建议', to: '/worker/makeup-ai' }] : []),
   { label: '个人中心', to: '/worker/profile' },
 ]);
 

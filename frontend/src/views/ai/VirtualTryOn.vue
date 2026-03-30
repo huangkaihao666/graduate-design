@@ -322,6 +322,7 @@ import {
 import { useAuthStore } from '@/store/auth';
 import { message } from 'ant-design-vue';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 
 // 状态管理
 const uploadedImage = ref<string>('');
@@ -336,14 +337,17 @@ const lastRequest = ref<VirtualTryOnRequest | null>(null);
 const fileInput = ref<HTMLInputElement>();
 
 const preferences = reactive({
-  makeup: undefined,
-  hairstyle: undefined,
-  dress: undefined,
+  makeup: undefined as string | undefined,
+  hairstyle: undefined as string | undefined,
+  dress: undefined as string | undefined,
   accessory: undefined as string | undefined,
 });
 
 const availableStyles = ref<any[]>([]);
 const authStore = useAuthStore();
+const route = useRoute();
+const syncedCoreMakeupStyle = ref<string | undefined>(undefined);
+const syncedCoreMakeupPrompt = ref<string | undefined>(undefined);
 
 const currentStep = computed(() => {
   if (!subjectRole.value) return 1;
@@ -419,6 +423,42 @@ function resolveVtoPrefLabel(
   return options.find((o) => o.value === value)?.label;
 }
 
+function getStyleAdaptationClause(style: string): string {
+  if (style === 'classical') {
+    return '适配新中式：在保留底妆通透与睫毛质感的前提下，增强眉眼轮廓与线条感，唇妆优先红唇或豆沙红，整体更端庄古典。';
+  }
+  if (style === 'minimalist') {
+    return '适配韩式简约：保留清透底妆与无辜眼神，弱化重修容，唇色以奶茶/豆沙低饱和为主。';
+  }
+  if (style === 'romantic') {
+    return '适配森系草坪：保留原有底妆与睫毛纹理，增强柔和腮红与自然光泽，呈现轻盈清新氛围。';
+  }
+  if (style === 'bohemian') {
+    return '适配海岛松弛：保留底妆与眼神特征，加入轻古铜修容与暖调唇色，突出度假感。';
+  }
+  if (style === 'adventure') {
+    return '适配旷野自由：保留核心妆感，适度提升轮廓立体度与眼部对比，强调上镜张力。';
+  }
+  if (style === 'artistic') {
+    return '适配纪实故事：保留核心妆感，增强层次与电影感对比，唇妆更克制有质感。';
+  }
+  return '在保留核心妆感的基础上，按当前拍摄风格微调局部细节。';
+}
+
+function buildAdaptiveMakeupPrompt(
+  selectedMakeupLabel: string | undefined,
+  currentStyle: string
+): string | undefined {
+  if (!syncedCoreMakeupStyle.value && !syncedCoreMakeupPrompt.value) {
+    return selectedMakeupLabel;
+  }
+  const coreStyle = syncedCoreMakeupStyle.value || '已同步试妆风格';
+  const corePrompt = syncedCoreMakeupPrompt.value || '';
+  const localLabel = selectedMakeupLabel || '当前偏好妆容';
+  const styleAdaptation = getStyleAdaptationClause(currentStyle);
+  return `智能适配妆容：保留「${coreStyle}」的核心妆感（底色/肤色与睫毛质感、眼神气质），并与当前拍摄风格融合。当前偏好：${localLabel}。${styleAdaptation} 参考核心妆容特征：${corePrompt}`;
+}
+
 /** 若当前偏好不在当前风格+出镜方式对应的列表中则清空（恢复 session 后也会调用） */
 function pruneInvalidVtoPreferences() {
   const g = getVtoPreferencesForStyle(selectedStyle.value, subjectRole.value);
@@ -432,9 +472,99 @@ function pruneInvalidVtoPreferences() {
   if (preferences.accessory && !acc.has(preferences.accessory)) preferences.accessory = undefined;
 }
 
+function pickAdaptiveMakeupValueForStyle(
+  coreMakeupStyle: string | undefined,
+  targetStyle: string,
+  role: VirtualTryOnSubjectRole
+): string | undefined {
+  // 当前先覆盖女生单人核心链路；男生/双人可后续按同模式补齐
+  if (role !== 'female') {
+    return makeupOptions.value[0]?.value;
+  }
+  if (coreMakeupStyle === 'korean') {
+    const map: Record<string, string> = {
+      minimalist: 'ks_bare',
+      classical: 'gf_red_brow',
+      romantic: 'sx_fresh',
+      bohemian: 'hd_nude',
+      adventure: 'ky_contour',
+      artistic: 'js_soft',
+    };
+    return map[targetStyle] || makeupOptions.value[0]?.value;
+  }
+  if (coreMakeupStyle === 'new-chinese') {
+    const map: Record<string, string> = {
+      minimalist: 'ks_matte',
+      classical: 'gf_red_brow',
+      romantic: 'sx_rosy',
+      bohemian: 'hd_peachy',
+      adventure: 'ky_matte',
+      artistic: 'js_wine',
+    };
+    return map[targetStyle] || makeupOptions.value[0]?.value;
+  }
+  if (coreMakeupStyle === 'japanese-magazine') {
+    const map: Record<string, string> = {
+      minimalist: 'ks_mono',
+      classical: 'gf_soft',
+      romantic: 'sx_soft',
+      bohemian: 'hd_nude',
+      adventure: 'ky_nude',
+      artistic: 'js_story',
+    };
+    return map[targetStyle] || makeupOptions.value[0]?.value;
+  }
+  if (coreMakeupStyle === 'forest') {
+    const map: Record<string, string> = {
+      minimalist: 'ks_water',
+      classical: 'gf_fresh',
+      romantic: 'sx_fresh',
+      bohemian: 'hd_sun',
+      adventure: 'ky_nude',
+      artistic: 'js_soft',
+    };
+    return map[targetStyle] || makeupOptions.value[0]?.value;
+  }
+  if (coreMakeupStyle === 'french-retro') {
+    const map: Record<string, string> = {
+      minimalist: 'ks_matte',
+      classical: 'gf_red_brow',
+      romantic: 'sx_rosy',
+      bohemian: 'hd_bronze',
+      adventure: 'ky_smoky',
+      artistic: 'js_wine',
+    };
+    return map[targetStyle] || makeupOptions.value[0]?.value;
+  }
+  if (coreMakeupStyle === 'light-thai') {
+    const map: Record<string, string> = {
+      minimalist: 'ks_glow',
+      classical: 'gf_eye',
+      romantic: 'sx_glitter',
+      bohemian: 'hd_wet',
+      adventure: 'ky_contour',
+      artistic: 'js_mono',
+    };
+    return map[targetStyle] || makeupOptions.value[0]?.value;
+  }
+  return makeupOptions.value[0]?.value;
+}
+
 /** 切换主风格或出镜方式时，若原偏好不在新列表中则清空，避免脏值 */
 watch([selectedStyle, subjectRole], () => {
+  const prevMakeup = preferences.makeup;
   pruneInvalidVtoPreferences();
+  // 智能适配：若来自一键试妆的核心妆感存在，且切风格导致妆容被清空，则自动重选该风格下最匹配妆容
+  if (!preferences.makeup && prevMakeup && syncedCoreMakeupStyle.value) {
+    const next = pickAdaptiveMakeupValueForStyle(
+      syncedCoreMakeupStyle.value,
+      selectedStyle.value,
+      subjectRole.value
+    );
+    if (next && makeupOptions.value.some((o) => o.value === next)) {
+      preferences.makeup = next;
+    }
+  }
   saveStateToStorage();
 });
 
@@ -491,6 +621,29 @@ onMounted(async () => {
   authStore.initializeAuth();
   // 先恢复保存的状态（确保返回页面后仍可展示之前结果）
   restoreStateFromStorage();
+
+  // 从「一键试妆」页面同步妆容风格到虚拍试衣个性化偏好
+  const syncMakeup = route.query.syncMakeup;
+  const vtoStyle = route.query.vtoStyle;
+  const makeupValue = route.query.makeupValue;
+  const makeupStyle = route.query.makeupStyle;
+  const makeupCorePrompt = route.query.makeupCorePrompt;
+  if (syncMakeup === '1' && typeof vtoStyle === 'string' && typeof makeupValue === 'string') {
+    if (typeof makeupStyle === 'string') {
+      syncedCoreMakeupStyle.value = makeupStyle;
+    }
+    if (typeof makeupCorePrompt === 'string') {
+      syncedCoreMakeupPrompt.value = makeupCorePrompt;
+    }
+    selectedStyle.value = vtoStyle;
+    pruneInvalidVtoPreferences();
+    const canSelect = makeupOptions.value.some((o) => o.value === makeupValue);
+    if (canSelect) {
+      preferences.makeup = makeupValue;
+      saveStateToStorage();
+      message.success('已同步一键试妆妆容到虚拍试衣');
+    }
+  }
 
   try {
     const response: any = await aiApi.getStyles();
@@ -629,7 +782,10 @@ const handleGenerate = async () => {
         accessory: preferences.accessory,
       },
       preferenceLabels: {
-        makeup: resolveVtoPrefLabel(makeupOptions.value, preferences.makeup),
+        makeup: buildAdaptiveMakeupPrompt(
+          resolveVtoPrefLabel(makeupOptions.value, preferences.makeup),
+          selectedStyle.value
+        ),
         hairstyle: resolveVtoPrefLabel(hairstyleOptions.value, preferences.hairstyle),
         dress: resolveVtoPrefLabel(dressOptions.value, preferences.dress),
         accessory: preferences.accessory,
