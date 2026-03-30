@@ -82,6 +82,11 @@ export const customShootRequestsApi = {
       .post<unknown>('/custom-shoot-requests', body)
       .then((res) => unwrap<CustomShootRequestRow>(res)),
 
+  update: (id: number, body: CreateCustomShootBody) =>
+    httpClient
+      .patch<unknown>(`/custom-shoot-requests/${id}`, body)
+      .then((res) => unwrap<CustomShootRequestRow>(res)),
+
   listMine: () =>
     httpClient
       .get<unknown>('/custom-shoot-requests/mine')

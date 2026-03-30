@@ -188,11 +188,11 @@ onMounted(() => {
 <style scoped lang="less">
 .photographers-page {
   min-height: calc(100vh - 64px);
-  padding: 16px 80px 48px;
+  padding: 25px 80px 48px;
   background: linear-gradient(180deg, #fff5f7 0%, #ffffff 32%);
 
   @media (max-width: 768px) {
-    padding: 16px 36px 40px;
+    padding: 25px 36px 40px;
   }
 }
 

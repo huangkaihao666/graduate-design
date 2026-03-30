@@ -2,41 +2,54 @@
   <div class="orders-container">
     <div class="page-header">
       <h1>📦 我的订单</h1>
-      <p>查看您的预约订单，并进行详情查看/删除操作</p>
+      <p>使用下方切换查看「套餐浏览下单」与「个性预约」，搜索与分页均随当前类型生效</p>
     </div>
 
-    <div class="toolbar">
-      <a-input
-        v-model:value="keyword"
-        placeholder="搜索订单编号 / 手机号 / 套餐名称 / 摄影师"
-        allow-clear
-        class="search-input"
-      />
-      <div class="toolbar-actions">
-        <a-button :loading="loading" @click="loadOrders"> 刷新 </a-button>
-        <a-popconfirm
-          title="确认清空所有本地订单记录吗？"
-          ok-text="确认"
-          cancel-text="取消"
-          @confirm="clearAllOrders"
-        >
-          <a-button danger :disabled="orders.length === 0">清空</a-button>
-        </a-popconfirm>
+    <div class="toolbar-wrap">
+      <div class="toolbar">
+        <a-input
+          v-model:value="keyword"
+          :placeholder="
+            orderViewTab === 'package'
+              ? '搜索订单编号 / 手机号 / 套餐名称 / 摄影师'
+              : '搜索需求编号 / 标题 / 地点 / 手机号'
+          "
+          allow-clear
+          class="search-input"
+        />
+        <div class="toolbar-actions">
+          <a-button :loading="loading" @click="loadOrders"> 刷新 </a-button>
+          <a-popconfirm
+            v-if="orderViewTab === 'package'"
+            title="确认清空所有本地订单记录吗？"
+            ok-text="确认"
+            cancel-text="取消"
+            @confirm="clearAllOrders"
+          >
+            <a-button danger :disabled="orders.length === 0">清空</a-button>
+          </a-popconfirm>
+        </div>
+      </div>
+      <div class="order-type-switch">
+        <a-segmented v-model:value="orderViewTab" :options="orderSegmentOptions" size="middle" />
       </div>
     </div>
 
-    <div class="content-card">
-      <div class="content-header">
-        <span class="count">共 {{ filteredOrders.length }} 条订单</span>
+    <div v-show="orderViewTab === 'package'" class="content-card section-card">
+      <div class="content-header section-bar">
+        <div class="section-head">
+          <span class="section-title">套餐浏览下单</span>
+          <span class="count">共 {{ filteredPackageOrders.length }} 条</span>
+        </div>
       </div>
 
-      <div v-if="filteredOrders.length === 0" class="empty-state">
+      <div v-if="filteredPackageOrders.length === 0" class="empty-state">
         <div class="empty-icon">📭</div>
-        <p>暂无订单（或没有匹配的搜索结果）</p>
+        <p>暂无套餐预约订单（或没有匹配的搜索结果）</p>
       </div>
 
       <div v-else class="orders-grid">
-        <div v-for="o in pagedOrders" :key="o.orderNo" class="order-card">
+        <div v-for="o in pagedPackageOrders" :key="o.orderNo" class="order-card">
           <div class="order-card-top">
             <div class="order-no">订单号：{{ o.orderNo }}</div>
             <div class="order-amount">¥{{ o.totalAmount.toLocaleString() }}</div>
@@ -83,11 +96,121 @@
           </div>
         </div>
       </div>
-      <div v-if="filteredOrders.length > pageSize" class="pagination-wrap">
+      <div v-if="filteredPackageOrders.length > pageSize" class="pagination-wrap">
         <a-pagination
-          v-model:current="currentPage"
+          v-model:current="currentPagePackage"
           :page-size="pageSize"
-          :total="filteredOrders.length"
+          :total="filteredPackageOrders.length"
+          :show-size-changer="false"
+          size="small"
+        />
+      </div>
+    </div>
+
+    <div v-show="orderViewTab === 'custom'" class="content-card section-card">
+      <div class="content-header section-bar">
+        <div class="section-head">
+          <span class="section-title">个性预约</span>
+          <span class="count">共 {{ filteredCustomRequests.length }} 条</span>
+        </div>
+      </div>
+
+      <div v-if="filteredCustomRequests.length === 0" class="empty-state">
+        <div class="empty-icon">🎯</div>
+        <p>暂无个性预约记录（或没有匹配的搜索结果）</p>
+        <a-button type="link" @click="router.push('/user/custom-requests')"
+          >去发布定制需求</a-button
+        >
+      </div>
+
+      <div v-else class="orders-grid">
+        <div v-for="r in pagedCustomRequests" :key="'csr-' + r.id" class="order-card csr-card">
+          <div class="order-card-top">
+            <div class="order-no">需求编号：{{ r.requestNo }}</div>
+            <a-tag :color="csrStatusColor(r.status)">{{ csrStatusText(r.status) }}</a-tag>
+          </div>
+          <div class="order-card-meta">
+            <div class="meta-item">地点：{{ r.location }} · 风格：{{ r.style }}</div>
+            <div class="meta-item">
+              期望拍摄：{{ r.shootingDate }} · {{ r.duration }} 天 · {{ r.numberOfPeople }} 人
+            </div>
+            <div v-if="r.title" class="meta-item">标题：{{ r.title }}</div>
+            <div v-if="r.photographer" class="meta-item csr-ph">
+              <span class="csr-meta-k">接单摄影师</span>
+              {{ r.photographer.name }}
+              <span v-if="r.claimMessage" class="csr-claim-msg"
+                >（留言：{{ r.claimMessage }}）</span
+              >
+            </div>
+            <div v-else class="meta-item muted-soft">接单摄影师：暂无（等待接单中）</div>
+          </div>
+          <div class="order-card-bottom csr-card-bottom">
+            <div class="created-at">发布：{{ formatDate(r.createdAt) }}</div>
+            <div class="order-actions csr-actions">
+              <template v-if="r.status === 'open'">
+                <a-button type="text" @click="openCsrEdit(r)">修改需求</a-button>
+                <a-popconfirm title="撤销后需求将关闭，确定？" @confirm="cancelCsr(r.id)">
+                  <a-button type="text">撤销需求</a-button>
+                </a-popconfirm>
+                <a-popconfirm
+                  title="将永久删除该需求，不可恢复，确定？"
+                  ok-text="删除"
+                  cancel-text="取消"
+                  @confirm="deleteCsrRecord(r)"
+                >
+                  <a-button type="text" danger>删除记录</a-button>
+                </a-popconfirm>
+              </template>
+              <template v-if="r.status === 'pending_user_confirm'">
+                <a-button type="primary" size="small" @click="confirmPhotographerForCsr(r.id)">
+                  同意该摄影师
+                </a-button>
+                <a-popconfirm
+                  title="拒绝后需求将重新开放给其他摄影师，确定？"
+                  @confirm="rejectPhotographerForCsr(r.id)"
+                >
+                  <a-button type="text" size="small">不同意</a-button>
+                </a-popconfirm>
+              </template>
+              <a-button
+                v-if="r.linkedBookingOrder"
+                type="text"
+                @click="openDetailFromLinked(r.linkedBookingOrder, r.id)"
+              >
+                订单详情
+              </a-button>
+              <a-button
+                v-if="r.linkedBookingOrder && canPayLinked(r.linkedBookingOrder)"
+                type="text"
+                @click="openPaymentFromLinked(r.linkedBookingOrder)"
+              >
+                去支付
+              </a-button>
+              <a-button v-if="chatEligibleCsr(r)" type="text" @click="goChatFromCsr(r)">
+                联系摄影师
+              </a-button>
+              <a-popconfirm
+                v-if="r.status === 'cancelled' || r.status === 'confirmed'"
+                :title="
+                  r.status === 'confirmed'
+                    ? '将删除本条定制需求，并同步删除关联的预约订单（不可恢复）。确定？'
+                    : '从列表中永久删除该记录，确定？'
+                "
+                ok-text="删除"
+                cancel-text="取消"
+                @confirm="deleteCsrRecord(r)"
+              >
+                <a-button type="text" danger>删除记录</a-button>
+              </a-popconfirm>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div v-if="filteredCustomRequests.length > pageSize" class="pagination-wrap">
+        <a-pagination
+          v-model:current="currentPageCustom"
+          :page-size="pageSize"
+          :total="filteredCustomRequests.length"
           :show-size-changer="false"
           size="small"
         />
@@ -384,11 +507,84 @@
         <div class="reschedule-tip">仅支持拍摄日前3天及以上免费改期一次，需管理员审批。</div>
       </div>
     </a-modal>
+
+    <a-modal
+      v-model:open="csrEditVisible"
+      title="修改需求"
+      :confirm-loading="csrEditSubmitting"
+      ok-text="保存"
+      cancel-text="取消"
+      :width="640"
+      destroy-on-close
+      @ok="submitCsrEdit"
+      @cancel="closeCsrEditModal"
+    >
+      <a-form layout="vertical" class="csr-edit-form">
+        <a-form-item label="标题（可选）">
+          <a-input v-model:value="csrEditForm.title" placeholder="如：三亚海边婚纱照" />
+        </a-form-item>
+        <a-form-item label="补充说明（可选）">
+          <a-textarea
+            v-model:value="csrEditForm.description"
+            :rows="3"
+            placeholder="特殊想法、服装偏好等"
+          />
+        </a-form-item>
+        <a-form-item label="拍摄地点" required>
+          <a-input v-model:value="csrEditForm.location" placeholder="城市或具体区域" />
+        </a-form-item>
+        <a-form-item label="风格" required>
+          <a-input v-model:value="csrEditForm.style" placeholder="如 romantic / 韩系清新" />
+        </a-form-item>
+        <a-form-item label="期望拍摄日" required extra="请在日历中选择，格式为 YYYY-MM-DD">
+          <a-date-picker
+            v-model:value="csrEditShootingDateDayjs"
+            format="YYYY-MM-DD"
+            style="width: 100%"
+            placeholder="请选择期望拍摄日"
+            :locale="datePickerLocaleZhCN"
+            :disabled-date="disabledCsrEditShootingDate"
+          />
+        </a-form-item>
+        <a-form-item label="行程天数">
+          <a-input-number
+            v-model:value="csrEditForm.duration"
+            :min="1"
+            :max="30"
+            style="width: 100%"
+          />
+        </a-form-item>
+        <a-form-item label="人数">
+          <a-input-number
+            v-model:value="csrEditForm.numberOfPeople"
+            :min="1"
+            :max="20"
+            style="width: 100%"
+          />
+        </a-form-item>
+        <a-form-item label="预算参考（元，可选）">
+          <a-input-number v-model:value="csrEditForm.budgetHint" :min="0" style="width: 100%" />
+        </a-form-item>
+        <a-form-item label="联系人" required>
+          <a-input v-model:value="csrEditForm.contactName" />
+        </a-form-item>
+        <a-form-item label="手机号" required extra="11 位数字，以 1 开头（中国大陆手机号）">
+          <a-input
+            v-model:value="csrEditForm.phone"
+            maxlength="11"
+            inputmode="numeric"
+            autocomplete="tel"
+            placeholder="如 13800138000"
+            @blur="sanitizeCsrEditPhone"
+          />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { message } from 'ant-design-vue';
 import { useRouter } from 'vue-router';
 import { TRAVEL_STYLE_LABELS } from '@/constants/travel-style-labels';
@@ -396,6 +592,21 @@ import { useAuthStore } from '@/store/auth';
 import { paymentsApi } from '@/api/payments';
 import { ordersApi } from '@/api/orders';
 import { photographersApi } from '@/api/photographers';
+import {
+  customShootRequestsApi,
+  type CreateCustomShootBody,
+  type CustomShootRequestRow,
+  type LinkedBookingOrder,
+} from '@/api/customShootRequests';
+import datePickerLocaleZhCN from 'ant-design-vue/es/date-picker/locale/zh_CN';
+import dayjs, { type Dayjs } from 'dayjs';
+import 'dayjs/locale/zh-cn';
+
+dayjs.locale('zh-cn');
+import {
+  mergeBookingOrderIntoLocalHistory,
+  removeOrderFromLocalHistory,
+} from '@/utils/mergeOnlineOrderHistory';
 
 type PaymentMethod = 'wechat' | 'alipay' | 'offline' | string;
 
@@ -433,6 +644,10 @@ interface BookingOrder {
   rescheduleRequestedAt?: string;
   rescheduleReviewNote?: string;
   rescheduleReviewedAt?: string;
+  /** 来自定制旅拍确认后的关联订单 */
+  customShootRequestId?: number | null;
+  /** 本地合并标记：custom_shoot 表示由个性预约生成 */
+  orderSource?: string;
 }
 
 const STORAGE_KEY = 'online-order-history';
@@ -457,8 +672,15 @@ const authStore = useAuthStore();
 
 const loading = ref(false);
 const keyword = ref('');
+const orderViewTab = ref<'package' | 'custom'>('package');
+const orderSegmentOptions = [
+  { label: '套餐浏览下单', value: 'package' },
+  { label: '个性预约', value: 'custom' },
+];
 const orders = ref<BookingOrder[]>([]);
-const currentPage = ref(1);
+const customRequests = ref<CustomShootRequestRow[]>([]);
+const currentPagePackage = ref(1);
+const currentPageCustom = ref(1);
 const pageSize = 6;
 
 const detailVisible = ref(false);
@@ -489,7 +711,176 @@ const rescheduleRestDates = ref<string[]>([]);
 const rescheduleBookedDates = ref<string[]>([]);
 const rescheduleCalendarMonth = ref(new Date());
 
+const csrEditVisible = ref(false);
+const csrEditSubmitting = ref(false);
+const csrEditId = ref<number | null>(null);
+const csrEditShootingDateDayjs = ref<Dayjs | null>(null);
+const csrEditForm = reactive<CreateCustomShootBody>({
+  title: '',
+  description: '',
+  location: '',
+  style: '',
+  shootingDate: '',
+  duration: 1,
+  numberOfPeople: 2,
+  budgetHint: undefined,
+  contactName: '',
+  phone: '',
+});
+
+/** 与 CustomShootRequests 发布页一致 */
+const CN_MOBILE_REGEX = /^1[3-9]\d{9}$/;
+
+function disabledCsrEditShootingDate(current: Dayjs) {
+  return current != null && current < dayjs().startOf('day');
+}
+
+function sanitizeCsrEditPhone() {
+  csrEditForm.phone = (csrEditForm.phone || '').replace(/\D/g, '').slice(0, 11);
+}
+
+function openCsrEdit(r: CustomShootRequestRow) {
+  csrEditId.value = r.id;
+  csrEditForm.title = r.title ?? '';
+  csrEditForm.description = r.description ?? '';
+  csrEditForm.location = r.location;
+  csrEditForm.style = r.style;
+  csrEditForm.shootingDate = r.shootingDate;
+  csrEditForm.duration = r.duration;
+  csrEditForm.numberOfPeople = r.numberOfPeople;
+  csrEditForm.budgetHint = r.budgetHint ?? undefined;
+  csrEditForm.contactName = r.contactName;
+  csrEditForm.phone = r.phone;
+  csrEditShootingDateDayjs.value = r.shootingDate
+    ? dayjs(String(r.shootingDate).split('T')[0])
+    : null;
+  csrEditVisible.value = true;
+}
+
+function closeCsrEditModal() {
+  csrEditVisible.value = false;
+  csrEditId.value = null;
+}
+
+async function submitCsrEdit() {
+  if (csrEditId.value == null) {
+    throw new Error('no id');
+  }
+  csrEditForm.shootingDate = csrEditShootingDateDayjs.value
+    ? csrEditShootingDateDayjs.value.format('YYYY-MM-DD')
+    : '';
+  sanitizeCsrEditPhone();
+
+  const fail = (msg: string) => {
+    message.warning(msg);
+    return Promise.reject(new Error('validation'));
+  };
+
+  if (!csrEditForm.location?.trim() || !csrEditForm.style?.trim()) {
+    return fail('请填写拍摄地点与风格');
+  }
+  if (!csrEditForm.shootingDate.trim()) {
+    return fail('请在日历中选择期望拍摄日');
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(csrEditForm.shootingDate)) {
+    return fail('期望拍摄日格式须为 YYYY-MM-DD');
+  }
+  if (!csrEditForm.contactName?.trim()) {
+    return fail('请填写联系人');
+  }
+  if (!csrEditForm.phone?.trim()) {
+    return fail('请填写手机号');
+  }
+  if (!CN_MOBILE_REGEX.test(csrEditForm.phone)) {
+    return fail('手机号须为 11 位中国大陆号码（以 1 开头，第二位为 3–9）');
+  }
+
+  csrEditSubmitting.value = true;
+  try {
+    await customShootRequestsApi.update(csrEditId.value, {
+      ...csrEditForm,
+      title: csrEditForm.title?.trim() || undefined,
+      description: csrEditForm.description?.trim() || undefined,
+      budgetHint: csrEditForm.budgetHint || undefined,
+      phone: csrEditForm.phone.trim(),
+    });
+    message.success('需求已更新');
+    closeCsrEditModal();
+    await loadOrders();
+  } catch (e) {
+    /* http 拦截器已提示；需向上抛出，避免 Modal 在请求失败时仍关闭 */
+    throw e;
+  } finally {
+    csrEditSubmitting.value = false;
+  }
+}
+
 const styleMap: Record<string, string> = { ...TRAVEL_STYLE_LABELS };
+
+/** 本地订单是否属于个性预约链路（不放在「套餐浏览」列表） */
+const isCustomDerivedLocalOrder = (o: BookingOrder) =>
+  (o.customShootRequestId != null && Number(o.customShootRequestId) > 0) ||
+  o.orderSource === 'custom_shoot';
+
+const csrStatusText = (s: string) => {
+  const m: Record<string, string> = {
+    open: '待接单',
+    pending_user_confirm: '待您确认摄影师',
+    confirmed: '已确认合作',
+    cancelled: '已撤销',
+  };
+  return m[s] || s;
+};
+
+const csrStatusColor = (s: string) => {
+  if (s === 'open') return 'blue';
+  if (s === 'pending_user_confirm') return 'orange';
+  if (s === 'confirmed') return 'green';
+  return 'default';
+};
+
+function linkedToBookingOrder(linked: LinkedBookingOrder, csrId?: number): BookingOrder {
+  const wt = linked.workerTakenAt;
+  const ca = linked.createdAt;
+  return {
+    orderNo: linked.orderNo,
+    orderId: linked.id,
+    packageId: linked.packageId ?? 0,
+    packageName: linked.packageName,
+    location: linked.location,
+    style: linked.style,
+    duration: linked.duration,
+    unitPrice: linked.unitPrice,
+    numberOfPeople: linked.numberOfPeople,
+    shootingDate: linked.shootingDate,
+    contactName: linked.contactName,
+    phone: linked.phone,
+    email: linked.email ?? undefined,
+    paymentMethod: linked.paymentMethod as PaymentMethod,
+    paymentStatus: linked.paymentStatus,
+    totalAmount: linked.totalAmount,
+    photographerId: linked.photographerId ?? undefined,
+    photographerName: linked.photographerName ?? undefined,
+    workerUserId: linked.workerUserId ?? undefined,
+    workerName: linked.workerName ?? undefined,
+    workerTakenAt:
+      typeof wt === 'string'
+        ? wt
+        : wt instanceof Date
+          ? wt.toISOString()
+          : wt
+            ? String(wt)
+            : undefined,
+    createdAt:
+      typeof ca === 'string'
+        ? ca
+        : ca instanceof Date
+          ? ca.toISOString()
+          : new Date().toISOString(),
+    customShootRequestId: linked.customShootRequestId ?? csrId,
+    orderSource: 'custom_shoot',
+  };
+}
 
 const getStyleName = (style: string) => styleMap[style] || style;
 
@@ -603,7 +994,11 @@ const parseOrders = (raw: string | null): BookingOrder[] => {
 const loadOrders = async () => {
   loading.value = true;
   try {
-    const raw = readOrderHistoryStorage();
+    const [raw, csrList] = await Promise.all([
+      Promise.resolve(readOrderHistoryStorage()),
+      customShootRequestsApi.listMine().catch(() => [] as CustomShootRequestRow[]),
+    ]);
+    customRequests.value = Array.isArray(csrList) ? csrList : [];
     const list = parseOrders(raw);
     const normalized = list.map((o) => ({
       ...o,
@@ -628,6 +1023,8 @@ const loadOrders = async () => {
             rescheduleRequestedDate: latest?.rescheduleRequestedDate || o.rescheduleRequestedDate,
             rescheduleReviewNote: latest?.rescheduleReviewNote || o.rescheduleReviewNote,
             rescheduleReviewedAt: latest?.rescheduleReviewedAt || o.rescheduleReviewedAt,
+            customShootRequestId:
+              latest?.customShootRequestId ?? (o as BookingOrder).customShootRequestId,
           } as BookingOrder;
         } catch {
           return o;
@@ -675,7 +1072,8 @@ const clearAllOrders = () => {
   localStorage.removeItem(STORAGE_KEY);
   sessionStorage.removeItem(STORAGE_KEY);
   orders.value = [];
-  message.success('已清空所有订单');
+  message.success('已清空套餐订单本地记录');
+  void loadOrders();
 };
 
 const goChatWithPhotographer = (o: BookingOrder) => {
@@ -839,6 +1237,7 @@ const handlePaymentSuccess = (orderNo: string) => {
   paymentModalVisible.value = false;
   paymentInfo.value = null;
   message.success('支付成功');
+  void loadOrders();
 };
 
 const startPaymentPoll = () => {
@@ -907,10 +1306,11 @@ const closePaymentModal = () => {
   paymentInfo.value = null;
 };
 
-const filteredOrders = computed(() => {
+const filteredPackageOrders = computed(() => {
+  const base = orders.value.filter((o) => !isCustomDerivedLocalOrder(o));
   const kw = keyword.value.trim().toLowerCase();
-  if (!kw) return orders.value;
-  return orders.value.filter((o) => {
+  if (!kw) return base;
+  return base.filter((o) => {
     return (
       (o.orderNo || '').toLowerCase().includes(kw) ||
       (o.phone || '').toLowerCase().includes(kw) ||
@@ -920,15 +1320,118 @@ const filteredOrders = computed(() => {
   });
 });
 
-const pagedOrders = computed(() => {
-  const start = (currentPage.value - 1) * pageSize;
-  return filteredOrders.value.slice(start, start + pageSize);
+const filteredCustomRequests = computed(() => {
+  const kw = keyword.value.trim().toLowerCase();
+  if (!kw) return customRequests.value;
+  return customRequests.value.filter((r) => {
+    return (
+      (r.requestNo || '').toLowerCase().includes(kw) ||
+      (r.title || '').toLowerCase().includes(kw) ||
+      (r.location || '').toLowerCase().includes(kw) ||
+      (r.style || '').toLowerCase().includes(kw) ||
+      (r.phone || '').toLowerCase().includes(kw) ||
+      (r.photographer?.name || '').toLowerCase().includes(kw)
+    );
+  });
+});
+
+const pagedPackageOrders = computed(() => {
+  const start = (currentPagePackage.value - 1) * pageSize;
+  return filteredPackageOrders.value.slice(start, start + pageSize);
+});
+
+const pagedCustomRequests = computed(() => {
+  const start = (currentPageCustom.value - 1) * pageSize;
+  return filteredCustomRequests.value.slice(start, start + pageSize);
 });
 
 const ensurePageInRange = () => {
-  const totalPages = Math.max(1, Math.ceil(filteredOrders.value.length / pageSize));
-  if (currentPage.value > totalPages) currentPage.value = totalPages;
-  if (currentPage.value < 1) currentPage.value = 1;
+  const tp = Math.max(1, Math.ceil(filteredPackageOrders.value.length / pageSize));
+  if (currentPagePackage.value > tp) currentPagePackage.value = tp;
+  if (currentPagePackage.value < 1) currentPagePackage.value = 1;
+  const tc = Math.max(1, Math.ceil(filteredCustomRequests.value.length / pageSize));
+  if (currentPageCustom.value > tc) currentPageCustom.value = tc;
+  if (currentPageCustom.value < 1) currentPageCustom.value = 1;
+};
+
+const openDetailFromLinked = (linked: LinkedBookingOrder, csrId: number) => {
+  openDetail(linkedToBookingOrder(linked, csrId));
+};
+
+const canPayLinked = (linked: LinkedBookingOrder) => {
+  const o = linkedToBookingOrder(linked);
+  return canCheckOnlinePayment(o);
+};
+
+const openPaymentFromLinked = (linked: LinkedBookingOrder) => {
+  openPaymentModal(linkedToBookingOrder(linked));
+};
+
+/** 与定制旅拍需求页一致：需有关联订单号与摄影师 ID 方可发起会话 */
+const chatEligibleCsr = (r: CustomShootRequestRow) => {
+  const pid = r.photographer?.id ?? r.linkedBookingOrder?.photographerId;
+  return !!pid && !!r.linkedBookingOrder?.orderNo;
+};
+
+const goChatFromCsr = (r: CustomShootRequestRow) => {
+  const bo = r.linkedBookingOrder;
+  const pid = Number(r.photographer?.id ?? bo?.photographerId ?? 0);
+  const orderNo = bo?.orderNo || '';
+  if (!orderNo || !Number.isFinite(pid) || pid <= 0) {
+    message.warning('暂无法发起会话，请稍后在确认合作后重试');
+    return;
+  }
+  router.push({
+    path: '/user/chat',
+    query: {
+      orderNo,
+      peerName: r.photographer?.name || bo?.photographerName || '摄影师',
+      shootingDate: String(r.shootingDate || ''),
+      photographerId: String(pid),
+    },
+  });
+};
+
+const cancelCsr = async (id: number) => {
+  try {
+    await customShootRequestsApi.cancel(id);
+    message.success('已撤销需求');
+    await loadOrders();
+  } catch {
+    /* */
+  }
+};
+
+const deleteCsrRecord = async (r: CustomShootRequestRow) => {
+  try {
+    const res = await customShootRequestsApi.remove(r.id);
+    if (res.removedOrderNo) removeOrderFromLocalHistory(res.removedOrderNo);
+    message.success('已删除');
+    await loadOrders();
+  } catch {
+    /* */
+  }
+};
+
+const confirmPhotographerForCsr = async (id: number) => {
+  try {
+    const res = await customShootRequestsApi.confirmPhotographer(id);
+    if (res.bookingOrder) mergeBookingOrderIntoLocalHistory(res.bookingOrder);
+    message.success('已确认合作：订单已加入「我的订单」');
+    await loadOrders();
+  } catch {
+    /* */
+  }
+};
+
+const rejectPhotographerForCsr = async (id: number) => {
+  try {
+    await customShootRequestsApi.rejectPhotographer(id);
+    message.success('已拒绝，需求重新开放接单');
+    await loadOrders();
+  } catch {
+    /* */
+  }
 };
 
 onMounted(() => {
@@ -941,11 +1444,21 @@ onMounted(() => {
 });
 
 watch(
-  () => filteredOrders.value.length,
+  () => [filteredPackageOrders.value.length, filteredCustomRequests.value.length],
   () => {
     ensurePageInRange();
   }
 );
+
+watch(keyword, () => {
+  currentPagePackage.value = 1;
+  currentPageCustom.value = 1;
+});
+
+watch(orderViewTab, () => {
+  currentPagePackage.value = 1;
+  currentPageCustom.value = 1;
+});
 
 onUnmounted(() => {
   stopPaymentPoll();
@@ -955,8 +1468,13 @@ onUnmounted(() => {
 <style scoped lang="less">
 .orders-container {
   min-height: 100vh;
+  box-sizing: border-box;
   background: linear-gradient(180deg, #fff5f7 0%, #ffffff 32%);
-  padding: 0 0 40px;
+  padding: 28px 120px 40px;
+
+  @media (max-width: 768px) {
+    padding: 24px 48px 32px;
+  }
 }
 
 .page-header {
@@ -978,14 +1496,55 @@ onUnmounted(() => {
   }
 }
 
-.toolbar {
+.toolbar-wrap {
   max-width: 1400px;
-  margin: 0 auto;
+  margin: 0 auto 20px;
+}
+
+.toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
+}
+
+.order-type-switch {
+  width: fit-content;
+  max-width: 100%;
+
+  :deep(.ant-segmented) {
+    width: auto;
+    padding: 3px;
+    background: rgba(255, 182, 198, 0.35);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 117, 140, 0.18);
+  }
+
+  :deep(.ant-segmented-item) {
+    font-size: 13px;
+    min-height: 30px;
+    line-height: 28px;
+    padding: 0 10px;
+    color: #9d174d;
+    border-radius: 8px;
+  }
+
+  :deep(.ant-segmented-item-selected) {
+    background: #fff !important;
+    color: #be185d !important;
+    font-weight: 600;
+    box-shadow: 0 1px 4px rgba(255, 117, 140, 0.2);
+  }
+
+  :deep(.ant-segmented-item:hover:not(.ant-segmented-item-selected)) {
+    color: #be185d;
+  }
+
+  :deep(.ant-segmented-thumb) {
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(255, 117, 140, 0.18);
+  }
 }
 
 .search-input {
@@ -1008,9 +1567,69 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
+.content-card.section-card {
+  margin-bottom: 22px;
+  /* 与系统主色一致的顶边，套餐/个性预约两区统一 */
+  border-top: 3px solid rgba(255, 117, 140, 0.35);
+}
+
 .content-header {
   padding: 18px 22px;
   border-bottom: 1px solid #f0f0f0;
+}
+
+.section-bar .section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #be185d;
+}
+
+.csr-meta-k {
+  font-weight: 600;
+  color: #be185d;
+  margin-right: 0.35em;
+}
+
+.csr-claim-msg {
+  color: #64748b;
+  font-weight: 400;
+}
+
+.muted-soft {
+  color: #94a3b8;
+}
+
+/* 个性预约：时间在上方，操作按钮在下一行横向排列 */
+.order-card-bottom.csr-card-bottom {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.order-card-bottom.csr-card-bottom .order-actions.csr-actions {
+  width: 100%;
+  flex-wrap: wrap;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 4px 10px;
+}
+
+.order-card-bottom.csr-card-bottom .order-actions.csr-actions > * {
+  flex: 0 0 auto;
+}
+
+.order-card-bottom.csr-card-bottom .order-actions.csr-actions :deep(.ant-btn) {
+  height: auto;
+  padding-inline: 6px;
 }
 
 .count {
@@ -1037,7 +1656,7 @@ onUnmounted(() => {
   padding: 18px 22px 26px;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 16px;
+  gap: 28px;
 }
 
 .pagination-wrap {
@@ -1049,7 +1668,7 @@ onUnmounted(() => {
 .order-card {
   border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 14px;
-  padding: 16px;
+  padding: 16px 18px;
   background: linear-gradient(135deg, #fff 0%, #fafafa 100%);
   display: flex;
   flex-direction: column;

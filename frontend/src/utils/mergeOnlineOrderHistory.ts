@@ -53,6 +53,7 @@ function toLocalEntry(bo: LinkedBookingOrder): Record<string, unknown> {
           ? ca.toISOString()
           : new Date().toISOString(),
     orderSource: 'custom_shoot',
+    customShootRequestId: bo.customShootRequestId ?? undefined,
   };
 }
 

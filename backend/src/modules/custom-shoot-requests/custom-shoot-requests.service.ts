@@ -112,6 +112,80 @@ export class CustomShootRequestsService {
     });
   }
 
+  /**
+   * 修改需求（仅待接单 open，且本人）
+   */
+  async updateMine(
+    userId: number,
+    id: number,
+    body: {
+      title?: string;
+      description?: string;
+      location: string;
+      style: string;
+      shootingDate: string;
+      duration?: number;
+      numberOfPeople?: number;
+      budgetHint?: number | null;
+      contactName: string;
+      phone: string;
+    },
+  ) {
+    await this.assertCustomShootClient(userId);
+    const row = await this.prisma.customShootRequest.findUnique({
+      where: { id },
+    });
+    if (!row) throw new NotFoundException('需求不存在');
+    if (row.userId !== userId) throw new ForbiddenException('无权操作');
+    if (row.status !== 'open') {
+      throw new ConflictException('仅「待接单」状态可修改需求');
+    }
+
+    const location = String(body?.location || '').trim();
+    const style = String(body?.style || '').trim();
+    const shootingDate = String(body?.shootingDate || '').trim();
+    const contactName = String(body?.contactName || '').trim();
+    const phone = String(body?.phone || '').trim();
+    if (!location || !style || !shootingDate || !contactName || !phone) {
+      throw new BadRequestException(
+        '请填写地点、风格、期望拍摄日、联系人及手机',
+      );
+    }
+    const duration = Math.min(
+      30,
+      Math.max(1, Math.floor(Number(body?.duration) || 1)),
+    );
+    const numberOfPeople = Math.min(
+      20,
+      Math.max(1, Math.floor(Number(body?.numberOfPeople) || 2)),
+    );
+    let budgetHint: number | null = null;
+    if (body?.budgetHint != null) {
+      const n = Number(body.budgetHint);
+      if (Number.isFinite(n) && n > 0) budgetHint = Math.floor(n);
+    }
+
+    return this.prisma.customShootRequest.update({
+      where: { id },
+      data: {
+        title: body.title?.trim() || null,
+        description: body.description?.trim() || null,
+        location,
+        style,
+        shootingDate,
+        duration,
+        numberOfPeople,
+        budgetHint: budgetHint && budgetHint > 0 ? budgetHint : null,
+        contactName,
+        phone,
+      },
+      include: {
+        photographer: { select: { id: true, name: true, avatar: true } },
+        linkedBookingOrder: true,
+      },
+    });
+  }
+
   async listMine(userId: number) {
     await this.assertCustomShootClient(userId);
     return this.prisma.customShootRequest.findMany({

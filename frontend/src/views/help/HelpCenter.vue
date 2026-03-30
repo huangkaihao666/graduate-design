@@ -752,7 +752,7 @@ onMounted(() => {
 
   &:hover {
     border-color: #ffc4d3;
-    background: #f5f5f5;
+    background: #f8f8f8;
   }
 
   &.active {
@@ -965,6 +965,18 @@ onMounted(() => {
   padding: 12px;
   border-top: 1px solid #f0f0f0;
   background: #fff;
+
+  /* 输入框 hover/focus：从默认蓝色改为粉色（无外发光） */
+  :deep(.ant-input-affix-wrapper:hover),
+  :deep(.ant-input:hover) {
+    border-color: #ff6b8b !important;
+  }
+  :deep(.ant-input-affix-wrapper-focused),
+  :deep(.ant-input-focused),
+  :deep(.ant-input:focus) {
+    border-color: #ff6b8b !important;
+    box-shadow: none !important;
+  }
 
   :deep(.send-btn.ant-btn) {
     background: #fff5f7 !important;

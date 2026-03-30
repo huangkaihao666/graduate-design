@@ -185,8 +185,23 @@ const routes: RouteRecordRaw[] = [
         path: 'order',
         name: 'Order',
         component: Order,
+        beforeEnter: (to, _from, next) => {
+          const raw = to.query.packageId;
+          const id = Number(raw);
+          if (
+            raw === undefined ||
+            raw === null ||
+            (typeof raw === 'string' && raw.trim() === '') ||
+            Number.isNaN(id) ||
+            id <= 0
+          ) {
+            next({ path: '/user/custom-requests', replace: true });
+            return;
+          }
+          next();
+        },
         meta: {
-          title: '在线下单',
+          title: '套餐预约下单',
           requiresAuth: true,
           layout: 'default',
         },
@@ -247,7 +262,7 @@ const routes: RouteRecordRaw[] = [
         name: 'UserCustomShootRequests',
         component: UserCustomShootRequests,
         meta: {
-          title: '定制旅拍需求',
+          title: '个性预约',
         },
       },
     ],

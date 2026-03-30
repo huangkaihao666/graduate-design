@@ -1041,10 +1041,49 @@ watch(
   gap: 10px;
   align-items: flex-end;
 }
+
+/* 输入框聚焦：去掉默认蓝色，改为粉色 */
+.composer :deep(.ant-input),
+.composer :deep(.ant-input-affix-wrapper),
+.composer :deep(.ant-input-textarea-affix-wrapper) {
+  border-radius: 12px;
+}
+
+.composer :deep(.ant-input:focus),
+.composer :deep(.ant-input-focused),
+.composer :deep(.ant-input-affix-wrapper-focused),
+.composer :deep(.ant-input-textarea-affix-wrapper-focused) {
+  border-color: var(--pink) !important;
+  box-shadow: none !important;
+}
+
+.composer :deep(.ant-input:hover),
+.composer :deep(.ant-input-affix-wrapper:hover),
+.composer :deep(.ant-input-textarea-affix-wrapper:hover) {
+  border-color: var(--pink) !important;
+}
 .pill {
   border-radius: 999px;
   background: var(--pink);
   border-color: var(--pink);
+}
+
+/* 覆盖 Ant 默认蓝色 active/focus（仅消息页 pill 按钮） */
+:deep(.pill.ant-btn-primary) {
+  background: var(--pink);
+  border-color: var(--pink);
+}
+:deep(.pill.ant-btn-primary:hover),
+:deep(.pill.ant-btn-primary:focus) {
+  background: #ff4d7a;
+  border-color: #ff4d7a;
+}
+:deep(.pill.ant-btn-primary:active) {
+  background: #be123c;
+  border-color: #be123c;
+}
+:deep(.pill.ant-btn-primary:not(:disabled):focus-visible) {
+  box-shadow: 0 0 0 3px rgba(255, 107, 139, 0.25);
 }
 .pill.ghost {
   background: rgba(255, 107, 139, 0.1);

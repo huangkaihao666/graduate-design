@@ -39,12 +39,12 @@
           </router-link>
           <router-link
             v-if="authStore.isAuthenticated && !isWorker"
-            to="/booking/order"
+            to="/user/custom-requests"
             class="nav-link"
             active-class="active"
           >
             <span class="icon">📝</span>
-            <span v-if="!isCollapsed" class="label">在线下单</span>
+            <span v-if="!isCollapsed" class="label">个性预约</span>
           </router-link>
         </div>
 
@@ -58,10 +58,6 @@
           <router-link to="/user/orders" class="nav-link" active-class="active">
             <span class="icon">📦</span>
             <span v-if="!isCollapsed" class="label">订单管理</span>
-          </router-link>
-          <router-link to="/user/custom-requests" class="nav-link" active-class="active">
-            <span class="icon">🎯</span>
-            <span v-if="!isCollapsed" class="label">定制旅拍需求</span>
           </router-link>
           <router-link to="/user/chat" class="nav-link" active-class="active">
             <span class="icon">💬</span>

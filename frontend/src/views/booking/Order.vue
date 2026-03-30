@@ -1,18 +1,9 @@
 <template>
   <div class="order-container">
-    <!-- 页面标题（有套餐时为标准下单；无套餐时为个性化入口） -->
-    <div class="page-header" :class="{ 'header-hub': packageMissing }">
-      <template v-if="packageMissing">
-        <h1>📝 在线下单</h1>
-        <p>
-          从这里开始：用 AI
-          规划拍摄路线与日程，或发布定制旅拍需求由摄影师接单；若已选好固定套餐，也可从下方进入套餐下单。
-        </p>
-      </template>
-      <template v-else>
-        <h1>📝 在线预约下单</h1>
-        <p>填写下单信息后提交预约，我们会为您安排专业团队跟进</p>
-      </template>
+    <!-- 页面标题（仅套餐预约流程；无 packageId 时由路由跳转至「个性预约」页） -->
+    <div class="page-header">
+      <h1>📝 在线预约下单</h1>
+      <p>填写下单信息后提交预约，我们会为您安排专业团队跟进</p>
     </div>
 
     <div v-if="selectedPackage" class="content-grid">
@@ -234,33 +225,6 @@
         </div>
       </div>
     </div>
-    <div v-else-if="packageMissing" class="personalize-hub">
-      <div class="hub-cards">
-        <div class="hub-card hub-card-primary">
-          <div class="hub-card-icon">🗺️</div>
-          <h2>AI 智能行程规划</h2>
-          <p>填写目的地、天数与偏好，一键生成拍摄路线与时间安排，再按需预约或下单。</p>
-          <a-button type="primary" size="large" @click="goItineraryPlanning">
-            去制定个性化行程
-          </a-button>
-        </div>
-        <div class="hub-card">
-          <div class="hub-card-icon">🎯</div>
-          <h2>定制旅拍需求</h2>
-          <p>描述您的想法、档期与预算，摄影师可接单，您确认后再推进。</p>
-          <a-button size="large" @click="router.push('/user/custom-requests')">
-            发布定制需求
-          </a-button>
-        </div>
-      </div>
-      <div class="hub-footer">
-        <span class="hub-footer-label">已有心仪套餐？</span>
-        <router-link class="hub-footer-link" to="/booking/packages">
-          前往套餐浏览，选好后将自动进入标准下单
-        </router-link>
-      </div>
-    </div>
-
     <!-- 加载中 -->
     <div v-else class="loading-state">
       <a-spin size="large" />
@@ -293,7 +257,7 @@
         </div>
 
         <div class="success-actions">
-          <a-button type="primary" @click="successModalVisible = false">知道了</a-button>
+          <a-button type="primary" @click="goToOrders">知道了</a-button>
           <a-button
             v-if="successInfo?.paymentMethod !== 'offline'"
             type="primary"
@@ -436,12 +400,6 @@ const orderForm = reactive({
   paymentMethod: 'wechat',
   remark: '',
 });
-
-const packageMissing = ref(false);
-
-const goItineraryPlanning = () => {
-  router.push('/ai/itinerary-planning');
-};
 
 const peopleOptions = computed(() => {
   const max = selectedPackage.value?.maxPeople ?? 1;
@@ -921,17 +879,12 @@ const onPhotographerSelectChange = async (val: number | string | undefined) => {
 };
 
 const loadSelectedPackage = async () => {
-  packageMissing.value = false;
   const idRaw = route.query.packageId;
   let id = Number(idRaw);
 
-  // 不自动回填：必须先在“套餐浏览”选择套餐并带上 packageId 才能进入下单页
+  // 无 packageId 时由路由守卫跳转「个性预约」；此处作兜底
   if (!idRaw || Number.isNaN(id) || id <= 0) {
-    packageMissing.value = true;
-    selectedPackage.value = null;
-    selectedPhotographerId.value = null;
-    selectedPhotographerName.value = '';
-    photographerScheduleDetail.value = null;
+    void router.replace('/user/custom-requests');
     return;
   }
 
@@ -956,7 +909,7 @@ const loadSelectedPackage = async () => {
   }
 
   if (!selectedPackage.value) {
-    packageMissing.value = true;
+    void router.replace('/user/custom-requests');
     return;
   }
 
@@ -1179,6 +1132,7 @@ const refreshPaymentStatus = async () => {
     message.success('支付成功');
     paymentModalVisible.value = false;
     stopPaymentPoll();
+    router.push('/user/orders');
   } catch (e: unknown) {
     const msg =
       e && typeof e === 'object' && 'message' in e
@@ -1280,85 +1234,6 @@ onUnmounted(() => {
     font-size: 1.1rem;
     opacity: 0.9;
     margin: 0;
-  }
-
-  &.header-hub p {
-    max-width: 640px;
-    margin: 0 auto;
-  }
-}
-
-.personalize-hub {
-  max-width: 920px;
-  margin: 0 auto;
-  padding: 0 0 48px;
-}
-
-.hub-cards {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-  }
-}
-
-.hub-card {
-  background: #fff;
-  border-radius: 16px;
-  padding: 28px 24px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
-  border: 1px solid rgba(255, 107, 139, 0.12);
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-
-  h2 {
-    margin: 0;
-    font-size: 1.25rem;
-    color: #1e293b;
-  }
-
-  p {
-    margin: 0 0 8px;
-    color: #64748b;
-    font-size: 0.95rem;
-    line-height: 1.6;
-    flex: 1;
-  }
-}
-
-.hub-card-primary {
-  border-color: rgba(255, 107, 139, 0.35);
-  box-shadow: 0 12px 48px rgba(255, 107, 139, 0.14);
-}
-
-.hub-card-icon {
-  font-size: 2.5rem;
-  line-height: 1;
-}
-
-.hub-footer {
-  margin-top: 28px;
-  text-align: center;
-  font-size: 0.95rem;
-  color: #64748b;
-
-  .hub-footer-label {
-    margin-right: 8px;
-  }
-
-  .hub-footer-link {
-    color: #ff6b8b;
-    font-weight: 600;
-    text-decoration: none;
-
-    &:hover {
-      text-decoration: underline;
-    }
   }
 }
 

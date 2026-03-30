@@ -125,4 +125,26 @@ export class CustomShootRequestsController {
   ) {
     return this.svc.rejectPhotographer(this.uid(req), id);
   }
+
+  @Patch(':id')
+  @ApiOperation({ summary: '修改需求（仅待接单，本人）' })
+  updateMine(
+    @Request() req: { user: { id?: number; sub?: number } },
+    @Param('id', ParseIntPipe) id: number,
+    @Body()
+    body: {
+      title?: string;
+      description?: string;
+      location: string;
+      style: string;
+      shootingDate: string;
+      duration?: number;
+      numberOfPeople?: number;
+      budgetHint?: number | null;
+      contactName: string;
+      phone: string;
+    },
+  ) {
+    return this.svc.updateMine(this.uid(req), id, body);
+  }
 }
