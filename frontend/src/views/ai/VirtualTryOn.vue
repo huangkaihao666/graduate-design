@@ -221,13 +221,14 @@
                 :src="uploadedImage"
                 :alt="uploadedFileName"
                 :preview="true"
-                class="comparison-image"
+                class="comparison-image original-image"
+                :width="450"
                 :fallback="uploadedImage"
               />
             </div>
             <div class="arrow">→</div>
             <div class="comparison-item">
-              <div class="label">{{ result.style }} 风格效果</div>
+              <div class="label">试衣效果</div>
               <div class="image-wrapper">
                 <a-image
                   v-if="getResultImageUrl()"
@@ -235,6 +236,8 @@
                   alt="修改后的图片"
                   :preview="true"
                   class="comparison-image modified-preview"
+                  :width="450"
+                  :height="600"
                   @error="handleResultImageError"
                 />
                 <div v-else class="no-image-placeholder">
@@ -288,7 +291,6 @@
             </p>
             <p v-else class="auto-save-hint guest">登录后将自动保存生成记录到「AI 生成历史」</p>
             <a-button @click="handleReset">🔄 重新生成</a-button>
-            <a-button type="text" danger @click="handleDownload"> ⬇️ 下载建议 </a-button>
           </div>
         </div>
       </div>
@@ -683,19 +685,6 @@ const handleReset = () => {
   // 清空持久化
   sessionStorage.removeItem(STORAGE_KEY);
   message.info('已清空，可以重新开始生成');
-};
-
-// 下载建议
-const handleDownload = () => {
-  const content = JSON.stringify(result.value, null, 2);
-  const blob = new Blob([content], { type: 'application/json' });
-  const url = window.URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `虚拍建议-${new Date().getTime()}.json`;
-  link.click();
-  window.URL.revokeObjectURL(url);
-  message.success('已下载建议文件');
 };
 
 // 格式化时间
@@ -1451,17 +1440,23 @@ const showResultImagePlaceholder = (target: any) => {
 }
 
 .comparison-image {
-  max-width: 100%;
-  max-height: 300px;
+  width: 450px;
+  height: 600px;
   border-radius: 6px;
   border: 1px solid #e0e0e0;
   transition: all 0.3s;
   cursor: pointer;
   display: block;
 
+  :deep(.ant-image) {
+    width: 450px;
+    height: 600px;
+    display: block;
+  }
+
   :deep(.ant-image-img) {
-    max-width: 100%;
-    max-height: 300px;
+    width: 450px;
+    height: 600px;
     border-radius: 6px;
     object-fit: cover;
   }
@@ -1478,10 +1473,17 @@ const showResultImagePlaceholder = (target: any) => {
   }
 }
 
+.original-image {
+  :deep(.ant-image-img) {
+    object-fit: contain;
+    background: #f5f5f5;
+  }
+}
+
 .image-wrapper {
   position: relative;
-  width: 100%;
-  min-height: 200px;
+  width: 450px;
+  min-height: 600px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1491,11 +1493,11 @@ const showResultImagePlaceholder = (target: any) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 200px;
+  min-height: 600px;
   background: #f0f0f0;
   border: 1px dashed #d9d9d9;
   border-radius: 8px;
-  width: 100%;
+  width: 450px;
 
   .placeholder-text {
     font-size: 0.875rem;

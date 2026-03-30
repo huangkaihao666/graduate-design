@@ -264,6 +264,16 @@ export class OrdersService {
     });
   }
 
+  async findForUser(userId: number) {
+    if (!Number.isFinite(userId) || userId <= 0) {
+      throw new ForbiddenException('无效用户');
+    }
+    return this.prisma.bookingOrder.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   /**
    * 工作人员订单列表：
    * - 未绑定本店摄影师（演示账号）：返回全部订单

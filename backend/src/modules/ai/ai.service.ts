@@ -5,10 +5,16 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 /** 虚拍出镜：女生（新娘）/ 男生（新郎）/ 双人合影 */
 export type VirtualTryOnSubjectRole = 'female' | 'male' | 'couple';
+export type VirtualTryOnHistoryScene =
+  | 'all'
+  | 'virtual-try-on'
+  | 'makeup-try-on';
 
 export interface VirtualTryOnRequest {
   imageUrl: string;
   style: string;
+  /** 仅面部试妆：不换装、不换背景 */
+  makeupOnly?: boolean;
   /** 默认 female，与前端「出镜方式」一致 */
   subjectRole?: VirtualTryOnSubjectRole;
   preferences?: {
@@ -218,6 +224,46 @@ export class AiService {
    * AI 虚拍 - 生成虚拍建议和修改后的图片效果（基于风格模板）
    */
   async generateVirtualTryOn(request: VirtualTryOnRequest): Promise<any> {
+    const isMakeupOnly =
+      request.makeupOnly === true ||
+      String(request.style || '').startsWith('makeup-');
+    const normalizedStyle = isMakeupOnly
+      ? String(request.style || '').replace(/^makeup-/, '')
+      : request.style;
+
+    if (isMakeupOnly) {
+      let modifiedImageUrl = request.imageUrl;
+      try {
+        modifiedImageUrl = await this.generateModifiedImage(
+          request.imageUrl,
+          normalizedStyle,
+          'female',
+          request.preferences,
+          request.preferenceLabels,
+          true,
+        );
+      } catch (imageError) {
+        console.error('[AI Service] 生成面部试妆图片时出错:', imageError);
+      }
+      return {
+        style: normalizedStyle || 'makeup',
+        subjectRole: 'female',
+        virtualAdvice:
+          '仅进行面部妆容模拟：会保留原服装与原背景，不进行换装和换场景。',
+        makeupAdvice:
+          '重点优化底妆、眼妆、腮红、唇妆的协调度，保持肤质自然并提升上镜感。',
+        hairstyleAdvice: '发型仅做轻微整理，不改变发长与主要造型。',
+        dressAdvice: '服装保持原图，不做替换。',
+        shootingTips: [
+          '建议上传清晰正面照，五官无遮挡',
+          '光线均匀、避免过曝或逆光',
+          '妆容风格可多次切换对比后确定',
+        ],
+        previewDescription: '输出为原场景原服装下的面部妆容变化效果。',
+        modifiedImageUrl,
+      };
+    }
+
     // 直接定义虚拍建议模板（基于风格）
     const styleAdvice: Record<string, any> = {
       romantic: {
@@ -320,9 +366,9 @@ export class AiService {
     const subjectRole: VirtualTryOnSubjectRole =
       request.subjectRole || 'female';
     const advice =
-      request.style === 'minimalist'
+      normalizedStyle === 'minimalist'
         ? this.getMinimalistStyleAdvice(subjectRole)
-        : styleAdvice[request.style] || styleAdvice.romantic;
+        : styleAdvice[normalizedStyle] || styleAdvice.romantic;
 
     const subjectVirtualPrefix: Record<VirtualTryOnSubjectRole, string> = {
       female: '【新娘/女生单人】',
@@ -341,10 +387,11 @@ export class AiService {
     try {
       modifiedImageUrl = await this.generateModifiedImage(
         request.imageUrl,
-        request.style,
+        normalizedStyle,
         subjectRole,
         request.preferences,
         request.preferenceLabels,
+        false,
       );
     } catch (imageError) {
       console.error('[AI Service] 生成修改图片时出错:', imageError);
@@ -474,6 +521,7 @@ export class AiService {
     subjectRole: VirtualTryOnSubjectRole = 'female',
     preferences?: VirtualTryOnRequest['preferences'],
     preferenceLabels?: VirtualTryOnRequest['preferenceLabels'],
+    makeupOnly: boolean = false,
   ): Promise<string> {
     try {
       // 如果是 Base64 格式，直接使用（火山引擎支持 Base64）
@@ -534,28 +582,45 @@ export class AiService {
           '新中式国风男女双人婚纱照，3:4竖版，室内纯色正红背景，正红与暖棕为色彩基底，新娘秀禾龙凤褂或红裙旗袍，新郎中山装或新中式男装金饰细节。两人表情自然，可面向镜头微笑，并肩或轻靠，亲密放松，避免僵硬摆拍。高保真',
       };
 
-      const basePrompt =
-        subjectRole === 'couple'
-          ? stylePromptsCouple[style] ||
-            stylePrompts[style] ||
-            '3:4竖版，生成高级婚纱摄影照片，高保真，专业级别'
-          : subjectRole === 'male'
-            ? stylePromptsMale[style] ||
-              '3:4竖版，生成高级新郎婚礼人像照片，男士西装或礼服造型，高保真，专业级别'
-            : stylePrompts[style] ||
-              '3:4竖版，生成高级婚纱摄影照片，高保真，专业级别';
-      const aspectRatioBlock = this.buildVirtualTryOnAspectRatioPrompt();
-      const compositionBlock =
-        style === 'classical'
-          ? this.buildClassicalNeoChineseCompositionPrompt()
-          : this.buildVirtualTryOnCompositionPrompt();
-      const editBlock = this.buildVirtualTryOnImageEditPrompt(
-        subjectRole,
-        style,
-        preferences,
-        preferenceLabels,
-      );
-      const prompt = `${aspectRatioBlock}${basePrompt}${subjectTail[subjectRole]}${compositionBlock}${editBlock}`;
+      const prompt = makeupOnly
+        ? (() => {
+            const mk =
+              preferenceLabels?.makeup?.trim() ||
+              preferences?.makeup?.trim() ||
+              style ||
+              '自然清透';
+            return (
+              ` Face-only makeup retouch, preserve identity. ` +
+              `STRICT: keep original clothes, hairstyle structure, pose, framing and background unchanged; do not replace outfit; do not change scene. ` +
+              `Only enhance facial makeup details (foundation, eyebrow, eyeshadow, eyeliner, blush, lip color) with style "${mk}". ` +
+              `Natural skin texture, realistic look, avoid plastic skin. ` +
+              `中文要求：仅修改面部妆容，不换装，不换背景，不改构图与姿态。`
+            );
+          })()
+        : (() => {
+            const basePrompt =
+              subjectRole === 'couple'
+                ? stylePromptsCouple[style] ||
+                  stylePrompts[style] ||
+                  '3:4竖版，生成高级婚纱摄影照片，高保真，专业级别'
+                : subjectRole === 'male'
+                  ? stylePromptsMale[style] ||
+                    '3:4竖版，生成高级新郎婚礼人像照片，男士西装或礼服造型，高保真，专业级别'
+                  : stylePrompts[style] ||
+                    '3:4竖版，生成高级婚纱摄影照片，高保真，专业级别';
+            const aspectRatioBlock = this.buildVirtualTryOnAspectRatioPrompt();
+            const compositionBlock =
+              style === 'classical'
+                ? this.buildClassicalNeoChineseCompositionPrompt()
+                : this.buildVirtualTryOnCompositionPrompt();
+            const editBlock = this.buildVirtualTryOnImageEditPrompt(
+              subjectRole,
+              style,
+              preferences,
+              preferenceLabels,
+            );
+            return `${aspectRatioBlock}${basePrompt}${subjectTail[subjectRole]}${compositionBlock}${editBlock}`;
+          })();
 
       const volcesRequest: VolcesImageRequest = {
         model: this.volcesModel,
@@ -1429,19 +1494,26 @@ export class AiService {
     page: number = 1,
     pageSize: number = 10,
     subjectRole?: VirtualTryOnSubjectRole,
+    scene: VirtualTryOnHistoryScene = 'all',
   ) {
     const skip = (page - 1) * pageSize;
+    const sceneWhere: Prisma.VirtualTryOnHistoryWhereInput =
+      scene === 'makeup-try-on'
+        ? { style: { startsWith: 'makeup-' } }
+        : scene === 'virtual-try-on'
+          ? { NOT: { style: { startsWith: 'makeup-' } } }
+          : {};
 
     if (!subjectRole) {
       const [items, total] = await this.prisma.$transaction([
         this.prisma.virtualTryOnHistory.findMany({
-          where: { userId },
+          where: { userId, ...sceneWhere },
           orderBy: { createdAt: 'desc' },
           skip,
           take: pageSize,
         }),
         this.prisma.virtualTryOnHistory.count({
-          where: { userId },
+          where: { userId, ...sceneWhere },
         }),
       ]);
       return {
@@ -1461,11 +1533,18 @@ export class AiService {
         : subjectRole === 'male'
           ? Prisma.sql`JSON_UNQUOTE(JSON_EXTRACT(preferences, '$.subjectRole')) = 'male'`
           : Prisma.sql`JSON_UNQUOTE(JSON_EXTRACT(preferences, '$.subjectRole')) = 'couple'`;
+    const sceneSql =
+      scene === 'makeup-try-on'
+        ? Prisma.sql`style LIKE 'makeup-%'`
+        : scene === 'virtual-try-on'
+          ? Prisma.sql`(style NOT LIKE 'makeup-%' OR style IS NULL)`
+          : Prisma.sql`1=1`;
 
     const rawItems = await this.prisma.$queryRaw<any[]>`
       SELECT * FROM virtual_try_on_histories
       WHERE userId = ${userId}
       AND ${roleSql}
+      AND ${sceneSql}
       ORDER BY createdAt DESC
       LIMIT ${pageSize} OFFSET ${skip}
     `;
@@ -1474,6 +1553,7 @@ export class AiService {
       SELECT COUNT(*) AS count FROM virtual_try_on_histories
       WHERE userId = ${userId}
       AND ${roleSql}
+      AND ${sceneSql}
     `;
     const total = Number(countRow[0].count);
 

@@ -120,7 +120,6 @@
 <script setup lang="ts">
 import { httpClient } from '@/api/client';
 import { useAuthStore } from '@/store/auth';
-import { unwrapOrderListPayload } from '@/utils/workerOrders';
 import {
   isOrderThreadId,
   orderNoFromThreadId,
@@ -129,6 +128,7 @@ import {
   sharedOrderMessagesKeyPrefixV2,
   sharedOrderMessagesStorageKey,
 } from '@/utils/orderChatStorage';
+import { unwrapOrderListPayload } from '@/utils/workerOrders';
 import type { UploadProps } from 'ant-design-vue';
 import { message, Modal } from 'ant-design-vue';
 import dayjs from 'dayjs';

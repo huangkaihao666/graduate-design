@@ -23,6 +23,7 @@ import NotFound from '../views/system/NotFound.vue';
 // AI 模块
 import StyleRecommendation from '../views/ai/StyleRecommendation.vue';
 import VirtualTryOn from '../views/ai/VirtualTryOn.vue';
+import MakeupTryOn from '../views/ai/MakeupTryOn.vue';
 import HelpCenter from '../views/help/HelpCenter.vue';
 import Dashboard from '../views/home/Dashboard.vue';
 import ItineraryPlanning from '../views/plan/ItineraryPlanning.vue';
@@ -137,6 +138,14 @@ const routes: RouteRecordRaw[] = [
         component: VirtualTryOn,
         meta: {
           title: 'AI 虚拍',
+        },
+      },
+      {
+        path: 'makeup-try-on',
+        name: 'MakeupTryOn',
+        component: MakeupTryOn,
+        meta: {
+          title: '一键试妆',
         },
       },
       {

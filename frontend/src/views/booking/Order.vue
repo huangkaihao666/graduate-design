@@ -970,6 +970,7 @@ const handleSubmit = async () => {
 
     const order = {
       orderNo,
+      userId: authStore.user?.id,
       packageId: selectedPackage.value.id,
       packageName: selectedPackage.value.name,
       location: selectedPackage.value.location,

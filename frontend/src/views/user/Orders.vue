@@ -994,12 +994,59 @@ const parseOrders = (raw: string | null): BookingOrder[] => {
 const loadOrders = async () => {
   loading.value = true;
   try {
-    const [raw, csrList] = await Promise.all([
+    const [raw, csrList, myOrders] = await Promise.all([
       Promise.resolve(readOrderHistoryStorage()),
       customShootRequestsApi.listMine().catch(() => [] as CustomShootRequestRow[]),
+      ordersApi.getMyOrders().catch(() => [] as any[]),
     ]);
     customRequests.value = Array.isArray(csrList) ? csrList : [];
-    const list = parseOrders(raw);
+    const localList = parseOrders(raw);
+    const serverList = (Array.isArray(myOrders) ? myOrders : []).map((o: any) => ({
+      orderNo: String(o.orderNo || ''),
+      orderId: Number(o.id || 0) || undefined,
+      packageId: Number(o.packageId || 0) || 0,
+      packageName: String(o.packageName || ''),
+      location: String(o.location || ''),
+      style: String(o.style || ''),
+      duration: Number(o.duration || 0) || 0,
+      unitPrice: Number(o.unitPrice || 0) || 0,
+      numberOfPeople: Number(o.numberOfPeople || 1) || 1,
+      shootingDate: String(o.shootingDate || ''),
+      contactName: String(o.contactName || ''),
+      phone: String(o.phone || ''),
+      email: o.email || undefined,
+      paymentMethod: String(o.paymentMethod || ''),
+      paymentStatus: String(o.paymentStatus || ''),
+      paymentNo: o.paymentNo || undefined,
+      paidAt: o.paidAt || undefined,
+      remark: o.remark || undefined,
+      photographerId: Number(o.photographerId || 0) || undefined,
+      photographerName: o.photographerName || undefined,
+      workerUserId: Number(o.workerUserId || 0) || undefined,
+      workerName: o.workerName || undefined,
+      workerTakenAt: o.workerTakenAt || undefined,
+      totalAmount: Number(o.totalAmount || 0) || 0,
+      createdAt: String(o.createdAt || new Date().toISOString()),
+      rescheduleCount: Number(o.rescheduleCount || 0) || 0,
+      rescheduleRequestStatus: o.rescheduleRequestStatus || undefined,
+      rescheduleRequestedDate: o.rescheduleRequestedDate || undefined,
+      rescheduleRequestReason: o.rescheduleRequestReason || undefined,
+      rescheduleRequestedAt: o.rescheduleRequestedAt || undefined,
+      rescheduleReviewNote: o.rescheduleReviewNote || undefined,
+      rescheduleReviewedAt: o.rescheduleReviewedAt || undefined,
+      customShootRequestId: o.customShootRequestId ?? undefined,
+      orderSource: o.customShootRequestId ? 'custom_shoot' : undefined,
+    })) as BookingOrder[];
+    const mergedMap = new Map<string, BookingOrder>();
+    for (const item of localList) mergedMap.set(item.orderNo, item);
+    for (const item of serverList) {
+      if (!item.orderNo) continue;
+      const prev = mergedMap.get(item.orderNo);
+      mergedMap.set(item.orderNo, prev ? ({ ...prev, ...item } as BookingOrder) : item);
+    }
+    const list = Array.from(mergedMap.values()).sort((a, b) =>
+      String(b.createdAt || '').localeCompare(String(a.createdAt || ''))
+    );
     const normalized = list.map((o) => ({
       ...o,
       totalAmount: Number(o.totalAmount ?? 0),

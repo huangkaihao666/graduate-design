@@ -471,6 +471,7 @@ export class AiController {
     @Query('page') page: string = '1',
     @Query('pageSize') pageSize: string = '10',
     @Query('subjectRole') subjectRole?: string,
+    @Query('scene') scene?: 'all' | 'virtual-try-on' | 'makeup-try-on',
   ) {
     try {
       const userId = req.user?.sub ? parseInt(req.user.sub, 10) : undefined;
@@ -505,6 +506,7 @@ export class AiController {
           pageNum,
           sizeNum,
           vtoRole,
+          scene,
         );
       } else if (type === 'style-recommendation') {
         data = await this.aiService.getStyleRecommendationHistoriesByUser(

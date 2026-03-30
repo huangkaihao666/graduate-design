@@ -6,6 +6,8 @@ export type { VirtualTryOnSubjectRole } from '@/constants/virtual-tryon-subject'
 export interface VirtualTryOnRequest {
   imageUrl: string;
   style: string;
+  /** 仅面部试妆：不换装，不改背景 */
+  makeupOnly?: boolean;
   /** 出镜方式：女生（新娘）/ 男生（新郎）/ 双人合影，默认 female */
   subjectRole?: VirtualTryOnSubjectRole;
   preferences?: {
@@ -46,6 +48,7 @@ export type AiHistoryType =
   | 'style-recommendation'
   | 'itinerary-planning'
   | 'all';
+export type VirtualTryOnHistoryScene = 'all' | 'virtual-try-on' | 'makeup-try-on';
 
 export const aiApi = {
   /**
@@ -119,6 +122,7 @@ export const aiApi = {
     page?: number;
     pageSize?: number;
     subjectRole?: VirtualTryOnSubjectRole;
+    scene?: VirtualTryOnHistoryScene;
   }) =>
     httpClient.get('/ai/history', {
       params,

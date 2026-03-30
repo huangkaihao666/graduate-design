@@ -11,6 +11,7 @@
       <div class="filter-bar">
         <a-tabs v-model:active-key="activeTab" @change="handleTabChange">
           <a-tab-pane key="all" tab="全部记录" />
+          <a-tab-pane key="makeup-try-on" tab="一键试妆历史" />
           <a-tab-pane key="virtual-try-on" tab="虚拍历史" />
           <a-tab-pane key="style-recommendation" tab="风格推荐历史" />
           <a-tab-pane key="itinerary-planning" tab="行程规划历史" />
@@ -131,6 +132,80 @@
               </div>
             </section>
           </template>
+
+          <section class="history-section" v-if="makeupTryOn.items.length">
+            <div class="section-header">
+              <h2>💄 一键试妆历史</h2>
+              <span class="count-badge">{{ makeupTryOn.pagination.total }} 条</span>
+            </div>
+            <div class="card-grid">
+              <div v-for="item in makeupTryOn.items" :key="`mto-${item.id}`" class="history-card">
+                <div class="card-type-tag vto">一键试妆</div>
+                <a-button
+                  type="text"
+                  danger
+                  size="small"
+                  class="delete-btn"
+                  @click.stop="handleDelete('virtual-try-on', item.id)"
+                  :loading="deletingIds.has(`vto-${item.id}`)"
+                >
+                  🗑️
+                </a-button>
+                <div
+                  class="card-body"
+                  @click="openVirtualTryOnDetail(item)"
+                  :data-item-id="item.id"
+                >
+                  <div class="card-main">
+                    <div class="thumb" v-if="getImageUrl(item)">
+                      <a-image
+                        :src="getImageUrl(item)!"
+                        alt="预览"
+                        :preview="true"
+                        class="thumb-image"
+                        @error="(e: any) => handleImageError(e, item)"
+                      />
+                    </div>
+                    <div v-else class="thumb no-image-placeholder">
+                      <span class="placeholder-text">暂无图片</span>
+                    </div>
+                    <div class="meta">
+                      <div class="meta-title">
+                        风格：<span class="highlight">{{ getStyleName(item.style) }}</span>
+                      </div>
+                      <div class="meta-row" v-if="item.preferences">
+                        <span class="preferences-label">试妆偏好：</span>
+                        <span class="preferences-value">{{
+                          formatPreferences(item.preferences)
+                        }}</span>
+                      </div>
+                      <div class="meta-row" v-else>
+                        <span class="preferences-label">试妆偏好：</span>
+                        <span class="preferences-value">无</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="card-footer">
+                    <span class="time">
+                      {{ formatTime(item.createdAt) }}
+                    </span>
+                    <span class="status success">成功</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="section-pagination">
+              <a-pagination
+                size="small"
+                :current="makeupTryOn.pagination.page"
+                :page-size="makeupTryOn.pagination.pageSize"
+                :total="makeupTryOn.pagination.total"
+                @change="(page, pageSize) => handlePageChange('makeup-try-on', page, pageSize)"
+                :show-size-changer="true"
+                :page-size-options="['5', '10', '20']"
+              />
+            </div>
+          </section>
 
           <section class="history-section" v-if="styleRecommendation.items.length">
             <div class="section-header">
@@ -277,6 +352,13 @@
               <p>当前「{{ vtoSubjectLabel }}」出镜方式下暂无虚拍记录</p>
               <small>完成虚拍并保存历史后，将显示在此处</small>
             </div>
+            <div
+              v-else-if="activeTab === 'makeup-try-on' && !currentList.items.length"
+              class="vto-tab-empty"
+            >
+              <p>当前暂无一键试妆记录</p>
+              <small>完成一键试妆后，系统会自动保存到这里</small>
+            </div>
 
             <div
               class="card-grid"
@@ -339,6 +421,65 @@
                     <span class="time">
                       {{ formatTime(item.createdAt) }}
                     </span>
+                    <span class="status success">成功</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card-grid" v-else-if="activeTab === 'makeup-try-on'">
+              <div
+                v-for="item in currentList.items"
+                :key="`mto-single-${item.id}`"
+                class="history-card"
+              >
+                <div class="card-type-tag vto">一键试妆</div>
+                <a-button
+                  type="text"
+                  danger
+                  size="small"
+                  class="delete-btn"
+                  @click.stop="handleDelete('virtual-try-on', item.id)"
+                  :loading="deletingIds.has(`vto-${item.id}`)"
+                >
+                  🗑️
+                </a-button>
+                <div
+                  class="card-body"
+                  @click="openVirtualTryOnDetail(item)"
+                  :data-item-id="item.id"
+                >
+                  <div class="card-main">
+                    <div class="thumb" v-if="getImageUrl(item)">
+                      <a-image
+                        :src="getImageUrl(item)!"
+                        alt="预览"
+                        :preview="true"
+                        class="thumb-image"
+                        @error="(e: any) => handleImageError(e, item)"
+                      />
+                    </div>
+                    <div v-else class="thumb no-image-placeholder">
+                      <span class="placeholder-text">暂无图片</span>
+                    </div>
+                    <div class="meta">
+                      <div class="meta-title">
+                        风格：<span class="highlight">{{ getStyleName(item.style) }}</span>
+                      </div>
+                      <div class="meta-row" v-if="item.preferences">
+                        <span class="preferences-label">试妆偏好：</span>
+                        <span class="preferences-value">{{
+                          formatPreferences(item.preferences)
+                        }}</span>
+                      </div>
+                      <div class="meta-row" v-else>
+                        <span class="preferences-label">试妆偏好：</span>
+                        <span class="preferences-value">无</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="card-footer">
+                    <span class="time">{{ formatTime(item.createdAt) }}</span>
                     <span class="status success">成功</span>
                   </div>
                 </div>
@@ -779,6 +920,7 @@ import {
   VTO_SUBJECT_LABELS,
   type VirtualTryOnSubjectRole,
 } from '@/constants/virtual-tryon-subject';
+type HistoryTab = AiHistoryType | 'makeup-try-on';
 
 type Pagination = {
   total: number;
@@ -830,7 +972,7 @@ type ItineraryPlanningHistory = {
 };
 
 const loading = ref(false);
-const activeTab = ref<AiHistoryType>('all');
+const activeTab = ref<HistoryTab>('all');
 /** 虚拍「虚拍历史」标签下的子类：女生 / 男生 / 双人 */
 const vtoRole = ref<VirtualTryOnSubjectRole>('female');
 const virtualTryOnModalVisible = ref(false);
@@ -842,6 +984,10 @@ const selectedItineraryPlanning = ref<ItineraryPlanningHistory | null>(null);
 const deletingIds = ref<Set<string>>(new Set());
 
 const virtualTryOn = reactive<ListWithPagination<VirtualTryOnHistory>>({
+  items: [],
+  pagination: { total: 0, page: 1, pageSize: 5 },
+});
+const makeupTryOn = reactive<ListWithPagination<VirtualTryOnHistory>>({
   items: [],
   pagination: { total: 0, page: 1, pageSize: 5 },
 });
@@ -874,6 +1020,7 @@ const hasAnyData = computed(() => {
     virtualTryOnFemale.items.length > 0 ||
     virtualTryOnMale.items.length > 0 ||
     virtualTryOnCouple.items.length > 0 ||
+    makeupTryOn.items.length > 0 ||
     styleRecommendation.items.length > 0 ||
     itineraryPlanning.items.length > 0
   );
@@ -906,8 +1053,9 @@ const vtoAllSlots = computed(() => [
 
 const vtoSubjectLabel = computed(() => VTO_SUBJECT_LABELS[vtoRole.value] || '');
 
-const currentList = computed(() => {
+const currentList = computed<ListWithPagination<any>>(() => {
   if (activeTab.value === 'virtual-try-on') return virtualTryOn;
+  if (activeTab.value === 'makeup-try-on') return makeupTryOn;
   if (activeTab.value === 'style-recommendation') return styleRecommendation;
   if (activeTab.value === 'itinerary-planning') return itineraryPlanning;
   return virtualTryOn;
@@ -915,12 +1063,13 @@ const currentList = computed(() => {
 
 /** 单一类型标签页：虚拍始终显示区块（便于切换子类）；其余类型无数据则整块不展示 */
 const showSingleTypeSection = computed(() => {
-  if (activeTab.value === 'virtual-try-on') return true;
+  if (activeTab.value === 'virtual-try-on' || activeTab.value === 'makeup-try-on') return true;
   return currentList.value.items.length > 0;
 });
 
 const currentTitle = computed(() => {
   if (activeTab.value === 'virtual-try-on') return '🤖 虚拍历史';
+  if (activeTab.value === 'makeup-try-on') return '💄 一键试妆历史';
   if (activeTab.value === 'style-recommendation') return '🎨 风格推荐历史';
   if (activeTab.value === 'itinerary-planning') return '📍 行程规划历史';
   return 'AI 历史';
@@ -931,7 +1080,15 @@ const formatTime = (time: string) => {
 };
 
 // 风格映射：英文转中文
-const styleMap: Record<string, string> = { ...TRAVEL_STYLE_LABELS };
+const styleMap: Record<string, string> = {
+  ...TRAVEL_STYLE_LABELS,
+  'makeup-korean': '韩系',
+  'makeup-japanese-magazine': '日杂',
+  'makeup-new-chinese': '新中式',
+  'makeup-forest': '森系',
+  'makeup-french-retro': '法式复古',
+  'makeup-light-thai': '轻泰',
+};
 
 // 妆容 / 发型 / 服装：新版虚拍偏好 + 旧版兼容
 const makeupMap: Record<string, string> = {
@@ -1297,28 +1454,41 @@ const showImagePlaceholder = (target: any, item: VirtualTryOnHistory) => {
 
 const unwrapHistoryData = (response: any) => response?.data?.data || response?.data || response;
 
-const fetchHistory = async (type: AiHistoryType, page?: number, pageSize?: number) => {
+const fetchHistory = async (
+  type: AiHistoryType | 'makeup-try-on',
+  page?: number,
+  pageSize?: number
+) => {
   loading.value = true;
   try {
     if (type === 'all') {
-      const [resF, resM, resC, resSr, resIp] = await Promise.all([
+      const [resF, resM, resC, resMto, resSr, resIp] = await Promise.all([
         aiApi.getHistory({
           type: 'virtual-try-on',
+          scene: 'virtual-try-on',
           subjectRole: 'female',
           page: virtualTryOnFemale.pagination.page,
           pageSize: virtualTryOnFemale.pagination.pageSize,
         }),
         aiApi.getHistory({
           type: 'virtual-try-on',
+          scene: 'virtual-try-on',
           subjectRole: 'male',
           page: virtualTryOnMale.pagination.page,
           pageSize: virtualTryOnMale.pagination.pageSize,
         }),
         aiApi.getHistory({
           type: 'virtual-try-on',
+          scene: 'virtual-try-on',
           subjectRole: 'couple',
           page: virtualTryOnCouple.pagination.page,
           pageSize: virtualTryOnCouple.pagination.pageSize,
+        }),
+        aiApi.getHistory({
+          type: 'virtual-try-on',
+          scene: 'makeup-try-on',
+          page: makeupTryOn.pagination.page,
+          pageSize: makeupTryOn.pagination.pageSize,
         }),
         aiApi.getHistory({
           type: 'style-recommendation',
@@ -1335,6 +1505,7 @@ const fetchHistory = async (type: AiHistoryType, page?: number, pageSize?: numbe
       const dataF = unwrapHistoryData(resF);
       const dataM = unwrapHistoryData(resM);
       const dataC = unwrapHistoryData(resC);
+      const dataMto = unwrapHistoryData(resMto);
       const dataSr = unwrapHistoryData(resSr);
       const dataIp = unwrapHistoryData(resIp);
 
@@ -1344,6 +1515,8 @@ const fetchHistory = async (type: AiHistoryType, page?: number, pageSize?: numbe
       virtualTryOnMale.pagination = dataM.pagination || virtualTryOnMale.pagination;
       virtualTryOnCouple.items = dataC.items || [];
       virtualTryOnCouple.pagination = dataC.pagination || virtualTryOnCouple.pagination;
+      makeupTryOn.items = dataMto.items || [];
+      makeupTryOn.pagination = dataMto.pagination || makeupTryOn.pagination;
 
       styleRecommendation.items = dataSr.items || [];
       styleRecommendation.pagination = dataSr.pagination || styleRecommendation.pagination;
@@ -1352,6 +1525,7 @@ const fetchHistory = async (type: AiHistoryType, page?: number, pageSize?: numbe
     } else if (type === 'virtual-try-on') {
       const response: any = await aiApi.getHistory({
         type: 'virtual-try-on',
+        scene: 'virtual-try-on',
         subjectRole: vtoRole.value,
         page: page ?? virtualTryOn.pagination.page,
         pageSize: pageSize ?? virtualTryOn.pagination.pageSize,
@@ -1370,6 +1544,16 @@ const fetchHistory = async (type: AiHistoryType, page?: number, pageSize?: numbe
           selectedUrl: getImageUrl(firstItem),
         });
       }
+    } else if (type === 'makeup-try-on') {
+      const response: any = await aiApi.getHistory({
+        type: 'virtual-try-on',
+        scene: 'makeup-try-on',
+        page: page ?? makeupTryOn.pagination.page,
+        pageSize: pageSize ?? makeupTryOn.pagination.pageSize,
+      });
+      const data = unwrapHistoryData(response);
+      makeupTryOn.items = data.items || [];
+      makeupTryOn.pagination = data.pagination || makeupTryOn.pagination;
     } else {
       const params: {
         type: AiHistoryType;
@@ -1415,25 +1599,34 @@ const handlePageChangeVto = (role: VirtualTryOnSubjectRole, page: number, pageSi
 };
 
 const handleTabChange = (key: string) => {
-  activeTab.value = key as AiHistoryType;
+  activeTab.value = key as HistoryTab;
   if (key === 'all') {
     fetchHistory('all');
   } else {
-    const target = key as AiHistoryType;
+    const target = key as HistoryTab;
     const list =
       target === 'virtual-try-on'
         ? virtualTryOn
-        : target === 'style-recommendation'
-          ? styleRecommendation
-          : itineraryPlanning;
+        : target === 'makeup-try-on'
+          ? makeupTryOn
+          : target === 'style-recommendation'
+            ? styleRecommendation
+            : itineraryPlanning;
     fetchHistory(target, list.pagination.page, list.pagination.pageSize);
   }
 };
 
-const handlePageChange = (type: AiHistoryType, page: number, pageSize: number) => {
+const handlePageChange = (
+  type: AiHistoryType | 'makeup-try-on',
+  page: number,
+  pageSize: number
+) => {
   if (type === 'virtual-try-on') {
     virtualTryOn.pagination.page = page;
     virtualTryOn.pagination.pageSize = pageSize;
+  } else if (type === 'makeup-try-on') {
+    makeupTryOn.pagination.page = page;
+    makeupTryOn.pagination.pageSize = pageSize;
   } else if (type === 'style-recommendation') {
     styleRecommendation.pagination.page = page;
     styleRecommendation.pagination.pageSize = pageSize;

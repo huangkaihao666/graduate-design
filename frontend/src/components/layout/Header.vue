@@ -12,6 +12,7 @@
         <template v-if="authStore.isAuthenticated">
           <router-link to="/dashboard" class="nav-item">首页</router-link>
           <router-link to="/ai/virtual-try-on" class="nav-item">虚拍试衣</router-link>
+          <router-link to="/ai/makeup-try-on" class="nav-item">一键试妆</router-link>
           <router-link to="/ai/style-recommendation" class="nav-item">风格推荐</router-link>
           <router-link to="/ai/itinerary-planning" class="nav-item">行程规划</router-link>
           <router-link to="/booking/packages" class="nav-item">套餐浏览</router-link>
@@ -19,14 +20,9 @@
           <router-link v-if="!authStore.isWorker" to="/user/custom-requests" class="nav-item"
             >个性预约</router-link
           >
-          <router-link v-if="!authStore.isWorker" to="/user/chat" class="nav-item"
-            >消息中心</router-link
-          >
-          <router-link to="/help-center" class="nav-item">帮助中心</router-link>
         </template>
         <template v-else>
           <router-link to="/booking/packages" class="nav-item">套餐浏览</router-link>
-          <router-link to="/help-center" class="nav-item">帮助中心</router-link>
         </template>
       </nav>
 
@@ -46,6 +42,12 @@
 
                   <!-- 普通用户 -->
                   <template v-if="!authStore.isAdmin">
+                    <a-menu-item key="help-center">
+                      <router-link to="/help-center">帮助中心</router-link>
+                    </a-menu-item>
+                    <a-menu-item v-if="!authStore.isWorker" key="chat">
+                      <router-link to="/user/chat">消息中心</router-link>
+                    </a-menu-item>
                     <a-menu-item key="orders">
                       <router-link to="/user/orders">我的订单</router-link>
                     </a-menu-item>

@@ -36,6 +36,14 @@ export class OrdersController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
+  @Get('user/me')
+  @ApiOperation({ summary: '当前登录用户获取自己的订单列表' })
+  findForCurrentUser(@Request() req: { user: { sub: number } }) {
+    return this.ordersService.findForUser(req.user.sub);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @Get('worker')
   @ApiOperation({
     summary:
