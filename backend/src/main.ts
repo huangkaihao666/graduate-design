@@ -10,9 +10,70 @@ import { appConfig } from './config';
 import * as dotenv from 'dotenv';
 import { join } from 'path';
 import { json, urlencoded } from 'express';
+import * as bcrypt from 'bcrypt';
+import { Prisma } from '@prisma/client';
+import { PrismaService } from './prisma/prisma.service';
 
 // 加载环境变量
 dotenv.config({ path: join(__dirname, '../.env') });
+
+async function seedDevAccounts(app: any) {
+  // 只在开发环境/未显式关闭时执行，避免影响生产
+  const env = String(process.env.NODE_ENV || '').toLowerCase();
+  const seedEnabled =
+    String(process.env.DEV_SEED_ACCOUNTS || 'true').toLowerCase() !== 'false';
+  if (env === 'production' || !seedEnabled) return;
+
+  const prisma = app.get(PrismaService) as PrismaService;
+
+  // 需求：化妆师账号 hzs@qq.com / 123456
+  const email = 'hzs@qq.com';
+  const passwordPlain = '123456';
+  const name = '化妆师';
+
+  const existing = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true, workerPhotographerId: true },
+  });
+  if (existing) return;
+
+  const hashed = await bcrypt.hash(passwordPlain, 10);
+
+  await prisma.$transaction(async (tx) => {
+    const user = await tx.user.create({
+      data: {
+        email,
+        name,
+        password: hashed,
+        role: 'worker',
+      },
+      select: { id: true },
+    });
+
+    // 当前系统的工作人员工作台与审核逻辑依赖 photographer 档案，因此这里同时创建一份 draft 档案
+    const ph = await tx.photographer.create({
+      data: {
+        name,
+        shootingStyle: '（化妆师：请在个人中心补充擅长风格）',
+        yearsExperience: 0,
+        portfolioImages: [] as unknown as Prisma.InputJsonValue,
+        availableDates: [] as unknown as Prisma.InputJsonValue,
+        restDates: [] as unknown as Prisma.InputJsonValue,
+        enabled: false,
+        approvalStatus: 'draft',
+        approvalReviewNote: null,
+        sortOrder: 999,
+      },
+      select: { id: true },
+    });
+
+    await tx.user.update({
+      where: { id: user.id },
+      data: { workerPhotographerId: ph.id },
+      select: { id: true },
+    });
+  });
+}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -52,6 +113,7 @@ async function bootstrap() {
   app.setGlobalPrefix('api/v1');
 
   await app.listen(appConfig.port);
+  await seedDevAccounts(app);
   console.log(
     `🚀 Application is running on: http://localhost:${appConfig.port}/api/v1`,
   );

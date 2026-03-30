@@ -1,3 +1,4 @@
+/* stylelint-disable */
 <template>
   <div class="page">
     <div class="head">
@@ -175,6 +176,7 @@ const syncWarned = ref(false);
 const draftDesc = ref('');
 const draftCat = ref<Cat | undefined>('wedding');
 const pendingUploads = ref<string[]>([]);
+const uploading = ref(false);
 
 const likes = computed(() => Math.max(0, items.value.length * 13));
 const reviews = computed(() => Math.max(0, Math.floor(items.value.length * 1.6)));
@@ -239,11 +241,19 @@ const defaultItem = (url: string): Item => ({
 });
 
 const saveLocalOnly = () => {
-  localStorage.setItem(storageKey.value, JSON.stringify(items.value));
-  localStorage.setItem(urlsKey.value, JSON.stringify(items.value.map((x) => x.url)));
+  try {
+    localStorage.setItem(storageKey.value, JSON.stringify(items.value));
+    localStorage.setItem(urlsKey.value, JSON.stringify(items.value.map((x) => x.url)));
+  } catch {
+    // dataURL 作品可能很大，localStorage 容量不足时不阻断“同步到服务器”
+    // 仅提示一次，避免打扰
+    if (!syncWarned.value) {
+      message.warning('本机存储空间不足：作品未能保存到本地，但仍会尝试同步到服务器');
+    }
+  }
 };
 
-const syncPortfolioToBackend = async () => {
+const syncPortfolioToBackend = async (): Promise<boolean> => {
   if (!authStore.user?.workerPhotographerId && authStore.accessToken) {
     try {
       await authStore.getProfile();
@@ -256,25 +266,35 @@ const syncPortfolioToBackend = async () => {
       message.warning('当前账号未关联摄影师档案，作品仅保存在本机，用户端无法展示');
       missingBindingWarned.value = true;
     }
-    return;
+    return false;
   }
   const urls = dedupeUrls(items.value.map((x) => x.url).filter(Boolean));
   try {
     await photographersApi.updateMine({ portfolioImages: urls });
     syncWarned.value = false;
+    return true;
   } catch {
     if (!syncWarned.value) {
       message.warning('作品同步到服务器失败，请检查网络或重新登录');
       syncWarned.value = true;
     }
+    return false;
   }
 };
 
 const load = () => {
-  const raw = localStorage.getItem(storageKey.value);
-  const list = raw ? (JSON.parse(raw) as Item[]) : [];
-  items.value = Array.isArray(list) ? list : [];
-  localStorage.setItem(urlsKey.value, JSON.stringify(items.value.map((x) => x.url)));
+  try {
+    const raw = localStorage.getItem(storageKey.value);
+    const list = raw ? (JSON.parse(raw) as Item[]) : [];
+    items.value = Array.isArray(list) ? list : [];
+    try {
+      localStorage.setItem(urlsKey.value, JSON.stringify(items.value.map((x) => x.url)));
+    } catch {
+      /* ignore */
+    }
+  } catch {
+    items.value = [];
+  }
 };
 
 const pullPortfolioFromBackend = async () => {
@@ -295,6 +315,11 @@ const pullPortfolioFromBackend = async () => {
       message.warning('无法从服务器拉取作品（请确认已登录摄影师账号）');
       missingBindingWarned.value = true;
     }
+    return;
+  }
+
+  // 关键兜底：若服务器暂未同步到作品，但本地已有作品，则不要用空数组覆盖本地
+  if (!serverUrls.length && items.value.length) {
     return;
   }
 
@@ -327,18 +352,25 @@ const categoryLabel = (c: Cat) => {
 };
 
 const upload: UploadProps['customRequest'] = async (options) => {
-  // 先加入上传面板的待上传列表，点击“应用”后再真正写入作品列表
+  // 先上传到后端拿到 dataURL（统一 5MB 限制与鉴权），再加入待上传列表
   const raw = options.file as File;
-  const reader = new FileReader();
-  reader.onload = () => {
-    const url = String(reader.result || '');
-    if (!url) return;
+  uploading.value = true;
+  try {
+    const { url } = await photographersApi.uploadImage(raw);
+    if (!url) throw new Error('上传失败：未返回图片地址');
     pendingUploads.value = dedupeUrls([url, ...pendingUploads.value]);
-    message.success('已加入待上传列表');
+    message.success('已上传并加入待上传列表');
     options.onSuccess?.(url);
-  };
-  reader.onerror = () => options.onError?.(new Error('读取文件失败'));
-  reader.readAsDataURL(raw);
+  } catch (e: unknown) {
+    const msg =
+      e && typeof e === 'object' && 'message' in e
+        ? String((e as { message?: string }).message)
+        : '上传失败';
+    message.error(msg);
+    options.onError?.(e as Error);
+  } finally {
+    uploading.value = false;
+  }
 };
 
 const dedupeUrls = (arr: string[]) => {
@@ -419,28 +451,44 @@ const saveEdit = () => {
   editOpen.value = false;
 };
 
-const applyDraft = () => {
-  if (!pendingUploads.value.length) {
-    message.warning('请先上传作品');
-    return;
+const applyDraft = async () => {
+  try {
+    if (!pendingUploads.value.length) {
+      message.warning('请先上传作品');
+      return;
+    }
+    if (!draftCat.value) {
+      message.warning('请选择分类');
+      return;
+    }
+    const desc = draftDesc.value.trim();
+    const usedCat = draftCat.value as Cat;
+    const batch: Item[] = pendingUploads.value.map((url) => ({
+      url,
+      category: usedCat,
+      desc,
+    }));
+    items.value = dedupe([...batch, ...items.value]);
+    // 本地保存可能因 dataURL 过大失败，但不应影响“同步到服务器”
+    saveLocalOnly();
+    const ok = await syncPortfolioToBackend();
+    if (ok) {
+      // 以服务器为准刷新一次，避免切页回来被空数据覆盖
+      await pullPortfolioFromBackend();
+    }
+    pendingUploads.value = [];
+    draftDesc.value = '';
+    draftCat.value = usedCat;
+    message.success(
+      ok ? `已上传并同步 ${batch.length} 张作品` : `已上传 ${batch.length} 张作品（请稍后重试同步）`
+    );
+  } catch (e: unknown) {
+    const msg =
+      e && typeof e === 'object' && 'message' in e
+        ? String((e as { message?: string }).message)
+        : '上传失败';
+    message.error(msg);
   }
-  if (!draftCat.value) {
-    message.warning('请选择分类');
-    return;
-  }
-  const desc = draftDesc.value.trim();
-  const usedCat = draftCat.value as Cat;
-  const batch: Item[] = pendingUploads.value.map((url) => ({
-    url,
-    category: usedCat,
-    desc,
-  }));
-  items.value = dedupe([...batch, ...items.value]);
-  save();
-  pendingUploads.value = [];
-  draftDesc.value = '';
-  draftCat.value = usedCat;
-  message.success(`已上传 ${batch.length} 张作品`);
 };
 
 onMounted(async () => {

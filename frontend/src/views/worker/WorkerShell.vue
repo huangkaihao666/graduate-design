@@ -1,3 +1,4 @@
+<!-- stylelint-disable -->
 <template>
   <div class="worker-shell">
     <!-- 左侧固定侧边栏 -->
@@ -108,6 +109,22 @@ const authStore = useAuthStore();
 const route = useRoute();
 const router = useRouter();
 
+const isMakeupWorker = computed(() => {
+  const email = String(authStore.user?.email || '')
+    .trim()
+    .toLowerCase();
+  if (email === 'hzs@qq.com') return true;
+  // 兜底：若个人中心把“职位”保存为 makeup，也展示入口（仅用于前端演示）
+  try {
+    const key = `worker_profile_local_v1_${authStore.user?.id ?? 'guest'}`;
+    const raw = localStorage.getItem(key);
+    const v = raw ? (JSON.parse(raw) as any) : null;
+    return String(v?.role || '').toLowerCase() === 'makeup';
+  } catch {
+    return false;
+  }
+});
+
 const workerApprovalBanner = computed(() => {
   if (!authStore.user?.workerPhotographerId) return null;
   const st = String(authStore.user.photographerApprovalStatus || '');
@@ -150,6 +167,7 @@ const sideItems = computed(() => [
   { label: '档期日历', to: '/worker/schedule', icon: '🗓️' },
   { label: '作品相册', to: '/worker/portfolio', icon: '🖼️' },
   { label: '消息中心', to: '/worker/messages', icon: '💬' },
+  ...(isMakeupWorker.value ? [{ label: '智能试妆', to: '/worker/makeup-ai', icon: '💄' }] : []),
   { label: '个人中心', to: '/worker/profile', icon: '👤' },
 ]);
 
@@ -160,6 +178,7 @@ const topTabs = computed(() => [
   { label: '档期管理', to: '/worker/schedule' },
   { label: '作品管理', to: '/worker/portfolio' },
   { label: '消息中心', to: '/worker/messages' },
+  ...(isMakeupWorker.value ? [{ label: '智能试妆', to: '/worker/makeup-ai' }] : []),
   { label: '个人中心', to: '/worker/profile' },
 ]);
 

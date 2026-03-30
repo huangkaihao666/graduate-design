@@ -1,3 +1,4 @@
+/* stylelint-disable */
 <template>
   <aside class="app-sidebar" :class="{ collapsed: isCollapsed }">
     <div class="sidebar-content">
@@ -108,6 +109,14 @@
             <span class="icon"><CameraOutlined /></span>
             <span v-if="!isCollapsed" class="label">摄影师</span>
           </router-link>
+          <router-link
+            to="/admin/content/makeup-artists"
+            class="nav-link admin-link"
+            active-class="active"
+          >
+            <span class="icon"><SkinOutlined /></span>
+            <span v-if="!isCollapsed" class="label">化妆师</span>
+          </router-link>
           <router-link to="/admin/orders" class="nav-link admin-link" active-class="active">
             <span class="icon"><FileTextOutlined /></span>
             <span v-if="!isCollapsed" class="label">订单管理</span>
@@ -127,6 +136,7 @@ import { useAuthStore } from '@/store/auth';
 import {
   AppstoreOutlined,
   CameraOutlined,
+  SkinOutlined,
   DashboardOutlined,
   LineChartOutlined,
   EnvironmentOutlined,

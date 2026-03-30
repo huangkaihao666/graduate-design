@@ -36,6 +36,7 @@ const WorkerPortfolio = () => import('../views/worker/pages/Portfolio.vue');
 const WorkerMessages = () => import('../views/worker/pages/Messages.vue');
 const WorkerProfile = () => import('../views/worker/pages/Profile.vue');
 const WorkerCustomMarket = () => import('../views/worker/pages/CustomMarket.vue');
+const WorkerMakeupAI = () => import('../views/worker/pages/MakeupAI.vue');
 
 // 预约模块 (延迟加载)
 const Packages = () => import('../views/booking/Packages.vue');
@@ -56,6 +57,7 @@ const AdminSpots = () => import('../views/admin/content/Spots.vue');
 const AdminPackages = () => import('../views/admin/content/Packages.vue');
 const AdminStyles = () => import('../views/admin/content/Styles.vue');
 const AdminPhotographers = () => import('../views/admin/content/Photographers.vue');
+const AdminMakeupArtists = () => import('../views/admin/content/MakeupArtists.vue');
 const AdminOrders = () => import('../views/admin/Orders.vue');
 const AdminUsers = () => import('../views/admin/Users.vue');
 const AdminInsights = () => import('../views/admin/Insights.vue');
@@ -318,6 +320,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '消息中心' },
       },
       {
+        path: 'makeup-ai',
+        name: 'WorkerMakeupAI',
+        component: WorkerMakeupAI,
+        meta: { title: '智能试妆' },
+      },
+      {
         path: 'profile',
         name: 'WorkerProfile',
         component: WorkerProfile,
@@ -382,6 +390,14 @@ const routes: RouteRecordRaw[] = [
         component: AdminPhotographers,
         meta: {
           title: '摄影师管理',
+        },
+      },
+      {
+        path: 'content/makeup-artists',
+        name: 'AdminMakeupArtists',
+        component: AdminMakeupArtists,
+        meta: {
+          title: '化妆师管理',
         },
       },
       {
