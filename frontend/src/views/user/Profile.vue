@@ -7,6 +7,23 @@
     </div>
 
     <div class="content-card">
+      <div class="avatar-section">
+        <a-avatar :size="88" :src="profileForm.avatar || undefined">
+          {{ (profileForm.name || 'U').slice(0, 1) }}
+        </a-avatar>
+        <div class="avatar-actions">
+          <a-button :loading="uploadingAvatar" @click="triggerAvatarSelect">上传头像</a-button>
+          <p>支持 JPG/PNG/WEBP，大小不超过 5MB</p>
+        </div>
+        <input
+          ref="avatarInputRef"
+          type="file"
+          accept="image/*"
+          style="display: none"
+          @change="handleAvatarFileChange"
+        />
+      </div>
+
       <a-tabs v-model:active-key="activeTab" @change="handleTabChange">
         <a-tab-pane key="info" tab="基本信息" />
         <a-tab-pane key="password" tab="修改密码" />
@@ -131,17 +148,20 @@ const authStore = useAuthStore();
 const loading = ref(false);
 const updating = ref(false);
 const changingPassword = ref(false);
+const uploadingAvatar = ref(false);
 const activeTab = ref('info');
 
 // 表单引用
 const profileFormRef = ref<FormInstance>();
 const passwordFormRef = ref<FormInstance>();
+const avatarInputRef = ref<HTMLInputElement | null>(null);
 
 // 基本信息表单
 const profileForm = reactive({
   id: 0,
   name: '',
   email: '',
+  avatar: '',
   isActive: true,
   createdAt: '',
   updatedAt: '',
@@ -213,6 +233,7 @@ const loadUserProfile = async () => {
         id: authStore.user.id || 0,
         name: authStore.user.name || '',
         email: authStore.user.email || '',
+        avatar: authStore.user.avatar || '',
         isActive: authStore.user.isActive !== undefined ? authStore.user.isActive : true,
         createdAt: authStore.user.createdAt || '',
         updatedAt: authStore.user.updatedAt || '',
@@ -229,6 +250,7 @@ const loadUserProfile = async () => {
             id: userData.id || profileForm.id,
             name: userData.name || profileForm.name,
             email: userData.email || profileForm.email,
+            avatar: userData.avatar || profileForm.avatar,
             isActive: userData.isActive !== undefined ? userData.isActive : profileForm.isActive,
             createdAt: userData.createdAt || profileForm.createdAt,
             updatedAt: userData.updatedAt || profileForm.updatedAt,
@@ -342,6 +364,50 @@ const handleResetPassword = () => {
   passwordFormRef.value?.resetFields();
 };
 
+const triggerAvatarSelect = () => {
+  avatarInputRef.value?.click();
+};
+
+const handleAvatarFileChange = async (e: Event) => {
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = '';
+  if (!file) return;
+
+  if (!file.type.startsWith('image/')) {
+    message.warning('只能上传图片文件');
+    return;
+  }
+  const maxSize = 5 * 1024 * 1024;
+  if (file.size > maxSize) {
+    message.warning('图片大小不能超过 5MB');
+    return;
+  }
+  if (!authStore.user?.id) {
+    message.warning('请先登录');
+    return;
+  }
+
+  uploadingAvatar.value = true;
+  try {
+    const res: any = await usersApi.uploadAvatar(authStore.user.id, file);
+    const userData = res?.data?.data || res?.data || res;
+    const avatar = String(userData?.avatar || '').trim();
+    if (avatar) {
+      profileForm.avatar = avatar;
+      if (authStore.user) {
+        authStore.user.avatar = avatar;
+        localStorage.setItem('user', JSON.stringify(authStore.user));
+      }
+    }
+    message.success('头像上传成功');
+  } catch (error: any) {
+    message.error(error?.response?.data?.message || error?.message || '头像上传失败');
+  } finally {
+    uploadingAvatar.value = false;
+  }
+};
+
 onMounted(() => {
   authStore.initializeAuth();
   if (authStore.isAuthenticated) {
@@ -356,15 +422,16 @@ onMounted(() => {
 <style scoped lang="less">
 .profile-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: linear-gradient(180deg, #fff5f7 0%, #ffffff 32%);
   padding: 0 0 40px;
 }
 
 .page-header {
   text-align: center;
+  padding-top: 28px;
   margin-bottom: 30px;
-  color: white;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  color: #334155;
+  text-shadow: none;
 
   h1 {
     font-size: 2.3rem;
@@ -375,6 +442,7 @@ onMounted(() => {
   p {
     font-size: 1rem;
     opacity: 0.9;
+    margin-top: 10px;
   }
 }
 
@@ -393,6 +461,27 @@ onMounted(() => {
   :deep(.ant-tabs-tab) {
     font-size: 1rem;
     padding: 12px 24px;
+  }
+}
+
+.avatar-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 18px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #f3dbe4;
+
+  .avatar-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    p {
+      margin: 0;
+      font-size: 12px;
+      color: #8c8c8c;
+    }
   }
 }
 
@@ -434,6 +523,18 @@ onMounted(() => {
   height: 40px;
   padding: 0 24px;
   font-size: 0.95rem;
+}
+
+:deep(.ant-btn:not(.ant-btn-primary)) {
+  &:hover,
+  &:focus,
+  &:active,
+  &:focus-visible {
+    color: #ff6b8b !important;
+    border-color: #ff6b8b !important;
+    background: #fff5f8 !important;
+    box-shadow: none !important;
+  }
 }
 
 :deep(.ant-btn-primary) {

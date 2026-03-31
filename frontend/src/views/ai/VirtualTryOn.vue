@@ -300,12 +300,12 @@
 
 <script setup lang="ts">
 import { aiApi, VirtualTryOnRequest } from '@/api/ai';
-import hero1 from '@/assets/images/hero/hero1.jpg';
-import hero2 from '@/assets/images/hero/hero2.jpg';
-import hero3 from '@/assets/images/hero/hero3.jpg';
-import hero4 from '@/assets/images/hero/hero4.jpg';
-import hero5 from '@/assets/images/hero/hero5.jpg';
-import hero6 from '@/assets/images/hero/hero6.jpg';
+import xpsy1 from '@/assets/images/hero/xpsy1.jpg';
+import xpsy2 from '@/assets/images/hero/xpsy2.jpg';
+import xpsy3 from '@/assets/images/hero/xpsy3.jpg';
+import xpsy4 from '@/assets/images/hero/xpsy4.jpg';
+import xpsy5 from '@/assets/images/hero/xpsy5.jpg';
+import xpsy6 from '@/assets/images/hero/xpsy6.jpg';
 import {
   TRAVEL_STYLE_CARD_DESCRIPTIONS,
   TRAVEL_STYLE_DETAIL_MINIMALIST_COUPLE,
@@ -357,18 +357,18 @@ const currentStep = computed(() => {
 });
 
 const stylePreviewMap: Record<string, string> = {
-  minimalist: hero1,
-  classical: hero2,
-  bohemian: hero3,
-  romantic: hero4,
-  adventure: hero5,
-  oldtown: hero6,
+  minimalist: xpsy1,
+  classical: xpsy2,
+  bohemian: xpsy3,
+  romantic: xpsy4,
+  adventure: xpsy5,
+  oldtown: xpsy6,
 };
 
 const styleDisplayList = computed(() => {
   const baseList = (availableStyles.value || []).map((style: any) => ({
     ...style,
-    preview: stylePreviewMap[style.id] || hero1,
+    preview: stylePreviewMap[style.id] || xpsy1,
   }));
 
   const hasOldtown = baseList.some((s: any) => s.id === 'oldtown' || s.name === '古镇纪实');
@@ -378,7 +378,7 @@ const styleDisplayList = computed(() => {
       name: '古镇纪实',
       description: '古镇街巷、人文纪实、烟火生活感',
       color: '#8b5e3c',
-      preview: hero6,
+      preview: xpsy6,
     });
   }
 

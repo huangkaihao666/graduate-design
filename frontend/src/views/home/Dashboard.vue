@@ -11,21 +11,23 @@
       @mouseup="onMouseUp"
       @mouseleave="onMouseUp"
     >
-      <div
-        class="hero-track"
-        :class="{ dragging: isDragging }"
-        :style="{
-          transform: `translateX(calc(${-currentTrackIndex * 100}% + ${dragOffsetPx}px))`,
-          transition: isDragging || !transitionEnabled ? 'none' : 'transform 0.35s ease',
-        }"
-        @transitionend="handleTrackTransitionEnd"
-      >
-        <section
-          v-for="(slide, idx) in loopSlides"
-          :key="`${slide.image}-${idx}`"
-          class="hero-slide"
-          :style="{ backgroundImage: `url(${slide.image})` }"
-        ></section>
+      <div class="hero-viewport">
+        <div
+          class="hero-track"
+          :class="{ dragging: isDragging }"
+          :style="{
+            transform: `translateX(calc(${-currentTrackIndex * 100}% + ${dragOffsetPx}px))`,
+            transition: isDragging || !transitionEnabled ? 'none' : 'transform 0.35s ease',
+          }"
+          @transitionend="handleTrackTransitionEnd"
+        >
+          <section
+            v-for="(slide, idx) in loopSlides"
+            :key="`${slide.image}-${idx}`"
+            class="hero-slide"
+            :style="{ backgroundImage: `url(${slide.image})` }"
+          ></section>
+        </div>
       </div>
 
       <div class="indicators">
@@ -38,10 +40,8 @@
           @click="goToSlide(idx)"
         ></button>
       </div>
-    </div>
 
-    <div class="page-body">
-      <section class="module">
+      <section class="hero-feature-overlay">
         <div class="module-title">
           <h2>核心功能</h2>
           <span class="line"></span>
@@ -59,7 +59,9 @@
           </article>
         </div>
       </section>
+    </div>
 
+    <div class="page-body">
       <section class="module">
         <div class="module-title">
           <h2>热门旅拍目的地</h2>
@@ -190,7 +192,6 @@ import hero2 from '@/assets/images/hero/hero2.jpg';
 import hero3 from '@/assets/images/hero/hero3.jpg';
 import hero4 from '@/assets/images/hero/hero4.jpg';
 import hero5 from '@/assets/images/hero/hero5.jpg';
-import hero6 from '@/assets/images/hero/hero6.jpg';
 import { photographersApi, type PhotographerPublic } from '@/api/photographers';
 import { useAuthStore } from '@/store/auth';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
@@ -221,9 +222,6 @@ const slides = [
   },
   {
     image: hero5,
-  },
-  {
-    image: hero6,
   },
 ];
 
@@ -753,8 +751,12 @@ onBeforeUnmount(() => {
 .hero-wrap {
   position: relative;
   user-select: none;
-  overflow: hidden;
+  overflow: visible;
   touch-action: pan-y;
+}
+
+.hero-viewport {
+  overflow: hidden;
 }
 
 .hero-track {
@@ -771,9 +773,9 @@ onBeforeUnmount(() => {
   position: relative;
   width: 100%;
   min-width: 100%;
-  height: calc(90vh - 40px);
-  min-height: 620px;
-  max-height: 860px;
+  height: calc(78vh - 40px);
+  min-height: 540px;
+  max-height: 760px;
   background-size: cover;
   background-position: center;
 }
@@ -804,10 +806,29 @@ onBeforeUnmount(() => {
   }
 }
 
+.hero-feature-overlay {
+  position: absolute;
+  left: 50%;
+  bottom: -98px;
+  transform: translateX(-50%);
+  width: min(1200px, calc(100% - 32px));
+  z-index: 6;
+  background: transparent;
+
+  .module-title {
+    margin-bottom: 20px;
+
+    h2 {
+      color: #fff;
+      text-shadow: 0 3px 12px rgba(0, 0, 0, 0.35);
+    }
+  }
+}
+
 .page-body {
   width: 100%;
   max-width: 1200px;
-  margin: 42px auto 80px;
+  margin: 140px auto 80px;
   padding: 0 16px;
   box-sizing: border-box;
   display: flex;
@@ -858,6 +879,8 @@ onBeforeUnmount(() => {
 .feature-card {
   text-align: center;
   padding: 28px 18px;
+  background: #fff;
+  backdrop-filter: none;
 
   .icon {
     font-size: 40px;
@@ -1170,9 +1193,26 @@ onBeforeUnmount(() => {
   }
 
   .hero-slide {
-    height: 68vh;
-    min-height: 500px;
-    max-height: 700px;
+    height: 60vh;
+    min-height: 420px;
+    max-height: 620px;
+  }
+
+  .hero-feature-overlay {
+    width: calc(100% - 24px);
+    bottom: 18px;
+
+    .module-title {
+      margin-bottom: 14px;
+
+      h2 {
+        font-size: 24px;
+      }
+
+      .line {
+        margin-top: 10px;
+      }
+    }
   }
 
   .page-body {

@@ -82,7 +82,7 @@
                 </a-menu>
               </template>
               <div class="user-info">
-                <a-avatar :size="32" icon="👤" />
+                <a-avatar :size="32" :src="headerAvatar || undefined" icon="👤" />
                 <span class="username">{{ authStore.user?.name || '用户' }}</span>
               </div>
             </a-dropdown>
@@ -96,10 +96,12 @@
 <script setup lang="ts">
 import { useAuthStore } from '@/store/auth';
 import { message } from 'ant-design-vue';
+import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
 const authStore = useAuthStore();
+const headerAvatar = computed(() => String(authStore.user?.avatar || '').trim());
 
 const handleLogout = () => {
   authStore.logout();

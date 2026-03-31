@@ -4,6 +4,7 @@ export interface User {
   id: number;
   email: string;
   name: string;
+  avatar?: string | null;
   isActive?: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -32,4 +33,11 @@ export const usersApi = {
   // 重置用户密码
   resetPassword: (id: number, newPassword: string) =>
     httpClient.post<any>(`/users/${id}/reset-password`, { newPassword }),
+
+  // 上传用户头像
+  uploadAvatar: (id: number, file: File) => {
+    const fd = new FormData();
+    fd.append('avatar', file);
+    return httpClient.upload<User>(`/users/${id}/avatar`, fd);
+  },
 };
