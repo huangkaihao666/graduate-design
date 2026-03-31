@@ -50,7 +50,7 @@ export class CreateUserDto {
 
   @ApiProperty({
     description:
-      '注册身份：user=普通用户（默认） photographer=摄影师 makeup=化妆师；与 registerAsPhotographer 二选一，优先本字段',
+      '注册身份：user=普通用户（默认） photographer=摄影师 makeup=妆造师；与 registerAsPhotographer 二选一，优先本字段',
     required: false,
     enum: ['user', 'photographer', 'makeup'],
   })

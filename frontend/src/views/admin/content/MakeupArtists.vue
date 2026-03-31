@@ -3,9 +3,9 @@
   <div class="ph-admin">
     <div class="header">
       <div>
-        <h1>化妆师管理</h1>
+        <h1>妆造师管理</h1>
         <p class="sub">
-          查看入驻化妆师资料、审核档案、启用或停用前台展示，并可为化妆师设置对外展示头衔。其余业务资料由化妆师本人在工作台维护。
+          查看入驻妆造师资料、审核档案、启用或停用前台展示，并可为妆造师设置对外展示头衔。其余业务资料由妆造师本人在工作台维护。
         </p>
       </div>
       <a-space wrap>
@@ -71,16 +71,17 @@
                 >驳回</a
               >
               <a @click="toggleEnabled(record)">{{ record.enabled ? '停用展示' : '启用展示' }}</a>
+              <a class="danger" @click="removeRow(record)">删除</a>
             </a-space>
           </template>
         </template>
       </a-table>
-      <a-empty v-if="!loading && !filteredRows.length" description="暂无化妆师数据" />
+      <a-empty v-if="!loading && !filteredRows.length" description="暂无妆造师数据" />
     </a-card>
 
     <a-modal
       v-model:open="viewOpen"
-      title="化妆师详情"
+      title="妆造师详情"
       width="720px"
       :footer="null"
       destroy-on-close
@@ -91,7 +92,7 @@
           <a-avatar v-else :size="72">{{ viewRow.name?.slice(0, 1) }}</a-avatar>
           <div>
             <h3 class="view-name">{{ viewRow.name }}</h3>
-            <a-tag color="magenta">{{ viewRow.title || '化妆师' }}</a-tag>
+            <a-tag color="magenta">{{ viewRow.title || '妆造师' }}</a-tag>
             <a-tag :color="approvalTagColor(viewRow.approvalStatus)" style="margin-left: 8px">{{
               approvalLabel(viewRow.approvalStatus)
             }}</a-tag>
@@ -103,14 +104,14 @@
             <span class="admin-title-label">头衔</span>
             <a-input
               v-model:value="titleDraft"
-              placeholder="如：首席化妆师（用户端展示）"
+              placeholder="如：首席妆造师（用户端展示）"
               allow-clear
             />
             <a-button type="primary" :loading="titleSaving" @click="saveAdminTitle"
               >保存头衔</a-button
             >
           </div>
-          <p class="admin-title-hint">化妆师无法在个人中心修改头衔，仅可在此设置。</p>
+          <p class="admin-title-hint">妆造师无法在个人中心修改头衔，仅可在此设置。</p>
         </div>
         <a-descriptions bordered :column="1" size="small" class="view-desc">
           <a-descriptions-item v-if="viewRow.approvalReviewNote" label="驳回说明">{{
@@ -168,7 +169,7 @@
       :confirm-loading="rejectLoading"
       @ok="submitReject"
     >
-      <p class="reject-hint">化妆师将收到说明，并可修改资料后重新提交审核。</p>
+      <p class="reject-hint">妆造师将收到说明，并可修改资料后重新提交审核。</p>
       <a-textarea
         v-model:value="rejectNote"
         :rows="3"
@@ -305,7 +306,7 @@ const approve = (r: PhotographerAdmin, ok: boolean) => {
   if (ok) {
     Modal.confirm({
       title: `确认通过「${r.name}」的入驻审核？`,
-      content: '通过后该化妆师即可接单；是否对用户展示请在列表中单独「启用展示」。',
+      content: '通过后该妆造师即可接单；是否对用户展示请在列表中单独「启用展示」。',
       onOk: async () => {
         try {
           await photographersApi.setApproval(r.id, { approved: true });
@@ -358,6 +359,25 @@ const toggleEnabled = async (r: PhotographerAdmin) => {
   } catch (e: unknown) {
     message.error(getApiErrorMessage(e));
   }
+};
+
+const removeRow = (r: PhotographerAdmin) => {
+  Modal.confirm({
+    title: `确认删除「${r.name}」？`,
+    content: '删除后不可恢复，且该账号关联的工作人员档案将被解除绑定。',
+    okText: '确认删除',
+    okType: 'danger',
+    cancelText: '取消',
+    onOk: async () => {
+      try {
+        await photographersApi.removeAdmin(r.id);
+        message.success('已删除');
+        await load();
+      } catch (e: unknown) {
+        message.error(getApiErrorMessage(e));
+      }
+    },
+  });
 };
 
 onMounted(() => {

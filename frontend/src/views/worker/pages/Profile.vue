@@ -87,16 +87,20 @@
               </a-col>
             </a-row>
             <a-row :gutter="16">
-              <a-col :span="12">
+              <a-col :span="8">
+                <a-form-item label="姓名">
+                  <a-input v-model:value="form.name" class="pill-input" placeholder="请输入姓名" />
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
                 <a-form-item label="职位">
                   <a-select v-model:value="form.role" class="pill-input">
                     <a-select-option value="photographer">摄影师</a-select-option>
-                    <a-select-option value="makeup">化妆师</a-select-option>
-                    <a-select-option value="stylist">造型师</a-select-option>
+                    <a-select-option value="makeup">妆造师</a-select-option>
                   </a-select>
                 </a-form-item>
               </a-col>
-              <a-col :span="12">
+              <a-col :span="8">
                 <a-form-item label="联系方式">
                   <a-input
                     v-model:value="form.phone"
@@ -117,7 +121,6 @@
                   >
                     <a-select-option value="男">男</a-select-option>
                     <a-select-option value="女">女</a-select-option>
-                    <a-select-option value="其他">其他</a-select-option>
                   </a-select>
                 </a-form-item>
               </a-col>
@@ -211,7 +214,7 @@
         </div>
 
         <div v-if="form.role === 'photographer'" class="panel">
-          <div class="panel-h"><div class="panel-title">固定合作化妆师</div></div>
+          <div class="panel-h"><div class="panel-title">固定合作妆造师</div></div>
           <a-select
             v-model:value="selectedFixedMakeupArtistId"
             allow-clear
@@ -231,9 +234,9 @@
             :loading="savingFixedMakeup"
             @click="saveFixedMakeupArtist"
           >
-            保存固定合作化妆师
+            保存固定合作妆造师
           </a-button>
-          <div class="tip">仅用于“用户未指定化妆师”时的自动同步分配。</div>
+          <div class="tip">仅用于“用户未指定妆造师”时的自动同步分配。</div>
         </div>
 
         <div class="panel">
@@ -422,7 +425,7 @@ const approvalBanner = computed(() => {
     return {
       type: 'success' as const,
       title: '审核已通过',
-      desc: '你已具备接单权限。若用户端「本店摄影师」暂未展示，需管理员在后台启用前台展示。',
+      desc: '你已具备接单权限。若用户端「本店服务团队」暂未展示，需管理员在后台启用前台展示。',
       showSubmit: false,
     };
   }
@@ -433,6 +436,7 @@ const storageKey = computed(() => `worker_profile_local_v1_${authStore.user?.id 
 const noticeReadKey = computed(() => `worker_notice_read_ids_v1_${authStore.user?.id ?? 'guest'}`);
 
 const form = reactive({
+  name: '',
   role: 'photographer',
   avatar: '',
   phone: '',
@@ -446,7 +450,11 @@ const form = reactive({
   scheduleNote: '',
 });
 
-const displayName = computed(() => String(authStore.user?.name || '工作人员'));
+const displayName = computed(() => {
+  const localName = String(form.name || '').trim();
+  if (localName) return localName;
+  return String(authStore.user?.name || '工作人员');
+});
 
 const mineTitleDisplay = computed(() => {
   const t = String(mineProfile.value?.title || '').trim();
@@ -455,7 +463,7 @@ const mineTitleDisplay = computed(() => {
 
 const positionLabel = computed(() => {
   if (form.role === 'photographer') return '摄影师';
-  if (form.role === 'makeup') return '化妆师';
+  if (form.role === 'makeup') return '妆造师';
   return '造型师';
 });
 
@@ -472,6 +480,7 @@ const load = () => {
 
 const applyMineToForm = (hit: PhotographerMine) => {
   mineProfile.value = hit;
+  form.name = hit.name || '';
   form.avatar = hit.avatar || '';
   form.style = hit.shootingStyle || '';
   form.bio = hit.bio || '';
@@ -504,7 +513,7 @@ const saveFixedMakeupArtist = async () => {
   try {
     await photographersApi.setMineFixedMakeupArtist(selectedFixedMakeupArtistId.value);
     await hydrateFromMine();
-    message.success('固定合作化妆师已保存');
+    message.success('固定合作妆造师已保存');
   } catch (e: unknown) {
     message.error(getApiErrorMessage(e));
   } finally {
@@ -867,9 +876,15 @@ watch(
 onMounted(async () => {
   authStore.initializeAuth();
   load();
+  if (!String(form.name || '').trim()) {
+    form.name = String(authStore.user?.name || '').trim();
+  }
   if (authStore.accessToken && authStore.user?.id) {
     try {
       await authStore.getProfile();
+      if (!String(form.name || '').trim()) {
+        form.name = String(authStore.user?.name || '').trim();
+      }
       if (authStore.user?.phone) {
         form.phone = String(authStore.user.phone);
       }

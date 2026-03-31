@@ -24,7 +24,7 @@ model User {
   isActive  Boolean @default(true)
   /// user | worker | admin
   role      String  @default("user") @db.VarChar(20)
-  /// 工作人员子类型：photographer=摄影师 makeup=化妆师；普通用户与管理员为 null
+  /// 工作人员子类型：photographer=摄影师 makeup=妆造师；普通用户与管理员为 null
   workerKind String? @db.VarChar(20)
   /// 工作人员账号绑定本店摄影师（用于只查看该摄影师相关订单）；演示账号不绑定则为空
   workerPhotographerId Int?         @db.UnsignedInt
@@ -280,13 +280,15 @@ model Photographer {
   awards           String? @db.Text
   /// 优秀作品图片 URL 列表
   portfolioImages  Json
+  /// 优秀作品明细（url/category/desc）
+  portfolioItems   Json?
   /// 可预约日期（ISO 日期字符串 YYYY-MM-DD 数组，JSON）
   availableDates   Json    @default("[]")
   /// 休息日（YYYY-MM-DD 数组，与摄影师端「休息」一致；不可预约）
   restDates        Json    @default("[]")
   /// 档期说明（如：每周二店休、节假日可约等）
   scheduleNote     String? @db.Text
-  /// 固定合作化妆师（同表自关联，指向化妆师档案 id）
+  /// 固定合作妆造师（同表自关联，指向妆造师档案 id）
   fixedMakeupArtistId Int? @db.UnsignedInt
   sortOrder        Int     @default(0) @db.UnsignedInt
   enabled          Boolean @default(true)
@@ -405,10 +407,10 @@ model BookingOrder {
   /// 用户指定的摄影师（可选）
   photographerId   Int?    @db.UnsignedInt
   photographerName String? @db.VarChar(100)
-  /// 用户指定的化妆师（可选，仅用于下单阶段记录）
+  /// 用户指定的妆造师（可选，仅用于下单阶段记录）
   requestedMakeupArtistId Int? @db.UnsignedInt
   requestedMakeupArtistName String? @db.VarChar(100)
-  /// 系统最终分配的化妆师
+  /// 系统最终分配的妆造师
   assignedMakeupArtistId Int? @db.UnsignedInt
   assignedMakeupArtistName String? @db.VarChar(100)
   /// pending / confirmed

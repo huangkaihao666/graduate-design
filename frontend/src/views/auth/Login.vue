@@ -80,7 +80,7 @@
               <a-radio-group v-model:value="formState.registrationType" class="reg-type-group">
                 <a-radio value="user">普通用户</a-radio>
                 <a-radio value="photographer">摄影师（需审核后接单）</a-radio>
-                <a-radio value="makeup">化妆师（需审核后接单）</a-radio>
+                <a-radio value="makeup">妆造师（需审核后接单）</a-radio>
               </a-radio-group>
             </a-form-item>
             <a-form-item
@@ -202,7 +202,7 @@ const handleSubmit = async () => {
         message.success('摄影师账号已创建，请完善资料并提交管理员审核');
         router.push('/worker/profile');
       } else if (formState.registrationType === 'makeup') {
-        message.success('化妆师账号已创建，请完善资料并提交管理员审核');
+        message.success('妆造师账号已创建，请完善资料并提交管理员审核');
         router.push('/worker/profile');
       } else {
         message.success('注册成功');

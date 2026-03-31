@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import type { INestApplication } from '@nestjs/common';
 import {
   HttpExceptionFilter,
   TransformInterceptor,
@@ -17,19 +18,19 @@ import { PrismaService } from './prisma/prisma.service';
 // 加载环境变量
 dotenv.config({ path: join(__dirname, '../.env') });
 
-async function seedDevAccounts(app: any) {
+async function seedDevAccounts(app: INestApplication) {
   // 只在开发环境/未显式关闭时执行，避免影响生产
   const env = String(process.env.NODE_ENV || '').toLowerCase();
   const seedEnabled =
     String(process.env.DEV_SEED_ACCOUNTS || 'true').toLowerCase() !== 'false';
   if (env === 'production' || !seedEnabled) return;
 
-  const prisma = app.get(PrismaService) as PrismaService;
+  const prisma = app.get(PrismaService);
 
-  // 需求：化妆师账号 hzs@qq.com / 123456
+  // 需求：妆造师账号 hzs@qq.com / 123456
   const email = 'hzs@qq.com';
   const passwordPlain = '123456';
-  const name = '化妆师';
+  const name = '妆造师';
 
   const existing = await prisma.user.findUnique({
     where: { email },
@@ -55,7 +56,7 @@ async function seedDevAccounts(app: any) {
     const ph = await tx.photographer.create({
       data: {
         name,
-        shootingStyle: '（化妆师：请在个人中心补充擅长风格）',
+        shootingStyle: '（妆造师：请在个人中心补充擅长风格）',
         yearsExperience: 0,
         portfolioImages: [] as unknown as Prisma.InputJsonValue,
         availableDates: [] as unknown as Prisma.InputJsonValue,
@@ -123,4 +124,4 @@ async function bootstrap() {
   );
 }
 
-bootstrap();
+void bootstrap();

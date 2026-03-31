@@ -36,7 +36,7 @@
           </router-link>
           <router-link to="/booking/photographers" class="nav-link" active-class="active">
             <span class="icon">📷</span>
-            <span v-if="!isCollapsed" class="label">本店摄影师</span>
+            <span v-if="!isCollapsed" class="label">本店服务团队</span>
           </router-link>
           <router-link
             v-if="authStore.isAuthenticated && !isWorker"
@@ -107,7 +107,7 @@
             active-class="active"
           >
             <span class="icon"><CameraOutlined /></span>
-            <span v-if="!isCollapsed" class="label">摄影师</span>
+            <span v-if="!isCollapsed" class="label">摄影师管理</span>
           </router-link>
           <router-link
             to="/admin/content/makeup-artists"
@@ -115,7 +115,7 @@
             active-class="active"
           >
             <span class="icon"><SkinOutlined /></span>
-            <span v-if="!isCollapsed" class="label">化妆师</span>
+            <span v-if="!isCollapsed" class="label">妆造师管理</span>
           </router-link>
           <router-link to="/admin/orders" class="nav-link admin-link" active-class="active">
             <span class="icon"><FileTextOutlined /></span>

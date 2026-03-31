@@ -13,6 +13,11 @@ export interface PhotographerPublic {
   specialtyTopics?: string;
   awards?: string;
   portfolioImages: string[];
+  portfolioItems?: Array<{
+    url: string;
+    category?: 'wedding' | 'makeup' | 'styling' | string;
+    desc?: string;
+  }>;
   availableDates?: string[];
   restDates?: string[];
   scheduleNote?: string;
@@ -101,6 +106,11 @@ export const photographersApi = {
       specialtyTopics: string | null;
       awards: string | null;
       portfolioImages: string[];
+      portfolioItems: Array<{
+        url: string;
+        category?: 'wedding' | 'makeup' | 'styling' | string;
+        desc?: string;
+      }>;
       availableDates: string[];
       restDates: string[];
       scheduleNote: string | null;
@@ -130,6 +140,9 @@ export const photographersApi = {
     httpClient
       .patch<unknown>(`/photographers/${id}/title`, body)
       .then((res) => unwrap<PhotographerAdmin>(res)),
+
+  removeAdmin: (id: number) =>
+    httpClient.delete<unknown>(`/photographers/${id}`).then((res) => unwrap(res)),
 
   uploadImage: async (file: File): Promise<{ url: string }> => {
     const fd = new FormData();

@@ -188,7 +188,7 @@ const routes: RouteRecordRaw[] = [
         name: 'Photographers',
         component: Photographers,
         meta: {
-          title: '本店摄影师',
+          title: '本店服务团队',
           layout: 'default',
         },
       },
@@ -421,7 +421,7 @@ const routes: RouteRecordRaw[] = [
         name: 'AdminMakeupArtists',
         component: AdminMakeupArtists,
         meta: {
-          title: '化妆师管理',
+          title: '妆造师管理',
         },
       },
       {

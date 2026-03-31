@@ -70,6 +70,7 @@
                 >驳回</a
               >
               <a @click="toggleEnabled(record)">{{ record.enabled ? '停用展示' : '启用展示' }}</a>
+              <a class="danger" @click="removeRow(record)">删除</a>
             </a-space>
           </template>
         </template>
@@ -238,8 +239,18 @@ const approvalTagColor = (s: string | undefined) => {
   return 'default';
 };
 
+function isMakeupRow(r: PhotographerAdmin) {
+  // 当前后端档案表尚未有“职位/工种”字段，这里用关键词做可落地筛选（可随时替换为后端字段筛选）
+  const hay = [r.name, r.title, r.shootingStyle, r.specialtyTopics, r.bio]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  const keys = ['化妆', '妆造', '新娘妆', '跟妆', 'makeup', 'mua', '试妆', '造型'];
+  return keys.some((k) => hay.includes(k));
+}
+
 const filteredRows = computed(() => {
-  let list = rows.value;
+  let list = rows.value.filter((r) => !isMakeupRow(r));
   const tab = approvalTab.value;
   if (tab !== 'all') {
     list = list.filter((r) => String(r.approvalStatus || '') === tab);
@@ -347,6 +358,25 @@ const toggleEnabled = async (r: PhotographerAdmin) => {
   } catch (e: unknown) {
     message.error(getApiErrorMessage(e));
   }
+};
+
+const removeRow = (r: PhotographerAdmin) => {
+  Modal.confirm({
+    title: `确认删除「${r.name}」？`,
+    content: '删除后不可恢复，且该账号关联的工作人员档案将被解除绑定。',
+    okText: '确认删除',
+    okType: 'danger',
+    cancelText: '取消',
+    onOk: async () => {
+      try {
+        await photographersApi.removeAdmin(r.id);
+        message.success('已删除');
+        await load();
+      } catch (e: unknown) {
+        message.error(getApiErrorMessage(e));
+      }
+    },
+  });
 };
 
 onMounted(() => {

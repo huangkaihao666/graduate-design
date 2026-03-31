@@ -91,7 +91,16 @@
             <div class="created-at">提交时间：{{ formatDate(o.createdAt) }}</div>
             <div class="order-actions">
               <a-button type="text" @click="openDetail(o)">查看详情</a-button>
-              <a-button type="text" danger @click="openDeleteModal(o.orderNo)">删除</a-button>
+              <a-popconfirm
+                title="删除后不可恢复，确认删除该订单吗？"
+                ok-text="删除"
+                cancel-text="取消"
+                :ok-button-props="{ class: 'csr-pop-ok-btn' }"
+                :cancel-button-props="{ class: 'csr-pop-cancel-btn' }"
+                @confirm="deleteOrder(o.orderNo)"
+              >
+                <a-button type="text" danger>删除</a-button>
+              </a-popconfirm>
             </div>
           </div>
         </div>
@@ -149,13 +158,21 @@
             <div class="order-actions csr-actions">
               <template v-if="r.status === 'open'">
                 <a-button type="text" @click="openCsrEdit(r)">修改需求</a-button>
-                <a-popconfirm title="撤销后需求将关闭，确定？" @confirm="cancelCsr(r.id)">
+                <a-popconfirm
+                  title="撤销后需求将关闭，确定？"
+                  cancel-text="取消"
+                  :ok-button-props="{ class: 'csr-pop-ok-btn' }"
+                  :cancel-button-props="{ class: 'csr-pop-cancel-btn' }"
+                  @confirm="cancelCsr(r.id)"
+                >
                   <a-button type="text">撤销需求</a-button>
                 </a-popconfirm>
                 <a-popconfirm
                   title="将永久删除该需求，不可恢复，确定？"
                   ok-text="删除"
                   cancel-text="取消"
+                  :ok-button-props="{ class: 'csr-pop-ok-btn' }"
+                  :cancel-button-props="{ class: 'csr-pop-cancel-btn' }"
                   @confirm="deleteCsrRecord(r)"
                 >
                   <a-button type="text" danger>删除记录</a-button>
@@ -198,6 +215,8 @@
                 "
                 ok-text="删除"
                 cancel-text="取消"
+                :ok-button-props="{ class: 'csr-pop-ok-btn' }"
+                :cancel-button-props="{ class: 'csr-pop-cancel-btn' }"
                 @confirm="deleteCsrRecord(r)"
               >
                 <a-button type="text" danger>删除记录</a-button>
@@ -249,6 +268,14 @@
             <div v-if="activeOrder.photographerName" class="detail-row">
               <span class="k">指定摄影师</span
               ><span class="v">{{ activeOrder.photographerName }}</span>
+            </div>
+            <div v-if="activeOrder.requestedMakeupArtistName" class="detail-row">
+              <span class="k">指定妆造师</span
+              ><span class="v">{{ activeOrder.requestedMakeupArtistName }}</span>
+            </div>
+            <div v-if="activeOrder.assignedMakeupArtistName" class="detail-row">
+              <span class="k">分配妆造师</span
+              ><span class="v">{{ activeOrder.assignedMakeupArtistName }}</span>
             </div>
             <div class="detail-row">
               <span class="k">单价</span
@@ -346,6 +373,15 @@
                 >
                   联系摄影师
                 </a-button>
+                <a-button
+                  v-if="canChatWithMakeupArtist(activeOrder)"
+                  type="link"
+                  size="small"
+                  style="padding-right: 0"
+                  @click="goChatWithMakeupArtist(activeOrder)"
+                >
+                  联系妆造师
+                </a-button>
               </span>
             </div>
             <div v-if="canCheckOnlinePayment(activeOrder)" class="detail-row">
@@ -382,19 +418,6 @@
           </div>
         </div>
       </div>
-    </a-modal>
-
-    <a-modal
-      v-model:open="deleteModalVisible"
-      title="确认删除订单"
-      :width="460"
-      ok-text="确认删除"
-      cancel-text="取消"
-      centered
-      @ok="confirmDeleteOrder"
-      @cancel="closeDeleteModal"
-    >
-      <div class="delete-modal-body">删除后不可恢复，确认删除该订单吗？</div>
     </a-modal>
 
     <a-modal
@@ -514,26 +537,18 @@
       :confirm-loading="csrEditSubmitting"
       ok-text="保存"
       cancel-text="取消"
+      :ok-button-props="{ class: 'csr-edit-ok-btn' }"
+      :cancel-button-props="{ class: 'csr-edit-cancel-btn' }"
       :width="640"
       destroy-on-close
       @ok="submitCsrEdit"
       @cancel="closeCsrEditModal"
     >
       <a-form layout="vertical" class="csr-edit-form">
-        <a-form-item label="标题（可选）">
-          <a-input v-model:value="csrEditForm.title" placeholder="如：三亚海边婚纱照" />
-        </a-form-item>
-        <a-form-item label="补充说明（可选）">
-          <a-textarea
-            v-model:value="csrEditForm.description"
-            :rows="3"
-            placeholder="特殊想法、服装偏好等"
-          />
-        </a-form-item>
-        <a-form-item label="拍摄地点" required>
+        <a-form-item label="拍摄城市" required>
           <a-input v-model:value="csrEditForm.location" placeholder="城市或具体区域" />
         </a-form-item>
-        <a-form-item label="风格" required>
+        <a-form-item label="拍摄风格" required>
           <a-input v-model:value="csrEditForm.style" placeholder="如 romantic / 韩系清新" />
         </a-form-item>
         <a-form-item label="期望拍摄日" required extra="请在日历中选择，格式为 YYYY-MM-DD">
@@ -578,35 +593,42 @@
             @blur="sanitizeCsrEditPhone"
           />
         </a-form-item>
+        <a-form-item label="补充说明（可选）">
+          <a-textarea
+            v-model:value="csrEditForm.description"
+            :rows="3"
+            placeholder="特殊想法、服装偏好等"
+          />
+        </a-form-item>
       </a-form>
     </a-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
-import { message } from 'ant-design-vue';
-import { useRouter } from 'vue-router';
-import { TRAVEL_STYLE_LABELS } from '@/constants/travel-style-labels';
-import { useAuthStore } from '@/store/auth';
-import { paymentsApi } from '@/api/payments';
-import { ordersApi } from '@/api/orders';
-import { photographersApi } from '@/api/photographers';
 import {
   customShootRequestsApi,
   type CreateCustomShootBody,
   type CustomShootRequestRow,
   type LinkedBookingOrder,
 } from '@/api/customShootRequests';
-import datePickerLocaleZhCN from 'ant-design-vue/es/date-picker/locale/zh_CN';
-import dayjs, { type Dayjs } from 'dayjs';
-import 'dayjs/locale/zh-cn';
-
-dayjs.locale('zh-cn');
+import { ordersApi } from '@/api/orders';
+import { paymentsApi } from '@/api/payments';
+import { photographersApi } from '@/api/photographers';
+import { TRAVEL_STYLE_LABELS } from '@/constants/travel-style-labels';
+import { useAuthStore } from '@/store/auth';
 import {
   mergeBookingOrderIntoLocalHistory,
   removeOrderFromLocalHistory,
 } from '@/utils/mergeOnlineOrderHistory';
+import { message } from 'ant-design-vue';
+import datePickerLocaleZhCN from 'ant-design-vue/es/date-picker/locale/zh_CN';
+import dayjs, { type Dayjs } from 'dayjs';
+import 'dayjs/locale/zh-cn';
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
+
+dayjs.locale('zh-cn');
 
 type PaymentMethod = 'wechat' | 'alipay' | 'offline' | string;
 
@@ -632,6 +654,12 @@ interface BookingOrder {
   remark?: string;
   photographerId?: number;
   photographerName?: string;
+  requestedMakeupArtistId?: number;
+  requestedMakeupArtistName?: string;
+  assignedMakeupArtistId?: number;
+  assignedMakeupArtistName?: string;
+  makeupScheduleStatus?: 'pending' | 'confirmed' | string;
+  makeupScheduleConfirmedAt?: string;
   workerUserId?: number;
   workerName?: string;
   workerTakenAt?: string;
@@ -688,7 +716,7 @@ const activeOrder = ref<BookingOrder | null>(null);
 const paymentModalVisible = ref(false);
 const paymentLoading = ref(false);
 const paymentSubmitting = ref(false);
-let paymentPollTimer: ReturnType<typeof setInterval> | null = null;
+let paymentPollTimer: ReturnType<typeof window.setInterval> | null = null;
 const paymentInfo = ref<{
   orderNo: string;
   paymentMethod: PaymentMethod;
@@ -697,8 +725,6 @@ const paymentInfo = ref<{
   codeUrl?: string;
   hint?: string;
 } | null>(null);
-const deleteModalVisible = ref(false);
-const pendingDeleteOrderNo = ref('');
 const rescheduleModalVisible = ref(false);
 const rescheduleSubmitting = ref(false);
 const rescheduleTarget = ref<BookingOrder | null>(null);
@@ -807,9 +833,6 @@ async function submitCsrEdit() {
     message.success('需求已更新');
     closeCsrEditModal();
     await loadOrders();
-  } catch (e) {
-    /* http 拦截器已提示；需向上抛出，避免 Modal 在请求失败时仍关闭 */
-    throw e;
   } finally {
     csrEditSubmitting.value = false;
   }
@@ -1022,6 +1045,12 @@ const loadOrders = async () => {
       remark: o.remark || undefined,
       photographerId: Number(o.photographerId || 0) || undefined,
       photographerName: o.photographerName || undefined,
+      requestedMakeupArtistId: Number(o.requestedMakeupArtistId || 0) || undefined,
+      requestedMakeupArtistName: o.requestedMakeupArtistName || undefined,
+      assignedMakeupArtistId: Number(o.assignedMakeupArtistId || 0) || undefined,
+      assignedMakeupArtistName: o.assignedMakeupArtistName || undefined,
+      makeupScheduleStatus: o.makeupScheduleStatus || undefined,
+      makeupScheduleConfirmedAt: o.makeupScheduleConfirmedAt || undefined,
       workerUserId: Number(o.workerUserId || 0) || undefined,
       workerName: o.workerName || undefined,
       workerTakenAt: o.workerTakenAt || undefined,
@@ -1065,6 +1094,18 @@ const loadOrders = async () => {
             workerUserId: Number(latest?.workerUserId ?? o.workerUserId ?? 0) || undefined,
             workerName: latest?.workerName || o.workerName,
             workerTakenAt: latest?.workerTakenAt || o.workerTakenAt,
+            requestedMakeupArtistId:
+              Number(latest?.requestedMakeupArtistId ?? o.requestedMakeupArtistId ?? 0) ||
+              undefined,
+            requestedMakeupArtistName:
+              latest?.requestedMakeupArtistName || o.requestedMakeupArtistName,
+            assignedMakeupArtistId:
+              Number(latest?.assignedMakeupArtistId ?? o.assignedMakeupArtistId ?? 0) || undefined,
+            assignedMakeupArtistName:
+              latest?.assignedMakeupArtistName || o.assignedMakeupArtistName,
+            makeupScheduleStatus: latest?.makeupScheduleStatus || o.makeupScheduleStatus,
+            makeupScheduleConfirmedAt:
+              latest?.makeupScheduleConfirmedAt || o.makeupScheduleConfirmedAt,
             rescheduleCount: Number(latest?.rescheduleCount ?? o.rescheduleCount ?? 0),
             rescheduleRequestStatus: latest?.rescheduleRequestStatus || o.rescheduleRequestStatus,
             rescheduleRequestedDate: latest?.rescheduleRequestedDate || o.rescheduleRequestedDate,
@@ -1099,22 +1140,6 @@ const deleteOrder = (orderNo: string) => {
   message.success('订单已删除');
 };
 
-const openDeleteModal = (orderNo: string) => {
-  pendingDeleteOrderNo.value = orderNo;
-  deleteModalVisible.value = true;
-};
-
-const closeDeleteModal = () => {
-  deleteModalVisible.value = false;
-  pendingDeleteOrderNo.value = '';
-};
-
-const confirmDeleteOrder = () => {
-  if (!pendingDeleteOrderNo.value) return;
-  deleteOrder(pendingDeleteOrderNo.value);
-  closeDeleteModal();
-};
-
 const clearAllOrders = () => {
   localStorage.removeItem(STORAGE_KEY);
   sessionStorage.removeItem(STORAGE_KEY);
@@ -1132,6 +1157,30 @@ const goChatWithPhotographer = (o: BookingOrder) => {
       peerName: o.photographerName || '工作人员',
       shootingDate: String(o.shootingDate || ''),
       ...(Number.isFinite(pid) && pid > 0 ? { photographerId: String(pid) } : {}),
+    },
+  });
+};
+
+const canChatWithMakeupArtist = (o: BookingOrder) => {
+  const mid = Number(o.assignedMakeupArtistId || 0);
+  return (
+    isOrderConfirmed(o) && o.makeupScheduleStatus === 'confirmed' && Number.isFinite(mid) && mid > 0
+  );
+};
+
+const goChatWithMakeupArtist = (o: BookingOrder) => {
+  const mid = Number(o.assignedMakeupArtistId || 0);
+  if (!canChatWithMakeupArtist(o) || !Number.isFinite(mid) || mid <= 0) {
+    message.warning('妆造师尚未确认档期，暂不可发起会话');
+    return;
+  }
+  router.push({
+    path: '/user/chat',
+    query: {
+      orderNo: o.orderNo,
+      peerName: o.assignedMakeupArtistName || o.requestedMakeupArtistName || '妆造师',
+      shootingDate: String(o.shootingDate || ''),
+      photographerId: String(mid),
     },
   });
 };
@@ -1259,7 +1308,7 @@ const submitRescheduleRequest = async () => {
 
 const stopPaymentPoll = () => {
   if (paymentPollTimer) {
-    clearInterval(paymentPollTimer);
+    window.clearInterval(paymentPollTimer);
     paymentPollTimer = null;
   }
 };
@@ -1291,7 +1340,7 @@ const startPaymentPoll = () => {
   stopPaymentPoll();
   const orderNo = paymentInfo.value?.orderNo;
   if (!orderNo) return;
-  paymentPollTimer = setInterval(async () => {
+  paymentPollTimer = window.setInterval(async () => {
     try {
       const st = await paymentsApi.getStatus(orderNo);
       if (st.paid) {
@@ -1813,7 +1862,7 @@ onUnmounted(() => {
 
 .order-actions {
   display: flex;
-  gap: 8px;
+  gap: 0;
 }
 
 .detail-modal {
@@ -2115,5 +2164,51 @@ onUnmounted(() => {
   .toolbar-actions {
     justify-content: flex-end;
   }
+}
+</style>
+
+<style lang="less">
+.ant-btn.csr-edit-ok-btn {
+  background: #ff6b8b !important;
+  border-color: #ff6b8b !important;
+  color: #fff !important;
+}
+
+.ant-btn.csr-edit-ok-btn:hover,
+.ant-btn.csr-edit-ok-btn:focus,
+.ant-btn.csr-edit-ok-btn:active {
+  background: #ef476f !important;
+  border-color: #ef476f !important;
+  color: #fff !important;
+}
+
+.ant-btn.csr-edit-cancel-btn:hover,
+.ant-btn.csr-edit-cancel-btn:focus,
+.ant-btn.csr-edit-cancel-btn:active {
+  color: #d6336c !important;
+  border-color: #ff9fbc !important;
+  background: #fff5f8 !important;
+}
+
+.ant-btn.csr-pop-ok-btn {
+  background: #ff6b8b !important;
+  border-color: #ff6b8b !important;
+  color: #fff !important;
+}
+
+.ant-btn.csr-pop-ok-btn:hover,
+.ant-btn.csr-pop-ok-btn:focus,
+.ant-btn.csr-pop-ok-btn:active {
+  background: #ef476f !important;
+  border-color: #ef476f !important;
+  color: #fff !important;
+}
+
+.ant-btn.csr-pop-cancel-btn:hover,
+.ant-btn.csr-pop-cancel-btn:focus,
+.ant-btn.csr-pop-cancel-btn:active {
+  color: #d6336c !important;
+  border-color: #ff9fbc !important;
+  background: #fff5f8 !important;
 }
 </style>

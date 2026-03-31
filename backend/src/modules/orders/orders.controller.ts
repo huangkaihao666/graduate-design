@@ -79,7 +79,7 @@ export class OrdersController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Patch('worker/:id/makeup-confirm')
-  @ApiOperation({ summary: '化妆师确认档期（仅已分配订单）' })
+  @ApiOperation({ summary: '妆造师确认档期（仅已分配订单）' })
   confirmMakeupScheduleForWorker(
     @Request() req: { user: { id: number } },
     @Param('id', ParseIntPipe) id: number,
@@ -97,7 +97,7 @@ export class OrdersController {
   }
 
   @Get('makeup-artists/:id/booked-dates')
-  @ApiOperation({ summary: '获取化妆师已分配订单的日期列表' })
+  @ApiOperation({ summary: '获取妆造师已分配订单的日期列表' })
   getBookedDatesByMakeupArtist(@Param('id', ParseIntPipe) id: number) {
     return this.ordersService.getBookedDatesByMakeupArtist(id);
   }

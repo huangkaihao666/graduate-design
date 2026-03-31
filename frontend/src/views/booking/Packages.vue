@@ -29,7 +29,7 @@
       </div>
     </div>
 
-    <!-- 从「本店摄影师」跳转：携带 photographerId -->
+    <!-- 从「本店服务团队」跳转：携带 photographerId / makeupArtistId -->
     <div v-if="pendingPhotographer" class="photographer-booking-banner">
       <a-alert type="info" show-icon closable @close="clearPendingPhotographer">
         <template #message>
@@ -39,6 +39,18 @@
         </template>
         <template #description>
           请从下方选择套餐后点击「立即预约」，下单页将关联该摄影师。
+        </template>
+      </a-alert>
+    </div>
+    <div v-if="pendingMakeupArtist" class="photographer-booking-banner">
+      <a-alert type="info" show-icon closable @close="clearPendingMakeupArtist">
+        <template #message>
+          <span class="photographer-banner-title"
+            >已选择妆造师：{{ pendingMakeupArtist.name }}</span
+          >
+        </template>
+        <template #description>
+          请从下方选择套餐后点击「立即预约」，下单页将自动指定该妆造师。
         </template>
       </a-alert>
     </div>
@@ -506,7 +518,10 @@ import { insightsApi } from '@/api/insights';
 import { packagesApi, type Package, type PackageListResponse } from '@/api/packages';
 import { photographersApi } from '@/api/photographers';
 import { styleTagsApi } from '@/api/styleTags';
-import { PENDING_PHOTOGRAPHER_BOOKING_KEY } from '@/constants/booking';
+import {
+  PENDING_MAKEUP_ARTIST_BOOKING_KEY,
+  PENDING_PHOTOGRAPHER_BOOKING_KEY,
+} from '@/constants/booking';
 import {
   HOT_TAGS_CONFIG,
   matchPackageByHotTag,
@@ -522,8 +537,9 @@ const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 
-/** 从「本店摄影师」页跳转时 URL 携带 photographerId */
+/** 从「本店服务团队」页跳转时 URL 携带 photographerId / makeupArtistId */
 const pendingPhotographer = ref<{ id: number; name: string } | null>(null);
+const pendingMakeupArtist = ref<{ id: number; name: string } | null>(null);
 
 const syncPhotographerFromRoute = async () => {
   const raw = route.query.photographerId;
@@ -545,6 +561,35 @@ const clearPendingPhotographer = () => {
   pendingPhotographer.value = null;
   const q = { ...route.query } as Record<string, string | string[] | undefined>;
   delete q.photographerId;
+  router.replace({ path: route.path, query: q });
+};
+
+const syncMakeupArtistFromRoute = async () => {
+  const raw = route.query.makeupArtistId;
+  const id = Number(raw);
+  if (!raw || Number.isNaN(id) || id <= 0) {
+    pendingMakeupArtist.value = null;
+    return;
+  }
+  try {
+    const list = await photographersApi.getPublicMakeupArtists();
+    const p = list.find((x) => x.id === id);
+    if (!p) {
+      pendingMakeupArtist.value = null;
+      message.warning('未找到所选妆造师或已下架');
+      return;
+    }
+    pendingMakeupArtist.value = { id: p.id, name: p.name };
+  } catch {
+    pendingMakeupArtist.value = null;
+    message.warning('未找到所选妆造师或已下架');
+  }
+};
+
+const clearPendingMakeupArtist = () => {
+  pendingMakeupArtist.value = null;
+  const q = { ...route.query } as Record<string, string | string[] | undefined>;
+  delete q.makeupArtistId;
   router.replace({ path: route.path, query: q });
 };
 
@@ -1072,11 +1117,11 @@ const handleBook = (pkg: Package) => {
 
   void insightsApi.logBrowse(pkg.id, 'book_click');
   const pid = pendingPhotographer.value?.id;
-  if (pid) {
-    router.push(`/booking/order?packageId=${pkg.id}&photographerId=${pid}`);
-  } else {
-    router.push(`/booking/order?packageId=${pkg.id}`);
-  }
+  const mid = pendingMakeupArtist.value?.id;
+  const query: Record<string, string> = { packageId: String(pkg.id) };
+  if (pid) query.photographerId = String(pid);
+  if (mid) query.makeupArtistId = String(mid);
+  router.push({ path: '/booking/order', query });
 };
 
 // 加载收藏状态
@@ -1156,18 +1201,31 @@ watch(
   }
 );
 
+watch(
+  () => route.query.makeupArtistId,
+  () => {
+    void syncMakeupArtistFromRoute();
+  }
+);
+
 onMounted(async () => {
   await loadStyleTags();
   authStore.initializeAuth();
   const pending = sessionStorage.getItem(PENDING_PHOTOGRAPHER_BOOKING_KEY);
-  if (pending && authStore.isAuthenticated) {
+  const pendingMakeup = sessionStorage.getItem(PENDING_MAKEUP_ARTIST_BOOKING_KEY);
+  if ((pending || pendingMakeup) && authStore.isAuthenticated) {
     sessionStorage.removeItem(PENDING_PHOTOGRAPHER_BOOKING_KEY);
+    sessionStorage.removeItem(PENDING_MAKEUP_ARTIST_BOOKING_KEY);
+    const query = { ...route.query } as Record<string, string | string[] | undefined>;
+    if (pending) query.photographerId = pending;
+    if (pendingMakeup) query.makeupArtistId = pendingMakeup;
     await router.replace({
       path: route.path,
-      query: { ...route.query, photographerId: pending },
+      query,
     });
   }
   await syncPhotographerFromRoute();
+  await syncMakeupArtistFromRoute();
   updateBehaviorProfile();
   fetchPackages();
   await loadFavoriteStatus();

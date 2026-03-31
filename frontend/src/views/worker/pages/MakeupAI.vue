@@ -239,7 +239,7 @@ const canGenerateAdvice = computed(() => {
 
 function buildAdvicePrompt() {
   const parts: string[] = [];
-  parts.push('你是一位资深化妆师，需要给旅拍客户输出“可执行的妆容建议方案”。');
+  parts.push('你是一位资深妆造师，需要给旅拍客户输出“可执行的妆容建议方案”。');
   parts.push('请按以下结构输出，语言简洁但专业、可落地：');
   parts.push(
     '输出要求：不要使用 Markdown 语法，不要出现 * 号、** 加粗、# 标题、- 列表符。请用纯文本（中文）输出。'
@@ -387,7 +387,7 @@ function viewHistoryDetail(item: AdviceHistoryItem) {
 async function copyAdvice() {
   if (!adviceText.value.trim()) return;
   try {
-    await navigator.clipboard.writeText(adviceText.value);
+    await window.navigator.clipboard.writeText(adviceText.value);
     message.success('已复制');
   } catch {
     message.warning('复制失败，请手动选择文本复制');
@@ -464,6 +464,7 @@ watch(
 }
 .panel.full {
   grid-column: 1 / span 2;
+  padding-right: 24px; /* 仅增大右侧留白，左侧保持不变 */
   @media (max-width: 1200px) {
     grid-column: auto;
   }

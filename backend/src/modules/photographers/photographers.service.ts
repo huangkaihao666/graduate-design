@@ -15,6 +15,41 @@ function asStringArray(v: unknown): string[] {
   return [];
 }
 
+type PortfolioItem = {
+  url: string;
+  category: 'wedding' | 'makeup' | 'styling';
+  desc: string;
+};
+
+function normalizePortfolioItems(v: unknown): PortfolioItem[] {
+  if (!Array.isArray(v)) return [];
+  const seen = new Set<string>();
+  const out: PortfolioItem[] = [];
+  for (const raw of v) {
+    if (!raw || typeof raw !== 'object') continue;
+    const row = raw as {
+      url?: unknown;
+      category?: unknown;
+      desc?: unknown;
+    };
+    const url = typeof row.url === 'string' ? row.url.trim() : '';
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    const c =
+      typeof row.category === 'string' ? row.category.trim().toLowerCase() : '';
+    const category: PortfolioItem['category'] =
+      c === 'makeup' || c === 'styling'
+        ? (c as PortfolioItem['category'])
+        : 'wedding';
+    out.push({
+      url,
+      category,
+      desc: typeof row.desc === 'string' ? row.desc.trim() : '',
+    });
+  }
+  return out;
+}
+
 /** 档期日期：去重、排序、过滤非法格式 */
 function normalizeDateStrings(v: unknown): string[] {
   const raw = asStringArray(v);
@@ -52,6 +87,7 @@ type PhotographerRow = {
   specialtyTopics: string | null;
   awards: string | null;
   portfolioImages: unknown;
+  portfolioItems: unknown;
   availableDates: unknown;
   restDates: unknown;
   scheduleNote: string | null;
@@ -122,6 +158,13 @@ export class PhotographersService {
       normalizeDateStrings(row.restDates),
       availableDates,
     );
+    const portfolioItems =
+      normalizePortfolioItems(row.portfolioItems).length > 0
+        ? normalizePortfolioItems(row.portfolioItems)
+        : asStringArray(row.portfolioImages)
+            .map((x) => String(x || '').trim())
+            .filter(Boolean)
+            .map((url) => ({ url, category: 'wedding' as const, desc: '' }));
     return {
       id: row.id,
       name: row.name,
@@ -134,7 +177,8 @@ export class PhotographersService {
       age: row.age ?? undefined,
       specialtyTopics: row.specialtyTopics ?? undefined,
       awards: row.awards ?? undefined,
-      portfolioImages: asStringArray(row.portfolioImages),
+      portfolioImages: portfolioItems.map((x) => x.url),
+      portfolioItems,
       availableDates,
       restDates,
       scheduleNote: row.scheduleNote ?? undefined,
@@ -160,7 +204,9 @@ export class PhotographersService {
       where: { enabled: true, approvalStatus: 'approved' },
       orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
     });
-    return rows.map((r) => this.mapPublic(r as PhotographerRow));
+    return rows
+      .filter((r) => !this.isMakeupProfile(r as PhotographerRow))
+      .map((r) => this.mapPublic(r as PhotographerRow));
   }
 
   async findOnePublic(id: number) {
@@ -173,7 +219,7 @@ export class PhotographersService {
     return this.mapPublic(row as PhotographerRow);
   }
 
-  /** 用户端：化妆师列表（支持按风格/擅长/评分筛选） */
+  /** 用户端：妆造师列表（支持按风格/擅长/评分筛选） */
   async findPublicMakeupArtists(query?: {
     style?: string;
     specialty?: string;
@@ -326,6 +372,11 @@ export class PhotographersService {
       specialtyTopics: string | null;
       awards: string | null;
       portfolioImages: string[];
+      portfolioItems: Array<{
+        url: string;
+        category?: 'wedding' | 'makeup' | 'styling';
+        desc?: string;
+      }>;
       availableDates: string[];
       restDates: string[];
       scheduleNote: string | null;
@@ -373,6 +424,11 @@ export class PhotographersService {
       specialtyTopics: string | null;
       awards: string | null;
       portfolioImages: string[];
+      portfolioItems: Array<{
+        url: string;
+        category?: 'wedding' | 'makeup' | 'styling';
+        desc?: string;
+      }>;
       availableDates: string[];
       restDates: string[];
       scheduleNote: string | null;
@@ -397,9 +453,17 @@ export class PhotographersService {
       patch.specialtyTopics = data.specialtyTopics;
     }
     if (data.awards !== undefined) patch.awards = data.awards;
-    if (data.portfolioImages !== undefined) {
-      patch.portfolioImages =
-        data.portfolioImages as unknown as Prisma.InputJsonValue;
+    if (data.portfolioItems !== undefined) {
+      const items = normalizePortfolioItems(data.portfolioItems);
+      patch.portfolioItems = items as unknown as Prisma.InputJsonValue;
+      patch.portfolioImages = items.map(
+        (x) => x.url,
+      ) as unknown as Prisma.InputJsonValue;
+    } else if (data.portfolioImages !== undefined) {
+      const urls = asStringArray(data.portfolioImages)
+        .map((x) => String(x || '').trim())
+        .filter(Boolean);
+      patch.portfolioImages = urls as unknown as Prisma.InputJsonValue;
     }
     if (data.scheduleNote !== undefined) patch.scheduleNote = data.scheduleNote;
 
@@ -483,6 +547,13 @@ export class PhotographersService {
     return this.toAdminListItem(row as PhotographerRow);
   }
 
+  /** 管理员删除档案 */
+  async removeAdmin(id: number) {
+    await this.ensureExists(id);
+    await this.prisma.photographer.delete({ where: { id } });
+    return { ok: true as const };
+  }
+
   /** 脚本/种子用：新建已通过审核的摄影师 */
   async create(data: {
     name: string;
@@ -496,6 +567,11 @@ export class PhotographersService {
     specialtyTopics?: string;
     awards?: string;
     portfolioImages?: string[];
+    portfolioItems?: Array<{
+      url: string;
+      category?: 'wedding' | 'makeup' | 'styling';
+      desc?: string;
+    }>;
     availableDates?: string[];
     restDates?: string[];
     scheduleNote?: string;
@@ -505,6 +581,10 @@ export class PhotographersService {
     const portfolioImages = data.portfolioImages?.length
       ? data.portfolioImages
       : [];
+    const portfolioItems = normalizePortfolioItems(
+      data.portfolioItems ??
+        portfolioImages.map((url) => ({ url, category: 'wedding', desc: '' })),
+    );
     const availableDates = normalizeDateStrings(data.availableDates ?? []);
     const restDates = restDatesMinusAvailable(
       normalizeDateStrings(data.restDates ?? []),
@@ -523,6 +603,7 @@ export class PhotographersService {
         specialtyTopics: data.specialtyTopics,
         awards: data.awards,
         portfolioImages: portfolioImages as unknown as Prisma.InputJsonValue,
+        portfolioItems: portfolioItems as unknown as Prisma.InputJsonValue,
         availableDates: availableDates as unknown as Prisma.InputJsonValue,
         restDates: restDates as unknown as Prisma.InputJsonValue,
         scheduleNote: data.scheduleNote,
@@ -586,10 +667,10 @@ export class PhotographersService {
       },
     });
     if (!target || !target.enabled || target.approvalStatus !== 'approved') {
-      throw new NotFoundException('化妆师不存在或不可用');
+      throw new NotFoundException('妆造师不存在或不可用');
     }
     if (!this.isMakeupProfile(target)) {
-      throw new BadRequestException('目标档案不是化妆师类型');
+      throw new BadRequestException('目标档案不是妆造师类型');
     }
     await this.prisma.photographer.update({
       where: { id: pid },

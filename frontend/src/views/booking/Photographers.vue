@@ -1,14 +1,30 @@
 <template>
   <div class="photographers-page">
+    <div class="team-switch">
+      <a-button
+        class="switch-btn"
+        :class="{ active: teamTab === 'photographer' }"
+        @click="switchTeam('photographer')"
+      >
+        摄影师
+      </a-button>
+      <a-button
+        class="switch-btn"
+        :class="{ active: teamTab === 'makeup' }"
+        @click="switchTeam('makeup')"
+      >
+        妆造师
+      </a-button>
+    </div>
     <a-spin :spinning="loading">
-      <div v-if="!list.length && !loading" class="empty-hint">
-        <a-empty description="暂无摄影师信息，敬请期待" />
+      <div v-if="!activeList.length && !loading" class="empty-hint">
+        <a-empty :description="emptyDescription" />
       </div>
 
       <div v-else class="layout-split">
         <aside class="side-list">
           <div
-            v-for="p in list"
+            v-for="p in activeList"
             :key="p.id"
             class="side-item"
             :class="{ active: selected?.id === p.id }"
@@ -19,7 +35,7 @@
             </a-avatar>
             <div class="side-meta">
               <div class="name">{{ p.name }}</div>
-              <div class="title">{{ p.title || '摄影师' }}</div>
+              <div class="title">{{ p.title || currentRoleLabel }}</div>
             </div>
           </div>
         </aside>
@@ -31,7 +47,7 @@
             </a-avatar>
             <div>
               <h2>{{ selected.name }}</h2>
-              <a-tag color="magenta">{{ selected.title || '本店摄影师' }}</a-tag>
+              <a-tag color="magenta">{{ selected.title || currentRoleLabel }}</a-tag>
               <div class="hero-meta-line">
                 <span v-if="selected.gender" class="meta-chip">{{ selected.gender }}</span>
                 <span v-if="selected.age != null" class="meta-chip">{{ selected.age }} 岁</span>
@@ -89,9 +105,9 @@
 
           <div class="book-bar">
             <a-button type="primary" size="large" class="book-btn" @click="bookPhotographer">
-              预约该摄影师
+              去套餐下单
             </a-button>
-            <span class="book-hint">将跳转至套餐选择，下单时可关联本摄影师</span>
+            <span class="book-hint">将跳转至套餐选择，下单时可指定摄影师/妆造师</span>
           </div>
 
           <a-card title="过往优秀作品" :bordered="false" class="detail-card">
@@ -109,8 +125,15 @@
 </template>
 
 <script setup lang="ts">
-import { photographersApi, type PhotographerPublic } from '@/api/photographers';
-import { PENDING_PHOTOGRAPHER_BOOKING_KEY } from '@/constants/booking';
+import {
+  photographersApi,
+  type MakeupArtistPublic,
+  type PhotographerPublic,
+} from '@/api/photographers';
+import {
+  PENDING_MAKEUP_ARTIST_BOOKING_KEY,
+  PENDING_PHOTOGRAPHER_BOOKING_KEY,
+} from '@/constants/booking';
 import { useAuthStore } from '@/store/auth';
 import { message } from 'ant-design-vue';
 import { computed, onMounted, ref, watch } from 'vue';
@@ -120,8 +143,20 @@ const authStore = useAuthStore();
 const router = useRouter();
 
 const loading = ref(false);
-const list = ref<PhotographerPublic[]>([]);
+const teamTab = ref<'photographer' | 'makeup'>('photographer');
+const photographerList = ref<PhotographerPublic[]>([]);
+const makeupArtistList = ref<MakeupArtistPublic[]>([]);
 const selected = ref<PhotographerPublic | null>(null);
+
+const activeList = computed<PhotographerPublic[]>(() =>
+  teamTab.value === 'makeup' ? makeupArtistList.value : photographerList.value
+);
+
+const currentRoleLabel = computed(() => (teamTab.value === 'makeup' ? '妆造师' : '摄影师'));
+
+const emptyDescription = computed(() =>
+  teamTab.value === 'makeup' ? '暂无妆造师信息，敬请期待' : '暂无摄影师信息，敬请期待'
+);
 
 const sortIso = (arr: string[]) =>
   [...arr].filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(String(x).trim())).sort();
@@ -141,17 +176,25 @@ const displayRestDates = computed(() => {
 const load = async () => {
   loading.value = true;
   try {
-    const data = await photographersApi.getPublic();
-    list.value = Array.isArray(data) ? data : [];
-    if (list.value.length && !selected.value) {
-      selected.value = list.value[0] ?? null;
-    }
+    const [allMembers, makeupMembers] = await Promise.all([
+      photographersApi.getPublic(),
+      photographersApi.getPublicMakeupArtists(),
+    ]);
+    const makeupIds = new Set((Array.isArray(makeupMembers) ? makeupMembers : []).map((x) => x.id));
+    photographerList.value = (Array.isArray(allMembers) ? allMembers : []).filter(
+      (x) => !makeupIds.has(x.id)
+    );
+    makeupArtistList.value = Array.isArray(makeupMembers) ? makeupMembers : [];
   } catch (e: unknown) {
     console.error(e);
-    message.error('加载摄影师列表失败');
+    message.error('加载服务团队列表失败');
   } finally {
     loading.value = false;
   }
+};
+
+const switchTeam = (team: 'photographer' | 'makeup') => {
+  teamTab.value = team;
 };
 
 const select = (p: PhotographerPublic) => {
@@ -161,15 +204,23 @@ const select = (p: PhotographerPublic) => {
 const bookPhotographer = () => {
   if (!selected.value) return;
   if (!authStore.isAuthenticated) {
-    sessionStorage.setItem(PENDING_PHOTOGRAPHER_BOOKING_KEY, String(selected.value.id));
+    if (teamTab.value === 'makeup') {
+      sessionStorage.setItem(PENDING_MAKEUP_ARTIST_BOOKING_KEY, String(selected.value.id));
+    } else {
+      sessionStorage.setItem(PENDING_PHOTOGRAPHER_BOOKING_KEY, String(selected.value.id));
+    }
     message.warning('请先登录后再预约');
     router.push('/login');
     return;
   }
-  router.push(`/booking/packages?photographerId=${selected.value.id}`);
+  if (teamTab.value === 'photographer') {
+    router.push(`/booking/packages?photographerId=${selected.value.id}`);
+    return;
+  }
+  router.push(`/booking/packages?makeupArtistId=${selected.value.id}`);
 };
 
-watch(list, (rows) => {
+watch(activeList, (rows) => {
   if (!rows.length) {
     selected.value = null;
     return;
@@ -194,6 +245,45 @@ onMounted(() => {
   @media (max-width: 768px) {
     padding: 25px 36px 40px;
   }
+}
+
+.team-switch {
+  display: inline-flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  margin-left: 16px;
+  padding: 4px;
+  background: #fff5f8;
+  border: 1px solid rgba(255, 117, 140, 0.2);
+  border-radius: 999px;
+  box-shadow: 0 4px 20px rgba(255, 117, 140, 0.08);
+}
+
+.switch-btn {
+  border-radius: 999px;
+  border-color: transparent;
+  background: transparent;
+  color: #d6336c;
+}
+
+.switch-btn:hover,
+.switch-btn:focus {
+  border-color: rgba(255, 117, 140, 0.25);
+  color: #be185d;
+  background: rgba(255, 117, 140, 0.12);
+}
+
+.switch-btn.active {
+  color: #fff;
+  background: linear-gradient(135deg, #ff6b8b 0%, #ff8fb0 100%);
+  box-shadow: 0 6px 14px rgba(255, 107, 139, 0.28);
+}
+
+.switch-btn.active:hover,
+.switch-btn.active:focus {
+  color: #fff;
+  background: linear-gradient(135deg, #ef476f 0%, #ff7ea4 100%);
+  border-color: transparent;
 }
 
 .empty-hint {

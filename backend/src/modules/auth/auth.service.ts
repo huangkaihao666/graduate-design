@@ -120,7 +120,7 @@ export class AuthService {
   ) {
     const shootingStyle =
       (dto.shootingStyleForPhotographer || '').trim() ||
-      '（化妆师：请在个人中心补充擅长风格）';
+      '（妆造师：请在个人中心补充擅长风格）';
 
     const newUserId = await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
@@ -161,7 +161,7 @@ export class AuthService {
 
     return {
       statusCode: 201,
-      message: '化妆师账号已创建，请完善资料并提交管理员审核',
+      message: '妆造师账号已创建，请完善资料并提交管理员审核',
       data: {
         user: payloadUser,
         ...tokens,

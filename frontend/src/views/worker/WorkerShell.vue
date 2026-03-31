@@ -74,7 +74,7 @@
             </template>
 
             <button class="user-trigger" type="button">
-              <a-avatar :size="32" :src="authStore.user?.avatar" icon="👤" />
+              <a-avatar :size="32" :src="workerAvatar || authStore.user?.avatar" icon="👤" />
               <span class="name">{{ authStore.user?.name || '工作人员' }}</span>
               <span class="chev">▾</span>
             </button>
@@ -100,14 +100,33 @@
 </template>
 
 <script setup lang="ts">
+import { photographersApi } from '@/api/photographers';
 import { useAuthStore } from '@/store/auth';
 import { message } from 'ant-design-vue';
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 const authStore = useAuthStore();
 const route = useRoute();
 const router = useRouter();
+const workerAvatar = ref('');
+
+const syncWorkerAvatar = async () => {
+  const authAvatar = String(authStore.user?.avatar || '').trim();
+  if (authAvatar) {
+    workerAvatar.value = authAvatar;
+  }
+  if (!authStore.accessToken || !authStore.user?.workerPhotographerId) return;
+  try {
+    const mine = await photographersApi.getMine();
+    const mineAvatar = String(mine?.avatar || '').trim();
+    if (mineAvatar) {
+      workerAvatar.value = mineAvatar;
+    }
+  } catch {
+    /* ignore */
+  }
+};
 
 const isMakeupWorker = computed(() => {
   if (String(authStore.user?.workerKind || '').toLowerCase() === 'makeup') return true;
@@ -155,11 +174,20 @@ onMounted(async () => {
   if (authStore.accessToken && authStore.isWorker) {
     try {
       await authStore.getProfile();
+      await syncWorkerAvatar();
     } catch {
       /* ignore */
     }
   }
 });
+
+watch(
+  () => route.path,
+  async (p) => {
+    if (!p.startsWith('/worker')) return;
+    await syncWorkerAvatar();
+  }
+);
 
 const sideItems = computed(() => [
   { label: '工作台', to: '/worker/dashboard', icon: '🧁' },

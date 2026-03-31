@@ -152,6 +152,7 @@ type Item = { url: string; category: Cat; desc?: string };
 const authStore = useAuthStore();
 const storageKey = computed(() => `worker_portfolio_items_v1_${authStore.user?.id ?? 'guest'}`);
 const urlsKey = computed(() => `worker_portfolio_urls_${authStore.user?.id ?? 'guest'}`);
+const metaKey = computed(() => `worker_portfolio_meta_v1_${authStore.user?.id ?? 'guest'}`);
 
 const categories = [
   { key: 'all', label: '全部' },
@@ -171,7 +172,9 @@ const items = ref<Item[]>([]);
 
 const photographerId = ref<number | null>(null);
 const missingBindingWarned = ref(false);
-const syncWarned = ref(false);
+const localCacheWarned = ref(false);
+const syncFailedWarned = ref(false);
+const disableHeavyLocalCache = ref(false);
 
 const draftDesc = ref('');
 const draftCat = ref<Cat | undefined>('wedding');
@@ -240,15 +243,100 @@ const defaultItem = (url: string): Item => ({
   desc: '',
 });
 
-const saveLocalOnly = () => {
+const hashUrl = (url: string): string => {
+  // 轻量稳定哈希，避免把超长 dataURL 直接写入本地缓存
+  let h = 2166136261;
+  for (let i = 0; i < url.length; i += 1) {
+    h ^= url.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return `u${(h >>> 0).toString(36)}`;
+};
+
+const saveMetaOnly = () => {
+  const compact = items.value
+    .filter((x) => !!x.url)
+    .map((x) => ({
+      k: hashUrl(String(x.url)),
+      c: x.category || 'wedding',
+      d: String(x.desc || ''),
+    }));
+  const payload = JSON.stringify(compact);
+  try {
+    localStorage.setItem(metaKey.value, payload);
+  } catch {
+    try {
+      // 本地空间不足时，降级到会话缓存，保证切页后描述不丢（同一会话）
+      sessionStorage.setItem(metaKey.value, payload);
+    } catch {
+      /* ignore */
+    }
+  }
+};
+
+const readMetaByHash = () => {
+  try {
+    const raw = localStorage.getItem(metaKey.value) || sessionStorage.getItem(metaKey.value);
+    const list = raw ? (JSON.parse(raw) as Array<{ k?: string; c?: Cat; d?: string }>) : [];
+    const m = new Map<string, { category: Cat; desc: string }>();
+    for (const it of Array.isArray(list) ? list : []) {
+      const k = String(it?.k || '').trim();
+      if (!k) continue;
+      const c = it?.c === 'makeup' || it?.c === 'styling' ? it.c : 'wedding';
+      m.set(k, { category: c, desc: String(it?.d || '') });
+    }
+    return m;
+  } catch {
+    return new Map<string, { category: Cat; desc: string }>();
+  }
+};
+
+const normalizeServerPortfolioItems = (v: unknown): Item[] => {
+  if (!Array.isArray(v)) return [];
+  const seen = new Set<string>();
+  const out: Item[] = [];
+  for (const raw of v) {
+    if (!raw || typeof raw !== 'object') continue;
+    const row = raw as { url?: unknown; category?: unknown; desc?: unknown };
+    const url = String(row.url || '').trim();
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    const c = String(row.category || '')
+      .trim()
+      .toLowerCase();
+    const category: Cat = c === 'makeup' || c === 'styling' ? (c as Cat) : 'wedding';
+    out.push({
+      url,
+      category,
+      desc: String(row.desc || '').trim(),
+    });
+  }
+  return out;
+};
+
+const saveLocalOnly = (notify = true) => {
+  if (disableHeavyLocalCache.value) {
+    saveMetaOnly();
+    return;
+  }
   try {
     localStorage.setItem(storageKey.value, JSON.stringify(items.value));
     localStorage.setItem(urlsKey.value, JSON.stringify(items.value.map((x) => x.url)));
+    saveMetaOnly();
   } catch {
-    // dataURL 作品可能很大，localStorage 容量不足时不阻断“同步到服务器”
-    // 仅提示一次，避免打扰
-    if (!syncWarned.value) {
-      message.warning('本机存储空间不足：作品未能保存到本地，但仍会尝试同步到服务器');
+    // 本地空间不足后切换为轻量缓存模式，避免后续反复写大对象导致重复失败
+    disableHeavyLocalCache.value = true;
+    try {
+      localStorage.removeItem(storageKey.value);
+      localStorage.removeItem(urlsKey.value);
+    } catch {
+      /* ignore */
+    }
+    // 兜底：主缓存失败也尽量保留描述与分类（不存大图 URL）
+    saveMetaOnly();
+    if (notify && !localCacheWarned.value) {
+      message.warning('本机存储空间不足：已自动启用轻量缓存，并继续同步到服务器');
+      localCacheWarned.value = true;
     }
   }
 };
@@ -268,15 +356,23 @@ const syncPortfolioToBackend = async (): Promise<boolean> => {
     }
     return false;
   }
-  const urls = dedupeUrls(items.value.map((x) => x.url).filter(Boolean));
+  const normalizedItems = dedupe(items.value).map((x) => ({
+    url: String(x.url || '').trim(),
+    category: x.category || 'wedding',
+    desc: String(x.desc || ''),
+  }));
+  const urls = dedupeUrls(normalizedItems.map((x) => x.url).filter(Boolean));
   try {
-    await photographersApi.updateMine({ portfolioImages: urls });
-    syncWarned.value = false;
+    await photographersApi.updateMine({
+      portfolioImages: urls,
+      portfolioItems: normalizedItems,
+    });
+    syncFailedWarned.value = false;
     return true;
   } catch {
-    if (!syncWarned.value) {
+    if (!syncFailedWarned.value) {
       message.warning('作品同步到服务器失败，请检查网络或重新登录');
-      syncWarned.value = true;
+      syncFailedWarned.value = true;
     }
     return false;
   }
@@ -287,13 +383,21 @@ const load = () => {
     const raw = localStorage.getItem(storageKey.value);
     const list = raw ? (JSON.parse(raw) as Item[]) : [];
     items.value = Array.isArray(list) ? list : [];
-    try {
-      localStorage.setItem(urlsKey.value, JSON.stringify(items.value.map((x) => x.url)));
-    } catch {
-      /* ignore */
+    if (items.value.length > 0) {
+      // 仅在主缓存有内容时回写，避免空列表覆盖已有轻量描述缓存
+      saveMetaOnly();
+      try {
+        localStorage.setItem(urlsKey.value, JSON.stringify(items.value.map((x) => x.url)));
+      } catch {
+        /* ignore */
+      }
+    } else {
+      // 主缓存缺失时进入轻量缓存模式，后续不再尝试写大对象
+      disableHeavyLocalCache.value = true;
     }
   } catch {
     items.value = [];
+    disableHeavyLocalCache.value = true;
   }
 };
 
@@ -303,13 +407,21 @@ const pullPortfolioFromBackend = async () => {
   for (const it of localSnapshot) {
     if (it?.url) localByUrl.set(it.url, it);
   }
+  const metaByHash = readMetaByHash();
 
   let serverUrls: string[] = [];
+  let serverItems: Item[] = [];
 
   try {
     const hit = await photographersApi.getMine();
     photographerId.value = hit.id;
+    serverItems = normalizeServerPortfolioItems(
+      (hit as { portfolioItems?: unknown }).portfolioItems
+    );
     serverUrls = Array.isArray(hit.portfolioImages) ? [...hit.portfolioImages] : [];
+    if (!serverUrls.length && serverItems.length) {
+      serverUrls = serverItems.map((x) => x.url);
+    }
   } catch {
     if (!missingBindingWarned.value) {
       message.warning('无法从服务器拉取作品（请确认已登录摄影师账号）');
@@ -329,10 +441,34 @@ const pullPortfolioFromBackend = async () => {
     const url = String(u || '').trim();
     if (!url || seen.has(url)) continue;
     seen.add(url);
-    out.push(localByUrl.get(url) ?? defaultItem(url));
+    const local = localByUrl.get(url);
+    const fromServer = serverItems.find((x) => x.url === url);
+    const meta = metaByHash.get(hashUrl(url));
+
+    // 合并优先级：
+    // 1) 分类优先 local，其次 server/meta，最后默认 wedding
+    // 2) 描述优先“非空”local，其次“非空”server，再次“非空”meta
+    if (local || fromServer || meta) {
+      const localDesc = String(local?.desc || '').trim();
+      const serverDesc = String(fromServer?.desc || '').trim();
+      const metaDesc = String(meta?.desc || '').trim();
+      const mergedDesc = localDesc || serverDesc || metaDesc || '';
+
+      const mergedCategory: Cat =
+        local?.category || fromServer?.category || meta?.category || 'wedding';
+
+      out.push({
+        url,
+        category: mergedCategory,
+        desc: mergedDesc,
+      });
+      continue;
+    }
+    out.push(defaultItem(url));
   }
   items.value = out;
-  saveLocalOnly();
+  // 首次进入页面时仅静默缓存，避免未主动操作就提示“本地空间不足”
+  saveLocalOnly(false);
 };
 
 const save = () => {

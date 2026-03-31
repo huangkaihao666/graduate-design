@@ -1,8 +1,14 @@
 /**
  * 用户端与工作人员端共用同一订单会话的消息存储（本地演示）。
- * 会话 id 约定为：`order_${orderNo}`
+ * 会话 id 约定：
+ * - 旧版：`order_${orderNo}`
+ * - 新版（按工作人员档案隔离）：`order_${orderNo}__p${photographerId}`
  */
-export function orderThreadId(orderNo: string): string {
+export function orderThreadId(orderNo: string, photographerId?: number | null): string {
+  const pid = Number(photographerId);
+  if (Number.isFinite(pid) && pid > 0) {
+    return `order_${orderNo}__p${Math.floor(pid)}`;
+  }
   return `order_${orderNo}`;
 }
 
@@ -11,7 +17,21 @@ export function isOrderThreadId(id: string): boolean {
 }
 
 export function orderNoFromThreadId(id: string): string {
-  return id.startsWith('order_') ? id.slice('order_'.length) : '';
+  if (!id.startsWith('order_')) return '';
+  const raw = id.slice('order_'.length);
+  const idx = raw.indexOf('__p');
+  return idx >= 0 ? raw.slice(0, idx) : raw;
+}
+
+/** 从会话 id 解析工作人员档案 id（旧版会话无此信息） */
+export function photographerIdFromThreadId(id: string): number | undefined {
+  if (!id.startsWith('order_')) return undefined;
+  const raw = id.slice('order_'.length);
+  const idx = raw.indexOf('__p');
+  if (idx < 0) return undefined;
+  const pid = Number(raw.slice(idx + '__p'.length));
+  if (!Number.isFinite(pid) || pid <= 0) return undefined;
+  return Math.floor(pid);
 }
 
 /**

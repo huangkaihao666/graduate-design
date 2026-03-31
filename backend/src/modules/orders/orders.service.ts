@@ -101,16 +101,16 @@ export class OrdersService {
       },
     });
     if (!makeup || !makeup.enabled || makeup.approvalStatus !== 'approved') {
-      throw new ConflictException('指定化妆师不可用，请更换');
+      throw new ConflictException('指定妆造师不可用，请更换');
     }
     if (!this.isMakeupProfile(makeup)) {
-      throw new ConflictException('指定档案不是化妆师，请重新选择');
+      throw new ConflictException('指定档案不是妆造师，请重新选择');
     }
     const available = this.normalizeDateStrings(makeup.availableDates ?? []);
     const rest = this.normalizeDateStrings(makeup.restDates ?? []);
     if (!available.includes(shootingDate) || rest.includes(shootingDate)) {
       throw new ConflictException(
-        '指定化妆师该日期档期不可用，请更换日期或化妆师',
+        '指定妆造师该日期档期不可用，请更换日期或妆造师',
       );
     }
     const conflict = await this.prisma.bookingOrder.findFirst({
@@ -126,7 +126,7 @@ export class OrdersService {
       select: { id: true },
     });
     if (conflict) {
-      throw new ConflictException('指定化妆师该日期已被占用，请更换');
+      throw new ConflictException('指定妆造师该日期已被占用，请更换');
     }
     return makeup;
   }
@@ -518,7 +518,7 @@ export class OrdersService {
       });
       if (profile && this.isMakeupProfile(profile)) {
         throw new ForbiddenException(
-          '化妆师不参与抢单，仅需确认已分配订单档期',
+          '妆造师不参与抢单，仅需确认已分配订单档期',
         );
       }
     }
@@ -602,7 +602,7 @@ export class OrdersService {
       select: { id: true, role: true, workerPhotographerId: true },
     });
     if (!user || user.role !== 'worker' || !user.workerPhotographerId) {
-      throw new ForbiddenException('仅化妆师可操作');
+      throw new ForbiddenException('仅妆造师可操作');
     }
     const pid = user.workerPhotographerId;
     const profile = await this.prisma.photographer.findUnique({
@@ -617,14 +617,14 @@ export class OrdersService {
       },
     });
     if (!profile || !this.isMakeupProfile(profile)) {
-      throw new ForbiddenException('当前账号不是化妆师');
+      throw new ForbiddenException('当前账号不是妆造师');
     }
     const order = (await this.prisma.bookingOrder.findUnique({
       where: { id: orderId },
     })) as any;
     if (!order) throw new NotFoundException('订单不存在');
     if (Number(order.assignedMakeupArtistId || 0) !== pid) {
-      throw new ForbiddenException('该订单未分配给当前化妆师');
+      throw new ForbiddenException('该订单未分配给当前妆造师');
     }
     return this.prisma.bookingOrder.update({
       where: { id: orderId },

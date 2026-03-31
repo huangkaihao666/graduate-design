@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
@@ -56,6 +57,11 @@ export class PhotographersController {
       specialtyTopics: string | null;
       awards: string | null;
       portfolioImages: string[];
+      portfolioItems: Array<{
+        url: string;
+        category?: 'wedding' | 'makeup' | 'styling';
+        desc?: string;
+      }>;
       availableDates: string[];
       restDates: string[];
       scheduleNote: string | null;
@@ -91,7 +97,7 @@ export class PhotographersController {
   }
 
   @Get('public-makeup')
-  @ApiOperation({ summary: '化妆师列表（用户端，可筛选）' })
+  @ApiOperation({ summary: '妆造师列表（用户端，可筛选）' })
   findPublicMakeup(
     @Query('style') style?: string,
     @Query('specialty') specialty?: string,
@@ -155,10 +161,18 @@ export class PhotographersController {
     return this.photographersService.setAdminTitle(id, body?.title ?? null);
   }
 
+  @Delete(':id')
+  @UseGuards(LocalAdminBearerGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '删除摄影师/妆造师档案（仅管理员）' })
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.photographersService.removeAdmin(id);
+  }
+
   @Patch('me/fixed-makeup')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: '摄影师设置固定合作化妆师（为空则解绑）' })
+  @ApiOperation({ summary: '摄影师设置固定合作妆造师（为空则解绑）' })
   setFixedMakeup(
     @Request() req: { user: { sub: number } },
     @Body() body: { makeupArtistId?: number | null },

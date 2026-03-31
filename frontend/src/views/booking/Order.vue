@@ -76,7 +76,7 @@
             <div v-if="selectedPhotographerName" class="photographer-hint">
               当前已选：<strong>{{ selectedPhotographerName }}</strong>
               <span v-if="route.query.photographerId" class="hint-tag"
-                >（来自本店摄影师/套餐页）</span
+                >（来自本店服务团队/套餐页）</span
               >
             </div>
           </a-form-item>
@@ -127,16 +127,14 @@
               档期说明：{{ photographerScheduleNote }}
             </div>
             <div
-              v-else-if="
-                usePhotographerScheduleCalendar && !photographerAvailableDatesSorted.length
-              "
+              v-else-if="usePhotographerScheduleCalendar && !calendarAvailableDatesSorted.length"
               class="schedule-tip muted"
             >
-              该摄影师尚未开放可约日期，请稍后再试或联系客服。
+              {{ calendarUnavailableTipText }}
             </div>
           </a-form-item>
 
-          <a-form-item label="可指定化妆师（选填）">
+          <a-form-item label="可指定妆造师（选填）">
             <a-select
               v-model:value="selectedMakeupArtistId"
               placeholder="暂不指定，由系统自动分配"
@@ -151,7 +149,7 @@
               </a-select-option>
             </a-select>
             <div v-if="selectedMakeupArtistName" class="photographer-hint">
-              当前已选化妆师：<strong>{{ selectedMakeupArtistName }}</strong>
+              当前已选妆造师：<strong>{{ selectedMakeupArtistName }}</strong>
             </div>
           </a-form-item>
 
@@ -219,7 +217,7 @@
             <span class="value">{{ selectedPhotographerName }}</span>
           </div>
           <div v-if="selectedMakeupArtistName" class="summary-row">
-            <span class="label">指定化妆师</span>
+            <span class="label">指定妆造师</span>
             <span class="value">{{ selectedMakeupArtistName }}</span>
           </div>
 
@@ -269,7 +267,7 @@
             摄影师：{{ successInfo?.photographerName }}
           </div>
           <div v-if="successInfo?.requestedMakeupArtistName">
-            化妆师：{{ successInfo?.requestedMakeupArtistName }}
+            妆造师：{{ successInfo?.requestedMakeupArtistName }}
           </div>
           <div>人数：{{ successInfo?.numberOfPeople }} 人</div>
           <div>合计：¥{{ successInfo?.totalAmount?.toLocaleString() }}</div>
@@ -424,6 +422,7 @@ const selectedMakeupArtistId = ref<number | null>(null);
 const selectedMakeupArtistName = ref('');
 const makeupArtistList = ref<MakeupArtistPublic[]>([]);
 const makeupArtistsLoading = ref(false);
+const selectedMakeupArtistDetail = ref<MakeupArtistPublic | null>(null);
 
 const orderForm = reactive({
   packageId: 0,
@@ -473,6 +472,8 @@ const photographerRestDateSet = computed(() => new Set(photographerRestDatesSort
 
 const photographerBookedDates = ref<string[]>([]);
 const photographerBookedDateSet = computed(() => new Set(photographerBookedDates.value));
+const makeupArtistBookedDates = ref<string[]>([]);
+const makeupArtistBookedDateSet = computed(() => new Set(makeupArtistBookedDates.value));
 const calendarMonthCursor = ref(new Date());
 const calendarWeekLabels = ['日', '一', '二', '三', '四', '五', '六'];
 type CalendarCell = { dateKey: string; day: number; inCurrentMonth: boolean };
@@ -485,6 +486,44 @@ const usePhotographerScheduleCalendar = computed(() => !!selectedPhotographerId.
 const photographerScheduleNote = computed(() => {
   if (!selectedPhotographerId.value) return '';
   return (photographerScheduleDetail.value?.scheduleNote || '').trim();
+});
+
+const makeupArtistAvailableDatesSorted = computed(() => {
+  const raw = selectedMakeupArtistDetail.value?.availableDates;
+  if (!raw?.length) return [];
+  const re = /^\d{4}-\d{2}-\d{2}$/;
+  return [...raw]
+    .filter((x) => re.test(String(x).trim()))
+    .map((x) => String(x).trim())
+    .sort();
+});
+
+const makeupArtistRestDatesSorted = computed(() => {
+  const raw = selectedMakeupArtistDetail.value?.restDates;
+  if (!raw?.length) return [];
+  const re = /^\d{4}-\d{2}-\d{2}$/;
+  return [...raw]
+    .filter((x) => re.test(String(x).trim()))
+    .map((x) => String(x).trim())
+    .sort();
+});
+
+const makeupArtistAvailableDateSet = computed(
+  () => new Set(makeupArtistAvailableDatesSorted.value)
+);
+const makeupArtistRestDateSet = computed(() => new Set(makeupArtistRestDatesSorted.value));
+
+const calendarAvailableDatesSorted = computed(() => {
+  if (!selectedMakeupArtistId.value) return photographerAvailableDatesSorted.value;
+  const makeupAvail = makeupArtistAvailableDateSet.value;
+  return photographerAvailableDatesSorted.value.filter((d) => makeupAvail.has(d));
+});
+
+const calendarUnavailableTipText = computed(() => {
+  if (selectedMakeupArtistId.value) {
+    return '当前摄影师与妆造师暂无共同可约日期，请更换人员或联系客服。';
+  }
+  return '该摄影师尚未开放可约日期，请稍后再试或联系客服。';
 });
 
 const formatShootingDateLabel = (iso: string) => {
@@ -503,8 +542,15 @@ const scheduleCellStatus = (
 ): 'available' | 'booked' | 'rest' | 'unavailable' => {
   if (!inCurrentMonth) return 'unavailable';
   if (iso < todayKey()) return 'unavailable';
+  if (selectedMakeupArtistId.value && makeupArtistBookedDateSet.value.has(iso)) return 'booked';
   if (photographerBookedDateSet.value.has(iso)) return 'booked';
+  if (selectedMakeupArtistId.value && makeupArtistRestDateSet.value.has(iso)) return 'rest';
   if (photographerRestDateSet.value.has(iso)) return 'rest';
+  if (selectedMakeupArtistId.value) {
+    if (!photographerAvailableDateSet.value.has(iso)) return 'unavailable';
+    if (!makeupArtistAvailableDateSet.value.has(iso)) return 'unavailable';
+    return 'available';
+  }
   if (photographerAvailableDateSet.value.has(iso)) return 'available';
   return 'unavailable';
 };
@@ -554,7 +600,7 @@ const syncCalendarMonthByCurrentContext = () => {
   const selected = orderForm.shootingDate?.trim();
   const anchor =
     (selected && /^\d{4}-\d{2}-\d{2}$/.test(selected) ? selected : '') ||
-    photographerAvailableDatesSorted.value[0] ||
+    calendarAvailableDatesSorted.value[0] ||
     '';
   if (!anchor) {
     calendarMonthCursor.value = new Date();
@@ -586,11 +632,22 @@ const shootingDateRules = computed(() => {
     list.push({
       validator: async (_rule: unknown, value: string) => {
         if (!value) return Promise.reject('请选择拍摄日期');
-        if (!photographerAvailableDatesSorted.value.includes(value)) {
+        if (!calendarAvailableDatesSorted.value.includes(value)) {
+          if (selectedMakeupArtistId.value) {
+            return Promise.reject(
+              '所选日期不在摄影师与妆造师共同可约档期内，请在月历中选择「可约」日期'
+            );
+          }
           return Promise.reject('所选日期不在该摄影师可约档期内，请在月历中选择「可约」日期');
+        }
+        if (selectedMakeupArtistId.value && makeupArtistBookedDateSet.value.has(value)) {
+          return Promise.reject('该日期妆造师已约满，请选择其他可约日期');
         }
         if (photographerBookedDateSet.value.has(value)) {
           return Promise.reject('该日期已约满，请选择其他可约日期');
+        }
+        if (selectedMakeupArtistId.value && makeupArtistRestDateSet.value.has(value)) {
+          return Promise.reject('该日期为妆造师休息日');
         }
         if (photographerRestDateSet.value.has(value)) {
           return Promise.reject('该日期为摄影师休息日');
@@ -639,18 +696,41 @@ const refreshPhotographerBookedDates = async () => {
   }
 };
 
+const refreshMakeupArtistBookedDates = async () => {
+  const id = selectedMakeupArtistId.value;
+  if (!id) {
+    makeupArtistBookedDates.value = [];
+    return;
+  }
+  try {
+    const list = await ordersApi.getMakeupArtistBookedDates(id);
+    const re = /^\d{4}-\d{2}-\d{2}$/;
+    makeupArtistBookedDates.value = (Array.isArray(list) ? list : [])
+      .map((x) => String(x || '').trim())
+      .filter((d) => re.test(d));
+  } catch {
+    makeupArtistBookedDates.value = [];
+  }
+};
+
 /** 会话恢复或切换摄影师后，若当前拍摄日不在档期内则清空并提示 */
 const ensureShootingDateMatchesSchedule = () => {
   if (!usePhotographerScheduleCalendar.value) return;
   const d = orderForm.shootingDate?.trim();
   if (!d) return;
   if (
-    !photographerAvailableDatesSorted.value.includes(d) ||
+    !calendarAvailableDatesSorted.value.includes(d) ||
+    makeupArtistBookedDateSet.value.has(d) ||
     photographerBookedDateSet.value.has(d) ||
+    makeupArtistRestDateSet.value.has(d) ||
     photographerRestDateSet.value.has(d)
   ) {
     orderForm.shootingDate = '';
-    message.warning('当前拍摄日期不在该摄影师可约档期内，请重新选择可约日期。');
+    if (selectedMakeupArtistId.value) {
+      message.warning('当前拍摄日期不在摄影师与妆造师共同可约档期内，请重新选择可约日期。');
+    } else {
+      message.warning('当前拍摄日期不在该摄影师可约档期内，请重新选择可约日期。');
+    }
   }
 };
 
@@ -660,15 +740,27 @@ const onScheduleCalendarSelect = (dateValue: any) => {
   if (!iso) return;
   const status = scheduleCellStatus(iso, true);
   if (status === 'unavailable') {
-    message.warning('该日期未开放预约，请在摄影师已标注「可约」的日期中选择。');
+    if (selectedMakeupArtistId.value) {
+      message.warning('该日期不是摄影师与妆造师的共同可约日期，请重新选择。');
+    } else {
+      message.warning('该日期未开放预约，请在摄影师已标注「可约」的日期中选择。');
+    }
     return;
   }
   if (status === 'rest') {
-    message.warning('该日期为摄影师休息日，请选择其他可约日期。');
+    if (selectedMakeupArtistId.value && makeupArtistRestDateSet.value.has(iso)) {
+      message.warning('该日期为妆造师休息日，请选择其他可约日期。');
+    } else {
+      message.warning('该日期为摄影师休息日，请选择其他可约日期。');
+    }
     return;
   }
   if (status === 'booked') {
-    message.warning('该日期已约满，请选择其他可约日期。');
+    if (selectedMakeupArtistId.value && makeupArtistBookedDateSet.value.has(iso)) {
+      message.warning('该日期妆造师已约满，请选择其他可约日期。');
+    } else {
+      message.warning('该日期已约满，请选择其他可约日期。');
+    }
     return;
   }
   orderForm.shootingDate = iso;
@@ -856,6 +948,13 @@ const applyPhotographerFromUrl = async () => {
   }
   try {
     const p = await photographersApi.getPublicOne(id);
+    if (isLikelyMakeupProfile(p)) {
+      selectedPhotographerId.value = null;
+      selectedPhotographerName.value = '';
+      photographerScheduleDetail.value = null;
+      message.warning('所选人员为妆造师，请在下方“可指定妆造师”中选择');
+      return;
+    }
     selectedPhotographerId.value = p.id;
     selectedPhotographerName.value = p.name;
     photographerScheduleDetail.value = p;
@@ -867,15 +966,55 @@ const applyPhotographerFromUrl = async () => {
   }
 };
 
+/** URL 中带 makeupArtistId 时优先拉取（覆盖会话里恢复的妆造师） */
+const applyMakeupArtistFromUrl = async () => {
+  const raw = route.query.makeupArtistId;
+  const id = Number(raw);
+  if (!raw || Number.isNaN(id) || id <= 0) return;
+  try {
+    if (!makeupArtistList.value.length) {
+      makeupArtistList.value = await photographersApi.getPublicMakeupArtists();
+    }
+    const m = makeupArtistList.value.find((x) => x.id === id);
+    if (!m) {
+      selectedMakeupArtistId.value = null;
+      selectedMakeupArtistName.value = '';
+      selectedMakeupArtistDetail.value = null;
+      message.warning('未找到所选妆造师或已下架，请重新选择');
+      return;
+    }
+    selectedMakeupArtistId.value = m.id;
+    selectedMakeupArtistName.value = m.name;
+    selectedMakeupArtistDetail.value = m;
+  } catch {
+    selectedMakeupArtistId.value = null;
+    selectedMakeupArtistName.value = '';
+    selectedMakeupArtistDetail.value = null;
+    message.warning('未找到所选妆造师或已下架，请重新选择');
+  }
+};
+
 const loadPhotographersList = async () => {
   photographersLoading.value = true;
   try {
-    photographerPublicList.value = await photographersApi.getPublic();
+    const list = await photographersApi.getPublic();
+    photographerPublicList.value = (Array.isArray(list) ? list : []).filter(
+      (x) => !isLikelyMakeupProfile(x)
+    );
   } catch {
     photographerPublicList.value = [];
   } finally {
     photographersLoading.value = false;
   }
+};
+
+const isLikelyMakeupProfile = (p: PhotographerPublic) => {
+  const hay = [p.name, p.title, p.shootingStyle, p.specialtyTopics, p.bio]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  const keys = ['化妆', '妆造', '新娘妆', '跟妆', 'makeup', 'mua', '试妆', '造型'];
+  return keys.some((k) => hay.includes(k));
 };
 
 const loadMakeupArtists = async () => {
@@ -893,22 +1032,32 @@ const onMakeupArtistSelectChange = async (val: number | string | undefined) => {
   if (val == null || val === '') {
     selectedMakeupArtistId.value = null;
     selectedMakeupArtistName.value = '';
+    selectedMakeupArtistDetail.value = null;
+    makeupArtistBookedDates.value = [];
+    ensureShootingDateMatchesSchedule();
+    syncCalendarMonthByCurrentContext();
     return;
   }
   const id = Number(val);
   if (!Number.isFinite(id) || id <= 0) {
     selectedMakeupArtistId.value = null;
     selectedMakeupArtistName.value = '';
+    selectedMakeupArtistDetail.value = null;
+    makeupArtistBookedDates.value = [];
     return;
   }
   selectedMakeupArtistId.value = id;
-  const selected = makeupArtistList.value.find((x) => x.id === id);
+  const selected = makeupArtistList.value.find((x) => x.id === id) || null;
   selectedMakeupArtistName.value = selected?.name || '';
+  selectedMakeupArtistDetail.value = selected;
+  await refreshMakeupArtistBookedDates();
+  ensureShootingDateMatchesSchedule();
+  syncCalendarMonthByCurrentContext();
+  saveStateToStorage();
   if (!orderForm.shootingDate) return;
   try {
-    const booked = await ordersApi.getMakeupArtistBookedDates(id);
-    if (booked.includes(orderForm.shootingDate)) {
-      message.warning('该化妆师在当前拍摄日期已被分配，请更换日期或化妆师');
+    if (makeupArtistBookedDateSet.value.has(orderForm.shootingDate)) {
+      message.warning('该妆造师在当前拍摄日期已被分配，请更换日期或妆造师');
     }
   } catch {
     /* ignore */
@@ -952,6 +1101,7 @@ const onPhotographerSelectChange = async (val: number | string | undefined) => {
   });
   await refreshPhotographerScheduleDetail();
   await refreshPhotographerBookedDates();
+  await refreshMakeupArtistBookedDates();
   ensureShootingDateMatchesSchedule();
   syncCalendarMonthByCurrentContext();
   saveStateToStorage();
@@ -973,13 +1123,17 @@ const loadSelectedPackage = async () => {
   photographerScheduleDetail.value = null;
   selectedMakeupArtistId.value = null;
   selectedMakeupArtistName.value = '';
+  selectedMakeupArtistDetail.value = null;
+  makeupArtistBookedDates.value = [];
 
   restoreStateFromStorage();
+  await loadMakeupArtists();
+  await applyMakeupArtistFromUrl();
   await applyPhotographerFromUrl();
   await loadPhotographersList();
-  await loadMakeupArtists();
   await refreshPhotographerScheduleDetail();
   await refreshPhotographerBookedDates();
+  await refreshMakeupArtistBookedDates();
 
   selectedPackage.value = null;
   try {
@@ -1013,8 +1167,17 @@ const loadSelectedPackage = async () => {
     }
   }
 
+  if (selectedMakeupArtistId.value && !selectedMakeupArtistName.value) {
+    const fromList = makeupArtistList.value.find((x) => x.id === selectedMakeupArtistId.value);
+    if (fromList) {
+      selectedMakeupArtistName.value = fromList.name;
+      selectedMakeupArtistDetail.value = fromList;
+    }
+  }
+
   await refreshPhotographerScheduleDetail();
   await refreshPhotographerBookedDates();
+  await refreshMakeupArtistBookedDates();
   ensureShootingDateMatchesSchedule();
   syncCalendarMonthByCurrentContext();
 };
@@ -1032,8 +1195,11 @@ const handleReset = () => {
   photographerScheduleDetail.value = null;
   selectedMakeupArtistId.value = null;
   selectedMakeupArtistName.value = '';
+  selectedMakeupArtistDetail.value = null;
+  makeupArtistBookedDates.value = [];
   const q = { ...route.query } as Record<string, string | string[] | undefined>;
   delete q.photographerId;
+  delete q.makeupArtistId;
   router.replace({ path: route.path, query: q });
   sessionStorage.removeItem(STORAGE_KEY);
   orderFormRef.value?.resetFields();
@@ -1121,7 +1287,7 @@ const handleSubmit = async () => {
   } catch (e: any) {
     const msg = String(e?.message || '').trim();
     // 400 错误已在全局 http 拦截器里提示，这里避免重复弹框
-    if (msg.includes('指定化妆师该日期档期不可用')) return;
+    if (msg.includes('指定妆造师该日期档期不可用')) return;
     message.error(msg || '提交失败，请稍后重试');
   } finally {
     submitting.value = false;

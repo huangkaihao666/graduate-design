@@ -6,7 +6,7 @@
           <a-input-search
             v-model:value="kw"
             allow-clear
-            placeholder="搜索订单号 / 摄影师"
+            placeholder="搜索订单号 / 工作人员"
             class="pill-input"
           />
           <div class="conv-filters">
@@ -197,6 +197,7 @@ import {
   forEachSharedOrderMessageStorageKey,
   isOrderThreadId,
   orderNoFromThreadId,
+  photographerIdFromThreadId,
   orderThreadId,
   previewLastMessageFromOrderStorage,
   sharedOrderMessagesStorageKey,
@@ -214,7 +215,7 @@ type UConv = {
   unread: number;
   orderNo: string;
   time: string;
-  /** 本店摄影师档案 id，用于隔离不同摄影师的订单会话存储 */
+  /** 工作人员档案 id（摄影师/妆造师），用于隔离同订单不同对话对象 */
   photographerId?: number;
   /** 左侧列表已同步到的最后一条消息 id，用于摄影师新消息时累加未读 */
   listTailMsgId?: string;
@@ -339,7 +340,7 @@ const faqItems: FaqItem[] = [
       '1）交付与验收：收到成片后请尽快下载并验收；若链接失效或文件损坏，请在交付说明中的期限内联系补发，逾期可能需重新申请导出。',
       '2）改期与取消：因天气、身体等原因需改期，请尽早通过消息或电话说明；距拍摄日较近的改期可能涉及档期占用费，具体以门店公示或合同为准。',
       '3）精修异议：对色调、胖瘦、瑕疵处理等有意见，请在「首次交付后的反馈窗口期」内集中提出，便于一次性返工；超时后再提出大范围重做可能无法免费支持。',
-      '4）退款与争议：若因门店原因无法履约，按合同约定办理延期或退款；因个人原因临时取消，已发生成本（档期、化妆师、场地等）可能按规则扣除，建议下单前仔细阅读套餐须知。',
+      '4）退款与争议：若因门店原因无法履约，按合同约定办理延期或退款；因个人原因临时取消，已发生成本（档期、妆造师、场地等）可能按规则扣除，建议下单前仔细阅读套餐须知。',
       '5）隐私与使用：门店与摄影师通常仅在宣传授权范围内使用样片；若您不同意公开展示，请在签约或拍摄前书面/消息中明确说明。',
     ],
   },
@@ -381,7 +382,7 @@ const filteredConvs = computed(() => {
   });
 });
 
-const peerInitial = (c: UConv) => c.peerName?.trim()?.slice(0, 1) || '摄';
+const peerInitial = (c: UConv) => c.peerName?.trim()?.slice(0, 1) || '工';
 
 const isImage = (content: string) => {
   return /^data:image\//.test(content) || /\.(png|jpe?g|webp|gif)$/i.test(content);
@@ -437,10 +438,20 @@ const syncSharedOrderConvsFromStorage = () => {
     }
     const lastMsg = msgs[msgs.length - 1];
     const tailId = lastMsg?.id != null ? String(lastMsg.id) : '';
-    const id = orderThreadId(info.orderNo);
+    const id = orderThreadId(info.orderNo, info.photographerId);
 
     const idx = convs.value.findIndex((c) => c.id === id);
     if (idx < 0) {
+      const legacyId = orderThreadId(info.orderNo);
+      const legacyIdx = convs.value.findIndex((c) => c.id === legacyId);
+      if (legacyIdx >= 0) {
+        convs.value[legacyIdx].id = id;
+        if (info.photographerId && !convs.value[legacyIdx].photographerId) {
+          convs.value[legacyIdx].photographerId = info.photographerId;
+        }
+        changed = true;
+        return;
+      }
       additions.push({
         id,
         peerName: '工作人员',
@@ -542,7 +553,7 @@ const upsertFromQuery = () => {
   if (!time) time = dayjs().format('YYYY-MM-DD');
   const pidRaw = Number(q.photographerId ?? q.pid ?? 0);
   const photographerId = Number.isFinite(pidRaw) && pidRaw > 0 ? Math.floor(pidRaw) : undefined;
-  const id = orderThreadId(orderNo);
+  const id = orderThreadId(orderNo, photographerId);
   let ex = convs.value.find((c) => c.id === id);
   if (!ex) {
     ex = {
@@ -667,7 +678,7 @@ const sendQuick = (t: string) => {
   sendText();
 };
 
-const onEnter = (evt: KeyboardEvent) => {
+const onEnter = (evt: any) => {
   if (evt.shiftKey) return;
   evt.preventDefault();
   sendText();
@@ -679,7 +690,7 @@ const sendImage: UploadProps['customRequest'] = async (options) => {
     return;
   }
   const raw = options.file as File;
-  const reader = new FileReader();
+  const reader = new window.FileReader();
   reader.onload = () => {
     const url = String(reader.result || '');
     if (!url) return;
@@ -712,6 +723,12 @@ const bootstrap = () => {
   restoreLast();
   syncSharedOrderConvsFromStorage();
   convs.value.forEach((c) => {
+    if (isOrderThreadId(c.id) && !c.photographerId) {
+      const pid = photographerIdFromThreadId(c.id);
+      if (pid) c.photographerId = pid;
+    }
+  });
+  convs.value.forEach((c) => {
     if (c.orderNo) patchConvShootingDateFromOrder(c);
   });
   if (selected.value) {
@@ -723,7 +740,7 @@ const bootstrap = () => {
   }
 };
 
-const onStorage = (e: StorageEvent) => {
+const onStorage = (e: any) => {
   if (!e.key || !e.key.startsWith('shared_order_chat_')) return;
   syncSharedOrderConvsFromStorage();
   if (selected.value && isOrderThreadId(selected.value.id)) {
