@@ -210,6 +210,32 @@
           <div v-if="authStore.user?.phone" class="tip">已绑定手机：{{ authStore.user.phone }}</div>
         </div>
 
+        <div v-if="form.role === 'photographer'" class="panel">
+          <div class="panel-h"><div class="panel-title">固定合作化妆师</div></div>
+          <a-select
+            v-model:value="selectedFixedMakeupArtistId"
+            allow-clear
+            :loading="fixedMakeupLoading"
+            placeholder="未绑定，系统将自动匹配"
+            style="width: 100%"
+          >
+            <a-select-option v-for="m in makeupArtistOptions" :key="m.id" :value="m.id">
+              {{ m.name }}{{ m.title ? ` · ${m.title}` : ''
+              }}{{ m.rating ? ` · ⭐${m.rating}` : '' }}
+            </a-select-option>
+          </a-select>
+          <a-button
+            class="pill ghost"
+            block
+            style="margin-top: 10px"
+            :loading="savingFixedMakeup"
+            @click="saveFixedMakeupArtist"
+          >
+            保存固定合作化妆师
+          </a-button>
+          <div class="tip">仅用于“用户未指定化妆师”时的自动同步分配。</div>
+        </div>
+
         <div class="panel">
           <div class="panel-h"><div class="panel-title">平台通知</div></div>
           <div class="notice">
@@ -284,7 +310,11 @@
 <script setup lang="ts">
 import { authApi } from '@/api/auth';
 import { ordersApi } from '@/api/orders';
-import { photographersApi, type PhotographerMine } from '@/api/photographers';
+import {
+  photographersApi,
+  type MakeupArtistPublic,
+  type PhotographerMine,
+} from '@/api/photographers';
 import { useAuthStore } from '@/store/auth';
 import { getApiErrorMessage } from '@/utils/apiError';
 import { unwrapOrderListPayload } from '@/utils/workerOrders';
@@ -318,6 +348,10 @@ type NoticeItem = {
   read: boolean;
 };
 const notices = ref<NoticeItem[]>([]);
+const makeupArtistOptions = ref<MakeupArtistPublic[]>([]);
+const selectedFixedMakeupArtistId = ref<number | null>(null);
+const fixedMakeupLoading = ref(false);
+const savingFixedMakeup = ref(false);
 
 const mineProfile = ref<PhotographerMine | null>(null);
 const submitApprovalLoading = ref(false);
@@ -447,6 +481,35 @@ const applyMineToForm = (hit: PhotographerMine) => {
   form.specialtyTopics = hit.specialtyTopics || '';
   form.awards = hit.awards || '';
   form.scheduleNote = hit.scheduleNote || '';
+  selectedFixedMakeupArtistId.value = hit.fixedMakeupArtistId ?? null;
+};
+
+const loadMakeupArtistOptions = async () => {
+  fixedMakeupLoading.value = true;
+  try {
+    makeupArtistOptions.value = await photographersApi.getPublicMakeupArtists();
+  } catch {
+    makeupArtistOptions.value = [];
+  } finally {
+    fixedMakeupLoading.value = false;
+  }
+};
+
+const saveFixedMakeupArtist = async () => {
+  if (!authStore.user?.workerPhotographerId) {
+    message.warning('当前账号未关联摄影师档案');
+    return;
+  }
+  savingFixedMakeup.value = true;
+  try {
+    await photographersApi.setMineFixedMakeupArtist(selectedFixedMakeupArtistId.value);
+    await hydrateFromMine();
+    message.success('固定合作化妆师已保存');
+  } catch (e: unknown) {
+    message.error(getApiErrorMessage(e));
+  } finally {
+    savingFixedMakeup.value = false;
+  }
 };
 
 const hydrateFromMine = async () => {
@@ -815,6 +878,7 @@ onMounted(async () => {
     }
   }
   await hydrateFromMine();
+  await loadMakeupArtistOptions();
   if (!mineProfile.value) {
     await hydrateFromPublicByName();
   }

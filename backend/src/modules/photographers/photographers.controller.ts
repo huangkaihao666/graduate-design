@@ -6,6 +6,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   Request,
   UploadedFile,
   UseGuards,
@@ -89,6 +90,20 @@ export class PhotographersController {
     return this.photographersService.findPublic();
   }
 
+  @Get('public-makeup')
+  @ApiOperation({ summary: '化妆师列表（用户端，可筛选）' })
+  findPublicMakeup(
+    @Query('style') style?: string,
+    @Query('specialty') specialty?: string,
+    @Query('minRating') minRating?: string,
+  ) {
+    return this.photographersService.findPublicMakeupArtists({
+      style,
+      specialty,
+      minRating: Number(minRating || 0),
+    });
+  }
+
   @Get('public/:id')
   @ApiOperation({ summary: '摄影师详情（用户端）' })
   findOnePublic(@Param('id', ParseIntPipe) id: number) {
@@ -138,5 +153,19 @@ export class PhotographersController {
     @Body() body: { title?: string | null },
   ) {
     return this.photographersService.setAdminTitle(id, body?.title ?? null);
+  }
+
+  @Patch('me/fixed-makeup')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '摄影师设置固定合作化妆师（为空则解绑）' })
+  setFixedMakeup(
+    @Request() req: { user: { sub: number } },
+    @Body() body: { makeupArtistId?: number | null },
+  ) {
+    return this.photographersService.setFixedMakeupArtistForMine(
+      req.user.sub,
+      body?.makeupArtistId == null ? null : Number(body.makeupArtistId),
+    );
   }
 }

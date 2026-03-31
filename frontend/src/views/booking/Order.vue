@@ -136,6 +136,25 @@
             </div>
           </a-form-item>
 
+          <a-form-item label="可指定化妆师（选填）">
+            <a-select
+              v-model:value="selectedMakeupArtistId"
+              placeholder="暂不指定，由系统自动分配"
+              allow-clear
+              :loading="makeupArtistsLoading"
+              style="width: 100%"
+              @change="onMakeupArtistSelectChange"
+            >
+              <a-select-option v-for="m in makeupArtistList" :key="m.id" :value="m.id">
+                {{ m.name }}{{ m.title ? ` · ${m.title}` : ''
+                }}{{ m.rating ? ` · ⭐${m.rating}` : '' }}
+              </a-select-option>
+            </a-select>
+            <div v-if="selectedMakeupArtistName" class="photographer-hint">
+              当前已选化妆师：<strong>{{ selectedMakeupArtistName }}</strong>
+            </div>
+          </a-form-item>
+
           <a-form-item label="预约人数" name="numberOfPeople">
             <a-select v-model:value="orderForm.numberOfPeople" placeholder="请选择人数">
               <a-select-option v-for="n in peopleOptions" :key="n" :value="n"
@@ -199,6 +218,10 @@
             <span class="label">指定摄影师</span>
             <span class="value">{{ selectedPhotographerName }}</span>
           </div>
+          <div v-if="selectedMakeupArtistName" class="summary-row">
+            <span class="label">指定化妆师</span>
+            <span class="value">{{ selectedMakeupArtistName }}</span>
+          </div>
 
           <div class="summary-row">
             <span class="label">预约人数</span>
@@ -244,6 +267,9 @@
           <div>套餐：{{ successInfo?.packageName }}</div>
           <div v-if="successInfo?.photographerName">
             摄影师：{{ successInfo?.photographerName }}
+          </div>
+          <div v-if="successInfo?.requestedMakeupArtistName">
+            化妆师：{{ successInfo?.requestedMakeupArtistName }}
           </div>
           <div>人数：{{ successInfo?.numberOfPeople }} 人</div>
           <div>合计：¥{{ successInfo?.totalAmount?.toLocaleString() }}</div>
@@ -324,7 +350,11 @@
 import { ordersApi } from '@/api/orders';
 import { packagesApi, type Package } from '@/api/packages';
 import { paymentsApi } from '@/api/payments';
-import { photographersApi, type PhotographerPublic } from '@/api/photographers';
+import {
+  photographersApi,
+  type MakeupArtistPublic,
+  type PhotographerPublic,
+} from '@/api/photographers';
 import { TRAVEL_STYLE_LABELS } from '@/constants/travel-style-labels';
 import { useAuthStore } from '@/store/auth';
 import type { FormInstance } from 'ant-design-vue';
@@ -377,6 +407,7 @@ const successInfo = ref<{
   orderNo: string;
   packageName: string;
   photographerName?: string;
+  requestedMakeupArtistName?: string;
   numberOfPeople: number;
   totalAmount: number;
   paymentMethod: string;
@@ -389,6 +420,10 @@ const photographerPublicList = ref<PhotographerPublic[]>([]);
 const photographersLoading = ref(false);
 /** 用于读取 availableDates / scheduleNote（优先列表，否则单次详情） */
 const photographerScheduleDetail = ref<PhotographerPublic | null>(null);
+const selectedMakeupArtistId = ref<number | null>(null);
+const selectedMakeupArtistName = ref('');
+const makeupArtistList = ref<MakeupArtistPublic[]>([]);
+const makeupArtistsLoading = ref(false);
 
 const orderForm = reactive({
   packageId: 0,
@@ -648,7 +683,7 @@ const onCalendarDayClick = (cell: CalendarCell) => {
 const paymentModalVisible = ref(false);
 const paymentSubmitting = ref(false);
 const paymentPrepLoading = ref(false);
-let paymentPollTimer: ReturnType<typeof setInterval> | null = null;
+let paymentPollTimer: number | null = null;
 
 const paymentInfo = ref<{
   orderNo: string;
@@ -698,6 +733,8 @@ const saveStateToStorage = () => {
         remark: orderForm.remark,
         photographerId: selectedPhotographerId.value ?? undefined,
         photographerName: selectedPhotographerName.value || undefined,
+        makeupArtistId: selectedMakeupArtistId.value ?? undefined,
+        makeupArtistName: selectedMakeupArtistName.value || undefined,
       })
     );
   } catch (e) {
@@ -722,6 +759,11 @@ const restoreStateFromStorage = () => {
       if (!Number.isNaN(pid) && pid > 0) {
         selectedPhotographerId.value = pid;
         selectedPhotographerName.value = String(state.photographerName || '');
+      }
+      const mid = state.makeupArtistId != null ? Number(state.makeupArtistId) : NaN;
+      if (!Number.isNaN(mid) && mid > 0) {
+        selectedMakeupArtistId.value = mid;
+        selectedMakeupArtistName.value = String(state.makeupArtistName || '');
       }
     }
   } catch (e) {
@@ -836,6 +878,43 @@ const loadPhotographersList = async () => {
   }
 };
 
+const loadMakeupArtists = async () => {
+  makeupArtistsLoading.value = true;
+  try {
+    makeupArtistList.value = await photographersApi.getPublicMakeupArtists();
+  } catch {
+    makeupArtistList.value = [];
+  } finally {
+    makeupArtistsLoading.value = false;
+  }
+};
+
+const onMakeupArtistSelectChange = async (val: number | string | undefined) => {
+  if (val == null || val === '') {
+    selectedMakeupArtistId.value = null;
+    selectedMakeupArtistName.value = '';
+    return;
+  }
+  const id = Number(val);
+  if (!Number.isFinite(id) || id <= 0) {
+    selectedMakeupArtistId.value = null;
+    selectedMakeupArtistName.value = '';
+    return;
+  }
+  selectedMakeupArtistId.value = id;
+  const selected = makeupArtistList.value.find((x) => x.id === id);
+  selectedMakeupArtistName.value = selected?.name || '';
+  if (!orderForm.shootingDate) return;
+  try {
+    const booked = await ordersApi.getMakeupArtistBookedDates(id);
+    if (booked.includes(orderForm.shootingDate)) {
+      message.warning('该化妆师在当前拍摄日期已被分配，请更换日期或化妆师');
+    }
+  } catch {
+    /* ignore */
+  }
+};
+
 const onPhotographerSelectChange = async (val: number | string | undefined) => {
   if (val == null || val === '') {
     selectedPhotographerId.value = null;
@@ -892,10 +971,13 @@ const loadSelectedPackage = async () => {
   selectedPhotographerId.value = null;
   selectedPhotographerName.value = '';
   photographerScheduleDetail.value = null;
+  selectedMakeupArtistId.value = null;
+  selectedMakeupArtistName.value = '';
 
   restoreStateFromStorage();
   await applyPhotographerFromUrl();
   await loadPhotographersList();
+  await loadMakeupArtists();
   await refreshPhotographerScheduleDetail();
   await refreshPhotographerBookedDates();
 
@@ -948,6 +1030,8 @@ const handleReset = () => {
   selectedPhotographerId.value = null;
   selectedPhotographerName.value = '';
   photographerScheduleDetail.value = null;
+  selectedMakeupArtistId.value = null;
+  selectedMakeupArtistName.value = '';
   const q = { ...route.query } as Record<string, string | string[] | undefined>;
   delete q.photographerId;
   router.replace({ path: route.path, query: q });
@@ -986,6 +1070,8 @@ const handleSubmit = async () => {
       remark: orderForm.remark || undefined,
       photographerId: selectedPhotographerId.value ?? undefined,
       photographerName: selectedPhotographerName.value || undefined,
+      requestedMakeupArtistId: selectedMakeupArtistId.value ?? undefined,
+      requestedMakeupArtistName: selectedMakeupArtistName.value || undefined,
       totalAmount,
       paymentStatus,
       paymentNo,
@@ -1021,6 +1107,7 @@ const handleSubmit = async () => {
       orderNo,
       packageName: order.packageName,
       photographerName: order.photographerName,
+      requestedMakeupArtistName: order.requestedMakeupArtistName,
       numberOfPeople: order.numberOfPeople,
       totalAmount: order.totalAmount,
       paymentMethod: order.paymentMethod,
@@ -1032,7 +1119,10 @@ const handleSubmit = async () => {
     // 清空当前表单（保留套餐信息）
     handleReset();
   } catch (e: any) {
-    message.error(e?.message || '提交失败，请稍后重试');
+    const msg = String(e?.message || '').trim();
+    // 400 错误已在全局 http 拦截器里提示，这里避免重复弹框
+    if (msg.includes('指定化妆师该日期档期不可用')) return;
+    message.error(msg || '提交失败，请稍后重试');
   } finally {
     submitting.value = false;
   }
@@ -1040,7 +1130,7 @@ const handleSubmit = async () => {
 
 const stopPaymentPoll = () => {
   if (paymentPollTimer) {
-    clearInterval(paymentPollTimer);
+    window.clearInterval(paymentPollTimer);
     paymentPollTimer = null;
   }
 };
@@ -1067,7 +1157,7 @@ const startPaymentPoll = () => {
   stopPaymentPoll();
   const orderNo = successInfo.value?.orderNo;
   if (!orderNo) return;
-  paymentPollTimer = setInterval(async () => {
+  paymentPollTimer = window.setInterval(async () => {
     try {
       const st = await paymentsApi.getStatus(orderNo);
       if (st.paid) {
@@ -1161,6 +1251,8 @@ watch(
     orderForm.remark,
     selectedPhotographerId.value,
     selectedPhotographerName.value,
+    selectedMakeupArtistId.value,
+    selectedMakeupArtistName.value,
   ],
   () => saveStateToStorage(),
   { deep: false }

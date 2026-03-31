@@ -46,6 +46,7 @@ async function seedDevAccounts(app: any) {
         name,
         password: hashed,
         role: 'worker',
+        workerKind: 'makeup',
       },
       select: { id: true },
     });

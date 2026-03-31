@@ -55,6 +55,7 @@ type PhotographerRow = {
   availableDates: unknown;
   restDates: unknown;
   scheduleNote: string | null;
+  fixedMakeupArtistId: number | null;
   sortOrder: number;
   enabled: boolean;
   approvalStatus: string;
@@ -65,6 +66,39 @@ type PhotographerRow = {
 
 @Injectable()
 export class PhotographersService {
+  private isMakeupProfile(row: {
+    name?: string | null;
+    title?: string | null;
+    shootingStyle?: string | null;
+    specialtyTopics?: string | null;
+    bio?: string | null;
+  }): boolean {
+    const hay = [
+      row.name || '',
+      row.title || '',
+      row.shootingStyle || '',
+      row.specialtyTopics || '',
+      row.bio || '',
+    ]
+      .join(' ')
+      .toLowerCase();
+    const keys = [
+      '化妆',
+      '妆造',
+      '新娘妆',
+      '跟妆',
+      'makeup',
+      'mua',
+      '试妆',
+      '造型',
+    ];
+    return keys.some((k) => hay.includes(k));
+  }
+
+  private toPseudoRating(id: number): number {
+    return Number((4.2 + (id % 7) * 0.1).toFixed(1));
+  }
+
   constructor(private readonly prisma: PrismaService) {}
 
   buildDataUrlFromImage(file: AvatarUploadFile | undefined): { url: string } {
@@ -104,6 +138,7 @@ export class PhotographersService {
       availableDates,
       restDates,
       scheduleNote: row.scheduleNote ?? undefined,
+      fixedMakeupArtistId: row.fixedMakeupArtistId ?? undefined,
       sortOrder: row.sortOrder,
     };
   }
@@ -136,6 +171,48 @@ export class PhotographersService {
       throw new NotFoundException('摄影师不存在或已下架');
     }
     return this.mapPublic(row as PhotographerRow);
+  }
+
+  /** 用户端：化妆师列表（支持按风格/擅长/评分筛选） */
+  async findPublicMakeupArtists(query?: {
+    style?: string;
+    specialty?: string;
+    minRating?: number;
+  }) {
+    const rows = await this.prisma.photographer.findMany({
+      where: { enabled: true, approvalStatus: 'approved' },
+      orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+    });
+    const styleQ = String(query?.style || '')
+      .trim()
+      .toLowerCase();
+    const specialtyQ = String(query?.specialty || '')
+      .trim()
+      .toLowerCase();
+    const minRating = Number(query?.minRating || 0);
+
+    return rows
+      .filter((r) => this.isMakeupProfile(r as PhotographerRow))
+      .map((r) => {
+        const mapped = this.mapPublic(r as PhotographerRow);
+        const rating = this.toPseudoRating(Number(r.id));
+        return {
+          ...mapped,
+          rating,
+        };
+      })
+      .filter((r) => {
+        if (styleQ) {
+          const hay = String(r.shootingStyle || '').toLowerCase();
+          if (!hay.includes(styleQ)) return false;
+        }
+        if (specialtyQ) {
+          const hay = String(r.specialtyTopics || '').toLowerCase();
+          if (!hay.includes(specialtyQ)) return false;
+        }
+        if (minRating > 0 && Number(r.rating || 0) < minRating) return false;
+        return true;
+      });
   }
 
   async findAllAdmin() {
@@ -474,6 +551,55 @@ export class PhotographersService {
         '摄影师档案未通过管理员审核，暂不可接单或处理订单改期',
       );
     }
+  }
+
+  async setFixedMakeupArtistForMine(
+    userId: number,
+    makeupArtistId?: number | null,
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true, workerPhotographerId: true },
+    });
+    if (!user || user.role !== 'worker' || !user.workerPhotographerId) {
+      throw new ForbiddenException('当前账号未绑定摄影师档案');
+    }
+    const pid = user.workerPhotographerId;
+    if (!makeupArtistId) {
+      await this.prisma.photographer.update({
+        where: { id: pid },
+        data: { fixedMakeupArtistId: null },
+      });
+      return { ok: true as const, fixedMakeupArtistId: null };
+    }
+    const target = await this.prisma.photographer.findUnique({
+      where: { id: makeupArtistId },
+      select: {
+        id: true,
+        enabled: true,
+        approvalStatus: true,
+        name: true,
+        title: true,
+        shootingStyle: true,
+        specialtyTopics: true,
+        bio: true,
+      },
+    });
+    if (!target || !target.enabled || target.approvalStatus !== 'approved') {
+      throw new NotFoundException('化妆师不存在或不可用');
+    }
+    if (!this.isMakeupProfile(target)) {
+      throw new BadRequestException('目标档案不是化妆师类型');
+    }
+    await this.prisma.photographer.update({
+      where: { id: pid },
+      data: { fixedMakeupArtistId: target.id },
+    });
+    return {
+      ok: true as const,
+      fixedMakeupArtistId: target.id,
+      fixedMakeupArtistName: target.name,
+    };
   }
 
   private async ensureExists(id: number) {

@@ -308,6 +308,21 @@ const routes: RouteRecordRaw[] = [
         path: 'custom-market',
         name: 'WorkerCustomMarket',
         component: WorkerCustomMarket,
+        beforeEnter: (_to, _from, next) => {
+          const authStore = useAuthStore();
+          authStore.initializeAuth();
+          const kind = String(authStore.user?.workerKind || '')
+            .trim()
+            .toLowerCase();
+          const email = String(authStore.user?.email || '')
+            .trim()
+            .toLowerCase();
+          if (kind === 'makeup' || email === 'hzs@qq.com') {
+            next({ name: 'WorkerOrders', replace: true });
+            return;
+          }
+          next();
+        },
         meta: { title: '定制需求广场' },
       },
       {

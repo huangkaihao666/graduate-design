@@ -76,10 +76,30 @@ export class OrdersController {
     return this.ordersService.rescheduleForWorkerUser(req.user.id, id, body);
   }
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Patch('worker/:id/makeup-confirm')
+  @ApiOperation({ summary: '化妆师确认档期（仅已分配订单）' })
+  confirmMakeupScheduleForWorker(
+    @Request() req: { user: { id: number } },
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.ordersService.confirmMakeupScheduleForWorkerUser(
+      req.user.id,
+      id,
+    );
+  }
+
   @Get('photographers/:id/booked-dates')
   @ApiOperation({ summary: '获取摄影师已被预约的日期列表' })
   getBookedDatesByPhotographer(@Param('id', ParseIntPipe) id: number) {
     return this.ordersService.getBookedDatesByPhotographer(id);
+  }
+
+  @Get('makeup-artists/:id/booked-dates')
+  @ApiOperation({ summary: '获取化妆师已分配订单的日期列表' })
+  getBookedDatesByMakeupArtist(@Param('id', ParseIntPipe) id: number) {
+    return this.ordersService.getBookedDatesByMakeupArtist(id);
   }
 
   @Patch(':id/reschedule-request')

@@ -76,18 +76,24 @@
               </a-input-password>
             </a-form-item>
 
-            <a-form-item v-if="!isLogin" class="worker-reg">
-              <a-checkbox v-model:checked="formState.registerAsPhotographer">
-                注册为摄影师（需管理员审核通过后方可接单）
-              </a-checkbox>
+            <a-form-item v-if="!isLogin" label="注册身份">
+              <a-radio-group v-model:value="formState.registrationType" class="reg-type-group">
+                <a-radio value="user">普通用户</a-radio>
+                <a-radio value="photographer">摄影师（需审核后接单）</a-radio>
+                <a-radio value="makeup">化妆师（需审核后接单）</a-radio>
+              </a-radio-group>
             </a-form-item>
             <a-form-item
-              v-if="!isLogin && formState.registerAsPhotographer"
-              label="拍摄风格（选填）"
+              v-if="!isLogin && formState.registrationType !== 'user'"
+              label="风格说明（选填）"
             >
               <a-input
                 v-model:value="formState.shootingStyleForPhotographer"
-                placeholder="如：纪实旅拍、韩系清新"
+                :placeholder="
+                  formState.registrationType === 'makeup'
+                    ? '如：新娘跟妆、韩系清透'
+                    : '如：纪实旅拍、韩系清新'
+                "
                 size="large"
               />
             </a-form-item>
@@ -134,7 +140,7 @@ const formState = reactive({
   password: '',
   name: '',
   confirmPassword: '',
-  registerAsPhotographer: false,
+  registrationType: 'user' as 'user' | 'photographer' | 'makeup',
   shootingStyleForPhotographer: '',
 });
 
@@ -144,7 +150,7 @@ const toggleMode = () => {
   formState.password = '';
   formState.name = '';
   formState.confirmPassword = '';
-  formState.registerAsPhotographer = false;
+  formState.registrationType = 'user';
   formState.shootingStyleForPhotographer = '';
 };
 
@@ -189,11 +195,14 @@ const handleSubmit = async () => {
         email: formState.email,
         password: formState.password,
         name: formState.name,
-        registerAsPhotographer: !!formState.registerAsPhotographer,
+        registrationType: formState.registrationType,
         shootingStyleForPhotographer: formState.shootingStyleForPhotographer.trim() || undefined,
       });
-      if (formState.registerAsPhotographer) {
+      if (formState.registrationType === 'photographer') {
         message.success('摄影师账号已创建，请完善资料并提交管理员审核');
+        router.push('/worker/profile');
+      } else if (formState.registrationType === 'makeup') {
+        message.success('化妆师账号已创建，请完善资料并提交管理员审核');
         router.push('/worker/profile');
       } else {
         message.success('注册成功');
@@ -369,6 +378,12 @@ const handleSubmit = async () => {
       color: #888;
       font-size: 14px;
     }
+  }
+
+  .reg-type-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
 
   .auth-form {

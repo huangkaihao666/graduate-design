@@ -17,6 +17,11 @@ export interface PhotographerPublic {
   restDates?: string[];
   scheduleNote?: string;
   sortOrder: number;
+  fixedMakeupArtistId?: number;
+}
+
+export interface MakeupArtistPublic extends PhotographerPublic {
+  rating?: number;
 }
 
 export interface PhotographerAdmin extends PhotographerPublic {
@@ -63,6 +68,22 @@ export const photographersApi = {
     httpClient
       .get<PhotographerPublic>(`/photographers/public/${id}`)
       .then((res) => unwrap<PhotographerPublic>(res)),
+
+  getPublicMakeupArtists: (params?: { style?: string; specialty?: string; minRating?: number }) =>
+    httpClient
+      .get<unknown>('/photographers/public-makeup', {
+        params: {
+          style: params?.style || undefined,
+          specialty: params?.specialty || undefined,
+          minRating: params?.minRating || undefined,
+        },
+      })
+      .then((res) => unwrapList<MakeupArtistPublic>(res)),
+
+  setMineFixedMakeupArtist: (makeupArtistId?: number | null) =>
+    httpClient
+      .patch<unknown>('/photographers/me/fixed-makeup', { makeupArtistId: makeupArtistId ?? null })
+      .then((res) => unwrap(res)),
 
   /** 当前登录摄影师档案（工作人员 JWT） */
   getMine: () =>

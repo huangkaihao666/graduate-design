@@ -28,8 +28,15 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
 
-    if (createUserDto.registerAsPhotographer) {
+    const registrationType =
+      createUserDto.registrationType ??
+      (createUserDto.registerAsPhotographer ? 'photographer' : 'user');
+
+    if (registrationType === 'photographer') {
       return this.registerPhotographer(createUserDto, hashedPassword);
+    }
+    if (registrationType === 'makeup') {
+      return this.registerMakeupArtist(createUserDto, hashedPassword);
     }
 
     const user = await this.usersService.create({
@@ -67,6 +74,7 @@ export class AuthService {
           email: dto.email,
           password: hashedPassword,
           role: 'worker',
+          workerKind: 'photographer',
         },
       });
 
@@ -99,6 +107,61 @@ export class AuthService {
     return {
       statusCode: 201,
       message: '摄影师账号已创建，请完善资料并提交管理员审核',
+      data: {
+        user: payloadUser,
+        ...tokens,
+      },
+    };
+  }
+
+  private async registerMakeupArtist(
+    dto: CreateUserDto,
+    hashedPassword: string,
+  ) {
+    const shootingStyle =
+      (dto.shootingStyleForPhotographer || '').trim() ||
+      '（化妆师：请在个人中心补充擅长风格）';
+
+    const newUserId = await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          name: dto.name,
+          email: dto.email,
+          password: hashedPassword,
+          role: 'worker',
+          workerKind: 'makeup',
+        },
+      });
+
+      const ph = await tx.photographer.create({
+        data: {
+          name: dto.name,
+          shootingStyle,
+          yearsExperience: 0,
+          portfolioImages: [] as unknown as Prisma.InputJsonValue,
+          availableDates: [] as unknown as Prisma.InputJsonValue,
+          restDates: [] as unknown as Prisma.InputJsonValue,
+          enabled: false,
+          approvalStatus: 'draft',
+          approvalReviewNote: null,
+          sortOrder: 999,
+        },
+      });
+
+      await tx.user.update({
+        where: { id: user.id },
+        data: { workerPhotographerId: ph.id },
+      });
+
+      return user.id;
+    });
+
+    const tokens = this.generateTokens(newUserId);
+    const payloadUser = await this.buildAuthUserPayload(newUserId);
+
+    return {
+      statusCode: 201,
+      message: '化妆师账号已创建，请完善资料并提交管理员审核',
       data: {
         user: payloadUser,
         ...tokens,

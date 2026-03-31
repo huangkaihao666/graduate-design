@@ -24,6 +24,8 @@ model User {
   isActive  Boolean @default(true)
   /// user | worker | admin
   role      String  @default("user") @db.VarChar(20)
+  /// 工作人员子类型：photographer=摄影师 makeup=化妆师；普通用户与管理员为 null
+  workerKind String? @db.VarChar(20)
   /// 工作人员账号绑定本店摄影师（用于只查看该摄影师相关订单）；演示账号不绑定则为空
   workerPhotographerId Int?         @db.UnsignedInt
   workerPhotographer   Photographer? @relation("WorkerPhotographer", fields: [workerPhotographerId], references: [id], onDelete: SetNull, onUpdate: Cascade)
@@ -284,6 +286,8 @@ model Photographer {
   restDates        Json    @default("[]")
   /// 档期说明（如：每周二店休、节假日可约等）
   scheduleNote     String? @db.Text
+  /// 固定合作化妆师（同表自关联，指向化妆师档案 id）
+  fixedMakeupArtistId Int? @db.UnsignedInt
   sortOrder        Int     @default(0) @db.UnsignedInt
   enabled          Boolean @default(true)
   /// draft=待提交审核 | pending=审核中 | approved=已通过 | rejected=已驳回
@@ -296,10 +300,13 @@ model Photographer {
 
   workerAccounts User[] @relation("WorkerPhotographer")
   customShootRequests CustomShootRequest[]
+  fixedMakeupArtist Photographer? @relation("PhotographerFixedMakeupArtist", fields: [fixedMakeupArtistId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  fixedByPhotographers Photographer[] @relation("PhotographerFixedMakeupArtist")
 
   @@map("photographers")
   @@index([enabled, sortOrder])
   @@index([approvalStatus])
+  @@index([fixedMakeupArtistId])
 }
 
 /// 套餐浏览埋点（详情弹窗 / 下单入口），供运营报告统计兴趣热度
@@ -398,6 +405,15 @@ model BookingOrder {
   /// 用户指定的摄影师（可选）
   photographerId   Int?    @db.UnsignedInt
   photographerName String? @db.VarChar(100)
+  /// 用户指定的化妆师（可选，仅用于下单阶段记录）
+  requestedMakeupArtistId Int? @db.UnsignedInt
+  requestedMakeupArtistName String? @db.VarChar(100)
+  /// 系统最终分配的化妆师
+  assignedMakeupArtistId Int? @db.UnsignedInt
+  assignedMakeupArtistName String? @db.VarChar(100)
+  /// pending / confirmed
+  makeupScheduleStatus String? @db.VarChar(30)
+  makeupScheduleConfirmedAt DateTime?
   totalAmount    Int      @db.UnsignedInt
   paymentStatus  String   @db.VarChar(30) // unpaid / paid / offline_pending / cancelled / completed
   paymentNo      String?  @db.VarChar(64)
@@ -432,6 +448,7 @@ model BookingOrder {
   @@index([createdAt])
   @@index([paymentStatus])
   @@index([photographerId])
+  @@index([assignedMakeupArtistId, shootingDate])
   @@index([workerUserId, createdAt])
   @@index([userId])
 }

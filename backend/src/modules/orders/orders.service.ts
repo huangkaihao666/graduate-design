@@ -51,6 +51,141 @@ export class OrdersService {
     return diffDays >= 3;
   }
 
+  private isMakeupProfile(profile: {
+    name?: string | null;
+    title?: string | null;
+    shootingStyle?: string | null;
+    specialtyTopics?: string | null;
+    bio?: string | null;
+  }): boolean {
+    const hay = [
+      profile.name || '',
+      profile.title || '',
+      profile.shootingStyle || '',
+      profile.specialtyTopics || '',
+      profile.bio || '',
+    ]
+      .join(' ')
+      .toLowerCase();
+    const keys = [
+      '化妆',
+      '妆造',
+      '新娘妆',
+      '跟妆',
+      'makeup',
+      'mua',
+      '试妆',
+      '造型',
+    ];
+    return keys.some((k) => hay.includes(k));
+  }
+
+  private async validateMakeupArtistAvailability(
+    makeupArtistId: number,
+    shootingDate: string,
+    ignoreOrderId?: number,
+  ) {
+    const makeup = await this.prisma.photographer.findUnique({
+      where: { id: makeupArtistId },
+      select: {
+        id: true,
+        name: true,
+        title: true,
+        shootingStyle: true,
+        specialtyTopics: true,
+        bio: true,
+        enabled: true,
+        approvalStatus: true,
+        availableDates: true,
+        restDates: true,
+      },
+    });
+    if (!makeup || !makeup.enabled || makeup.approvalStatus !== 'approved') {
+      throw new ConflictException('指定化妆师不可用，请更换');
+    }
+    if (!this.isMakeupProfile(makeup)) {
+      throw new ConflictException('指定档案不是化妆师，请重新选择');
+    }
+    const available = this.normalizeDateStrings(makeup.availableDates ?? []);
+    const rest = this.normalizeDateStrings(makeup.restDates ?? []);
+    if (!available.includes(shootingDate) || rest.includes(shootingDate)) {
+      throw new ConflictException(
+        '指定化妆师该日期档期不可用，请更换日期或化妆师',
+      );
+    }
+    const conflict = await this.prisma.bookingOrder.findFirst({
+      where: {
+        id: ignoreOrderId ? { not: ignoreOrderId } : undefined,
+        OR: [
+          { assignedMakeupArtistId: makeupArtistId } as any,
+          { requestedMakeupArtistId: makeupArtistId } as any,
+        ],
+        shootingDate,
+        paymentStatus: { not: 'cancelled' },
+      } as any,
+      select: { id: true },
+    });
+    if (conflict) {
+      throw new ConflictException('指定化妆师该日期已被占用，请更换');
+    }
+    return makeup;
+  }
+
+  private async autoPickMakeupArtist(
+    shootingDate: string,
+    orderStyle: string,
+  ): Promise<{ id: number; name: string } | null> {
+    const rows = await this.prisma.photographer.findMany({
+      where: { enabled: true, approvalStatus: 'approved' },
+      orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+      select: {
+        id: true,
+        name: true,
+        title: true,
+        shootingStyle: true,
+        specialtyTopics: true,
+        bio: true,
+        availableDates: true,
+        restDates: true,
+      },
+    });
+    const styleNeedle = String(orderStyle || '').toLowerCase();
+    const makeupList = rows.filter((r) => this.isMakeupProfile(r));
+
+    const availableList = makeupList.filter((m) => {
+      const available = this.normalizeDateStrings(m.availableDates ?? []);
+      const rest = this.normalizeDateStrings(m.restDates ?? []);
+      return available.includes(shootingDate) && !rest.includes(shootingDate);
+    });
+    if (!availableList.length) return null;
+
+    const withLoad = await Promise.all(
+      availableList.map(async (m) => {
+        const occupied = await this.prisma.bookingOrder.count({
+          where: {
+            assignedMakeupArtistId: m.id,
+            shootingDate,
+            paymentStatus: { not: 'cancelled' },
+          } as any,
+        });
+        const styleHit = String(
+          `${m.shootingStyle || ''} ${m.specialtyTopics || ''}`,
+        )
+          .toLowerCase()
+          .includes(styleNeedle);
+        return { id: m.id, name: m.name, occupied, styleHit };
+      }),
+    );
+
+    withLoad.sort((a, b) => {
+      if (a.styleHit !== b.styleHit) return a.styleHit ? -1 : 1;
+      if (a.occupied !== b.occupied) return a.occupied - b.occupied;
+      return a.id - b.id;
+    });
+    const best = withLoad[0];
+    return best ? { id: best.id, name: best.name } : null;
+  }
+
   async create(data: Prisma.BookingOrderCreateInput) {
     const photographerId =
       typeof data.photographerId === 'number' ? data.photographerId : undefined;
@@ -67,6 +202,18 @@ export class OrdersService {
       if (occupied) {
         throw new ConflictException('该摄影师在该日期已被预约，请选择其他日期');
       }
+    }
+    const requestedMakeupArtistId =
+      typeof (data as any).requestedMakeupArtistId === 'number'
+        ? (data as any).requestedMakeupArtistId
+        : undefined;
+    if (requestedMakeupArtistId && shootingDate) {
+      const mk = await this.validateMakeupArtistAvailability(
+        requestedMakeupArtistId,
+        shootingDate,
+      );
+      (data as any).requestedMakeupArtistName =
+        (data as any).requestedMakeupArtistName || mk.name;
     }
     return this.prisma.bookingOrder.create({ data });
   }
@@ -102,6 +249,22 @@ export class OrdersService {
         photographerId,
         paymentStatus: { not: 'cancelled' },
       },
+      select: { shootingDate: true },
+      orderBy: { shootingDate: 'asc' },
+    });
+    return [
+      ...new Set(
+        rows.map((x) => String(x.shootingDate).trim()).filter(Boolean),
+      ),
+    ];
+  }
+
+  async getBookedDatesByMakeupArtist(makeupArtistId: number) {
+    const rows = await this.prisma.bookingOrder.findMany({
+      where: {
+        assignedMakeupArtistId: makeupArtistId,
+        paymentStatus: { not: 'cancelled' },
+      } as any,
       select: { shootingDate: true },
       orderBy: { shootingDate: 'asc' },
     });
@@ -291,6 +454,31 @@ export class OrdersService {
       return this.findAll();
     }
     const pid = user.workerPhotographerId;
+    const profile = await this.prisma.photographer.findUnique({
+      where: { id: pid },
+      select: {
+        id: true,
+        name: true,
+        title: true,
+        shootingStyle: true,
+        specialtyTopics: true,
+        bio: true,
+      },
+    });
+    if (profile && this.isMakeupProfile(profile)) {
+      return this.prisma.bookingOrder.findMany({
+        where: {
+          OR: [
+            { assignedMakeupArtistId: pid } as any,
+            {
+              requestedMakeupArtistId: pid,
+              assignedMakeupArtistId: null,
+            } as any,
+          ],
+        } as any,
+        orderBy: { createdAt: 'desc' },
+      });
+    }
     return this.prisma.bookingOrder.findMany({
       where: {
         OR: [{ photographerId: pid }, { workerUserId: userId }],
@@ -315,6 +503,26 @@ export class OrdersService {
     })) as any;
     if (!order) throw new NotFoundException('订单不存在');
 
+    if (user.workerPhotographerId) {
+      const profile = await this.prisma.photographer.findUnique({
+        where: { id: user.workerPhotographerId },
+        select: {
+          id: true,
+          name: true,
+          title: true,
+          shootingStyle: true,
+          specialtyTopics: true,
+          bio: true,
+          fixedMakeupArtistId: true,
+        },
+      });
+      if (profile && this.isMakeupProfile(profile)) {
+        throw new ForbiddenException(
+          '化妆师不参与抢单，仅需确认已分配订单档期',
+        );
+      }
+    }
+
     // 若账号绑定了摄影师，仅允许接与该摄影师相关订单
     if (
       user.workerPhotographerId &&
@@ -329,13 +537,100 @@ export class OrdersService {
       throw new ConflictException('该订单已被其他工作人员接单');
     }
 
-    return this.prisma.bookingOrder.update({
+    const updated = await this.prisma.bookingOrder.update({
       where: { id: orderId },
       data: {
         workerUserId: user.id,
         workerName: user.name,
         workerType: 'photographer',
         workerTakenAt: new Date(),
+      } as any,
+    });
+
+    const photographerProfile = user.workerPhotographerId
+      ? await this.prisma.photographer.findUnique({
+          where: { id: user.workerPhotographerId },
+          select: { fixedMakeupArtistId: true },
+        })
+      : null;
+    const requestedMid = Number(order.requestedMakeupArtistId || 0) || null;
+    const fixedMid =
+      Number(photographerProfile?.fixedMakeupArtistId || 0) || null;
+    let assigned: { id: number; name: string } | null = null;
+
+    if (requestedMid) {
+      const mk = await this.validateMakeupArtistAvailability(
+        requestedMid,
+        String(order.shootingDate || '').trim(),
+        Number(order.id),
+      );
+      assigned = { id: mk.id, name: mk.name };
+    } else if (fixedMid) {
+      try {
+        const mk = await this.validateMakeupArtistAvailability(
+          fixedMid,
+          String(order.shootingDate || '').trim(),
+          Number(order.id),
+        );
+        assigned = { id: mk.id, name: mk.name };
+      } catch {
+        assigned = null;
+      }
+    }
+    if (!assigned) {
+      assigned = await this.autoPickMakeupArtist(
+        String(order.shootingDate || '').trim(),
+        String(order.style || '').trim(),
+      );
+    }
+    if (!assigned) return updated;
+
+    return this.prisma.bookingOrder.update({
+      where: { id: orderId },
+      data: {
+        assignedMakeupArtistId: assigned.id,
+        assignedMakeupArtistName: assigned.name,
+        makeupScheduleStatus: 'pending',
+        makeupScheduleConfirmedAt: null,
+      } as any,
+    });
+  }
+
+  async confirmMakeupScheduleForWorkerUser(userId: number, orderId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true, workerPhotographerId: true },
+    });
+    if (!user || user.role !== 'worker' || !user.workerPhotographerId) {
+      throw new ForbiddenException('仅化妆师可操作');
+    }
+    const pid = user.workerPhotographerId;
+    const profile = await this.prisma.photographer.findUnique({
+      where: { id: pid },
+      select: {
+        id: true,
+        name: true,
+        title: true,
+        shootingStyle: true,
+        specialtyTopics: true,
+        bio: true,
+      },
+    });
+    if (!profile || !this.isMakeupProfile(profile)) {
+      throw new ForbiddenException('当前账号不是化妆师');
+    }
+    const order = (await this.prisma.bookingOrder.findUnique({
+      where: { id: orderId },
+    })) as any;
+    if (!order) throw new NotFoundException('订单不存在');
+    if (Number(order.assignedMakeupArtistId || 0) !== pid) {
+      throw new ForbiddenException('该订单未分配给当前化妆师');
+    }
+    return this.prisma.bookingOrder.update({
+      where: { id: orderId },
+      data: {
+        makeupScheduleStatus: 'confirmed',
+        makeupScheduleConfirmedAt: new Date(),
       } as any,
     });
   }

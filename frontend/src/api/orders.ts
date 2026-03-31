@@ -22,6 +22,10 @@ export const ordersApi = {
     httpClient
       .get<unknown>(`/orders/photographers/${photographerId}/booked-dates`)
       .then((res) => unwrapList<string>(res)),
+  getMakeupArtistBookedDates: (makeupArtistId: number) =>
+    httpClient
+      .get<unknown>(`/orders/makeup-artists/${makeupArtistId}/booked-dates`)
+      .then((res) => unwrapList<string>(res)),
   updateOrderStatus: (id: number, status: string) =>
     httpClient.patch<unknown>(`/orders/${id}/status`, { status }).then((res) => unwrap(res)),
   requestReschedule: (id: number, body: { newShootingDate: string; reason?: string }) =>
@@ -33,4 +37,6 @@ export const ordersApi = {
     httpClient.patch<unknown>(`/orders/${id}/reschedule-review`, body).then((res) => unwrap(res)),
   getDashboardStats: () =>
     httpClient.get<unknown>('/orders/dashboard/stats').then((res) => unwrap(res)),
+  confirmMakeupSchedule: (id: number) =>
+    httpClient.patch<unknown>(`/orders/worker/${id}/makeup-confirm`, {}).then((res) => unwrap(res)),
 };

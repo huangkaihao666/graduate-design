@@ -85,7 +85,7 @@
           </div>
           <div class="btns">
             <a-tooltip
-              v-if="selected && selected.uiStatus === 'pending'"
+              v-if="selected && selected.uiStatus === 'pending' && !isMakeupWorker"
               :title="
                 canTakeOrders
                   ? ''
@@ -96,6 +96,35 @@
                 确认接单
               </a-button>
             </a-tooltip>
+            <div v-if="selected && isMakeupWorker && selected.makeupScheduleStatus !== 'confirmed'">
+              <a-tooltip
+                :title="
+                  makeupConfirmDisabledByPendingPhotographer ? '请等待摄影师接单后自动分配' : ''
+                "
+              >
+                <div class="makeup-confirm-wrap">
+                  <a-button
+                    block
+                    class="pill take-btn"
+                    :disabled="makeupConfirmDisabledByPendingPhotographer"
+                    @click="confirmMakeupSchedule"
+                  >
+                    确认档期
+                  </a-button>
+                </div>
+              </a-tooltip>
+            </div>
+            <div
+              v-if="
+                selected &&
+                isMakeupWorker &&
+                selected.makeupScheduleStatus !== 'confirmed' &&
+                makeupConfirmDisabledByPendingPhotographer
+              "
+              class="makeup-wait-tip"
+            >
+              请等待摄影师接单后自动分配
+            </div>
             <a-button type="primary" class="pill ghost" @click="reschedule">修改时间</a-button>
             <a-button type="primary" class="pill ghost" @click="contact">联系客户</a-button>
           </div>
@@ -294,6 +323,14 @@ const router = useRouter();
 const authStore = useAuthStore();
 
 const canTakeOrders = computed(() => !!authStore.user?.photographerCanTakeOrders);
+const isMakeupWorker = computed(() => {
+  if (String(authStore.user?.workerKind || '').toLowerCase() === 'makeup') return true;
+  const email = String(authStore.user?.email || '')
+    .trim()
+    .toLowerCase();
+  if (email === 'hzs@qq.com') return true;
+  return false;
+});
 
 const loading = ref(false);
 const rows = ref<OrderRow[]>([]);
@@ -361,6 +398,31 @@ const normalizeStatus = (o: any): UiStatus => {
   if (s === 'completed') return 'completed';
   if (Number(o?.workerUserId || 0) > 0 || String(o?.workerTakenAt || '').trim()) return 'confirmed';
   return 'pending';
+};
+
+const makeupConfirmDisabledByPendingPhotographer = computed(() => {
+  if (!isMakeupWorker.value || !selected.value) return false;
+  return selected.value.uiStatus === 'pending';
+});
+
+const confirmMakeupSchedule = async () => {
+  if (!selected.value) {
+    message.warning('请先选择一条订单');
+    return;
+  }
+  if (makeupConfirmDisabledByPendingPhotographer.value) {
+    message.warning('请等待摄影师接单后自动分配');
+    return;
+  }
+  const id = Number(selected.value.id);
+  if (!Number.isFinite(id)) return;
+  try {
+    await httpClient.patch(`/orders/worker/${id}/makeup-confirm`, {});
+    message.success('已确认档期');
+    await load();
+  } catch (e: any) {
+    message.error(e?.message || '确认档期失败');
+  }
 };
 
 const load = async () => {
@@ -731,6 +793,17 @@ onMounted(async () => {
   font-size: 12px;
   color: #9ca3af;
   line-height: 1.6;
+}
+
+.makeup-wait-tip {
+  margin-top: -4px;
+  margin-bottom: 2px;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.makeup-confirm-wrap {
+  width: 100%;
 }
 
 .confirm-body {

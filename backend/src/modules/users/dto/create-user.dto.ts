@@ -5,6 +5,7 @@ import {
   IsNotEmpty,
   MinLength,
   IsOptional,
+  IsIn,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -46,6 +47,16 @@ export class CreateUserDto {
   @IsString()
   @IsOptional()
   avatar?: string;
+
+  @ApiProperty({
+    description:
+      '注册身份：user=普通用户（默认） photographer=摄影师 makeup=化妆师；与 registerAsPhotographer 二选一，优先本字段',
+    required: false,
+    enum: ['user', 'photographer', 'makeup'],
+  })
+  @IsOptional()
+  @IsIn(['user', 'photographer', 'makeup'])
+  registrationType?: 'user' | 'photographer' | 'makeup';
 
   @ApiProperty({
     description: '是否注册为摄影师（需管理员审核后接单）',

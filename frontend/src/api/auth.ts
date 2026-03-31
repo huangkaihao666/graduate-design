@@ -9,8 +9,11 @@ export interface RegisterRequest {
   email: string;
   password: string;
   name: string;
-  /** 摄影师入驻：创建 worker + 摄影师档案（draft，需提交审核） */
+  /** 注册身份：user=普通用户 photographer=摄影师 makeup=化妆师；优先于 registerAsPhotographer */
+  registrationType?: 'user' | 'photographer' | 'makeup';
+  /** @deprecated 请使用 registrationType=photographer */
   registerAsPhotographer?: boolean;
+  /** 摄影师/化妆师入驻时可选填的风格说明 */
   shootingStyleForPhotographer?: string;
 }
 
