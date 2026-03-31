@@ -593,6 +593,26 @@ const clearPendingMakeupArtist = () => {
   router.replace({ path: route.path, query: q });
 };
 
+const syncLocationFromRoute = () => {
+  const raw = route.query.location;
+  const location = Array.isArray(raw) ? String(raw[0] || '').trim() : String(raw || '').trim();
+  if (!location) return;
+
+  filters.location = location;
+  const region = locationRegionMap.get(location);
+  if (region === 'domestic') {
+    filters.region = 'domestic';
+    locationOptions.value = [...domesticLocations];
+  } else if (region === 'overseas') {
+    filters.region = 'overseas';
+    locationOptions.value = [...overseasLocations];
+  } else {
+    filters.region = undefined;
+    locationOptions.value = [...domesticLocations, ...overseasLocations];
+  }
+  pagination.page = 1;
+};
+
 // 状态管理
 const loading = ref(false);
 const searchInputKeyword = ref('');
@@ -1208,6 +1228,14 @@ watch(
   }
 );
 
+watch(
+  () => route.query.location,
+  () => {
+    syncLocationFromRoute();
+    fetchPackages();
+  }
+);
+
 onMounted(async () => {
   await loadStyleTags();
   authStore.initializeAuth();
@@ -1226,6 +1254,7 @@ onMounted(async () => {
   }
   await syncPhotographerFromRoute();
   await syncMakeupArtistFromRoute();
+  syncLocationFromRoute();
   updateBehaviorProfile();
   fetchPackages();
   await loadFavoriteStatus();

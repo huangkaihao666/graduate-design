@@ -51,7 +51,7 @@
     </div>
 
     <!-- 功能介绍区域 -->
-    <div class="features-section" id="features">
+    <div id="features" class="features-section">
       <div class="section-header">
         <h2>核心功能</h2>
         <p>科技赋能，让旅拍更简单</p>
@@ -149,7 +149,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, reactive } from 'vue';
+import { onMounted, onUnmounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../store/auth';
 

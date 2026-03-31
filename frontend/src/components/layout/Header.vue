@@ -43,7 +43,7 @@
                   <!-- 普通用户 -->
                   <template v-if="!authStore.isAdmin">
                     <a-menu-item key="help-center">
-                      <router-link to="/help-center">帮助中心</router-link>
+                      <router-link to="/help-center">客服助手</router-link>
                     </a-menu-item>
                     <a-menu-item v-if="!authStore.isWorker" key="chat">
                       <router-link to="/user/chat">消息中心</router-link>

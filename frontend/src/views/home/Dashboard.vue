@@ -47,7 +47,12 @@
           <span class="line"></span>
         </div>
         <div class="feature-grid">
-          <article v-for="item in featureModules" :key="item.title" class="card feature-card">
+          <article
+            v-for="item in featureModules"
+            :key="item.title"
+            class="card feature-card"
+            @click="goFeature(item.route)"
+          >
             <div class="icon">{{ item.icon }}</div>
             <h3>{{ item.title }}</h3>
             <p>{{ item.desc }}</p>
@@ -66,6 +71,7 @@
             :key="item.name"
             class="destination-card card"
             :style="{ backgroundImage: `url(${item.image})` }"
+            @click="goDestination(item.name)"
           >
             <div class="overlay">
               <h3>{{ item.name }}</h3>
@@ -102,14 +108,15 @@
         </div>
         <div class="gallery-grid">
           <article
-            v-for="item in gallery"
+            v-for="(item, idx) in gallery"
             :key="item.image"
             class="gallery-card card"
             :style="{ backgroundImage: `url(${item.image})` }"
+            @click="goPackages"
           >
             <div class="mask">
-              <span class="style-tag">{{ item.style }}</span>
-              <a-button class="same-btn" @click="goPackages">我要拍同款</a-button>
+              <span class="style-tag">{{ hoverStyleLabels[idx % hoverStyleLabels.length] }}</span>
+              <a-button class="same-btn" @click.stop="goPackages">我要拍同款</a-button>
             </div>
           </article>
         </div>
@@ -122,6 +129,20 @@
         </div>
         <div class="scroll-row photographers">
           <article v-for="item in photographers" :key="item.name" class="card photographer-card">
+            <img :src="item.avatar" :alt="item.name" />
+            <h3>{{ item.name }}</h3>
+            <p>{{ item.style }}</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="module">
+        <div class="module-title">
+          <h2>妆造师团队</h2>
+          <span class="line"></span>
+        </div>
+        <div class="scroll-row makeup-artists">
+          <article v-for="item in makeupArtists" :key="item.name" class="card photographer-card">
             <img :src="item.avatar" :alt="item.name" />
             <h3>{{ item.name }}</h3>
             <p>{{ item.style }}</p>
@@ -170,9 +191,10 @@ import hero3 from '@/assets/images/hero/hero3.jpg';
 import hero4 from '@/assets/images/hero/hero4.jpg';
 import hero5 from '@/assets/images/hero/hero5.jpg';
 import hero6 from '@/assets/images/hero/hero6.jpg';
+import { photographersApi, type PhotographerPublic } from '@/api/photographers';
+import { useAuthStore } from '@/store/auth';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAuthStore } from '@/store/auth';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -224,21 +246,25 @@ const featureModules = [
     icon: '🎯',
     title: 'AI 智能风格推荐',
     desc: '根据用户偏好自动匹配旅拍风格与场景',
+    route: '/ai/style-recommendation',
   },
   {
     icon: '👰',
     title: '虚拟试衣预览',
     desc: '上传照片在线试穿婚纱，预览上身效果',
+    route: '/ai/virtual-try-on',
   },
   {
     icon: '🗺️',
     title: 'AI 行程规划',
     desc: '输入目的地 / 预算 / 天数，一键生成拍摄路线',
+    route: '/ai/itinerary-planning',
   },
   {
-    icon: '💬',
-    title: '智能客服助手',
-    desc: '7×24 小时 AI 解答拍摄 / 套餐 / 档期问题',
+    icon: '💄',
+    title: '一键试妆',
+    desc: '上传照片快速体验妆容效果，提前预览更安心',
+    route: '/ai/makeup-try-on',
   },
 ];
 
@@ -259,7 +285,7 @@ const destinations = [
     name: '青岛',
     tag: '热门',
     image:
-      'https://images.unsplash.com/photo-1505765050516-f72dcac9c60c?q=80&w=1200&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1470219556762-1771e7f9427d?q=80&w=1200&auto=format&fit=crop',
   },
   {
     name: '巴黎',
@@ -305,7 +331,15 @@ const packages = [
   },
 ];
 
-const gallery = [
+type GalleryItem = {
+  style: string;
+  image: string;
+};
+
+const GALLERY_CACHE_KEY = 'dashboard-gallery-cache-v1';
+const hoverStyleLabels = ['新中式', '古镇纪实', '雪山自由', '森系草坪', '海岛清新', '韩式简约'];
+
+const fallbackGallery: GalleryItem[] = [
   {
     style: '清新',
     image:
@@ -338,7 +372,61 @@ const gallery = [
   },
 ];
 
-const photographers = [
+const readGalleryCache = (): GalleryItem[] => {
+  try {
+    const raw = sessionStorage.getItem(GALLERY_CACHE_KEY);
+    const parsed = raw ? (JSON.parse(raw) as GalleryItem[]) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((x) => !!x && !!x.image);
+  } catch {
+    return [];
+  }
+};
+
+const writeGalleryCache = (cards: GalleryItem[]) => {
+  try {
+    sessionStorage.setItem(GALLERY_CACHE_KEY, JSON.stringify(cards));
+  } catch {
+    /* ignore */
+  }
+};
+
+const dynamicGallery = ref<GalleryItem[]>(readGalleryCache());
+const gallery = computed<GalleryItem[]>(() =>
+  dynamicGallery.value.length > 0 ? dynamicGallery.value : fallbackGallery
+);
+
+const normalizeStyleLabel = (style: string) => {
+  const raw = String(style || '').trim();
+  if (!raw) return '旅拍风格';
+
+  const candidates = [
+    '韩式简约',
+    '新中式',
+    '中式国风',
+    '电影感',
+    '法式复古',
+    '森系清新',
+    '韩系清新',
+    '清新自然',
+    '复古质感',
+    '海岛轻旅拍',
+    '纪实',
+    '法式',
+    '森系',
+    '复古',
+    '清新',
+    '韩式',
+    '中式',
+  ];
+  const hit = candidates.find((x) => raw.includes(x));
+  if (hit) return hit;
+
+  const first = raw.split(/[、,，/|·\s]+/).find(Boolean) || raw;
+  return first.length > 8 ? `${first.slice(0, 8)}...` : first;
+};
+
+const fallbackPhotographers = [
   {
     name: '林川',
     style: '电影感叙事',
@@ -366,6 +454,94 @@ const photographers = [
   },
 ];
 
+const dynamicPhotographers = ref<Array<{ name: string; style: string; avatar: string }>>([]);
+const photographers = computed(() =>
+  dynamicPhotographers.value.length > 0 ? dynamicPhotographers.value : fallbackPhotographers
+);
+
+const fallbackMakeupArtists = [
+  {
+    name: '苏禾',
+    style: '清透氧气妆主理人',
+    avatar: 'https://randomuser.me/api/portraits/women/68.jpg',
+  },
+  {
+    name: '江语',
+    style: '中式妆造设计师',
+    avatar: 'https://randomuser.me/api/portraits/women/58.jpg',
+  },
+  {
+    name: '安然',
+    style: '韩系新娘妆造师',
+    avatar: 'https://randomuser.me/api/portraits/women/36.jpg',
+  },
+];
+
+const dynamicMakeupArtists = ref<Array<{ name: string; style: string; avatar: string }>>([]);
+const makeupArtists = computed(() =>
+  dynamicMakeupArtists.value.length > 0 ? dynamicMakeupArtists.value : fallbackMakeupArtists
+);
+
+const loadHomepagePhotographers = async () => {
+  try {
+    const [list, makeupList] = await Promise.all([
+      photographersApi.getPublic(),
+      photographersApi.getPublicMakeupArtists(),
+    ]);
+    const cards: GalleryItem[] = [];
+    const workers: Array<{ name: string; style: string; avatar: string }> = [];
+    const makeupWorkers: Array<{ name: string; style: string; avatar: string }> = [];
+
+    list.forEach((p: PhotographerPublic) => {
+      const urlsFromItems = Array.isArray(p.portfolioItems)
+        ? p.portfolioItems.map((x) => String(x?.url || '').trim()).filter(Boolean)
+        : [];
+      const urlsFromImages = Array.isArray(p.portfolioImages)
+        ? p.portfolioImages.map((x) => String(x || '').trim()).filter(Boolean)
+        : [];
+      const uniqueUrls = [...new Set([...urlsFromItems, ...urlsFromImages])];
+      const firstImage = uniqueUrls[0];
+      if (firstImage) {
+        cards.push({
+          image: firstImage,
+          style: normalizeStyleLabel(p.shootingStyle),
+        });
+      }
+
+      workers.push({
+        name: String(p.name || '摄影师'),
+        style: String(p.title || '').trim() || normalizeStyleLabel(p.shootingStyle),
+        avatar: String(p.avatar || firstImage || ''),
+      });
+    });
+
+    makeupList.forEach((p) => {
+      const urlsFromItems = Array.isArray(p.portfolioItems)
+        ? p.portfolioItems.map((x) => String(x?.url || '').trim()).filter(Boolean)
+        : [];
+      const urlsFromImages = Array.isArray(p.portfolioImages)
+        ? p.portfolioImages.map((x) => String(x || '').trim()).filter(Boolean)
+        : [];
+      const uniqueUrls = [...new Set([...urlsFromItems, ...urlsFromImages])];
+      const firstImage = uniqueUrls[0];
+      makeupWorkers.push({
+        name: String(p.name || '妆造师'),
+        style: String(p.title || '').trim() || normalizeStyleLabel(p.shootingStyle),
+        avatar: String(p.avatar || firstImage || ''),
+      });
+    });
+
+    if (cards.length > 0) {
+      dynamicGallery.value = cards;
+      writeGalleryCache(cards);
+    }
+    dynamicPhotographers.value = workers.filter((x) => !!x.avatar);
+    dynamicMakeupArtists.value = makeupWorkers.filter((x) => !!x.avatar);
+  } catch {
+    // 保底：接口失败时继续使用本地静态数据
+  }
+};
+
 const reviews = [
   {
     user: '用户 · 小雨',
@@ -383,6 +559,9 @@ const reviews = [
 
 const goHelpCenter = () => router.push('/help-center');
 const goPackages = () => router.push('/booking/packages');
+const goFeature = (path: string) => router.push(path);
+const goDestination = (location: string) =>
+  router.push({ path: '/booking/packages', query: { location } });
 
 const goToSlide = (idx: number) => {
   transitionEnabled.value = true;
@@ -541,13 +720,14 @@ const handleVisibilityChange = () => {
   restartAutoPlay();
 };
 
-onMounted(() => {
+onMounted(async () => {
   // 兜底：worker 账号不应进入用户控制台
   authStore.initializeAuth();
   if (authStore.user?.role === 'worker') {
     router.replace('/worker/dashboard');
     return;
   }
+  await loadHomepagePhotographers();
   restartAutoPlay();
   document.addEventListener('visibilitychange', handleVisibilityChange);
 });
@@ -566,8 +746,7 @@ onBeforeUnmount(() => {
   position: relative;
   width: 100%;
   min-height: 100vh;
-  /* 淡粉更明显：避免快速过渡到纯白导致“看起来还是白色” */
-  background: linear-gradient(180deg, #fff5f7 0%, #fff5f7 42%, #ffffff 100%);
+  background: #fff5f7;
   margin-top: 0;
 }
 
@@ -626,8 +805,11 @@ onBeforeUnmount(() => {
 }
 
 .page-body {
-  width: min(1200px, 100% - 32px);
-  margin: 4px auto 80px;
+  width: 100%;
+  max-width: 1200px;
+  margin: 42px auto 80px;
+  padding: 0 16px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 60px;
@@ -710,6 +892,7 @@ onBeforeUnmount(() => {
   height: 200px;
   position: relative;
   overflow: hidden;
+  cursor: pointer;
   background-size: cover;
   background-position: center;
 
@@ -796,6 +979,7 @@ onBeforeUnmount(() => {
   height: 300px;
   position: relative;
   overflow: hidden;
+  cursor: pointer;
   background-size: cover;
   background-position: center;
 
@@ -818,19 +1002,40 @@ onBeforeUnmount(() => {
 }
 
 .style-tag {
+  display: inline-block;
   color: #fff;
-  font-size: 16px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
 }
 
 .same-btn {
-  border: none;
-  border-radius: 6px;
-  background: #ff6b8b;
-  color: #fff;
-  padding: 6px 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none !important;
+  border-radius: 10px;
+  background: #ff6b8b !important;
+  color: #fff !important;
+  font-weight: 700;
+  height: 40px;
+  min-width: 120px;
+  padding: 0 8px;
+  line-height: 1;
+  text-align: center;
+
+  &:hover,
+  &:focus,
+  &:active {
+    background: #f2557f !important;
+    border-color: #f2557f !important;
+    color: #fff !important;
+  }
 }
 
-.photographers .photographer-card {
+.photographers .photographer-card,
+.makeup-artists .photographer-card {
   flex: 0 0 220px;
   text-align: center;
   padding: 20px 16px;
@@ -839,7 +1044,7 @@ onBeforeUnmount(() => {
     width: 100px;
     height: 100px;
     border-radius: 50%;
-    border: 3px solid #ff6b8b;
+    border: none;
     object-fit: cover;
     margin-bottom: 12px;
   }
@@ -927,12 +1132,34 @@ onBeforeUnmount(() => {
   color: #ff6b8b;
   background: #fff;
   font-weight: 600;
+
+  &:hover,
+  &:focus,
+  &:active,
+  &:focus-visible {
+    color: #e84f79 !important;
+    background: #fff7fa !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
 }
 
 .btn-outline {
   border: 1px solid #fff;
   color: #fff;
   background: transparent;
+
+  &:hover,
+  &:focus,
+  &:active,
+  &:focus-visible {
+    color: #fff !important;
+    background: rgba(255, 255, 255, 0.2) !important;
+    border-color: #fff !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
 }
 
 @media (max-width: 768px) {
@@ -949,7 +1176,8 @@ onBeforeUnmount(() => {
   }
 
   .page-body {
-    width: calc(100% - 24px);
+    max-width: 100%;
+    padding: 0 12px;
     gap: 44px;
   }
 
