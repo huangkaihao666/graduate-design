@@ -4,7 +4,7 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--bg-card);
 }
 
 // ── 头部 ──────────────────────────────────────────────────────
@@ -13,15 +13,15 @@
   justify-content: space-between;
   align-items: center;
   padding: 14px 16px;
-  border-bottom: 1px solid rgba(99, 102, 241, 0.08);
-  background: linear-gradient(180deg, #F8FAFF 0%, #fff 100%);
+  border-bottom: 1px solid var(--border-color);
+  background: var(--gradient-card);
   flex-shrink: 0;
 
   h3 {
     margin: 0;
     font-size: 14px;
     font-weight: 700;
-    color: #1E1B4B;
+    color: var(--text-primary);
   }
 
   .online-count {
@@ -59,7 +59,7 @@
   }
 
   &::-webkit-scrollbar-thumb {
-    background: #C7D2FE;
+    background: var(--color-primary-border);
     border-radius: 2px;
   }
 }
@@ -72,9 +72,9 @@
 
   .system-text {
     font-size: 11px;
-    color: #94A3B8;
-    background: #F1F5F9;
-    border: 1px solid #E2E8F0;
+    color: var(--text-tertiary);
+    background: var(--bg-page);
+    border: 1px solid var(--border-color);
     padding: 3px 10px;
     border-radius: 999px;
     max-width: 90%;
@@ -122,8 +122,8 @@
 
   &.chat-message-other {
     .message-text {
-      background: #F1F5F9;
-      color: #374151;
+      background: var(--bg-page);
+      color: var(--text-primary);
       border-radius: 4px 14px 14px 14px;
     }
   }
@@ -143,12 +143,12 @@
       .sender-name {
         font-size: 12px;
         font-weight: 600;
-        color: #374151;
+        color: var(--text-secondary);
       }
 
       .message-time {
         font-size: 10px;
-        color: #94A3B8;
+        color: var(--text-tertiary);
       }
     }
 
@@ -166,21 +166,22 @@
 // ── 输入区 ────────────────────────────────────────────────────
 .chat-input {
   padding: 12px 14px;
-  border-top: 1px solid rgba(99, 102, 241, 0.08);
+  border-top: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   gap: 8px;
   flex-shrink: 0;
-  background: #FAFBFF;
+  background: var(--gradient-card);
 
   :global(.ant-input) {
     border-radius: 10px !important;
-    border-color: #E2E8F0 !important;
+    border-color: var(--border-color) !important;
     font-size: 13px;
-    background: #fff !important;
+    background: var(--bg-card) !important;
+    color: var(--text-primary) !important;
 
     &:focus {
-      border-color: #6366F1 !important;
+      border-color: var(--color-primary) !important;
       box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
     }
   }

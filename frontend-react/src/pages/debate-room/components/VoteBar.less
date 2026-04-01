@@ -1,6 +1,5 @@
 // ============ 辩论室底部投票栏 ============
 
-// ── 投票栏容器 ────────────────────────────────────────────────
 .vote-bar {
   position: fixed;
   bottom: 0;
@@ -12,9 +11,9 @@
 
 // ── 收起态（常驻条） ──────────────────────────────────────────
 .vote-bar-minimized {
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--bg-card);
   backdrop-filter: blur(12px);
-  border-top: 1px solid rgba(99, 102, 241, 0.15);
+  border-top: 1px solid var(--border-color);
   box-shadow: 0 -4px 24px rgba(99, 102, 241, 0.1);
   padding: 8px 24px;
   display: flex;
@@ -24,7 +23,7 @@
 
   .vote-hint-text {
     font-size: 13px;
-    color: #6366F1;
+    color: var(--color-primary);
     font-weight: 600;
     display: flex;
     align-items: center;
@@ -43,7 +42,7 @@
 
   .viewer-count {
     font-size: 12px;
-    color: #94A3B8;
+    color: var(--text-tertiary);
     display: flex;
     align-items: center;
     gap: 4px;
@@ -69,9 +68,9 @@
 
 // ── 展开态（投票面板） ────────────────────────────────────────
 .vote-bar-expanded {
-  background: rgba(255, 255, 255, 0.97);
+  background: var(--bg-card);
   backdrop-filter: blur(16px);
-  border-top: 2px solid #6366F1;
+  border-top: 2px solid var(--color-primary);
   box-shadow: 0 -8px 40px rgba(99, 102, 241, 0.15);
   padding: 20px 24px;
   animation: voteBarExpand 0.3s ease-out;
@@ -90,7 +89,7 @@
     .vote-question {
       font-size: 15px;
       font-weight: 700;
-      color: #1E1B4B;
+      color: var(--text-primary);
       display: flex;
       align-items: center;
       gap: 8px;
@@ -110,8 +109,8 @@
 
     .vote-bar-close {
       border: none !important;
-      background: #F1F5F9 !important;
-      color: #64748B !important;
+      background: var(--bg-page) !important;
+      color: var(--text-secondary) !important;
       border-radius: 8px !important;
       font-size: 13px !important;
       height: 30px !important;
@@ -119,8 +118,8 @@
       transition: all 0.2s ease !important;
 
       &:hover {
-        background: #E2E8F0 !important;
-        color: #374151 !important;
+        background: var(--border-color) !important;
+        color: var(--text-primary) !important;
       }
     }
   }
@@ -138,13 +137,8 @@
         font-size: 12px;
         font-weight: 600;
 
-        &.label-a {
-          color: #F97316;
-        }
-
-        &.label-b {
-          color: #10B981;
-        }
+        &.label-a { color: #F97316; }
+        &.label-b { color: #10B981; }
 
         .label-count {
           margin-left: 4px;
@@ -159,7 +153,7 @@
       height: 10px;
       border-radius: 6px;
       overflow: hidden;
-      background: #F1F5F9;
+      background: var(--border-color);
       display: flex;
 
       .progress-a {
@@ -193,7 +187,7 @@
       transition: all 0.25s ease !important;
 
       &.vote-btn-a {
-        background: linear-gradient(135deg, #FFF7ED, #FFEDD5) !important;
+        background: rgba(249, 115, 22, 0.1) !important;
         color: #F97316 !important;
         border-color: rgba(249, 115, 22, 0.3) !important;
 
@@ -214,7 +208,7 @@
       }
 
       &.vote-btn-b {
-        background: linear-gradient(135deg, #ECFDF5, #D1FAE5) !important;
+        background: rgba(16, 185, 129, 0.1) !important;
         color: #10B981 !important;
         border-color: rgba(16, 185, 129, 0.3) !important;
 
@@ -241,7 +235,7 @@
     margin-top: 10px;
     text-align: center;
     font-size: 12px;
-    color: #94A3B8;
+    color: var(--text-tertiary);
     display: flex;
     align-items: center;
     justify-content: center;

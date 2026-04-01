@@ -2,7 +2,7 @@
 
 .debate-room {
   min-height: 100vh;
-  background: #F1F5F9;
+  background: var(--bg-page);
   padding-bottom: 100px;
 
   .back-button {
@@ -10,17 +10,17 @@
     top: 72px;
     left: 20px;
     z-index: 999;
-    background: rgba(255, 255, 255, 0.92) !important;
+    background: var(--bg-card) !important;
     backdrop-filter: blur(8px);
     border: 1px solid rgba(99, 102, 241, 0.12) !important;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08) !important;
     border-radius: 10px !important;
-    color: #6366F1 !important;
+    color: var(--color-primary) !important;
     font-weight: 500;
 
     &:hover {
-      background: #EEF2FF !important;
-      border-color: #6366F1 !important;
+      background: var(--color-primary-light) !important;
+      border-color: var(--color-primary) !important;
     }
   }
 
@@ -36,10 +36,10 @@
     .left-panel,
     .center-panel,
     .right-panel {
-      background: #fff;
+      background: var(--bg-card);
       border-radius: 16px;
-      border: 1px solid rgba(99, 102, 241, 0.08);
-      box-shadow: 0 2px 12px rgba(99, 102, 241, 0.06);
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-sm);
       overflow: hidden;
     }
 
@@ -75,7 +75,7 @@
       }
 
       :global(.ant-tabs-nav) {
-        background: rgba(255, 255, 255, 0.92);
+        background: var(--bg-card);
         backdrop-filter: blur(8px);
         border-radius: 12px;
         margin-bottom: 12px;
@@ -90,7 +90,7 @@
     align-items: center;
     height: 100vh;
     gap: 16px;
-    color: #64748B;
+    color: var(--text-secondary);
     font-size: 15px;
   }
 
@@ -106,10 +106,10 @@
     .skeleton-left,
     .skeleton-center,
     .skeleton-right {
-      background: #fff;
+      background: var(--bg-card);
       border-radius: 16px;
       padding: 20px;
-      border: 1px solid rgba(99, 102, 241, 0.08);
+      border: 1px solid var(--border-color);
     }
 
     @media (max-width: 900px) {
