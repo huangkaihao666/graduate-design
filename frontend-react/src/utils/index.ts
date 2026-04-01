@@ -4,3 +4,4 @@
  */
 
 export { lightTheme, darkTheme } from './theme'
+export { generateReportPdf } from './generateReportPdf'

@@ -386,6 +386,69 @@
   }
 }
 
+// ── 辩论回顾容器 ──────────────────────────────────────────────
+.rr-timeline-all {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.rr-round-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.rr-round-divider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0 12px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 4px;
+
+  .rr-round-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: var(--color-primary-light);
+    color: var(--color-primary);
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .rr-round-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    flex: 1;
+  }
+
+  .rr-round-count {
+    font-size: 12px;
+    color: var(--text-tertiary);
+  }
+}
+
+// 思考过程块（不折叠，直接展示）
+.rr-reasoning-block {
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-page);
+
+  .rr-reasoning-label {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    padding: 6px 14px 4px;
+    font-weight: 600;
+  }
+
+  .rr-reasoning {
+    padding: 0 14px 10px;
+    background: transparent;
+  }
+}
+
 // ── 时间线 ────────────────────────────────────────────────────
 .rr-timeline {
   padding: 16px 20px;

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -13,7 +13,7 @@ import {
 import {
   ArrowLeftOutlined,
   CopyOutlined,
-  ShareAltOutlined,
+  DownloadOutlined,
   UserOutlined,
   CalendarOutlined,
   LikeOutlined,
@@ -21,6 +21,7 @@ import {
   MessageOutlined,
 } from '@ant-design/icons'
 import * as roomApi from '@/api/rooms'
+import { generateReportPdf } from '@/utils'
 import './RoomReport.less'
 
 type Winner =
@@ -45,7 +46,12 @@ const getAgentTheme = (idx: number) => AGENT_COLORS[idx % AGENT_COLORS.length]
 export const RoomReport: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-
+  const pageRef = useRef<HTMLDivElement>(null)
+  const [downloading, setDownloading] = useState(false)
+  // 受控的展开状态：null = 用户自由控制，string[] = 下载时强制全展开
+  const [roundsActiveKey, setRoundsActiveKey] = useState<string[] | undefined>(undefined)
+  const [reasoningActiveKeys, setReasoningActiveKeys] = useState<Record<string, string[]> | undefined>(undefined)
+  const [winnerReasoningKey, setWinnerReasoningKey] = useState<string[] | undefined>(undefined)
 
   const roomId = Number(id || 0)
 
@@ -92,15 +98,39 @@ export const RoomReport: React.FC = () => {
     }
   }
 
-  const handleNativeShare = async () => {
-    const title = room?.title ? `结案报告｜${room.title}` : '结案报告'
-    try {
-      if ((navigator as any).share) {
-        await (navigator as any).share({ title, url: window.location.href, text: '分享本次 AI 辩论的结案报告' })
-      } else {
-        await handleCopyLink()
+  const handleDownloadPdf = async () => {
+    if (!pageRef.current || downloading) return
+    setDownloading(true)
+    message.loading({ content: '正在生成 PDF，请稍候…', key: 'pdf', duration: 0 })
+
+    // 1. 通过 React 状态把所有 Collapse 全部展开
+    const allRoundKeys = rounds.map((r) => String(r.round))
+    const allReasoningKeys: Record<string, string[]> = {}
+    debateMessages.forEach((m: any) => {
+      if (m.reasoning && String(m.reasoning).trim().length > 0) {
+        allReasoningKeys[String(m.id || `${m.agentId}-${m.roundNumber}`)] = ['r']
       }
-    } catch { /* 用户取消 */ }
+    })
+    setRoundsActiveKey(allRoundKeys)
+    setReasoningActiveKeys(allReasoningKeys)
+    setWinnerReasoningKey(['r'])
+
+    // 2. 等 React 重渲染 + CSS transition 动画完成（Ant Design Collapse 动画约 300ms）
+    await new Promise((r) => setTimeout(r, 400))
+
+    try {
+      await generateReportPdf(pageRef.current, room?.title || '结案报告')
+      message.success({ content: 'PDF 已下载', key: 'pdf' })
+    } catch (e) {
+      console.error(e)
+      message.error({ content: 'PDF 生成失败，请重试', key: 'pdf' })
+    } finally {
+      // 3. 恢复用户原来的折叠状态
+      setRoundsActiveKey(undefined)
+      setReasoningActiveKeys(undefined)
+      setWinnerReasoningKey(undefined)
+      setDownloading(false)
+    }
   }
 
   // ── 加载骨架屏 ────────────────────────────────────────────────
@@ -154,7 +184,7 @@ export const RoomReport: React.FC = () => {
   const statusCfg = statusConfig[room.status as keyof typeof statusConfig] || statusConfig.CLOSED
 
   return (
-    <div className="rr-page">
+    <div className="rr-page" ref={pageRef}>
       {/* 返回按钮 */}
       <div className="rr-back-row">
         <Button
@@ -364,7 +394,8 @@ export const RoomReport: React.FC = () => {
                       <Collapse
                         className="rr-reasoning-collapse"
                         size="small"
-                        items={[{ key: 'r', label: '思考过程', children: <div className="rr-reasoning">{lastMsg.reasoning}</div> }]}
+                        {...(winnerReasoningKey !== undefined ? { activeKey: winnerReasoningKey } : {})}
+                        items={[{ key: 'r', label: '📐 思考过程', children: <div className="rr-reasoning">{lastMsg.reasoning}</div> }]}
                       />
                     )}
                     <div className="rr-winner-speech-content">{lastMsg.content}</div>
@@ -382,7 +413,10 @@ export const RoomReport: React.FC = () => {
             </div>
             <Collapse
               className="rr-rounds-collapse"
-              defaultActiveKey={rounds.length > 0 ? [String(rounds[0].round)] : []}
+              {...(roundsActiveKey !== undefined
+                ? { activeKey: roundsActiveKey }
+                : { defaultActiveKey: rounds.length > 0 ? [String(rounds[0].round)] : [] }
+              )}
               items={rounds.map((r) => ({
                 key: String(r.round),
                 label: (
@@ -427,6 +461,10 @@ export const RoomReport: React.FC = () => {
                               <Collapse
                                 className="rr-reasoning-collapse"
                                 size="small"
+                                {...(reasoningActiveKeys !== undefined
+                                  ? { activeKey: reasoningActiveKeys[String(m.id || `${m.agentId}-${m.roundNumber}`)] || [] }
+                                  : {}
+                                )}
                                 items={[{ key: 'r', label: '思考过程', children: <div className="rr-reasoning">{m.reasoning}</div> }]}
                               />
                             )}
@@ -511,7 +549,7 @@ export const RoomReport: React.FC = () => {
             </div>
             <div className="rr-share-area">
               <Button block icon={<CopyOutlined />} onClick={handleCopyLink} className="rr-share-copy-btn">复制链接</Button>
-              <Button block type="primary" icon={<ShareAltOutlined />} onClick={handleNativeShare} className="rr-share-btn">一键分享</Button>
+              <Button block type="primary" icon={<DownloadOutlined />} onClick={handleDownloadPdf} loading={downloading} className="rr-share-btn">下载报告</Button>
             </div>
           </div>
 
