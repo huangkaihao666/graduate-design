@@ -1,5 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
+import { Injectable, Logger } from '@nestjs/common';
 import { CozeService } from './coze.service';
 import { RoomsGateway } from './rooms.gateway';
 
@@ -305,6 +305,100 @@ export class DebateService {
   }
 
   /**
+   * 更新所有参与 Agent 的统计数据（参与次数 + 胜率）
+   * - 所有参与 Agent 的 participateCount + 1
+   * - 胜者 winRate 用滚动平均更新：newWinRate = (oldWinRate * oldCount + 1) / newCount
+   * - 负者 winRate 同步衰减：newWinRate = (oldWinRate * oldCount) / newCount
+   * - 平票/无投票：只更新 participateCount，不更新 winRate
+   */
+  private async updateAgentStats(roomId: number): Promise<void> {
+    try {
+      // 读取房间的 agents 列表
+      const room = await this.prisma.room.findUnique({
+        where: { id: roomId },
+        select: { agents: true },
+      });
+      if (!room) return;
+
+      const agentIds: string[] = JSON.parse(room.agents || '[]');
+      if (agentIds.length === 0) return;
+
+      // 统计本次投票结果
+      const voteStats = await this.prisma.vote.groupBy({
+        by: ['agentId'],
+        where: { roomId },
+        _count: { id: true },
+      });
+
+      const countsByAgentId: Record<string, number> = {};
+      for (const stat of voteStats) {
+        countsByAgentId[stat.agentId] = stat._count.id;
+      }
+      const totalVotes = Object.values(countsByAgentId).reduce(
+        (a, b) => a + b,
+        0,
+      );
+
+      // 确定胜者（唯一最高票）
+      let winnerId: string | null = null;
+      if (totalVotes > 0) {
+        const sorted = [...agentIds].sort(
+          (a, b) => (countsByAgentId[b] || 0) - (countsByAgentId[a] || 0),
+        );
+        const topCount = countsByAgentId[sorted[0]] || 0;
+        const secondCount = countsByAgentId[sorted[1]] || 0;
+        // 仅在唯一最高票时才计入胜率
+        if (topCount > secondCount) {
+          winnerId = sorted[0];
+        }
+      }
+
+      // 批量更新各 Agent
+      const agents = await this.prisma.agent.findMany({
+        where: { id: { in: agentIds } },
+        select: { id: true, winRate: true, participateCount: true },
+      });
+
+      await Promise.all(
+        agents.map((agent) => {
+          const newCount = agent.participateCount + 1;
+          let newWinRate: number;
+
+          if (winnerId === null) {
+            // 无投票或平票：participateCount +1，winRate 不变
+            newWinRate = agent.winRate;
+          } else if (agent.id === winnerId) {
+            // 胜者：滚动平均加 1 场胜利
+            newWinRate =
+              (agent.winRate * agent.participateCount + 1) / newCount;
+          } else {
+            // 败者：滚动平均加 0 场胜利
+            newWinRate = (agent.winRate * agent.participateCount) / newCount;
+          }
+
+          // 保留 4 位小数，限制在 [0, 1] 范围
+          newWinRate = Math.min(1, Math.max(0, Number(newWinRate.toFixed(4))));
+
+          return this.prisma.agent.update({
+            where: { id: agent.id },
+            data: {
+              participateCount: newCount,
+              winRate: newWinRate,
+            },
+          });
+        }),
+      );
+
+      this.logger.log(
+        `Updated agent stats for room ${roomId}: winner=${winnerId ?? 'none'}, agents=${agentIds.join(',')}`,
+      );
+    } catch (err) {
+      // 统计更新失败不影响主流程
+      this.logger.error(`Failed to update agent stats for room ${roomId}`, err);
+    }
+  }
+
+  /**
    * 结束辩论
    */
   private async finishDebate(roomId: number): Promise<void> {
@@ -320,6 +414,9 @@ export class DebateService {
       where: { id: roomId },
       data: { status: 'CLOSED' },
     });
+
+    // 更新 Agent 统计数据（参与次数 & 胜率）
+    await this.updateAgentStats(roomId);
 
     // 广播辩论结束
     this.roomsGateway.broadcastToRoom(roomId, 'debateFinished', {
@@ -344,6 +441,9 @@ export class DebateService {
       where: { id: roomId },
       data: { status: 'CLOSED' },
     });
+
+    // 更新 Agent 统计数据（参与次数 & 胜率）
+    await this.updateAgentStats(roomId);
 
     this.roomsGateway.broadcastToRoom(roomId, 'debateFinished', { roomId });
   }

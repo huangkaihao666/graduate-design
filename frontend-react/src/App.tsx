@@ -31,8 +31,9 @@ function App() {
   const isDark = themeMode === "dark";
   const theme = isDark ? darkTheme : lightTheme;
 
-  // 同步 data-theme 到 body，驱动 CSS 变量切换
+  // 同步 data-theme 到 html + body，驱动 CSS 变量切换
   useEffect(() => {
+    document.documentElement.setAttribute("data-theme", themeMode);
     document.body.setAttribute("data-theme", themeMode);
   }, [themeMode]);
 
