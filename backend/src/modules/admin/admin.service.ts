@@ -232,17 +232,50 @@ export class AdminService {
   }
 
   async getOverview() {
-    const [rooms, users, todayUsers, activeUsers] = await Promise.all([
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - 6);
+    weekStart.setHours(0, 0, 0, 0);
+
+    const [
+      totalRooms,
+      liveRooms,
+      closedRooms,
+      totalUsers,
+      todayUsers,
+      weekUsers,
+      bannedUsers,
+      totalVotes,
+      todayVotes,
+    ] = await Promise.all([
       this.prisma.room.count(),
+      this.prisma.room.count({ where: { status: 'LIVE' } }),
+      this.prisma.room.count({ where: { status: 'CLOSED' } }),
       this.prisma.user.count(),
-      this.prisma.user.count({
-        where: {
-          createdAt: { gte: new Date(new Date().toDateString()) },
-        },
-      }),
-      this.prisma.user.count({ where: { isActive: true } }),
+      this.prisma.user.count({ where: { createdAt: { gte: todayStart } } }),
+      this.prisma.user.count({ where: { createdAt: { gte: weekStart } } }),
+      this.prisma.user.count({ where: { isActive: false } }),
+      this.prisma.vote.count(),
+      this.prisma.vote.count({ where: { createdAt: { gte: todayStart } } }),
     ]);
-    return { rooms, users, todayUsers, activeUsers };
+
+    return {
+      // 案件
+      totalRooms,
+      liveRooms,
+      closedRooms,
+      waitingRooms: totalRooms - liveRooms - closedRooms,
+      // 用户
+      totalUsers,
+      todayUsers,
+      weekUsers,
+      bannedUsers,
+      // 投票
+      totalVotes,
+      todayVotes,
+    };
   }
 
   async getTrends(days = 14) {
@@ -250,24 +283,55 @@ export class AdminService {
     from.setDate(from.getDate() - (days - 1));
     from.setHours(0, 0, 0, 0);
 
-    const rooms = await this.prisma.room.findMany({
-      where: { createdAt: { gte: from } },
-      select: { createdAt: true },
-    });
+    // 并行拉取三类数据的时间戳
+    const [rooms, users, votes] = await Promise.all([
+      this.prisma.room.findMany({
+        where: { createdAt: { gte: from } },
+        select: { createdAt: true },
+      }),
+      this.prisma.user.findMany({
+        where: { createdAt: { gte: from } },
+        select: { createdAt: true },
+      }),
+      this.prisma.vote.findMany({
+        where: { createdAt: { gte: from } },
+        select: { createdAt: true },
+      }),
+    ]);
 
-    const map = new Map<string, number>();
+    // 初始化每天的 key
+    const roomMap = new Map<string, number>();
+    const userMap = new Map<string, number>();
+    const voteMap = new Map<string, number>();
     for (let i = 0; i < days; i++) {
       const d = new Date(from);
       d.setDate(from.getDate() + i);
       const key = d.toISOString().slice(0, 10);
-      map.set(key, 0);
+      roomMap.set(key, 0);
+      userMap.set(key, 0);
+      voteMap.set(key, 0);
     }
+
     rooms.forEach((r) => {
       const key = r.createdAt.toISOString().slice(0, 10);
-      map.set(key, (map.get(key) || 0) + 1);
+      if (roomMap.has(key)) roomMap.set(key, roomMap.get(key)! + 1);
+    });
+    users.forEach((u) => {
+      const key = u.createdAt.toISOString().slice(0, 10);
+      if (userMap.has(key)) userMap.set(key, userMap.get(key)! + 1);
+    });
+    votes.forEach((v) => {
+      const key = v.createdAt.toISOString().slice(0, 10);
+      if (voteMap.has(key)) voteMap.set(key, voteMap.get(key)! + 1);
     });
 
-    return Array.from(map.entries()).map(([date, count]) => ({ date, count }));
+    const dates = Array.from(roomMap.keys());
+    return dates.map((date) => ({
+      date,
+      rooms: roomMap.get(date) ?? 0,
+      users: userMap.get(date) ?? 0,
+      votes: voteMap.get(date) ?? 0,
+    }));
   }
 
   async getHotTopics(limit = 10) {
@@ -285,8 +349,20 @@ export class AdminService {
         viewCount: true,
         commentCount: true,
         createdAt: true,
+        owner: { select: { id: true, name: true, email: true } },
+        _count: { select: { votes: true } },
       },
     });
-    return rooms;
+
+    return rooms.map((r) => ({
+      id: r.id,
+      title: r.title,
+      status: r.status,
+      viewCount: r.viewCount,
+      commentCount: r.commentCount,
+      voteCount: r._count.votes,
+      createdAt: r.createdAt,
+      ownerName: r.owner?.name || r.owner?.email || `用户${r.owner?.id}`,
+    }));
   }
 }
