@@ -12,7 +12,7 @@ import type { TabsProps } from "antd";
 import { Button, Form, Input, message, Tabs, Typography } from "antd";
 import React, { useState } from "react";
 import { flushSync } from "react-dom";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import "./Auth.less";
 
 const { Title, Text } = Typography;
@@ -62,6 +62,7 @@ const AGENTS = [
 
 const Auth: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login } = useAuthStore();
   // 登录和注册使用独立 loading，互不干扰
   const [loginLoading, setLoginLoading] = useState(false);
@@ -94,7 +95,8 @@ const Auth: React.FC = () => {
         });
       });
       message.success("登录成功，智辩助手就绪！");
-      navigate("/cases", { replace: true });
+      const redirect = searchParams.get("redirect")
+      navigate(redirect ? decodeURIComponent(redirect) : "/cases", { replace: true });
     } catch {
       message.error("邮箱或密码错误，请重新输入");
     } finally {

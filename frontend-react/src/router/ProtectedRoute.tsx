@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/store'
 
 interface ProtectedRouteProps {
@@ -7,13 +7,14 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  // 订阅认证状态
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const accessToken = useAuthStore((state) => state.accessToken)
+  const location = useLocation()
 
-  // 未认证时重定向到登录页
   if (!isAuthenticated || !accessToken) {
-    return <Navigate to="/login" replace />
+    // 把当前完整路径（含 search/hash）作为 redirect 参数传给登录页
+    const redirect = encodeURIComponent(location.pathname + location.search + location.hash)
+    return <Navigate to={`/login?redirect=${redirect}`} replace />
   }
 
   return <>{children}</>
