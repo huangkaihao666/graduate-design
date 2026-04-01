@@ -813,6 +813,349 @@
   }
 }
 
+// ── 展开/收起按钮 ─────────────────────────────────────────────
+.rr-toggle-btn {
+  color: var(--color-primary) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  padding: 0 8px !important;
+  height: 24px !important;
+  margin-left: auto;
+
+  &:hover {
+    background: var(--color-primary-light) !important;
+  }
+}
+
+// ── 投票裁决区域 ──────────────────────────────────────────────
+
+// 无票态
+.rr-no-vote-verdict {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0 4px;
+
+  .rr-no-vote-illus {
+    font-size: 48px;
+    opacity: 0.5;
+    line-height: 1;
+  }
+
+  .rr-no-vote-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .rr-no-vote-sub {
+    font-size: 13px;
+    color: var(--text-tertiary);
+    margin-bottom: 8px;
+  }
+
+  .rr-no-advice-hint {
+    font-size: 13px;
+    color: var(--text-tertiary);
+    padding: 16px;
+  }
+}
+
+.rr-advice-inline {
+  width: 100%;
+  background: var(--gradient-card);
+  border-radius: 12px;
+  border: 1px solid var(--color-primary-border);
+  overflow: hidden;
+
+  .rr-advice-body {
+    padding: 18px 20px;
+    font-size: 14px;
+    line-height: 1.85;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+}
+
+// 平票态
+.rr-tie-verdict {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+
+  .rr-tie-icon { font-size: 44px; line-height: 1; }
+
+  .rr-tie-title {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text-primary);
+  }
+
+  .rr-tie-sub {
+    font-size: 13px;
+    color: var(--text-tertiary);
+    margin-bottom: 4px;
+  }
+
+  .rr-tie-agents {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 4px;
+  }
+
+  .rr-tie-agent-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: 12px;
+    border: 1.5px solid;
+    font-size: 14px;
+  }
+}
+
+// 胜者态
+.rr-win-verdict {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+// 胜者主卡
+.rr-winner-main {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 24px;
+  border-radius: 14px;
+  background: var(--gradient-card);
+  border: 1px solid var(--border-color);
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--winner-gradient, var(--gradient-primary));
+    opacity: 0.04;
+    pointer-events: none;
+  }
+
+  .rr-winner-crown-wrap {
+    position: relative;
+    flex-shrink: 0;
+
+    .rr-winner-crown {
+      position: absolute;
+      top: -14px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 22px;
+      line-height: 1;
+      animation: floatUp 3s ease-in-out infinite;
+      z-index: 1;
+    }
+  }
+
+  .rr-winner-big-avatar {
+    border: 3px solid rgba(245, 158, 11, 0.5) !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15) !important;
+  }
+
+  .rr-winner-info {
+    flex: 1;
+    min-width: 0;
+
+    .rr-winner-label-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 10px;
+      border-radius: 20px;
+      background: rgba(245, 158, 11, 0.12);
+      color: #F59E0B;
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .rr-winner-name {
+      font-size: 22px;
+      font-weight: 900;
+      line-height: 1.2;
+      margin-bottom: 4px;
+    }
+
+    .rr-winner-personality {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      margin-bottom: 6px;
+    }
+
+    .rr-winner-percent {
+      font-size: 13px;
+      color: var(--text-secondary);
+
+      strong { font-size: 15px; }
+    }
+  }
+}
+
+// 排名列表（胜者页内）
+.rr-ranking-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rr-ranking-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--bg-page);
+  border: 1px solid var(--border-color);
+  transition: all 0.2s ease;
+
+  &.is-winner {
+    background: rgba(245, 158, 11, 0.06);
+    border-color: rgba(245, 158, 11, 0.3);
+  }
+
+  &:hover {
+    border-color: var(--color-primary-border);
+    background: var(--color-primary-light);
+  }
+
+  .rr-rank-medal { font-size: 18px; line-height: 1; flex-shrink: 0; }
+
+  .rr-rank-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .rr-rank-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 100px;
+
+    .rr-rank-bar {
+      flex: 1;
+      height: 6px;
+      border-radius: 3px;
+      background: var(--border-color);
+      overflow: hidden;
+
+      .rr-rank-bar-fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.6s ease;
+      }
+    }
+
+    .rr-rank-pct {
+      font-size: 12px;
+      font-weight: 700;
+      min-width: 32px;
+      text-align: right;
+    }
+  }
+
+  .rr-rank-count {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+}
+
+// ── 胜者精彩发言 ──────────────────────────────────────────────
+.rr-winner-speech {
+  background: var(--gradient-card);
+  border-radius: 12px;
+  border: 1px solid var(--color-primary-border);
+  overflow: hidden;
+
+  .rr-winner-speech-content {
+    padding: 18px 20px;
+    font-size: 14px;
+    line-height: 1.9;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+}
+
+// ── 右侧 AI 列表 ──────────────────────────────────────────────
+.rr-agents-list {
+  padding: 8px 0;
+}
+
+.rr-agent-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-color);
+  transition: background 0.15s ease;
+
+  &:last-child { border-bottom: none; }
+  &:hover { background: var(--bg-page); }
+
+  .rr-agent-row-info {
+    flex: 1;
+    min-width: 0;
+
+    .rr-agent-row-name {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    .rr-agent-row-tag {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .rr-agent-row-bar {
+      height: 3px;
+      border-radius: 2px;
+      background: var(--border-color);
+      overflow: hidden;
+
+      .rr-agent-bar-fill {
+        height: 100%;
+        border-radius: 2px;
+        transition: width 0.6s ease;
+      }
+    }
+  }
+
+  .rr-agent-row-pct {
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+}
+
 // ── 深色模式 ─────────────────────────────────────────────────
 [data-theme='dark'] {
   .rr-msg-card:hover {
