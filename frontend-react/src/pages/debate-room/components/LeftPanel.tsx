@@ -1,6 +1,6 @@
 import React from 'react'
-import { Card, Avatar, Progress, Tag, Tooltip } from 'antd'
-import { CheckCircleFilled } from '@ant-design/icons'
+import { Avatar, Progress, Tooltip } from 'antd'
+import { ArrowLeftOutlined, CheckCircleFilled } from '@ant-design/icons'
 import './LeftPanel.less'
 
 interface LeftPanelProps {
@@ -8,110 +8,120 @@ interface LeftPanelProps {
   agents: Record<string, any>
   currentRound: number
   myVotedAgentId?: string | null
+  onBack?: () => void
 }
+
+const ROUND_LABELS = ['初见', '交锋', '总结']
 
 export const LeftPanel: React.FC<LeftPanelProps> = ({
   room,
   agents,
   currentRound,
   myVotedAgentId,
+  onBack,
 }) => {
-  const roomAgents = room.agents || []
+  const roomAgents: string[] = room.agents || []
   const voteStats = room.votes || {}
-
-  // 计算每个 Agent 的支持率
-  const totalVotes = Object.values(voteStats).reduce((sum: number, count: any) => sum + (count || 0), 0)
+  const totalVotes = Object.values(voteStats).reduce((sum: number, c: any) => sum + (c || 0), 0)
 
   return (
-    <div className="left-panel-content">
-      {/* 案件信息 */}
-      <Card className="case-info-card" bordered={false}>
-        <h2 className="case-title">{room.title}</h2>
-        <p className="case-description">{room.content}</p>
-        
+    <div className="left-panel-wrap">
+      {/* 顶部：返回按钮 + 案件标题 */}
+      <div className="lp-header">
+        {onBack && (
+          <button className="lp-back-btn" onClick={onBack}>
+            <ArrowLeftOutlined />
+            <span>返回</span>
+          </button>
+        )}
+        <div className="lp-title">{room.title}</div>
+      </div>
+
+      {/* 滚动内容区 */}
+      <div className="lp-body">
+        {/* 案件描述 */}
+        {room.content && (
+          <div className="lp-desc">{room.content}</div>
+        )}
+
+        {/* 案件图片 */}
         {room.image && (
-          <div className="case-image">
+          <div className="lp-image">
             <img src={room.image} alt="case" />
           </div>
         )}
-      </Card>
 
-      {/* 辩论进度 */}
-      <Card className="round-indicator" bordered={false}>
-        <div className="round-header">
-          <span className="round-label">当前轮次</span>
-          <Tag color="blue" className="round-tag">Round {currentRound}</Tag>
-        </div>
-        <Progress
-          percent={(currentRound / 3) * 100}
-          steps={3}
-          strokeColor="#667eea"
-          showInfo={false}
-        />
-        <div className="round-labels">
-          <span className={currentRound >= 1 ? 'active' : ''}>初见</span>
-          <span className={currentRound >= 2 ? 'active' : ''}>交锋</span>
-          <span className={currentRound >= 3 ? 'active' : ''}>总结</span>
-        </div>
-      </Card>
-
-      {/* 参与 AI Agents */}
-      <Card className="agents-card" title="参与 AI Agents" bordered={false}>
-        <div className="agents-list">
-          {roomAgents.map((agentId: string) => {
-            const agent = agents[agentId]
-            if (!agent) return null
-
-            const votes = voteStats[agentId] || 0
-            const supportRate = totalVotes > 0 ? ((votes / totalVotes) * 100).toFixed(1) : '0.0'
-
-            const isMyVote = myVotedAgentId === agentId
-
-            return (
-              <div key={agentId} className={`agent-item ${isMyVote ? 'agent-item-voted' : ''}`}>
-                <div style={{ position: 'relative', flexShrink: 0 }}>
-                  <Avatar src={agent.avatar} size={48} className="agent-avatar" />
-                  {isMyVote && (
-                    <Tooltip title="我的投票">
-                      <CheckCircleFilled className="agent-voted-badge" />
-                    </Tooltip>
-                  )}
-                </div>
-                <div className="agent-info">
-                  <div className="agent-name">
-                    {agent.name}
-                    {isMyVote && <span className="agent-my-vote-tag">我的选择</span>}
-                  </div>
-                  <div className="agent-personality">{agent.personality}</div>
-                  <div className="agent-support">
-                    <span className="support-label">支持率</span>
-                    <span className="support-value">{supportRate}%</span>
-                  </div>
-                  <Progress
-                    percent={parseFloat(supportRate)}
-                    size="small"
-                    strokeColor={{
-                      '0%': '#667eea',
-                      '100%': '#764ba2',
-                    }}
-                    showInfo={false}
-                  />
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </Card>
-
-      {/* 发起人信息 */}
-      {room.owner && (
-        <Card className="owner-card" title="发起人" bordered={false} size="small">
-          <div className="owner-info">
-            <Avatar src={room.owner.avatar} size={32} />
-            <span className="owner-name">{room.owner.name}</span>
+        {/* 轮次进度 */}
+        <div className="lp-section">
+          <div className="lp-section-header">
+            <span className="lp-section-label">当前轮次</span>
+            <span className="lp-round-tag">Round {currentRound}</span>
           </div>
-        </Card>
-      )}
+          <div className="lp-progress-track">
+            {ROUND_LABELS.map((label, i) => (
+              <div key={i} className={`lp-progress-step ${currentRound > i ? 'done' : ''} ${currentRound === i + 1 ? 'active' : ''}`}>
+                <div className="lp-step-dot" />
+                <span className="lp-step-label">{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* AI 参与者 */}
+        {roomAgents.length > 0 && (
+          <div className="lp-section">
+            <div className="lp-section-label" style={{ marginBottom: 8 }}>参与 AI</div>
+            <div className="lp-agents">
+              {roomAgents.map((agentId: string) => {
+                const agent = agents[agentId]
+                if (!agent) return null
+                const votes = voteStats[agentId] || 0
+                const pct = totalVotes > 0 ? parseFloat(((votes / totalVotes) * 100).toFixed(1)) : 0
+                const isMyVote = myVotedAgentId === agentId
+
+                return (
+                  <div key={agentId} className={`lp-agent-item ${isMyVote ? 'voted' : ''}`}>
+                    <div className="lp-agent-avatar-wrap">
+                      <Avatar src={agent.avatar} size={36} />
+                      {isMyVote && (
+                        <Tooltip title="我的投票">
+                          <CheckCircleFilled className="lp-voted-badge" />
+                        </Tooltip>
+                      )}
+                    </div>
+                    <div className="lp-agent-info">
+                      <div className="lp-agent-name">
+                        {agent.name}
+                        {isMyVote && <span className="lp-voted-tag">我的选择</span>}
+                      </div>
+                      {agent.personality && (
+                        <div className="lp-agent-personality">{agent.personality}</div>
+                      )}
+                      <div className="lp-agent-bar-row">
+                        <div className="lp-agent-bar">
+                          <div className="lp-agent-bar-fill" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="lp-agent-pct">{pct}%</span>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 发起人 */}
+        {room.owner && (
+          <div className="lp-section lp-owner">
+            <span className="lp-section-label">发起人</span>
+            <div className="lp-owner-info">
+              <Avatar src={room.owner.avatar} size={24} />
+              <span className="lp-owner-name">{room.owner.name || room.owner.email}</span>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

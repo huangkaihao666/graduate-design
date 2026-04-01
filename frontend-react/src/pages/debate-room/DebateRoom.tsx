@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Button, message, Tabs, Skeleton } from 'antd'
-import { ArrowLeftOutlined } from '@ant-design/icons'
+import { message, Tabs, Skeleton } from 'antd'
 import { useQuery } from '@tanstack/react-query'
 import { io } from 'socket.io-client'
 import type { Socket } from 'socket.io-client'
@@ -575,7 +574,7 @@ export const DebateRoom: React.FC = () => {
       key: 'info',
       label: '案件信息',
       children: (
-        <LeftPanel room={roomData} agents={agents} currentRound={currentRound} myVotedAgentId={myVotedAgentId} />
+        <LeftPanel room={roomData} agents={agents} currentRound={currentRound} myVotedAgentId={myVotedAgentId} onBack={() => navigate('/cases')} />
       ),
     },
     {
@@ -605,21 +604,16 @@ export const DebateRoom: React.FC = () => {
 
   return (
     <div className="debate-room">
-      <Button
-        type="text"
-        icon={<ArrowLeftOutlined />}
-        onClick={() => navigate('/cases')}
-        className="back-button"
-      >
-        返回
-      </Button>
-
-      {/* 结案报告入口已挪到辩论舞台标题区 */}
-
       {/* 桌面版：三栏布局 */}
       <div className="debate-room-desktop">
         <div className="left-panel">
-          <LeftPanel room={roomData} agents={agents} currentRound={currentRound} myVotedAgentId={myVotedAgentId} />
+          <LeftPanel
+            room={roomData}
+            agents={agents}
+            currentRound={currentRound}
+            myVotedAgentId={myVotedAgentId}
+            onBack={() => navigate('/cases')}
+          />
         </div>
 
         <div className="center-panel">
