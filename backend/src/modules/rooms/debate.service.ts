@@ -400,6 +400,7 @@ export class DebateService {
 
   /**
    * 结束辩论
+   * 流程：广播投票窗口开启 → 30秒后计算胜率 → 更新DB → 广播 debateFinished
    */
   private async finishDebate(roomId: number): Promise<void> {
     this.logger.log(`Finishing debate for room ${roomId}`);
@@ -409,25 +410,29 @@ export class DebateService {
       context.status = 'FINISHED';
     }
 
-    // 更新房间状态
-    await this.prisma.room.update({
-      where: { id: roomId },
-      data: { status: 'CLOSED' },
-    });
-
-    // 更新 Agent 统计数据（参与次数 & 胜率）
-    await this.updateAgentStats(roomId);
-
-    // 广播辩论结束
-    this.roomsGateway.broadcastToRoom(roomId, 'debateFinished', {
+    // 广播投票窗口开启（30秒）
+    this.roomsGateway.broadcastToRoom(roomId, 'voteWindowOpen', {
       roomId,
+      duration: 30,
     });
+
+    // 30秒后关闭投票窗口，计算胜率，更新DB，广播结束
+    setTimeout(async () => {
+      await this.prisma.room.update({
+        where: { id: roomId },
+        data: { status: 'CLOSED' },
+      });
+
+      await this.updateAgentStats(roomId);
+
+      this.roomsGateway.broadcastToRoom(roomId, 'debateFinished', { roomId });
+    }, 30_000);
   }
 
   /**
    * 强制结案（用于手动结案/生成报告）
    * - 幂等：已 CLOSED 仍返回成功
-   * - 会广播 debateFinished，方便前端即时切换到 CLOSED
+   * - 同样走30秒投票窗口流程
    */
   async forceCloseDebate(roomId: number): Promise<void> {
     this.logger.log(`Force closing debate for room ${roomId}`);
@@ -437,15 +442,22 @@ export class DebateService {
       context.status = 'FINISHED';
     }
 
-    await this.prisma.room.update({
-      where: { id: roomId },
-      data: { status: 'CLOSED' },
+    // 广播投票窗口开启（30秒）
+    this.roomsGateway.broadcastToRoom(roomId, 'voteWindowOpen', {
+      roomId,
+      duration: 30,
     });
 
-    // 更新 Agent 统计数据（参与次数 & 胜率）
-    await this.updateAgentStats(roomId);
+    setTimeout(async () => {
+      await this.prisma.room.update({
+        where: { id: roomId },
+        data: { status: 'CLOSED' },
+      });
 
-    this.roomsGateway.broadcastToRoom(roomId, 'debateFinished', { roomId });
+      await this.updateAgentStats(roomId);
+
+      this.roomsGateway.broadcastToRoom(roomId, 'debateFinished', { roomId });
+    }, 30_000);
   }
 
   /**

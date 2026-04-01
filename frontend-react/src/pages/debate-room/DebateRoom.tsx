@@ -49,6 +49,10 @@ export const DebateRoom: React.FC = () => {
   const lastRoundToastRef = useRef<number | null>(null)
   const [voteCounts, setVoteCounts] = useState<Record<string, number>>({})
   const [totalVotes, setTotalVotes] = useState(0)
+  const [voteWindowOpen, setVoteWindowOpen] = useState(false)
+  const [voteCountdown, setVoteCountdown] = useState(0)
+  const [myVotedAgentId, setMyVotedAgentId] = useState<string | null>(null)
+  const voteCountdownRef = useRef<number | null>(null)
   const loadedDebateHistoryRef = useRef(false)
 
   // 缓冲流式 chunk（区分 reasoning/answer），避免频繁 setState 导致舞台滚动卡死
@@ -261,9 +265,35 @@ export const DebateRoom: React.FC = () => {
       }
     })
 
-    // 辩论结束
+    // 投票窗口开启（辩论结束后30秒可投票）
+    socketInstance.on('voteWindowOpen', (data: any) => {
+      const duration = data?.duration ?? 30
+      setVoteWindowOpen(true)
+      setVoteCountdown(duration)
+      message.info(`辩论结束！请在 ${duration} 秒内投票`)
+
+      // 倒计时
+      if (voteCountdownRef.current) window.clearInterval(voteCountdownRef.current)
+      voteCountdownRef.current = window.setInterval(() => {
+        setVoteCountdown((prev) => {
+          if (prev <= 1) {
+            window.clearInterval(voteCountdownRef.current!)
+            voteCountdownRef.current = null
+            setVoteWindowOpen(false)
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    })
+
+    // 辩论结束（投票窗口关闭后触发）
     socketInstance.on('debateFinished', () => {
-      message.success('辩论已结束！')
+      setVoteWindowOpen(false)
+      if (voteCountdownRef.current) {
+        window.clearInterval(voteCountdownRef.current)
+        voteCountdownRef.current = null
+      }
       setRoomStatus('CLOSED')
     })
 
@@ -398,6 +428,10 @@ export const DebateRoom: React.FC = () => {
         window.clearInterval(flushTimerRef.current)
         flushTimerRef.current = null
       }
+      if (voteCountdownRef.current) {
+        window.clearInterval(voteCountdownRef.current)
+        voteCountdownRef.current = null
+      }
     }
   }, [id, accessToken, refreshToken, room])
 
@@ -491,6 +525,7 @@ export const DebateRoom: React.FC = () => {
           setVoteCounts(resp.counts)
           setTotalVotes(resp.totalVotes)
         }
+        setMyVotedAgentId(agentId)
         message.success('投票成功')
         resolve(true)
       }
@@ -540,7 +575,7 @@ export const DebateRoom: React.FC = () => {
       key: 'info',
       label: '案件信息',
       children: (
-        <LeftPanel room={roomData} agents={agents} currentRound={currentRound} />
+        <LeftPanel room={roomData} agents={agents} currentRound={currentRound} myVotedAgentId={myVotedAgentId} />
       ),
     },
     {
@@ -584,7 +619,7 @@ export const DebateRoom: React.FC = () => {
       {/* 桌面版：三栏布局 */}
       <div className="debate-room-desktop">
         <div className="left-panel">
-          <LeftPanel room={roomData} agents={agents} currentRound={currentRound} />
+          <LeftPanel room={roomData} agents={agents} currentRound={currentRound} myVotedAgentId={myVotedAgentId} />
         </div>
 
         <div className="center-panel">
@@ -618,8 +653,8 @@ export const DebateRoom: React.FC = () => {
         <Tabs activeKey={activeTab} onChange={setActiveTab} items={mobileTabItems} />
       </div>
 
-      {/* 底部投票条 */}
-      {roomStatus === 'CLOSED' && (
+      {/* 底部投票条：辩论结束后30秒投票窗口内显示 */}
+      {voteWindowOpen && (
         <VoteBar
           agents={Object.values(agents).filter((a: any) =>
             roomData.agents?.includes(a.id)
@@ -628,6 +663,7 @@ export const DebateRoom: React.FC = () => {
           onlineCount={onlineCount}
           voteCounts={voteCounts}
           totalVotes={totalVotes}
+          countdown={voteCountdown}
         />
       )}
     </div>

@@ -1,244 +1,314 @@
-// ============ 辩论室底部投票栏 ============
+// ============ 投票弹窗 ============
 
-.vote-bar {
+// 遮罩
+.vote-modal-overlay {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 100;
-  transition: all 0.3s ease;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+  z-index: 200;
+  animation: overlayIn 0.2s ease-out;
 }
 
-// ── 收起态（常驻条） ──────────────────────────────────────────
-.vote-bar-minimized {
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+// 弹窗主体
+.vote-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 201;
+  width: 440px;
+  max-width: calc(100vw - 32px);
   background: var(--bg-card);
-  backdrop-filter: blur(12px);
-  border-top: 1px solid var(--border-color);
-  box-shadow: 0 -4px 24px rgba(99, 102, 241, 0.1);
-  padding: 8px 24px;
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.2), 0 8px 24px rgba(99, 102, 241, 0.12);
+  overflow: hidden;
+  animation: modalIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: translate(-50%, -48%) scale(0.92); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+// ── 头部 ─────────────────────────────────────────────────────
+.vote-modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--gradient-card);
+}
 
-  .vote-hint-text {
-    font-size: 13px;
-    color: var(--color-primary);
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 6px;
+.vote-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary);
 
-    .hint-icon {
-      font-size: 16px;
-      animation: voteHintBounce 1.5s ease-in-out infinite;
-    }
-  }
-
-  @keyframes voteHintBounce {
-    0%, 100% { transform: translateY(0); }
-    50%       { transform: translateY(-3px); }
-  }
-
-  .viewer-count {
-    font-size: 12px;
-    color: var(--text-tertiary);
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-
-  .expand-btn {
-    border-radius: 8px !important;
-    background: linear-gradient(135deg, #6366F1, #8B5CF6) !important;
-    border: none !important;
-    font-weight: 600 !important;
-    font-size: 12px !important;
-    height: 30px !important;
-    padding: 0 14px !important;
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35) !important;
-    transition: all 0.2s ease !important;
-
-    &:hover {
-      transform: translateY(-1px) !important;
-      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.5) !important;
-    }
+  .vote-modal-icon {
+    font-size: 20px;
+    line-height: 1;
   }
 }
 
-// ── 展开态（投票面板） ────────────────────────────────────────
-.vote-bar-expanded {
-  background: var(--bg-card);
-  backdrop-filter: blur(16px);
-  border-top: 2px solid var(--color-primary);
-  box-shadow: 0 -8px 40px rgba(99, 102, 241, 0.15);
-  padding: 20px 24px;
-  animation: voteBarExpand 0.3s ease-out;
+.vote-modal-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 
-  @keyframes voteBarExpand {
-    from { opacity: 0; transform: translateY(20px); }
-    to   { opacity: 1; transform: translateY(0); }
+.vote-modal-countdown {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  transition: background 0.3s ease, color 0.3s ease;
+
+  &.urgent {
+    background: rgba(239, 68, 68, 0.12);
+    color: #EF4444;
+    animation: countdownPulse 0.8s ease-in-out infinite;
   }
+}
 
-  .vote-bar-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 16px;
+@keyframes countdownPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.7; transform: scale(1.05); }
+}
 
-    .vote-question {
-      font-size: 15px;
-      font-weight: 700;
-      color: var(--text-primary);
-      display: flex;
-      align-items: center;
-      gap: 8px;
+.vote-modal-online {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
 
-      .vote-icon {
-        width: 28px;
-        height: 28px;
-        border-radius: 8px;
-        background: linear-gradient(135deg, #6366F1, #8B5CF6);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #fff;
-        font-size: 14px;
-      }
-    }
+.vote-modal-close {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: none;
+  background: var(--bg-page);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  transition: all 0.2s ease;
+  outline: none;
 
-    .vote-bar-close {
-      border: none !important;
-      background: var(--bg-page) !important;
-      color: var(--text-secondary) !important;
-      border-radius: 8px !important;
-      font-size: 13px !important;
-      height: 30px !important;
-      padding: 0 12px !important;
-      transition: all 0.2s ease !important;
-
-      &:hover {
-        background: var(--border-color) !important;
-        color: var(--text-primary) !important;
-      }
-    }
+  &:hover {
+    background: var(--border-color);
+    color: var(--text-primary);
   }
+}
 
-  // 进度条区域
-  .vote-progress-section {
-    margin-bottom: 14px;
+// ── 副标题 ────────────────────────────────────────────────────
+.vote-modal-sub {
+  padding: 12px 20px 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
 
-    .vote-labels {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 6px;
-
-      .vote-label {
-        font-size: 12px;
-        font-weight: 600;
-
-        &.label-a { color: #F97316; }
-        &.label-b { color: #10B981; }
-
-        .label-count {
-          margin-left: 4px;
-          font-size: 11px;
-          font-weight: 400;
-          opacity: 0.8;
-        }
-      }
-    }
-
-    .vote-progress-bar {
-      height: 10px;
-      border-radius: 6px;
-      overflow: hidden;
-      background: var(--border-color);
-      display: flex;
-
-      .progress-a {
-        background: linear-gradient(90deg, #F97316, #FB923C);
-        transition: width 0.5s ease;
-        border-radius: 6px 0 0 6px;
-        min-width: 2%;
-      }
-
-      .progress-b {
-        flex: 1;
-        background: linear-gradient(90deg, #10B981, #34D399);
-        transition: width 0.5s ease;
-        border-radius: 0 6px 6px 0;
-      }
-    }
-  }
-
-  // 投票按钮行
-  .vote-actions {
-    display: flex;
-    gap: 12px;
-
-    .vote-btn {
-      flex: 1;
-      height: 42px !important;
-      border-radius: 10px !important;
-      font-size: 14px !important;
-      font-weight: 700 !important;
-      border: 2px solid transparent !important;
-      transition: all 0.25s ease !important;
-
-      &.vote-btn-a {
-        background: rgba(249, 115, 22, 0.1) !important;
-        color: #F97316 !important;
-        border-color: rgba(249, 115, 22, 0.3) !important;
-
-        &:hover:not(:disabled) {
-          background: linear-gradient(135deg, #F97316, #FB923C) !important;
-          color: #fff !important;
-          border-color: #F97316 !important;
-          transform: translateY(-2px) !important;
-          box-shadow: 0 6px 16px rgba(249, 115, 22, 0.4) !important;
-        }
-
-        &.voted {
-          background: linear-gradient(135deg, #F97316, #FB923C) !important;
-          color: #fff !important;
-          border-color: #F97316 !important;
-          box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4) !important;
-        }
-      }
-
-      &.vote-btn-b {
-        background: rgba(16, 185, 129, 0.1) !important;
-        color: #10B981 !important;
-        border-color: rgba(16, 185, 129, 0.3) !important;
-
-        &:hover:not(:disabled) {
-          background: linear-gradient(135deg, #10B981, #34D399) !important;
-          color: #fff !important;
-          border-color: #10B981 !important;
-          transform: translateY(-2px) !important;
-          box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4) !important;
-        }
-
-        &.voted {
-          background: linear-gradient(135deg, #10B981, #34D399) !important;
-          color: #fff !important;
-          border-color: #10B981 !important;
-          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4) !important;
-        }
-      }
-    }
-  }
-
-  // 已投票提示
-  .already-voted-hint {
-    margin-top: 10px;
-    text-align: center;
-    font-size: 12px;
+  .vote-modal-stats {
     color: var(--text-tertiary);
+    font-weight: 400;
+    margin-left: 2px;
+  }
+}
+
+// ── Agent 投票按钮列表 ─────────────────────────────────────────
+.vote-modal-agents {
+  padding: 12px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vote-agent-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1.5px solid var(--agent-border, var(--border-color));
+  background: var(--agent-bg, var(--bg-page));
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+  text-align: left;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--agent-gradient);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    border-radius: inherit;
+  }
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+    border-color: var(--agent-color, var(--color-primary));
+
+    &::before { opacity: 0.06; }
+
+    .vote-agent-arrow { opacity: 1; transform: translateX(0); }
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .vote-agent-avatar {
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+  }
+
+  .vote-agent-info {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+    z-index: 1;
+
+    .vote-agent-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--agent-color, var(--text-primary));
+      margin-bottom: 2px;
+    }
+
+    .vote-agent-personality {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .vote-agent-bar-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    position: relative;
+    z-index: 1;
+    min-width: 60px;
+
+    .vote-agent-bar {
+      width: 60px;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--border-color);
+      overflow: hidden;
+
+      .vote-agent-bar-fill {
+        height: 100%;
+        border-radius: 2px;
+        transition: width 0.5s ease;
+      }
+    }
+
+    .vote-agent-percent {
+      font-size: 11px;
+      font-weight: 700;
+    }
+  }
+
+  .vote-agent-arrow {
+    font-size: 18px;
+    color: var(--agent-color, var(--text-tertiary));
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: all 0.2s ease;
+    position: relative;
+    z-index: 1;
+    line-height: 1;
+  }
+}
+
+// ── 投票成功态 ────────────────────────────────────────────────
+.vote-modal-success {
+  padding: 32px 20px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  animation: successIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  @keyframes successIn {
+    from { opacity: 0; transform: scale(0.8); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  .vote-success-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #10B981, #34D399);
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    color: #fff;
+    font-size: 24px;
+    box-shadow: 0 8px 24px rgba(16, 185, 129, 0.35);
+  }
+
+  .vote-success-text {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+
+    strong { color: #10B981; }
+  }
+
+  .vote-success-sub {
+    font-size: 12px;
+    color: var(--text-tertiary);
+  }
+}
+
+// ── 底部倒计时进度条 ──────────────────────────────────────────
+.vote-modal-progress {
+  height: 3px;
+  background: var(--border-color);
+  overflow: hidden;
+
+  .vote-modal-progress-fill {
+    height: 100%;
+    background: var(--gradient-primary);
+    transition: width 1s linear;
+    border-radius: 0 2px 2px 0;
+
+    &.urgent {
+      background: linear-gradient(90deg, #F59E0B, #EF4444);
+    }
   }
 }

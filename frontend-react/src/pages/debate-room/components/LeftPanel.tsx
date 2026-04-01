@@ -1,17 +1,20 @@
 import React from 'react'
-import { Card, Avatar, Progress, Tag } from 'antd'
+import { Card, Avatar, Progress, Tag, Tooltip } from 'antd'
+import { CheckCircleFilled } from '@ant-design/icons'
 import './LeftPanel.less'
 
 interface LeftPanelProps {
   room: any
   agents: Record<string, any>
   currentRound: number
+  myVotedAgentId?: string | null
 }
 
 export const LeftPanel: React.FC<LeftPanelProps> = ({
   room,
   agents,
   currentRound,
+  myVotedAgentId,
 }) => {
   const roomAgents = room.agents || []
   const voteStats = room.votes || {}
@@ -62,11 +65,23 @@ export const LeftPanel: React.FC<LeftPanelProps> = ({
             const votes = voteStats[agentId] || 0
             const supportRate = totalVotes > 0 ? ((votes / totalVotes) * 100).toFixed(1) : '0.0'
 
+            const isMyVote = myVotedAgentId === agentId
+
             return (
-              <div key={agentId} className="agent-item">
-                <Avatar src={agent.avatar} size={48} className="agent-avatar" />
+              <div key={agentId} className={`agent-item ${isMyVote ? 'agent-item-voted' : ''}`}>
+                <div style={{ position: 'relative', flexShrink: 0 }}>
+                  <Avatar src={agent.avatar} size={48} className="agent-avatar" />
+                  {isMyVote && (
+                    <Tooltip title="我的投票">
+                      <CheckCircleFilled className="agent-voted-badge" />
+                    </Tooltip>
+                  )}
+                </div>
                 <div className="agent-info">
-                  <div className="agent-name">{agent.name}</div>
+                  <div className="agent-name">
+                    {agent.name}
+                    {isMyVote && <span className="agent-my-vote-tag">我的选择</span>}
+                  </div>
                   <div className="agent-personality">{agent.personality}</div>
                   <div className="agent-support">
                     <span className="support-label">支持率</span>
