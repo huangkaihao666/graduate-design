@@ -54,7 +54,8 @@ export class PackagesController {
   create(
     @Body()
     body: {
-      spotId: number;
+      spotId?: number;
+      location?: string;
       name: string;
       style: string;
       price: number;
@@ -78,12 +79,13 @@ export class PackagesController {
   @Patch(':id')
   @UseGuards(AdminOrJwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: '更新套餐（目的地通过 spotId 与景点表一致）' })
+  @ApiOperation({ summary: '更新套餐（可选景点同步城市，或手填目的地）' })
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body()
     body: Partial<{
-      spotId: number;
+      spotId: number | null;
+      location: string;
       name: string;
       style: string;
       price: number;

@@ -62,7 +62,8 @@ export interface PackageRecommendationResponse {
 }
 
 export type CreatePackageBody = {
-  spotId: number;
+  spotId?: number | null;
+  location?: string;
   name: string;
   style: string;
   price: number;

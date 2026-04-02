@@ -208,7 +208,7 @@
         >
           <a-image :src="pkg.coverImage" :preview="false" class="recommend-cover" />
           <div class="recommend-info">
-            <h4>{{ pkg.name }}</h4>
+            <h4>{{ getPackageDisplayName(pkg) }}</h4>
             <p>📍 {{ pkg.location }} · 🎨 {{ getStyleName(pkg.style) }} · {{ pkg.duration }} 天</p>
             <span class="recommend-price">¥{{ pkg.price.toLocaleString() }}</span>
             <a-button
@@ -273,7 +273,7 @@
           </div>
           <div class="card-content">
             <div class="card-header">
-              <h3 class="package-name">{{ pkg.name }}</h3>
+              <h3 class="package-name">{{ getPackageDisplayName(pkg) }}</h3>
               <div class="price-section">
                 <span class="current-price">¥{{ pkg.price.toLocaleString() }}</span>
                 <span v-if="pkg.originalPrice" class="original-price">
@@ -321,35 +321,27 @@
     <a-modal
       v-model:open="detailModalVisible"
       title="套餐详情"
-      :width="1000"
+      :width="720"
       :footer="null"
       @cancel="closePackageDetail"
     >
       <div v-if="selectedPackage" class="package-detail">
         <div class="detail-images">
           <a-image
-            :src="selectedPackage.coverImage"
+            v-for="(img, index) in [selectedPackage.coverImage, ...(selectedPackage.images || [])]
+              .filter(Boolean)
+              .slice(0, 2)"
+            :key="`detail-img-${index}`"
+            :src="img"
             :alt="selectedPackage.name"
             :preview="true"
-            class="main-image"
+            class="detail-half-image"
           />
-          <div
-            v-if="selectedPackage.images && selectedPackage.images.length > 0"
-            class="thumbnails"
-          >
-            <a-image
-              v-for="(img, index) in selectedPackage.images"
-              :key="index"
-              :src="img"
-              :preview="true"
-              class="thumbnail"
-            />
-          </div>
         </div>
 
         <div class="detail-content">
           <div class="detail-header">
-            <h2>{{ selectedPackage.name }}</h2>
+            <h2>{{ getPackageDisplayName(selectedPackage) }}</h2>
             <div class="detail-price">
               <span class="current-price">¥{{ selectedPackage.price.toLocaleString() }}</span>
               <span v-if="selectedPackage.originalPrice" class="original-price">
@@ -465,7 +457,7 @@
           >
             <a-image :src="pkg.coverImage" :preview="false" class="recommend-cover" />
             <div class="recommend-info">
-              <h4>{{ pkg.name }}</h4>
+              <h4>{{ getPackageDisplayName(pkg) }}</h4>
               <p>
                 📍 {{ pkg.location }} · 🎨 {{ getStyleName(pkg.style) }} · {{ pkg.duration }} 天
               </p>
@@ -807,6 +799,9 @@ const recommendedLocations = computed(() => {
 const getStyleName = (style: string) => {
   return loadedStyleMap.value[style] || style;
 };
+
+const getPackageDisplayName = (pkg: Package) =>
+  `${pkg.location}${pkg.duration}日${TRAVEL_STYLE_LABELS[pkg.style] || getStyleName(pkg.style)}旅拍套餐`;
 
 const safeReadJSON = (raw: string | null) => {
   if (!raw) {
@@ -1932,38 +1927,31 @@ onMounted(async () => {
 // 套餐详情模态框
 .package-detail {
   .detail-images {
-    margin-bottom: 30px;
+    --detail-img-h: clamp(220px, 38vh, 340px);
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    align-items: stretch;
 
-    .main-image {
-      width: 100%;
+    .detail-half-image {
+      flex: 1 1 0;
+      height: var(--detail-img-h);
       border-radius: 12px;
       overflow: hidden;
-      margin-bottom: 15px;
 
-      :deep(.ant-image-img) {
-        width: 100%;
-        max-height: 400px;
-        object-fit: cover;
+      :deep(.ant-image) {
+        width: 100% !important;
+        height: var(--detail-img-h) !important;
+        display: block;
       }
-    }
 
-    .thumbnails {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-
-      .thumbnail {
-        width: 120px;
-        height: 120px;
-        border-radius: 8px;
-        overflow: hidden;
-        cursor: pointer;
-
-        :deep(.ant-image-img) {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
+      :deep(.ant-image-img),
+      :deep(img) {
+        width: 100% !important;
+        height: var(--detail-img-h) !important;
+        max-height: var(--detail-img-h) !important;
+        object-fit: cover !important;
+        display: block;
       }
     }
   }

@@ -14,8 +14,12 @@ function asStringArray(v: unknown): string[] {
 }
 
 type TravelPackageWithSpot = Prisma.TravelPackageGetPayload<{
-  include: { spot: true };
+  include: { spot: { include: { city: true } } };
 }>;
+
+const packageSpotInclude = {
+  spot: { include: { city: true } },
+} as const;
 
 @Injectable()
 export class PackagesService {
@@ -52,7 +56,7 @@ export class PackagesService {
     const rows = await this.prisma.travelPackage.findMany({
       where: { status: 'published' },
       orderBy: { id: 'asc' },
-      include: { spot: true },
+      include: packageSpotInclude,
     });
     const items = rows.map((r) => this.mapRow(r));
     return {
@@ -75,7 +79,7 @@ export class PackagesService {
     const safeLimit = Math.min(Math.max(Number(limit) || 6, 1), 20);
     const published = await this.prisma.travelPackage.findMany({
       where: { status: 'published' },
-      include: { spot: true },
+      include: packageSpotInclude,
       orderBy: { id: 'asc' },
     });
     if (!published.length) {
@@ -242,7 +246,7 @@ export class PackagesService {
   async findAllAdmin() {
     const rows = await this.prisma.travelPackage.findMany({
       orderBy: { id: 'asc' },
-      include: { spot: true },
+      include: packageSpotInclude,
     });
     return rows.map((r) => this.mapRow(r));
   }
@@ -250,7 +254,7 @@ export class PackagesService {
   async findOnePublic(id: number) {
     const row = await this.prisma.travelPackage.findUnique({
       where: { id },
-      include: { spot: true },
+      include: packageSpotInclude,
     });
     if (!row || row.status !== 'published') {
       throw new NotFoundException('套餐不存在或已下架');
@@ -259,7 +263,8 @@ export class PackagesService {
   }
 
   async create(data: {
-    spotId: number;
+    spotId?: number;
+    location?: string;
     name: string;
     style: string;
     price: number;
@@ -276,18 +281,29 @@ export class PackagesService {
     isHot?: boolean;
     status?: string;
   }) {
-    const spot = await this.prisma.spot.findUnique({
-      where: { id: data.spotId },
-    });
-    if (!spot) {
-      throw new BadRequestException(
-        '无效的景点，请先选择「景点管理」中的目的地',
-      );
+    let spotId: number | null = null;
+    let location = String(data.location || '').trim();
+    if (data.spotId !== undefined && data.spotId !== null) {
+      const spot = await this.prisma.spot.findUnique({
+        where: { id: data.spotId },
+        include: { city: true },
+      });
+      if (!spot) {
+        throw new BadRequestException(
+          '无效的景点，请先选择「景点管理」中的目的地',
+        );
+      }
+      spotId = spot.id;
+      location = spot.city.name;
     }
+    if (!location) {
+      throw new BadRequestException('请填写目的地，或选择景点自动带出');
+    }
+
     const row = await this.prisma.travelPackage.create({
       data: {
-        spotId: data.spotId,
-        location: spot.city,
+        spotId,
+        location,
         name: data.name,
         style: data.style,
         price: data.price,
@@ -304,7 +320,7 @@ export class PackagesService {
         isHot: data.isHot ?? false,
         status: data.status ?? 'published',
       },
-      include: { spot: true },
+      include: packageSpotInclude,
     });
     return this.mapRow(row);
   }
@@ -312,7 +328,8 @@ export class PackagesService {
   async update(
     id: number,
     data: Partial<{
-      spotId: number;
+      spotId: number | null;
+      location: string;
       name: string;
       style: string;
       price: number;
@@ -332,25 +349,41 @@ export class PackagesService {
   ) {
     await this.ensureExists(id);
     const updateData: Record<string, unknown> = { ...data };
-    delete updateData.location;
 
     if (data.spotId !== undefined) {
-      const spot = await this.prisma.spot.findUnique({
-        where: { id: data.spotId },
-      });
-      if (!spot) {
-        throw new BadRequestException(
-          '无效的景点，请先选择「景点管理」中的目的地',
-        );
+      if (data.spotId === null) {
+        updateData.spotId = null;
+      } else {
+        const spot = await this.prisma.spot.findUnique({
+          where: { id: data.spotId },
+          include: { city: true },
+        });
+        if (!spot) {
+          throw new BadRequestException(
+            '无效的景点，请先选择「景点管理」中的目的地',
+          );
+        }
+        updateData.spotId = data.spotId;
+        updateData.location = spot.city.name;
       }
-      updateData.spotId = data.spotId;
-      updateData.location = spot.city;
+    }
+
+    if (data.location !== undefined) {
+      const location = String(data.location || '').trim();
+      if (!location) {
+        throw new BadRequestException('目的地不能为空');
+      }
+      updateData.location = location;
+      if (data.spotId === undefined) {
+        // 手填地点时默认解除景点绑定，避免数据冲突
+        updateData.spotId = null;
+      }
     }
 
     const row = await this.prisma.travelPackage.update({
       where: { id },
       data: updateData as Prisma.TravelPackageUpdateInput,
-      include: { spot: true },
+      include: packageSpotInclude,
     });
     return this.mapRow(row);
   }
@@ -364,7 +397,7 @@ export class PackagesService {
     const updated = await this.prisma.travelPackage.update({
       where: { id },
       data: { status: next },
-      include: { spot: true },
+      include: packageSpotInclude,
     });
     return this.mapRow(updated);
   }

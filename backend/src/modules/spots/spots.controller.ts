@@ -35,13 +35,15 @@ export class SpotsController {
   @Post()
   @UseGuards(AdminOrJwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: '新增景点' })
+  @ApiOperation({ summary: '新增景点（须先在城市管理中创建城市）' })
   create(
     @Body()
     body: {
       name: string;
-      city: string;
+      cityId: number;
       category: string;
+      description?: string | null;
+      images?: string[] | null;
       recommended?: boolean;
     },
   ) {
@@ -57,8 +59,10 @@ export class SpotsController {
     @Body()
     body: Partial<{
       name: string;
-      city: string;
+      cityId: number;
       category: string;
+      description: string | null;
+      images: string[] | null;
       recommended: boolean;
     }>,
   ) {

@@ -1,5 +1,5 @@
 <template>
-  <div class="photographers-page">
+  <div ref="pageRootRef" class="photographers-page">
     <div class="team-switch">
       <a-button
         class="switch-btn"
@@ -136,13 +136,15 @@ import {
 } from '@/constants/booking';
 import { useAuthStore } from '@/store/auth';
 import { message } from 'ant-design-vue';
-import { computed, onMounted, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
 const authStore = useAuthStore();
 const router = useRouter();
+const route = useRoute();
 
 const loading = ref(false);
+const pageRootRef = ref<HTMLElement | null>(null);
 const teamTab = ref<'photographer' | 'makeup'>('photographer');
 const photographerList = ref<PhotographerPublic[]>([]);
 const makeupArtistList = ref<MakeupArtistPublic[]>([]);
@@ -201,6 +203,48 @@ const select = (p: PhotographerPublic) => {
   selected.value = p;
 };
 
+const applyRouteSelection = () => {
+  const teamRaw = String(route.query.team || '')
+    .trim()
+    .toLowerCase();
+  if (teamRaw === 'makeup') {
+    teamTab.value = 'makeup';
+  } else if (teamRaw === 'photographer') {
+    teamTab.value = 'photographer';
+  }
+
+  const idRaw = Number(route.query.id);
+  if (Number.isNaN(idRaw) || idRaw <= 0) return;
+  const target = activeList.value.find((x) => x.id === idRaw);
+  if (target) {
+    selected.value = target;
+  }
+};
+
+const scrollPageToTop = async () => {
+  await nextTick();
+  window.scrollTo({ top: 0, behavior: 'auto' });
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+
+  const root = pageRootRef.value;
+  if (!root) return;
+  root.scrollIntoView({ block: 'start', behavior: 'auto' });
+
+  let parent: HTMLElement | null = root.parentElement;
+  while (parent) {
+    const style = window.getComputedStyle(parent);
+    if (
+      (style.overflowY === 'auto' || style.overflowY === 'scroll') &&
+      parent.scrollHeight > parent.clientHeight
+    ) {
+      parent.scrollTop = 0;
+      break;
+    }
+    parent = parent.parentElement;
+  }
+};
+
 const bookPhotographer = () => {
   if (!selected.value) return;
   if (!authStore.isAuthenticated) {
@@ -232,8 +276,19 @@ watch(activeList, (rows) => {
 
 onMounted(() => {
   authStore.initializeAuth();
-  load();
+  load().then(() => {
+    applyRouteSelection();
+    void scrollPageToTop();
+  });
 });
+
+watch(
+  () => route.query,
+  () => {
+    applyRouteSelection();
+    void scrollPageToTop();
+  }
+);
 </script>
 
 <style scoped lang="less">

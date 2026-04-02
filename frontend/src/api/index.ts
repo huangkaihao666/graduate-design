@@ -5,7 +5,7 @@ import { ordersApi } from './orders';
 import { paymentsApi } from './payments';
 import { packagesApi } from './packages';
 import { photographersApi } from './photographers';
-import { spotsApi } from './spots';
+import { citiesApi, spotsApi } from './spots';
 import { styleTagsApi } from './styleTags';
 import { usersApi } from './users';
 
@@ -30,6 +30,7 @@ export {
   paymentsApi,
   photographersApi,
   spotsApi,
+  citiesApi,
   styleTagsApi,
   usersApi,
 };
@@ -45,6 +46,7 @@ export const api = {
   orders: ordersApi,
   payments: paymentsApi,
   spots: spotsApi,
+  cities: citiesApi,
   styleTags: styleTagsApi,
 };
 

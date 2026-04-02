@@ -198,7 +198,7 @@ model TravelPackage {
   price         Int      @db.UnsignedInt
   originalPrice Int?     @db.UnsignedInt
   duration      Int      @db.UnsignedInt
-  /// 目的地（城市）：与景点 spot.city 保持一致，由 spotId 同步写入
+  /// 目的地（城市名）：与景点所属城市 City.name 一致，由 spotId 同步写入
   location      String   @db.VarChar(100)
   /// 删除景点时下架/草稿套餐会置空；仅已上架套餐会阻止删景点
   spotId        Int?     @db.UnsignedInt
@@ -228,11 +228,28 @@ model TravelPackage {
   @@index([style])
 }
 
-/// 景点（后台管理；套餐「目的地」必须引用景点，location = city）
+/// 旅拍城市（管理员先建城市，再在城市下维护多处景点）
+model City {
+  id        Int      @id @default(autoincrement()) @db.UnsignedInt
+  name      String   @unique @db.VarChar(100)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  spots Spot[]
+
+  @@map("cities")
+}
+
+/// 景点（隶属于城市；套餐引用景点时 destination = 城市名）
 model Spot {
   id          Int      @id @default(autoincrement()) @db.UnsignedInt
+  cityId      Int      @db.UnsignedInt
+  city        City     @relation(fields: [cityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   name        String   @db.VarChar(255)
-  city        String   @db.VarChar(100)
+  /// 景点介绍
+  description String?  @db.Text
+  /// 景点照片 URL 列表（JSON 数组）
+  images      Json?
   category    String   @db.VarChar(100)
   recommended Boolean  @default(false)
 
@@ -242,6 +259,7 @@ model Spot {
   packages TravelPackage[]
 
   @@map("spots")
+  @@index([cityId])
 }
 
 /// 风格标签（后台管理 + 套餐筛选）

@@ -156,7 +156,6 @@ const handleLogout = () => {
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
-        text-shadow: 0 2px 10px rgba(255, 117, 140, 0.18);
       }
     }
   }
@@ -173,7 +172,7 @@ const handleLogout = () => {
     .nav-item {
       color: #4b5563;
       text-decoration: none;
-      font-size: 16px;
+      font-size: 18px;
       white-space: nowrap;
       padding: 10px 14px;
       border-radius: 999px;

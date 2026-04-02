@@ -130,7 +130,12 @@
           <span class="line"></span>
         </div>
         <div class="scroll-row photographers">
-          <article v-for="item in photographers" :key="item.name" class="card photographer-card">
+          <article
+            v-for="item in photographers"
+            :key="item.name"
+            class="card photographer-card"
+            @click="goTeamMember('photographer', item.id)"
+          >
             <img :src="item.avatar" :alt="item.name" />
             <h3>{{ item.name }}</h3>
             <p>{{ item.style }}</p>
@@ -144,7 +149,12 @@
           <span class="line"></span>
         </div>
         <div class="scroll-row makeup-artists">
-          <article v-for="item in makeupArtists" :key="item.name" class="card photographer-card">
+          <article
+            v-for="item in makeupArtists"
+            :key="item.name"
+            class="card photographer-card"
+            @click="goTeamMember('makeup', item.id)"
+          >
             <img :src="item.avatar" :alt="item.name" />
             <h3>{{ item.name }}</h3>
             <p>{{ item.style }}</p>
@@ -452,7 +462,9 @@ const fallbackPhotographers = [
   },
 ];
 
-const dynamicPhotographers = ref<Array<{ name: string; style: string; avatar: string }>>([]);
+const dynamicPhotographers = ref<
+  Array<{ id?: number; name: string; style: string; avatar: string }>
+>([]);
 const photographers = computed(() =>
   dynamicPhotographers.value.length > 0 ? dynamicPhotographers.value : fallbackPhotographers
 );
@@ -475,7 +487,9 @@ const fallbackMakeupArtists = [
   },
 ];
 
-const dynamicMakeupArtists = ref<Array<{ name: string; style: string; avatar: string }>>([]);
+const dynamicMakeupArtists = ref<
+  Array<{ id?: number; name: string; style: string; avatar: string }>
+>([]);
 const makeupArtists = computed(() =>
   dynamicMakeupArtists.value.length > 0 ? dynamicMakeupArtists.value : fallbackMakeupArtists
 );
@@ -507,6 +521,7 @@ const loadHomepagePhotographers = async () => {
       }
 
       workers.push({
+        id: p.id,
         name: String(p.name || '摄影师'),
         style: String(p.title || '').trim() || normalizeStyleLabel(p.shootingStyle),
         avatar: String(p.avatar || firstImage || ''),
@@ -523,6 +538,7 @@ const loadHomepagePhotographers = async () => {
       const uniqueUrls = [...new Set([...urlsFromItems, ...urlsFromImages])];
       const firstImage = uniqueUrls[0];
       makeupWorkers.push({
+        id: p.id,
         name: String(p.name || '妆造师'),
         style: String(p.title || '').trim() || normalizeStyleLabel(p.shootingStyle),
         avatar: String(p.avatar || firstImage || ''),
@@ -560,6 +576,11 @@ const goPackages = () => router.push('/booking/packages');
 const goFeature = (path: string) => router.push(path);
 const goDestination = (location: string) =>
   router.push({ path: '/booking/packages', query: { location } });
+const goTeamMember = (team: 'photographer' | 'makeup', id?: number) => {
+  const query: Record<string, string> = { team };
+  if (id) query.id = String(id);
+  router.push({ path: '/booking/photographers', query });
+};
 
 const goToSlide = (idx: number) => {
   transitionEnabled.value = true;
@@ -1062,6 +1083,7 @@ onBeforeUnmount(() => {
   flex: 0 0 220px;
   text-align: center;
   padding: 20px 16px;
+  cursor: pointer;
 
   img {
     width: 100px;
