@@ -98,7 +98,11 @@
                 :key="style.id"
                 class="style-card"
                 :class="{ active: selectedStyle === style.id }"
-                :title="style.id === 'minimalist' ? minimalistDetailForRole : undefined"
+                :title="
+                  style.id === 'minimalist'
+                    ? minimalistDetailForRole
+                    : style.description || style.name
+                "
                 @click="
                   () => {
                     selectedStyle = style.id;
@@ -106,8 +110,10 @@
                   }
                 "
               >
+                <span v-if="style.icon" class="style-card-ico">{{ style.icon }}</span>
                 <img :src="style.preview" :alt="style.name" />
                 <div class="style-name">{{ style.name }}</div>
+                <p v-if="style.description" class="style-card-desc">{{ style.description }}</p>
               </div>
             </div>
           </section>
@@ -366,23 +372,10 @@ const stylePreviewMap: Record<string, string> = {
 };
 
 const styleDisplayList = computed(() => {
-  const baseList = (availableStyles.value || []).map((style: any) => ({
+  return (availableStyles.value || []).map((style: any) => ({
     ...style,
-    preview: stylePreviewMap[style.id] || xpsy1,
+    preview: style.previewUrl || stylePreviewMap[style.id] || xpsy1,
   }));
-
-  const hasOldtown = baseList.some((s: any) => s.id === 'oldtown' || s.name === '古镇纪实');
-  if (!hasOldtown) {
-    baseList.push({
-      id: 'oldtown',
-      name: '古镇纪实',
-      description: '古镇街巷、人文纪实、烟火生活感',
-      color: '#8b5e3c',
-      preview: xpsy6,
-    });
-  }
-
-  return baseList.slice(0, 6);
 });
 
 const accessoryOptionsByStyle: Record<string, string[]> = {
@@ -1395,11 +1388,31 @@ const showResultImagePlaceholder = (target: any) => {
     box-shadow: 0 0 0 3px rgba(255, 107, 139, 0.24);
   }
 
+  .style-card-ico {
+    display: block;
+    font-size: 1.1rem;
+    line-height: 1.2;
+    margin-bottom: 2px;
+  }
+
   .style-name {
     font-weight: 600;
     font-size: 0.86rem;
     color: #333;
     margin: 0;
+  }
+
+  .style-card-desc {
+    margin: 4px 0 0;
+    font-size: 0.68rem;
+    line-height: 1.35;
+    color: #666;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-align: left;
+    padding: 0 2px;
   }
 }
 

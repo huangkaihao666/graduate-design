@@ -32,6 +32,16 @@ export class StyleTagsController {
     return this.styleTagsService.findAll();
   }
 
+  @Post('sync-canonical')
+  @UseGuards(AdminOrJwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: '同步标准六种风格（确保存在且名称/排序正确，不影响自定义标签）',
+  })
+  syncCanonical() {
+    return this.styleTagsService.syncCanonical();
+  }
+
   @Post()
   @UseGuards(AdminOrJwtAuthGuard)
   @ApiBearerAuth()
@@ -41,6 +51,9 @@ export class StyleTagsController {
     body: {
       key: string;
       name: string;
+      description?: string | null;
+      icon?: string | null;
+      images?: string[] | null;
       enabled?: boolean;
       sortOrder?: number;
     },
@@ -60,6 +73,9 @@ export class StyleTagsController {
       name: string;
       enabled: boolean;
       sortOrder: number;
+      description: string | null;
+      icon: string | null;
+      images: string[] | null;
     }>,
   ) {
     return this.styleTagsService.update(id, body);

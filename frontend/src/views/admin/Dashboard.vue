@@ -229,7 +229,7 @@ onUnmounted(() => {
 
 <style scoped lang="less">
 .admin-dashboard-container {
-  padding: 20px 24px;
+  padding: 32px 24px 24px;
   background: #f6f8fb;
   min-height: calc(100vh - 64px);
 }

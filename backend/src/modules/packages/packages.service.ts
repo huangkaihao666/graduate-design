@@ -297,7 +297,7 @@ export class PackagesService {
       location = spot.city.name;
     }
     if (!location) {
-      throw new BadRequestException('请填写目的地，或选择景点自动带出');
+      throw new BadRequestException('请填写目的地');
     }
 
     const row = await this.prisma.travelPackage.create({

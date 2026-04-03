@@ -24,6 +24,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService, type AvatarUploadFile } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { AdminOrJwtAuthGuard } from '../auth/admin-or-jwt-auth.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @ApiTags('Users')
@@ -171,6 +172,19 @@ export class UsersController {
       throw new BadRequestException('新密码至少 6 位');
     }
     return this.usersService.resetPassword(id, nextPassword);
+  }
+
+  @Delete(':id/worker')
+  @UseGuards(AdminOrJwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: '删除工作人员账号',
+    description:
+      '仅允许删除 role=worker 的账号，并同步删除绑定的摄影师/妆造师业务档案（photographers 表）',
+  })
+  @ApiParam({ name: 'id', type: Number, description: '用户 ID' })
+  removeWorker(@Param('id', ParseIntPipe) id: number) {
+    return this.usersService.removeWorkerAccount(id);
   }
 
   @Delete(':id')

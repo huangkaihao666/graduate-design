@@ -2,7 +2,15 @@
   <div class="spots-container">
     <div class="header">
       <h1>景点管理</h1>
-      <a-space wrap>
+      <a-space wrap class="header-actions">
+        <a-segmented
+          v-model:value="regionScope"
+          class="region-segmented"
+          :options="[
+            { label: '国内', value: 'domestic' },
+            { label: '国外', value: 'international' },
+          ]"
+        />
         <a-input-search
           v-model:value="searchKeyword"
           placeholder="搜索城市、景点名称、风格分类、介绍"
@@ -15,79 +23,124 @@
     </div>
 
     <p class="hint">
-      请先新增城市，再在城市下维护多处景点；每个景点可填写介绍并上传多张照片（与套餐图类似，存为数据
-      URL）。
+      使用顶部「国内 /
+      国外」切换分区；新建城市默认归入当前分区。港澳台及台湾地区城市请放在「国内」；海外城市请放在「国外」。请先新增城市，再在城市下维护多处景点；每个景点可填写介绍并上传多张照片（与套餐图类似，存为数据
+      URL）。城市列表按名称首字母排序（中文按拼音首字母）；左侧 A–Z 可快速定位到对应城市。
     </p>
 
     <p v-if="searchKeyword.trim()" class="filter-tip">
-      已筛选 {{ filteredSpots.length }} / {{ spotList.length }} 条景点
+      已筛选 {{ filteredSpots.length }} / {{ spotListInScope.length }} 条景点
     </p>
 
     <a-card :bordered="false" :loading="loading">
-      <a-empty v-if="!loading && !sortedCities.length" description="暂无城市，请先新增城市" />
-      <a-collapse v-else v-model:active-key="collapseKeys" :bordered="false" class="city-collapse">
-        <a-collapse-panel v-for="city in sortedCities" :key="String(city.id)">
-          <template #header>
-            <div class="city-panel-head">
-              <span class="city-title">{{ city.name }}</span>
-              <a-tag v-if="city._count != null" color="blue">{{ city._count.spots }} 个景点</a-tag>
-            </div>
-          </template>
-          <div class="city-toolbar">
-            <a-button type="primary" size="small" @click.stop="openCreateSpot(city.id)">
-              在此城市新增景点
-            </a-button>
-            <a-space size="small">
-              <a @click.stop="openEditCity(city)">重命名城市</a>
-              <a class="danger" @click.stop="removeCity(city)">删除城市</a>
-            </a-space>
-          </div>
-          <a-table
-            :columns="columns"
-            :data-source="spotsInCity(city.id)"
-            :pagination="false"
-            size="small"
-            row-key="id"
-            class="spot-table"
+      <a-empty v-if="!loading && !sortedCities.length" :description="citiesEmptyDescription" />
+      <div v-else class="spots-main-row">
+        <aside class="index-nav" aria-label="按首字母定位城市">
+          <button
+            v-for="letter in ALPHABET_LETTERS"
+            :key="letter"
+            type="button"
+            class="index-nav-btn"
+            :class="{ 'is-empty': !lettersWithCities.has(letter) }"
+            :disabled="!lettersWithCities.has(letter)"
+            :title="
+              lettersWithCities.has(letter)
+                ? `定位到以 ${letter} 开头的城市`
+                : `当前列表无 ${letter} 开头的城市`
+            "
+            @click="scrollToLetter(letter)"
           >
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'category'">
-                {{ getSpotCategoryLabel(record.category) }}
+            {{ letter }}
+          </button>
+        </aside>
+        <div class="spots-main">
+          <a-collapse v-model:active-key="collapseKeys" :bordered="false" class="city-collapse">
+            <a-collapse-panel
+              v-for="city in sortedCities"
+              :id="'spot-city-anchor-' + city.id"
+              :key="String(city.id)"
+            >
+              <template #header>
+                <div class="city-panel-head">
+                  <a-tag
+                    :color="city.region === 'international' ? 'purple' : 'cyan'"
+                    class="region-tag"
+                  >
+                    {{ city.region === 'international' ? '国外' : '国内' }}
+                  </a-tag>
+                  <span class="city-title">{{ city.name }}</span>
+                </div>
               </template>
-              <template v-else-if="column.key === 'description'">
-                <span class="desc-cell">{{ record.description || '—' }}</span>
-              </template>
-              <template v-else-if="column.key === 'images'">
-                {{ normalizeImages(record.images).length }} 张
-              </template>
-              <template v-else-if="column.key === 'actions'">
-                <a-space>
-                  <a @click="openEditSpot(record)">编辑</a>
-                  <a @click="toggleRecommended(record)">
-                    {{ record.recommended ? '取消推荐' : '设为推荐' }}
-                  </a>
-                  <a @click="removeSpot(record.id)">删除</a>
-                </a-space>
-              </template>
-              <template v-else-if="column.key === 'recommended'">
-                <a-tag :color="record.recommended ? 'gold' : 'default'">
-                  {{ record.recommended ? '推荐' : '普通' }}
+              <template #extra>
+                <a-tag v-if="city._count != null" color="blue" class="spot-count-tag" @click.stop>
+                  {{ city._count.spots }} 个景点
                 </a-tag>
               </template>
-            </template>
-          </a-table>
-        </a-collapse-panel>
-      </a-collapse>
+              <div class="city-toolbar">
+                <a-button type="primary" size="small" @click.stop="openCreateSpot(city.id)">
+                  在此城市新增景点
+                </a-button>
+                <a-space size="small">
+                  <a @click.stop="openEditCity(city)">重命名城市</a>
+                  <a class="danger" @click.stop="removeCity(city)">删除城市</a>
+                </a-space>
+              </div>
+              <a-table
+                :columns="columns"
+                :data-source="spotsInCity(city.id)"
+                :pagination="false"
+                size="small"
+                row-key="id"
+                class="spot-table"
+                :locale="{ emptyText: '该城市暂无设置景点' }"
+              >
+                <template #bodyCell="{ column, record }">
+                  <template v-if="column.key === 'category'">
+                    {{ getSpotCategoryLabel(record.category) }}
+                  </template>
+                  <template v-else-if="column.key === 'description'">
+                    <span class="desc-cell">{{ record.description || '—' }}</span>
+                  </template>
+                  <template v-else-if="column.key === 'images'">
+                    {{ normalizeImages(record.images).length }} 张
+                  </template>
+                  <template v-else-if="column.key === 'actions'">
+                    <a-space>
+                      <a @click="openEditSpot(record)">编辑</a>
+                      <a @click="toggleRecommended(record)">
+                        {{ record.recommended ? '取消推荐' : '设为推荐' }}
+                      </a>
+                      <a @click="removeSpot(record.id)">删除</a>
+                    </a-space>
+                  </template>
+                  <template v-else-if="column.key === 'recommended'">
+                    <a-tag :color="record.recommended ? 'gold' : 'default'">
+                      {{ record.recommended ? '推荐' : '普通' }}
+                    </a-tag>
+                  </template>
+                </template>
+              </a-table>
+            </a-collapse-panel>
+          </a-collapse>
+        </div>
+      </div>
     </a-card>
 
     <a-modal
       v-model:open="cityModalOpen"
       :title="cityEditingId ? '重命名城市' : '新增城市'"
       ok-text="保存"
+      cancel-text="取消"
       :confirm-loading="citySaving"
       @ok="submitCity"
     >
       <a-form layout="vertical">
+        <a-form-item label="所属区域" required>
+          <a-radio-group v-model:value="cityForm.region">
+            <a-radio value="domestic">国内</a-radio>
+            <a-radio value="international">国外</a-radio>
+          </a-radio-group>
+        </a-form-item>
         <a-form-item label="城市名称" required>
           <a-input v-model:value="cityForm.name" placeholder="例如：三亚" />
         </a-form-item>
@@ -98,6 +151,7 @@
       v-model:open="spotModalOpen"
       :title="spotEditingId ? '编辑景点' : '新增景点'"
       ok-text="保存"
+      cancel-text="取消"
       width="min(96vw, 560px)"
       :confirm-loading="spotSaving"
       @ok="submitSpot"
@@ -148,17 +202,20 @@
 </template>
 
 <script setup lang="ts">
-import { citiesApi, spotsApi, type City, type Spot } from '@/api/spots';
+import { citiesApi, spotsApi, type City, type CityRegion, type Spot } from '@/api/spots';
 import {
   getSpotCategoryLabel,
   SPOT_STYLE_CATEGORY_OPTIONS,
 } from '@/constants/spot-style-categories';
 import { TRAVEL_STYLE_LABELS } from '@/constants/travel-style-labels';
+import { getCityInitialLetter } from '@/utils/cityInitialLetter';
 import { getApiErrorMessage } from '@/utils/apiError';
 import { PlusOutlined } from '@ant-design/icons-vue';
 import { message, Modal } from 'ant-design-vue';
 import type { UploadFile } from 'ant-design-vue';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
+
+const ALPHABET_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
 const columns = [
   { title: '景点名称', dataIndex: 'name', key: 'name', width: 140 },
@@ -169,16 +226,31 @@ const columns = [
   { title: '操作', key: 'actions', width: 200 },
 ];
 
+const REGION_SCOPE_KEY = 'admin-spots-region-scope';
+
 const spotList = ref<Spot[]>([]);
 const cities = ref<City[]>([]);
 const searchKeyword = ref('');
 const loading = ref(false);
 const collapseKeys = ref<string[]>([]);
 
+/** 国内 / 国外切换（记住上次选择） */
+const regionScope = ref<CityRegion>(
+  ((): CityRegion => {
+    try {
+      const s = localStorage.getItem(REGION_SCOPE_KEY);
+      if (s === 'international' || s === 'domestic') return s;
+    } catch {
+      /* ignore */
+    }
+    return 'domestic';
+  })()
+);
+
 const cityModalOpen = ref(false);
 const citySaving = ref(false);
 const cityEditingId = ref<number | null>(null);
-const cityForm = reactive({ name: '' });
+const cityForm = reactive({ name: '', region: 'domestic' as CityRegion });
 
 const spotModalOpen = ref(false);
 const spotSaving = ref(false);
@@ -214,10 +286,16 @@ const normalizeImages = (v: unknown): string[] => {
   return [];
 };
 
+/** 当前「国内/国外」分区下的景点 */
+const spotListInScope = computed(() =>
+  spotList.value.filter((s) => (s.city?.region ?? 'domestic') === regionScope.value)
+);
+
 const filteredSpots = computed(() => {
   const q = searchKeyword.value.trim().toLowerCase();
-  if (!q) return spotList.value;
-  return spotList.value.filter((s) => {
+  const base = spotListInScope.value;
+  if (!q) return base;
+  return base.filter((s) => {
     const cityName = s.city?.name ?? '';
     const catLabel = getSpotCategoryLabel(s.category);
     const blob = [s.name, cityName, s.category, catLabel, s.description || '']
@@ -227,13 +305,66 @@ const filteredSpots = computed(() => {
   });
 });
 
+/** 当前分区下的城市列表 */
+const citiesInScope = computed(() =>
+  cities.value.filter((c) => (c.region ?? 'domestic') === regionScope.value)
+);
+
+const citiesEmptyDescription = computed(() => {
+  if (!cities.value.length) return '暂无城市，请先新增城市';
+  if (!citiesInScope.value.length) {
+    return regionScope.value === 'domestic'
+      ? '国内暂无城市，请「新增城市」或切换到「国外」'
+      : '国外暂无城市，请「新增城市」或切换到「国内」';
+  }
+  if (searchKeyword.value.trim()) return '未找到匹配的城市或景点，请调整搜索词';
+  return '暂无匹配结果';
+});
+
+/** 按名称首字母（中文为拼音首字母）排序，同字母下按中文拼音序 */
+const sortCitiesByInitialAndName = (list: City[]) =>
+  [...list].sort((a, b) => {
+    const la = getCityInitialLetter(a.name);
+    const lb = getCityInitialLetter(b.name);
+    if (la !== lb) {
+      if (la === '#') return 1;
+      if (lb === '#') return -1;
+      return la.localeCompare(lb);
+    }
+    return a.name.localeCompare(b.name, 'zh-Hans-CN');
+  });
+
 const sortedCities = computed(() => {
   const q = searchKeyword.value.trim();
+  const ql = q.toLowerCase();
+  /** 有搜索词时：须同时按「城市名」匹配，否则仅新建、尚无景点的城市会被整组筛掉，看起来像搜不到 */
   const list = q
-    ? cities.value.filter((c) => filteredSpots.value.some((s) => s.cityId === c.id))
-    : [...cities.value];
-  return list.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'));
+    ? citiesInScope.value.filter(
+        (c) =>
+          c.name.toLowerCase().includes(ql) || filteredSpots.value.some((s) => s.cityId === c.id)
+      )
+    : [...citiesInScope.value];
+  return sortCitiesByInitialAndName(list);
 });
+
+/** 当前列表中出现的首字母（A–Z），用于禁用无数据字母 */
+const lettersWithCities = computed(() => {
+  const set = new Set<string>();
+  for (const c of sortedCities.value) {
+    const l = getCityInitialLetter(c.name);
+    if (l !== '#') set.add(l);
+  }
+  return set;
+});
+
+function scrollToLetter(letter: string) {
+  const city = sortedCities.value.find((c) => getCityInitialLetter(c.name) === letter);
+  if (!city) return;
+  document.getElementById(`spot-city-anchor-${city.id}`)?.scrollIntoView({
+    behavior: 'smooth',
+    block: 'center',
+  });
+}
 
 const creatingCityName = computed(() => {
   const id = spotForm.cityId;
@@ -286,7 +417,8 @@ const load = async () => {
     const [cList, sList] = await Promise.all([citiesApi.list(), spotsApi.list()]);
     cities.value = cList;
     spotList.value = sList;
-    collapseKeys.value = sortedCities.value.map((c) => String(c.id));
+    /** 默认全部收起，仅点击左侧箭头展开该城市下的景点明细 */
+    collapseKeys.value = [];
   } catch (e: unknown) {
     message.error(getApiErrorMessage(e) || '加载失败');
   } finally {
@@ -297,12 +429,14 @@ const load = async () => {
 const openCreateCity = () => {
   cityEditingId.value = null;
   cityForm.name = '';
+  cityForm.region = regionScope.value;
   cityModalOpen.value = true;
 };
 
 const openEditCity = (city: City) => {
   cityEditingId.value = city.id;
   cityForm.name = city.name;
+  cityForm.region = city.region ?? 'domestic';
   cityModalOpen.value = true;
 };
 
@@ -315,10 +449,10 @@ const submitCity = async () => {
   citySaving.value = true;
   try {
     if (cityEditingId.value) {
-      await citiesApi.update(cityEditingId.value, { name });
+      await citiesApi.update(cityEditingId.value, { name, region: cityForm.region });
       message.success('城市已更新');
     } else {
-      await citiesApi.create({ name });
+      await citiesApi.create({ name, region: cityForm.region });
       message.success('已新增城市');
     }
     cityModalOpen.value = false;
@@ -335,6 +469,7 @@ const removeCity = (city: City) => {
     title: `确认删除城市「${city.name}」？`,
     content: '仅当该城市下没有任何景点时可删除。',
     okText: '删除',
+    cancelText: '取消',
     okType: 'danger',
     async onOk() {
       try {
@@ -430,6 +565,7 @@ const removeSpot = (id: number) => {
     content:
       '删除后不可恢复。若仍有「已上架」套餐引用该目的地，将无法删除，请先在套餐管理中下架相关套餐；仅下架状态的套餐不会阻止删除。',
     okText: '删除',
+    cancelText: '取消',
     okType: 'danger',
     async onOk() {
       try {
@@ -447,7 +583,16 @@ const removeSpot = (id: number) => {
 };
 
 watch(searchKeyword, () => {
-  collapseKeys.value = sortedCities.value.map((c) => String(c.id));
+  collapseKeys.value = [];
+});
+
+watch(regionScope, (v) => {
+  try {
+    localStorage.setItem(REGION_SCOPE_KEY, v);
+  } catch {
+    /* ignore */
+  }
+  collapseKeys.value = [];
 });
 
 onMounted(() => {
@@ -457,7 +602,7 @@ onMounted(() => {
 
 <style scoped lang="less">
 .spots-container {
-  padding: 20px 24px;
+  padding: 32px 24px 24px;
   background: #f6f8fb;
   min-height: calc(100vh - 64px);
 }
@@ -473,6 +618,22 @@ onMounted(() => {
   h1 {
     margin: 0;
   }
+}
+
+.header-actions {
+  align-items: center;
+}
+
+.region-segmented {
+  flex-shrink: 0;
+}
+
+.region-tag {
+  flex-shrink: 0;
+}
+
+.city-panel-head .region-tag {
+  margin-inline-end: 0;
 }
 
 .form-city-readonly {
@@ -500,6 +661,78 @@ onMounted(() => {
   color: #666;
 }
 
+.spots-main-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.spots-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.index-nav {
+  position: sticky;
+  top: 72px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 6px;
+  background: #fff;
+  border: 1px solid #e8ecf2;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04);
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+}
+
+.index-nav-btn {
+  min-width: 28px;
+  padding: 3px 10px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.2;
+  font-weight: 500;
+  color: #1677ff;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover:not(:disabled) {
+    background: rgba(22, 119, 255, 0.08);
+  }
+
+  &:disabled,
+  &.is-empty {
+    color: #c8ccd4;
+    cursor: not-allowed;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #1677ff;
+    outline-offset: 1px;
+  }
+}
+
+@media (max-width: 640px) {
+  .spots-main-row {
+    flex-direction: column;
+  }
+
+  .index-nav {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    max-height: none;
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 .city-collapse {
   background: transparent;
 
@@ -510,16 +743,30 @@ onMounted(() => {
     border: 1px solid #e8ecf2;
     background: #fff;
   }
+
+  :deep(.ant-collapse-header) {
+    align-items: center;
+  }
+
+  :deep(.ant-collapse-extra) {
+    margin-inline-end: 12px;
+  }
 }
 
 .city-panel-head {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
 }
 
 .city-title {
   font-weight: 600;
+  min-width: 0;
+}
+
+.spot-count-tag {
+  flex-shrink: 0;
 }
 
 .city-toolbar {

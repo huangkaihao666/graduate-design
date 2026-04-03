@@ -27,18 +27,22 @@ export class CitiesController {
   }
 
   @Post()
-  @ApiOperation({ summary: '新增城市' })
-  create(@Body() body: { name: string }) {
-    return this.spotsService.createCity(body.name);
+  @ApiOperation({
+    summary: '新增城市（可选 domestic=国内 / international=国外）',
+  })
+  create(@Body() body: { name: string; region?: string }) {
+    return this.spotsService.createCity(body.name, body.region);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: '重命名城市（同步已绑定套餐的目的地）' })
+  @ApiOperation({
+    summary: '重命名城市或调整国内/国外（重名时同步已绑定套餐的目的地）',
+  })
   update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() body: { name: string },
+    @Body() body: { name: string; region?: string },
   ) {
-    return this.spotsService.updateCity(id, body.name);
+    return this.spotsService.updateCity(id, body);
   }
 
   @Delete(':id')

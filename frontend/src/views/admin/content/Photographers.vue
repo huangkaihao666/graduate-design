@@ -36,14 +36,6 @@
             <a-avatar v-if="record.avatar" :src="record.avatar" :size="40" />
             <a-avatar v-else :size="40">{{ record.name?.slice(0, 1) }}</a-avatar>
           </template>
-          <template v-else-if="column.key === 'shootingStyle'">
-            <a-tooltip :title="record.shootingStyle">
-              <span class="style-ellipsis">{{ record.shootingStyle }}</span>
-            </a-tooltip>
-          </template>
-          <template v-else-if="column.key === 'portfolioCount'">
-            {{ (record.portfolioImages || []).length }}
-          </template>
           <template v-else-if="column.key === 'approvalStatus'">
             <a-tag :color="approvalTagColor(record.approvalStatus)">{{
               approvalLabel(record.approvalStatus)
@@ -165,6 +157,7 @@
       v-model:open="rejectOpen"
       title="驳回入驻申请"
       ok-text="确认驳回"
+      cancel-text="取消"
       :confirm-loading="rejectLoading"
       @ok="submitReject"
     >
@@ -193,8 +186,6 @@ const columns = [
   { title: '头衔', dataIndex: 'title', key: 'title', width: 120, ellipsis: true },
   { title: '审核', key: 'approvalStatus', width: 100 },
   { title: '展示', key: 'enabled', width: 100 },
-  { title: '拍摄风格', key: 'shootingStyle', ellipsis: true },
-  { title: '作品数', key: 'portfolioCount', width: 80 },
   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 170 },
   { title: '操作', key: 'actions', width: 220, fixed: 'right' as const },
 ];
@@ -306,6 +297,7 @@ const approve = (r: PhotographerAdmin, ok: boolean) => {
     Modal.confirm({
       title: `确认通过「${r.name}」的入驻审核？`,
       content: '通过后该摄影师即可接单；是否对用户展示请在列表中单独「启用展示」。',
+      cancelText: '取消',
       onOk: async () => {
         try {
           await photographersApi.setApproval(r.id, { approved: true });
@@ -386,7 +378,7 @@ onMounted(() => {
 
 <style scoped lang="less">
 .ph-admin {
-  padding: 20px 24px;
+  padding: 32px 24px 24px;
   background: #f6f8fb;
   min-height: calc(100vh - 64px);
 }
@@ -418,15 +410,6 @@ onMounted(() => {
 
 .ok {
   color: #237804;
-}
-
-.style-ellipsis {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  line-height: 1.4;
-  max-width: 280px;
 }
 
 .admin-title-edit {

@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -99,6 +103,45 @@ export class UsersService {
       where: { id },
       select: userSafeSelect,
     });
+  }
+
+  /**
+   * 管理员删除工作人员：先解绑 workerPhotographerId、删除 photographers 档案，再删用户。
+   */
+  async removeWorkerAccount(id: number): Promise<{ ok: true }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: { id: true, role: true, workerPhotographerId: true },
+    });
+    if (!user) {
+      throw new NotFoundException('用户不存在');
+    }
+    if (String(user.role || '').toLowerCase() !== 'worker') {
+      throw new BadRequestException('仅可删除工作人员账号');
+    }
+    const phId = user.workerPhotographerId;
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.user.update({
+          where: { id },
+          data: { workerPhotographerId: null },
+        });
+        if (phId != null) {
+          await tx.photographer.delete({ where: { id: phId } });
+        }
+        await tx.user.delete({ where: { id } });
+      });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError) {
+        if (e.code === 'P2003' || e.code === 'P2014') {
+          throw new BadRequestException(
+            '该工作人员仍有关联数据，无法删除，请先处理订单等业务后再试',
+          );
+        }
+      }
+      throw e;
+    }
+    return { ok: true };
   }
 
   async setActive(id: number, isActive: boolean): Promise<any> {

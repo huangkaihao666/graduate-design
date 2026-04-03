@@ -520,6 +520,7 @@ import {
   type HotTagKey,
 } from '@/constants/package-hot-tags';
 import { TRAVEL_STYLE_LABELS } from '@/constants/travel-style-labels';
+import { sortCityNamesByInitial } from '@/utils/cityInitialLetter';
 import { useAuthStore } from '@/store/auth';
 import { message } from 'ant-design-vue';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
@@ -600,7 +601,7 @@ const syncLocationFromRoute = () => {
     locationOptions.value = [...overseasLocations];
   } else {
     filters.region = undefined;
-    locationOptions.value = [...domesticLocations, ...overseasLocations];
+    locationOptions.value = [...combinedLocationsSorted];
   }
   pagination.page = 1;
 };
@@ -630,7 +631,7 @@ const VTO_STATE_KEY = 'virtual-try-on-state';
 const STYLE_RECOMMENDATION_STATE_KEY = 'style-recommendation-state';
 const ITINERARY_STATE_KEY = 'itinerary-planning-state';
 
-const domesticLocations = [
+const LOCATIONS_DOMESTIC_RAW = [
   '三亚',
   '大理',
   '丽江',
@@ -652,9 +653,9 @@ const domesticLocations = [
   '拉萨',
   '香港',
   '澳门',
-];
+] as const;
 
-const overseasLocations = [
+const LOCATIONS_OVERSEAS_RAW = [
   '东京',
   '京都',
   '首尔',
@@ -665,7 +666,15 @@ const overseasLocations = [
   '马尔代夫',
   '巴黎',
   '罗马',
-];
+] as const;
+
+/** 国内 / 国外 / 全部目的地均按名称首字母（中文为拼音首字母）排序 */
+const domesticLocations = sortCityNamesByInitial([...LOCATIONS_DOMESTIC_RAW]);
+const overseasLocations = sortCityNamesByInitial([...LOCATIONS_OVERSEAS_RAW]);
+const combinedLocationsSorted = sortCityNamesByInitial([
+  ...domesticLocations,
+  ...overseasLocations,
+]);
 
 const locationRegionMap = new Map<string, 'domestic' | 'overseas'>();
 domesticLocations.forEach((location) => locationRegionMap.set(location, 'domestic'));
@@ -688,7 +697,7 @@ const loadStyleTags = async () => {
   }
 };
 
-const locationOptions = ref<string[]>([...domesticLocations, ...overseasLocations]);
+const locationOptions = ref<string[]>([...combinedLocationsSorted]);
 const locationSelectOptions = computed(() =>
   locationOptions.value.map((city) => ({
     label: city,
@@ -791,9 +800,11 @@ const recommendedPackages = computed(() =>
     : heuristicRecommendedPackages.value
 );
 const recommendedLocations = computed(() => {
-  if (cfRecommendedLocations.value.length > 0) return cfRecommendedLocations.value.slice(0, 5);
+  if (cfRecommendedLocations.value.length > 0) {
+    return sortCityNamesByInitial([...cfRecommendedLocations.value]).slice(0, 5);
+  }
   const set = new Set(recommendedPackages.value.map((x) => x.location).filter(Boolean));
-  return [...set].slice(0, 5);
+  return sortCityNamesByInitial([...set]).slice(0, 5);
 });
 
 const getStyleName = (style: string) => {
@@ -918,7 +929,7 @@ const applyRecommendedLocation = (location: string) => {
   if (filters.location === loc) {
     filters.location = undefined;
     filters.region = undefined;
-    locationOptions.value = [...domesticLocations, ...overseasLocations];
+    locationOptions.value = [...combinedLocationsSorted];
     pagination.page = 1;
     fetchPackages();
     return;
@@ -933,7 +944,7 @@ const applyRecommendedLocation = (location: string) => {
     locationOptions.value = [...overseasLocations];
   } else {
     filters.region = undefined;
-    locationOptions.value = [...domesticLocations, ...overseasLocations];
+    locationOptions.value = [...combinedLocationsSorted];
   }
   pagination.page = 1;
   fetchPackages();
@@ -981,7 +992,7 @@ const handleRegionChange = () => {
   } else if (filters.region === 'overseas') {
     locationOptions.value = [...overseasLocations];
   } else {
-    locationOptions.value = [...domesticLocations, ...overseasLocations];
+    locationOptions.value = [...combinedLocationsSorted];
   }
 
   if (filters.location && !locationOptions.value.includes(filters.location)) {
@@ -1009,7 +1020,7 @@ const resetFilters = () => {
   filters.duration = undefined;
   filters.sortBy = 'recommended';
   filters.hotTags = [];
-  locationOptions.value = [...domesticLocations, ...overseasLocations];
+  locationOptions.value = [...combinedLocationsSorted];
   pagination.page = 1;
   fetchPackages();
 };

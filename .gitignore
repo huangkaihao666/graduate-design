@@ -35,3 +35,4 @@ lerna-debug.log*
 # Cache
 .cache/
 .eslintcache
+frontend/.npm-cache/

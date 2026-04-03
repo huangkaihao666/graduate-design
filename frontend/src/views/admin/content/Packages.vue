@@ -13,7 +13,9 @@
       </a-space>
     </div>
 
-    <p class="hint">目的地可选景点自动带出，也可手动填写城市名称。</p>
+    <p class="hint">
+      请先填写<strong>目的地</strong>（须与「景点管理」中的城市名称一致，如：三亚），再在下拉框中选择该城市下的<strong>景点</strong>（可选）；不选景点则仅以目的地作为套餐展示。
+    </p>
 
     <p v-if="packageSearchKeyword.trim()" class="filter-tip">
       已筛选 {{ filteredPackages.length }} / {{ packageList.length }} 条
@@ -40,9 +42,7 @@
             <div>
               <div>{{ record.location }}</div>
               <div v-if="record.spotName" class="spot-sub">景点：{{ record.spotName }}</div>
-              <div v-else-if="!record.spotId" class="spot-sub warn">
-                原关联景点已删除，请重新选择目的地
-              </div>
+              <div v-else class="spot-sub muted">未关联景点</div>
             </div>
           </template>
           <template v-else-if="column.key === 'status'">
@@ -66,6 +66,7 @@
       v-model:open="modalOpen"
       :title="editingId ? '编辑套餐' : '新增套餐'"
       ok-text="保存"
+      cancel-text="取消"
       :confirm-loading="saving"
       @ok="savePackage"
     >
@@ -73,28 +74,32 @@
         <a-form-item label="套餐名称（自动生成）">
           <a-input :value="computedPackageName" disabled />
         </a-form-item>
-        <a-form-item label="目的地（可选景点自动带出）" required>
-          <a-select
-            v-model:value="form.spotId"
-            placeholder="可选：选择景点自动带出城市；不选可手填目的地"
-            style="width: 100%"
-            :options="spotOptions"
-            show-search
-            allow-clear
-            :filter-option="filterSpotOption"
-          />
-        </a-form-item>
-        <a-form-item label="手填目的地（未选景点时必填）" required>
+        <a-form-item label="目的地" required>
           <a-input
             v-model:value="form.location"
-            placeholder="例如：三亚 / 丽江 / 巴厘岛"
-            :disabled="form.spotId !== undefined && form.spotId !== null"
+            placeholder="须与景点管理中的城市名一致，例如：三亚"
           />
+        </a-form-item>
+        <a-form-item label="景点（可选）">
+          <a-select
+            v-model:value="form.spotId"
+            placeholder="请先填写目的地；仅展示该城市下景点管理中的景点"
+            style="width: 100%"
+            allow-clear
+            show-search
+            :disabled="!normalizedDestination"
+            :options="filteredSpotOptions"
+            :filter-option="filterSpotOption"
+            @change="onSpotChange"
+          />
+          <p v-if="normalizedDestination && !spotsInDestination.length" class="field-tip">
+            当前城市下暂无景点，请先在「景点管理」中新增该城市的景点。
+          </p>
         </a-form-item>
         <a-form-item label="风格">
           <a-select
             v-model:value="form.style"
-            placeholder="请选择拍摄风格"
+            placeholder="请选择对应拍摄风格"
             style="width: 100%"
             allow-clear
             :options="styleOptions"
@@ -190,9 +195,9 @@ import { packagesApi, type Package } from '@/api/packages';
 import { spotsApi, type Spot } from '@/api/spots';
 import { styleTagsApi } from '@/api/styleTags';
 import { TRAVEL_STYLE_LABELS } from '@/constants/travel-style-labels';
-import { message } from 'ant-design-vue';
 import type { UploadFile } from 'ant-design-vue';
-import { computed, onMounted, reactive, ref } from 'vue';
+import { message } from 'ant-design-vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 
 type AdminRow = {
   id: number;
@@ -254,9 +259,31 @@ const styleOptions = computed(() =>
   }))
 );
 
+/** 与景点管理中城市名比对（去首尾空格） */
+const normalizeCityLabel = (s: string | undefined) => String(s ?? '').trim();
+
+const normalizedDestination = computed(() => normalizeCityLabel(form.location));
+
+const spotsInDestination = computed(() => {
+  const loc = normalizedDestination.value;
+  if (!loc) return [];
+  return spots.value.filter((s) => normalizeCityLabel(s.city?.name) === loc);
+});
+
+const filteredSpotOptions = computed(() =>
+  spotsInDestination.value.map((s) => ({
+    label: s.name,
+    value: s.id,
+  }))
+);
+
+const filterSpotOption = (input: string, option: { label?: string }) => {
+  const label = String(option?.label ?? '');
+  return label.toLowerCase().includes(input.toLowerCase());
+};
+
 const computedPackageName = computed(() => {
-  const selectedSpotCity =
-    spots.value.find((s) => s.id === form.spotId)?.city?.name || String(form.location || '').trim();
+  const selectedSpotCity = String(form.location || '').trim();
   if (!selectedSpotCity) return '';
   if (!form.style) return '';
   const styleLabel = TRAVEL_STYLE_LABELS[form.style];
@@ -267,24 +294,13 @@ const computedPackageName = computed(() => {
   return `${selectedSpotCity}${duration}日${styleLabel}旅拍套餐`;
 });
 
-const spotOptions = computed(() =>
-  spots.value.map((s) => ({
-    label: `${s.city.name} · ${s.name}`,
-    value: s.id,
-  }))
-);
-
-const filterSpotOption = (input: string, option: { label?: string }) => {
-  const label = String(option?.label ?? '');
-  return label.toLowerCase().includes(input.toLowerCase());
-};
-
 const modalOpen = ref(false);
 const editingId = ref<number | null>(null);
 const form = reactive({
-  spotId: undefined as number | undefined,
   location: '',
-  style: '',
+  spotId: undefined as number | undefined,
+  /** 未选须为 undefined，空字符串会导致 Select 不显示 placeholder */
+  style: undefined as string | undefined,
   price: null as number | null,
   duration: null as number | null,
   description: '',
@@ -380,14 +396,36 @@ const toAdminRow = (p: Package): AdminRow => ({
   status: p.status === 'published' ? '已上架' : '已下架',
 });
 
-const loadSpots = async () => {
-  spots.value = await spotsApi.list();
-};
-
 const loadStyles = async () => {
   const list = await styleTagsApi.listAdmin();
   styleTags.value = list.map((t) => ({ key: t.key, name: t.name }));
 };
+
+const loadSpots = async () => {
+  spots.value = await spotsApi.list();
+};
+
+/** 选中景点后，目的地与景点所属城市对齐（与后台写入 location 一致） */
+const onSpotChange = (id: number | undefined) => {
+  if (id === undefined || id === null) return;
+  const spot = spots.value.find((s) => s.id === id);
+  if (spot?.city?.name) {
+    form.location = spot.city.name;
+  }
+};
+
+watch(
+  () => normalizedDestination.value,
+  (loc) => {
+    if (!loc) {
+      if (form.spotId !== undefined && form.spotId !== null) form.spotId = undefined;
+      return;
+    }
+    if (form.spotId === undefined || form.spotId === null) return;
+    const ok = spotsInDestination.value.some((s) => s.id === form.spotId);
+    if (!ok) form.spotId = undefined;
+  }
+);
 
 const loadPackages = async () => {
   loading.value = true;
@@ -404,9 +442,9 @@ const loadPackages = async () => {
 
 const openCreate = () => {
   editingId.value = null;
-  form.spotId = undefined;
   form.location = '';
-  form.style = '';
+  form.spotId = undefined;
+  form.style = undefined;
   form.price = null;
   form.duration = null;
   form.description = '';
@@ -423,9 +461,9 @@ const openCreate = () => {
 const openEdit = (record: AdminRow) => {
   editingId.value = record.id;
   const pkg = packagesRaw.value.find((x) => x.id === record.id);
-  form.spotId = record.spotId ?? undefined;
   form.location = record.location || '';
-  form.style = record.style;
+  form.spotId = record.spotId ?? undefined;
+  form.style = record.style || undefined;
   form.price = record.price;
   form.duration = record.duration;
   form.description = pkg?.description ?? '';
@@ -458,11 +496,22 @@ const openEdit = (record: AdminRow) => {
 };
 
 const savePackage = async () => {
-  const hasSpot = form.spotId !== undefined && form.spotId !== null;
-  const hasLocation = String(form.location || '').trim().length > 0;
-  if (!hasSpot && !hasLocation) {
-    message.warning('请选择景点或手填目的地');
+  const loc = String(form.location || '').trim();
+  if (!loc) {
+    message.warning('请填写目的地');
     return;
+  }
+  const hasSpot = form.spotId !== undefined && form.spotId !== null;
+  if (hasSpot) {
+    const spot = spots.value.find((s) => s.id === form.spotId);
+    if (!spot) {
+      message.warning('所选景点无效，请重新选择');
+      return;
+    }
+    if (normalizeCityLabel(spot.city?.name) !== loc) {
+      message.warning('景点所属城市与目的地不一致，请重新选择景点或修改目的地');
+      return;
+    }
   }
   if (!form.style) {
     message.warning('请选择拍摄风格');
@@ -487,36 +536,28 @@ const savePackage = async () => {
   }
   saving.value = true;
   try {
+    const common = {
+      name: computedPackageName.value,
+      style: form.style,
+      price: Number(form.price),
+      duration: Number(form.duration),
+      description: String(form.description || ''),
+      features: splitLines(form.featuresText),
+      includes: splitLines(form.includesText),
+      excludes: splitLines(form.excludesText),
+      coverImage: String(form.coverImage || ''),
+      images: Array.isArray(form.images) ? form.images : [],
+    };
     if (editingId.value) {
       await packagesApi.updatePackage(editingId.value, {
-        spotId: hasSpot ? form.spotId : null,
-        location: hasSpot ? undefined : String(form.location || '').trim(),
-        name: computedPackageName.value,
-        style: form.style,
-        price: Number(form.price),
-        duration: Number(form.duration),
-        description: String(form.description || ''),
-        features: splitLines(form.featuresText),
-        includes: splitLines(form.includesText),
-        excludes: splitLines(form.excludesText),
-        coverImage: String(form.coverImage || ''),
-        images: Array.isArray(form.images) ? form.images : [],
+        ...common,
+        ...(hasSpot ? { spotId: form.spotId } : { spotId: null, location: loc }),
       });
       message.success('套餐已更新');
     } else {
       await packagesApi.createPackage({
-        spotId: hasSpot ? form.spotId : undefined,
-        location: hasSpot ? undefined : String(form.location || '').trim(),
-        name: computedPackageName.value,
-        style: form.style,
-        price: Number(form.price),
-        duration: Number(form.duration),
-        description: String(form.description || ''),
-        features: splitLines(form.featuresText),
-        includes: splitLines(form.includesText),
-        excludes: splitLines(form.excludesText),
-        coverImage: String(form.coverImage || ''),
-        images: Array.isArray(form.images) ? form.images : [],
+        ...common,
+        ...(hasSpot ? { spotId: form.spotId } : { location: loc }),
         status: 'published',
       });
       message.success('套餐已新增');
@@ -542,8 +583,8 @@ const toggleStatus = async (record: AdminRow) => {
 
 onMounted(async () => {
   try {
-    await loadSpots();
     await loadStyles();
+    await loadSpots();
     await loadPackages();
   } catch (e: any) {
     message.error(e?.message || '初始化失败');
@@ -553,7 +594,7 @@ onMounted(async () => {
 
 <style scoped lang="less">
 .admin-packages-container {
-  padding: 20px 24px;
+  padding: 32px 24px 24px;
   background: #f6f8fb;
   min-height: calc(100vh - 64px);
 }
@@ -595,5 +636,15 @@ onMounted(async () => {
 
 .cover-preview {
   margin-top: 10px;
+}
+
+.field-tip {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #888;
+}
+
+.spot-sub.muted {
+  color: #bbb;
 }
 </style>

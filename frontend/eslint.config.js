@@ -57,7 +57,14 @@ export default [
         /** DOM 类型（script setup 中 ref<HTMLElement> 等） */
         HTMLElement: 'readonly',
         HTMLDivElement: 'readonly',
+        HTMLInputElement: 'readonly',
+        HTMLImageElement: 'readonly',
         Element: 'readonly',
+        FileReader: 'readonly',
+        Event: 'readonly',
+        DragEvent: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
       },
     },
     rules: {

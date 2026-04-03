@@ -1,7 +1,17 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CANONICAL_STYLE_TAGS } from '../style-tags/canonical-style-tags';
 
 type Rank = { key: string; label: string; count: number };
+
+/** 与前台 TRAVEL_STYLE_LABELS / style_tags 一致，用于报表展示中文风格名 */
+const STYLE_KEY_TO_ZH: Record<string, string> = Object.fromEntries(
+  CANONICAL_STYLE_TAGS.map((t) => [t.key, t.name]),
+);
+
+function styleLabelForReport(styleKey: string): string {
+  return STYLE_KEY_TO_ZH[styleKey] ?? styleKey;
+}
 
 type BrowseGroupRow = { packageId: number; _count: { _all: number } };
 
@@ -202,7 +212,7 @@ export class AdminInsightsService {
 
     const purchaseTopStyles: Rank[] = byStyle.map((r) => ({
       key: r.style,
-      label: r.style,
+      label: styleLabelForReport(r.style),
       count: r._count._all,
     }));
     const purchaseTopLocations: Rank[] = byLocation.map((r) => ({
@@ -295,12 +305,13 @@ export class AdminInsightsService {
         styleRecommendationCount: styleRecCount,
         itineraryTopDestinations: aiItinerary,
       },
-      businessReport: narrative.businessReport,
-      marketingSuggestions: narrative.marketingSuggestions,
-      dataAnalysis: narrative.dataAnalysis,
+      situationAnalysis: narrative.situationAnalysis,
+      dataInterpretationAndIssues: narrative.dataInterpretationAndIssues,
+      improvementSuggestions: narrative.improvementSuggestions,
     };
   }
 
+  /** 商业报告三段：现状分析 → 数据解读与问题发现 → 针对性改善建议 */
   private buildNarratives(p: {
     usersCount: number;
     ordersAll: number;
@@ -321,94 +332,122 @@ export class AdminInsightsService {
     styleRecCount: number;
     aiItinerary: Rank[];
   }) {
-    const businessReport: string[] = [];
-    const marketingSuggestions: string[] = [];
-    const dataAnalysis: string[] = [];
+    const situationAnalysis: string[] = [];
+    const dataInterpretationAndIssues: string[] = [];
+    const improvementSuggestions: string[] = [];
 
-    businessReport.push(
+    situationAnalysis.push(
       `截至报告生成时，平台共有注册用户约 ${p.usersCount} 人（角色为 user），累计预约订单 ${p.ordersAll} 单；近 7 日新增订单 ${p.orders7} 单，近 30 日 ${p.orders30} 单。`,
     );
     if (p.orderMom !== 0) {
-      businessReport.push(
+      situationAnalysis.push(
         `订单周环比约 ${p.orderMom > 0 ? '增长' : '下降'} ${Math.abs(p.orderMom)}%，可作为短期运营节奏的参考（样本较小时波动会偏大）。`,
       );
     }
-    businessReport.push(
-      `支付转化方面：已支付 ${p.paid} 单、已完成 ${p.completed} 单、待支付 ${p.unpaid} 单；若待支付占比偏高，建议结合短信/站内提醒与支付链路体验排查。`,
+    situationAnalysis.push(
+      `支付转化方面：已支付 ${p.paid} 单、已完成 ${p.completed} 单、待支付 ${p.unpaid} 单。`,
+    );
+    situationAnalysis.push(
+      `用户行为与内容：近 7 日套餐浏览埋点 ${p.browseTotal7} 次、近 30 日 ${p.browseTotal30} 次；AI 风格推荐历史会话累计 ${p.styleRecCount} 次。`,
     );
 
     const topStyle = p.purchaseTopStyles[0];
     const topLoc = p.purchaseTopLocations[0];
     if (topStyle) {
-      dataAnalysis.push(
-        `下单风格分布：当前最热风格关键词为「${topStyle.label}」（${topStyle.count} 单），可对照套餐库存与摄影师擅长方向做供给匹配。`,
+      dataInterpretationAndIssues.push(
+        `【需求结构】下单风格分布中，最热风格为「${topStyle.label}」（${topStyle.count} 单），反映当前用户偏好与套餐供给的匹配度。`,
       );
     }
     if (topLoc) {
-      dataAnalysis.push(
-        `目的地需求：预约量最高的目的地为「${topLoc.label}」（${topLoc.count} 单），适合作为投放落地页与套餐主推城市。`,
+      dataInterpretationAndIssues.push(
+        `【需求结构】预约量最高的目的地为「${topLoc.label}」（${topLoc.count} 单），可作为投放与落地页的主推城市。`,
       );
     }
 
-    dataAnalysis.push(
-      `浏览埋点：近 7 日套餐浏览事件 ${p.browseTotal7} 次、近 30 日 ${p.browseTotal30} 次；与收藏、下单联看可估算「浏览—意向—成交」漏斗。`,
+    dataInterpretationAndIssues.push(
+      `【浏览与转化】浏览埋点：近 7 日 ${p.browseTotal7} 次、近 30 日 ${p.browseTotal30} 次；可与订单、收藏联看，估算「浏览—意向—成交」漏斗。`,
     );
     if (p.browseTop7[0]) {
-      dataAnalysis.push(
-        `近 7 日被查看最多的套餐为「${p.browseTop7[0].label}」（${p.browseTop7[0].count} 次），若下单转化一般，可检查价格、档期或详情页卖点是否清晰。`,
+      dataInterpretationAndIssues.push(
+        `【浏览与转化】近 7 日被查看最多的套餐为「${p.browseTop7[0].label}」（${p.browseTop7[0].count} 次），若下单转化偏低，可视为价格、档期或详情页卖点不足的潜在问题。`,
       );
     }
 
     if (p.favoritesTop[0]) {
-      dataAnalysis.push(
-        `收藏热度最高的套餐为「${p.favoritesTop[0].label}」（${p.favoritesTop[0].count} 次收藏），通常代表强意向人群，适合做限时优惠或私域跟进。`,
+      dataInterpretationAndIssues.push(
+        `【意向强度】收藏热度最高的套餐为「${p.favoritesTop[0].label}」（${p.favoritesTop[0].count} 次收藏），代表高意向人群，若未转化为订单，需排查支付门槛或信任障碍。`,
       );
     }
 
     if (p.aiVirtualTryOn[0]) {
-      dataAnalysis.push(
-        `AI 虚拍：用户尝试最多的风格为「${p.aiVirtualTryOn[0].label}」，可在首页与套餐列表强化该风格的案例展示。`,
+      dataInterpretationAndIssues.push(
+        `【AI 功能】虚拍尝试最多的风格为「${p.aiVirtualTryOn[0].label}」，说明用户对风格决策有探索需求；若与下单风格不一致，存在「体验与购买」脱节风险。`,
       );
     }
-    dataAnalysis.push(
-      `AI 风格推荐历史会话累计 ${p.styleRecCount} 次，说明用户对「选风格」存在决策成本，可补充对比表与套餐映射说明。`,
+    dataInterpretationAndIssues.push(
+      `【AI 功能】风格推荐累计 ${p.styleRecCount} 次，说明用户对「选风格」存在决策成本，若推荐与套餐映射不足，易导致流失。`,
     );
     if (p.aiItinerary[0]) {
-      dataAnalysis.push(
-        `行程规划中最常被查询的目的地为「${p.aiItinerary[0].label}」，可与当地景点/套餐打包运营。`,
+      dataInterpretationAndIssues.push(
+        `【AI 功能】行程规划中最常被查询的目的地为「${p.aiItinerary[0].label}」，可与当地套餐与景点联动评估。`,
       );
     }
 
-    if (p.unpaid > 2) {
-      marketingSuggestions.push(
-        '待支付订单较多：建议在订单详情增加「一键催付」模板（短信/站内信），并对超时未支付订单自动释放档期。',
-      );
-    }
-    if (topLoc && topStyle) {
-      marketingSuggestions.push(
-        `在「${topLoc.label}」×「${topStyle.label}」组合上加大内容营销（样片、客片故事），并投放与搜索词一致的广告落地页，承接当前主力需求。`,
+    const unpaidRatio =
+      p.ordersAll > 0 ? Math.round((p.unpaid / p.ordersAll) * 100) : 0;
+    if (p.unpaid > 0 && p.ordersAll > 0) {
+      dataInterpretationAndIssues.push(
+        `【问题发现】待支付订单 ${p.unpaid} 单，约占全部订单 ${unpaidRatio}%；若占比偏高，说明支付链路、价格预期或催付机制可能存在短板。`,
       );
     }
     if (
       p.browseTotal7 > 10 &&
       p.orders7 < Math.max(1, Math.floor(p.browseTotal7 / 20))
     ) {
-      marketingSuggestions.push(
-        '浏览量相对下单量偏高：可尝试缩短预约路径、突出「含妆造/精修张数」等决策信息，或增加限时券提升首单转化。',
+      dataInterpretationAndIssues.push(
+        `【问题发现】近 7 日浏览量相对下单量偏高，存在「高浏览、低转化」现象，需缩短预约路径或强化决策信息。`,
       );
     }
     if (!p.purchaseTopPackages.length && p.browseTop7.length) {
-      marketingSuggestions.push(
-        '有浏览热度但订单样本仍少：建议对高热套餐做 A/B 定价或赠品测试，并收集用户未完成下单的原因（问卷/客服记录）。',
+      dataInterpretationAndIssues.push(
+        `【问题发现】有浏览热度但订单样本仍偏少，可能处于冷启动或需求与供给不匹配阶段，需验证定价与套餐吸引力。`,
       );
     }
-    marketingSuggestions.push(
+
+    if (p.unpaid > 2) {
+      improvementSuggestions.push(
+        '针对待支付订单：在订单详情增加「一键催付」模板（短信/站内信），并对超时未支付订单自动释放档期，降低库存占用。',
+      );
+    }
+    if (topLoc && topStyle) {
+      improvementSuggestions.push(
+        `在「${topLoc.label}」×「${topStyle.label}」主力需求组合上加大内容营销（样片、客片故事），并投放与搜索词一致的广告落地页，承接当前主力需求。`,
+      );
+    }
+    if (
+      p.browseTotal7 > 10 &&
+      p.orders7 < Math.max(1, Math.floor(p.browseTotal7 / 20))
+    ) {
+      improvementSuggestions.push(
+        '针对浏览高、转化低：缩短预约路径、突出「含妆造/精修张数」等决策信息，或配合限时券提升首单转化。',
+      );
+    }
+    if (!p.purchaseTopPackages.length && p.browseTop7.length) {
+      improvementSuggestions.push(
+        '针对有浏览少订单：对高热套餐做 A/B 定价或赠品测试，并收集用户未完成下单的原因（问卷/客服记录）。',
+      );
+    }
+    improvementSuggestions.push(
       '持续对比「收藏 TOP」与「下单 TOP」：若高度重合说明转化路径健康；若偏离则说明存在价格或信任障碍，需针对性优化。',
     );
-    marketingSuggestions.push(
-      '将 AI 功能（虚拍、风格推荐）与具体套餐 ID 关联推荐，可把「玩一下」转化为「拍这个套餐」的明确 CTA。',
+    improvementSuggestions.push(
+      '将 AI 功能（虚拍、风格推荐）与具体套餐 ID 关联推荐，把「玩一下」转化为「拍这个套餐」的明确 CTA。',
     );
 
-    return { businessReport, marketingSuggestions, dataAnalysis };
+    return {
+      situationAnalysis,
+      dataInterpretationAndIssues,
+      improvementSuggestions,
+    };
   }
 }

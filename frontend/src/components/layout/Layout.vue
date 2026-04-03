@@ -15,6 +15,7 @@
             'dashboard-home-wrapper': isDashboardHome,
             'full-bleed-wrapper': isFullBleed || isWorkerShell,
             'user-end-bleed': isUserEndLayout,
+            'admin-content-bleed': isAdminLayout,
           }"
         >
           <slot />
@@ -41,6 +42,9 @@ const isFullBleed = computed(() => route.meta?.layout === 'full');
 const isWorkerShell = computed(() => route.path.startsWith('/worker'));
 const isAdmin = computed(() => authStore.user?.role === 'admin');
 const isDashboardHome = computed(() => route.path === '/dashboard');
+
+/** 管理员后台：主内容区铺满（不居中、不限制 max-width，无左右上留白） */
+const isAdminLayout = computed(() => route.path.startsWith('/admin'));
 
 /** 普通用户端：主内容贴顶、左右铺满（不含管理员后台、工作台、已 full 布局页） */
 const isUserEndLayout = computed(() => {
@@ -102,7 +106,8 @@ const showSidebar = computed(() => {
         }
 
         &.full-bleed-wrapper,
-        &.user-end-bleed {
+        &.user-end-bleed,
+        &.admin-content-bleed {
           padding: 0;
           max-width: none;
           margin: 0;
@@ -120,12 +125,13 @@ const showSidebar = computed(() => {
       main {
         margin-left: 0 !important;
 
-        .content-wrapper:not(.user-end-bleed):not(.full-bleed-wrapper) {
+        .content-wrapper:not(.user-end-bleed):not(.full-bleed-wrapper):not(.admin-content-bleed) {
           padding: 16px;
         }
 
         .content-wrapper.user-end-bleed,
-        .content-wrapper.full-bleed-wrapper {
+        .content-wrapper.full-bleed-wrapper,
+        .content-wrapper.admin-content-bleed {
           padding: 0;
         }
       }

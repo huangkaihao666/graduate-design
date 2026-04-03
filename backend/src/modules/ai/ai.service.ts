@@ -362,13 +362,18 @@ export class AiService {
       },
     };
 
-    // 获取对应风格的建议（韩式简约按出镜方式分三套文案）
+    // 获取对应风格的建议（韩式简约按出镜方式分三套文案；自定义风格读库）
     const subjectRole: VirtualTryOnSubjectRole =
       request.subjectRole || 'female';
-    const advice =
+    let advice =
       normalizedStyle === 'minimalist'
         ? this.getMinimalistStyleAdvice(subjectRole)
-        : styleAdvice[normalizedStyle] || styleAdvice.romantic;
+        : styleAdvice[normalizedStyle];
+    if (!advice) {
+      const custom =
+        await this.getVirtualTryOnAdviceForCustomStyle(normalizedStyle);
+      advice = custom || styleAdvice.romantic;
+    }
 
     const subjectVirtualPrefix: Record<VirtualTryOnSubjectRole, string> = {
       female: '【新娘/女生单人】',
@@ -534,6 +539,11 @@ export class AiService {
         subjectRole,
       });
 
+      const tagRow = await this.prisma.styleTag.findUnique({
+        where: { key: style },
+      });
+      const adminStyleHint = tagRow?.description?.trim() || '';
+
       // 根据风格生成相应的提示词（女生/双人偏婚纱叙事）
       const stylePrompts: Record<string, string> = {
         romantic:
@@ -598,16 +608,20 @@ export class AiService {
             );
           })()
         : (() => {
+            const femaleFallback = adminStyleHint
+              ? `3:4竖版，${adminStyleHint}，高保真，专业婚纱摄影`
+              : '3:4竖版，生成高级婚纱摄影照片，高保真，专业级别';
+            const maleFallback = adminStyleHint
+              ? `3:4竖版，${adminStyleHint}，男士婚礼西装或礼服造型，高保真`
+              : '3:4竖版，生成高级新郎婚礼人像照片，男士西装或礼服造型，高保真，专业级别';
             const basePrompt =
               subjectRole === 'couple'
                 ? stylePromptsCouple[style] ||
                   stylePrompts[style] ||
-                  '3:4竖版，生成高级婚纱摄影照片，高保真，专业级别'
+                  femaleFallback
                 : subjectRole === 'male'
-                  ? stylePromptsMale[style] ||
-                    '3:4竖版，生成高级新郎婚礼人像照片，男士西装或礼服造型，高保真，专业级别'
-                  : stylePrompts[style] ||
-                    '3:4竖版，生成高级婚纱摄影照片，高保真，专业级别';
+                  ? stylePromptsMale[style] || maleFallback
+                  : stylePrompts[style] || femaleFallback;
             const aspectRatioBlock = this.buildVirtualTryOnAspectRatioPrompt();
             const compositionBlock =
               style === 'classical'
@@ -693,7 +707,7 @@ export class AiService {
           return `data:image/png;base64,${b64}`;
         }
 
-        if (generatedUrl) {
+        if (typeof generatedUrl === 'string' && generatedUrl.length > 0) {
           console.log(
             '[AI Service] 火山引擎 API 返回成功，图片 URL:',
             generatedUrl.substring(0, 80) + '...',
@@ -1130,23 +1144,30 @@ export class AiService {
         const titleRaw = row.title ?? row.Title;
         const pinRaw = row.isPinned ?? row.ispinned;
         const pinnedAtRaw = row.pinnedAt ?? row.pinnedat;
+        const titleResolved =
+          typeof titleRaw === 'string'
+            ? titleRaw
+            : titleRaw == null
+              ? null
+              : typeof titleRaw === 'number' || typeof titleRaw === 'boolean'
+                ? String(titleRaw)
+                : null;
+        const pinnedResolved =
+          pinnedAtRaw instanceof Date
+            ? pinnedAtRaw
+            : pinnedAtRaw == null
+              ? null
+              : typeof pinnedAtRaw === 'string' ||
+                  typeof pinnedAtRaw === 'number'
+                ? new Date(pinnedAtRaw)
+                : null;
         return {
           id: Number(item.id),
           question: item.question,
           answer: item.answer,
-          title:
-            typeof titleRaw === 'string'
-              ? titleRaw
-              : titleRaw != null
-                ? String(titleRaw)
-                : null,
+          title: titleResolved,
           isPinned: Boolean(pinRaw),
-          pinnedAt:
-            pinnedAtRaw instanceof Date
-              ? pinnedAtRaw
-              : pinnedAtRaw
-                ? new Date(String(pinnedAtRaw))
-                : null,
+          pinnedAt: pinnedResolved,
           createdAt,
         };
       }),
@@ -1263,50 +1284,108 @@ export class AiService {
   }
 
   /**
-   * 获取可用的风格列表
+   * 虚拍可选风格：与「风格标签」后台启用的标签同步（名称、描述、图标、实例图）
    */
-  async getAvailableStyles(): Promise<any> {
+  async getAvailableStyles(): Promise<{ styles: unknown[] }> {
+    const FALLBACK_DESC: Record<string, string> = {
+      minimalist:
+        '3:4竖版，浅灰/米白极简背景，新郎黑西装+领结，新娘缎面婚纱+轻纱；漫射光、低饱和、依偎互动，韩式画报胶片感',
+      classical:
+        '新中式：室内纯色正红背景，3:4竖版，正红与暖棕为基底；自然微笑，避免僵硬',
+      bohemian: '阳光沙滩、轻盈纱裙，偏海岛度假与松弛氛围',
+      romantic: '自然光、草坪与绿植，清新柔美、森系婚礼感',
+      adventure: '公路、山野、雪山雪景与开阔天际，动感与旅拍大片感',
+      artistic: '古镇街巷与人文旅拍，强调情绪、构图与故事感',
+    };
+    const DEFAULT_ICON: Record<string, string> = {
+      minimalist: '⬜',
+      classical: '👑',
+      bohemian: '🌻',
+      romantic: '✨',
+      adventure: '⛰️',
+      artistic: '🎨',
+    };
+
+    const tags = await this.prisma.styleTag.findMany({
+      where: { enabled: true },
+      orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+    });
+
+    if (!tags.length) {
+      return {
+        styles: [
+          'minimalist',
+          'classical',
+          'bohemian',
+          'romantic',
+          'adventure',
+          'artistic',
+        ].map((id) => ({
+          id,
+          name: this.defaultStyleNameForKey(id),
+          description: FALLBACK_DESC[id] ?? '',
+          icon: DEFAULT_ICON[id] ?? '✨',
+          previewUrl: null as string | null,
+        })),
+      };
+    }
+
+    const styles = tags.map((t) => {
+      const imgs = this.jsonToStringArray(t.sampleImages);
+      return {
+        id: t.key,
+        name: t.name,
+        description:
+          (t.description && t.description.trim()) ||
+          FALLBACK_DESC[t.key] ||
+          '可在管理后台「风格标签」中补充描述，用于虚拍说明与 AI 提示',
+        icon: (t.icon && t.icon.trim()) || DEFAULT_ICON[t.key] || '✨',
+        previewUrl: imgs[0] || null,
+      };
+    });
+    return { styles };
+  }
+
+  private defaultStyleNameForKey(key: string): string {
+    const m: Record<string, string> = {
+      minimalist: '韩式简约',
+      classical: '国风典雅',
+      bohemian: '海岛松弛',
+      romantic: '森系草坪',
+      adventure: '旷野自由',
+      artistic: '纪实故事',
+    };
+    return m[key] || key;
+  }
+
+  private jsonToStringArray(v: unknown): string[] {
+    if (!v) return [];
+    if (Array.isArray(v)) return v.map((x) => String(x));
+    return [];
+  }
+
+  /** 自定义风格：用后台描述生成虚拍文案块；无描述时返回 null */
+  private async getVirtualTryOnAdviceForCustomStyle(
+    styleKey: string,
+  ): Promise<Record<string, unknown> | null> {
+    const tag = await this.prisma.styleTag.findUnique({
+      where: { key: styleKey },
+    });
+    if (!tag?.description?.trim()) return null;
+    const d = tag.description.trim();
     return {
-      styles: [
-        {
-          id: 'minimalist',
-          name: '韩式简约',
-          description:
-            '3:4竖版，浅灰/米白极简背景，新郎黑西装+领结，新娘缎面婚纱+轻纱；漫射光、低饱和、依偎互动，韩式画报胶片感',
-          icon: '⬜',
-        },
-        {
-          id: 'classical',
-          name: '国风典雅',
-          description:
-            '新中式：室内纯色正红背景，3:4竖版，正红与暖棕为基底；自然微笑，避免僵硬',
-          icon: '👑',
-        },
-        {
-          id: 'bohemian',
-          name: '海岛松弛',
-          description: '阳光沙滩、轻盈纱裙，偏海岛度假与松弛氛围',
-          icon: '🌻',
-        },
-        {
-          id: 'romantic',
-          name: '森系草坪',
-          description: '自然光、草坪与绿植，清新柔美、森系婚礼感',
-          icon: '✨',
-        },
-        {
-          id: 'adventure',
-          name: '旷野自由',
-          description: '公路、山野、雪山雪景与开阔天际，动感与旅拍大片感',
-          icon: '⛰️',
-        },
-        {
-          id: 'artistic',
-          name: '纪实故事',
-          description: '古镇街巷与人文旅拍，强调情绪、构图与故事感',
-          icon: '🎨',
-        },
+      style: styleKey,
+      virtualAdvice: `虚拍画幅统一为 3:4 竖版。${d}`,
+      makeupAdvice:
+        '妆容与所选风格协调，自然通透、上镜立体；可按个性化偏好选项微调。',
+      hairstyleAdvice: '发型与服装、场景统一，突出风格气质。',
+      dressAdvice: '礼服或服装与场景、风格一致，层次与质感清晰。',
+      shootingTips: [
+        d.length > 200 ? `${d.slice(0, 200)}…` : d,
+        '保持 3:4 竖构图，人物主体突出',
+        '光线柔和均匀，肤色自然',
       ],
+      previewDescription: d.length > 140 ? `${d.slice(0, 140)}…` : d,
     };
   }
 

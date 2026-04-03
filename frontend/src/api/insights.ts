@@ -34,9 +34,12 @@ export type OperationalInsightReport = {
     styleRecommendationCount: number;
     itineraryTopDestinations: InsightRank[];
   };
-  businessReport: string[];
-  marketingSuggestions: string[];
-  dataAnalysis: string[];
+  /** 一、现状分析 */
+  situationAnalysis: string[];
+  /** 二、数据解读与问题发现 */
+  dataInterpretationAndIssues: string[];
+  /** 三、针对性改善建议 */
+  improvementSuggestions: string[];
 };
 
 export const insightsApi = {

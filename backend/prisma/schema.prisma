@@ -228,12 +228,19 @@ model TravelPackage {
   @@index([style])
 }
 
+/// 国内 / 国外（景点管理分区）
+enum CityRegion {
+  domestic
+  international
+}
+
 /// 旅拍城市（管理员先建城市，再在城市下维护多处景点）
 model City {
-  id        Int      @id @default(autoincrement()) @db.UnsignedInt
-  name      String   @unique @db.VarChar(100)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        Int        @id @default(autoincrement()) @db.UnsignedInt
+  name      String     @unique @db.VarChar(100)
+  region    CityRegion @default(domestic)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
   spots Spot[]
 
@@ -262,11 +269,17 @@ model Spot {
   @@index([cityId])
 }
 
-/// 风格标签（后台管理 + 套餐筛选）
+/// 风格标签（后台管理 + 套餐筛选 + 虚拍试衣展示）
 model StyleTag {
   id        Int     @id @default(autoincrement()) @db.UnsignedInt
   key       String  @unique @db.VarChar(50)
   name      String  @db.VarChar(100)
+  /// 虚拍页卡片说明 / 自定义风格时写入 AI 的文案依据
+  description String? @db.Text
+  /// 展示用小图标（如 emoji）
+  icon        String? @db.VarChar(20)
+  /// 实例照片 URL 列表（JSON 数组，首张作虚拍卡片预览）
+  sampleImages Json?
   enabled   Boolean @default(true)
   sortOrder Int     @default(0) @db.UnsignedInt
 

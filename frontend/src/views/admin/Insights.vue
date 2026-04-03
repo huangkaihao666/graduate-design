@@ -1,10 +1,9 @@
 <template>
   <div class="admin-insights">
     <div class="page-header">
-      <h1>运营洞察与优化建议</h1>
+      <h1>运营洞察与商业报告</h1>
       <p>
-        综合用户下单、收藏、套餐浏览埋点及 AI
-        功能使用数据，生成商业报告、营销建议与数据分析，辅助迭代产品与运营策略。
+        报告由三部分构成：<strong>现状分析</strong>（规模与转化概况）、<strong>数据解读与问题发现</strong>（基于埋点与订单的结构化解读）、<strong>针对性改善建议</strong>（可落地的运营与产品动作）。下方指标卡与明细表供交叉验证。
       </p>
       <a-space>
         <a-button type="primary" :loading="loading" @click="loadReport">刷新报告</a-button>
@@ -24,27 +23,27 @@
         </a-card>
       </div>
 
-      <a-tabs v-model:activeKey="activeTab" class="insight-tabs">
+      <a-tabs v-model:active-key="activeTab" class="insight-tabs">
         <a-tab-pane key="report" tab="商业报告">
-          <a-card title="摘要" :bordered="false" class="pane-card">
-            <ul class="prose-list">
-              <li v-for="(p, i) in report.businessReport" :key="'br-' + i">{{ p }}</li>
-            </ul>
-          </a-card>
-        </a-tab-pane>
-        <a-tab-pane key="marketing" tab="营销建议">
-          <a-card title="可执行方向" :bordered="false" class="pane-card">
-            <ol class="prose-list numbered">
-              <li v-for="(p, i) in report.marketingSuggestions" :key="'mk-' + i">{{ p }}</li>
-            </ol>
-          </a-card>
-        </a-tab-pane>
-        <a-tab-pane key="analysis" tab="数据分析">
-          <a-card title="数据解读" :bordered="false" class="pane-card">
-            <ul class="prose-list">
-              <li v-for="(p, i) in report.dataAnalysis" :key="'da-' + i">{{ p }}</li>
-            </ul>
-          </a-card>
+          <div class="report-three-parts">
+            <a-card title="一、现状分析" :bordered="false" class="pane-card part-card">
+              <ul class="prose-list">
+                <li v-for="(p, i) in report.situationAnalysis" :key="'s-' + i">{{ p }}</li>
+              </ul>
+            </a-card>
+            <a-card title="二、数据解读与问题发现" :bordered="false" class="pane-card part-card">
+              <ul class="prose-list">
+                <li v-for="(p, i) in report.dataInterpretationAndIssues" :key="'d-' + i">
+                  {{ p }}
+                </li>
+              </ul>
+            </a-card>
+            <a-card title="三、针对性改善建议" :bordered="false" class="pane-card part-card">
+              <ol class="prose-list numbered">
+                <li v-for="(p, i) in report.improvementSuggestions" :key="'m-' + i">{{ p }}</li>
+              </ol>
+            </a-card>
+          </div>
         </a-tab-pane>
         <a-tab-pane key="metrics" tab="指标明细">
           <a-row :gutter="[16, 16]">
@@ -199,24 +198,28 @@ onMounted(() => {
 
 <style scoped lang="less">
 .admin-insights {
-  padding: 20px 24px;
+  padding: 32px 24px 24px;
   background: #f6f8fb;
   min-height: calc(100vh - 64px);
 }
 
 .page-header {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
+
   h1 {
-    font-size: 22px;
-    font-weight: 800;
-    color: #111827;
-    margin: 0 0 8px;
+    margin: 0;
+    font-size: 26px;
   }
+
   p {
-    color: #6b7280;
-    margin: 0 0 14px;
+    color: #666;
+    margin: 6px 0 0;
     max-width: 920px;
     line-height: 1.6;
+  }
+
+  :deep(.ant-space) {
+    margin-top: 14px;
   }
 }
 
@@ -257,6 +260,22 @@ onMounted(() => {
   padding: 12px 16px 20px;
   border-radius: 12px;
   border: 1px solid rgba(17, 24, 39, 0.08);
+}
+
+.report-three-parts {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.part-card {
+  margin-top: 0;
+  border: 1px solid rgba(17, 24, 39, 0.06);
+  border-radius: 10px;
+  :deep(.ant-card-head) {
+    border-bottom: 1px solid rgba(17, 24, 39, 0.06);
+    font-weight: 700;
+  }
 }
 
 .pane-card {

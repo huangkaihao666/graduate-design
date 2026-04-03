@@ -1,7 +1,12 @@
 <template>
   <div class="admin-users-container">
     <div class="header">
-      <h1>用户管理</h1>
+      <div class="header-left">
+        <h1>用户管理</h1>
+        <p class="sub">
+          仅包含普通注册用户与管理员。摄影师、妆造师等工作人员请在「摄影师管理」「妆造师管理」中维护。
+        </p>
+      </div>
       <a-input-search
         v-model:value="keyword"
         placeholder="搜索用户名或邮箱"
@@ -27,7 +32,7 @@
             </a-tag>
           </template>
           <template v-else-if="column.key === 'actions'">
-            <a-space>
+            <a-space wrap>
               <a @click="toggleStatus(record.id)">
                 {{ record.status === '正常' ? '禁用' : '启用' }}
               </a>
@@ -41,12 +46,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
-import { message } from 'ant-design-vue';
 import { usersApi } from '@/api/users';
+import { message } from 'ant-design-vue';
+import { computed, onMounted, ref } from 'vue';
 
 type UserStatus = '正常' | '禁用';
-type UserRole = 'admin' | 'user';
+type UserRole = 'admin' | 'user' | 'worker';
 type AdminUser = {
   id: number;
   name: string;
@@ -70,23 +75,28 @@ const columns = [
 ];
 
 const filteredUsers = computed(() => {
+  const list = users.value.filter((u) => u.role !== 'worker');
   const kw = keyword.value.trim().toLowerCase();
-  if (!kw) return users.value;
-  return users.value.filter(
+  if (!kw) return list;
+  return list.filter(
     (u) => u.name.toLowerCase().includes(kw) || u.email.toLowerCase().includes(kw)
   );
 });
 
 const normalizeUsers = (raw: any): AdminUser[] => {
   const list = Array.isArray(raw?.data) ? raw.data : Array.isArray(raw) ? raw : [];
-  return list.map((item: any) => ({
-    id: Number(item.id),
-    name: item.name || `用户${item.id}`,
-    email: item.email || '-',
-    role: item.role === 'admin' ? 'admin' : 'user',
-    status: item.isActive === false ? '禁用' : '正常',
-    createdAt: item.createdAt ? String(item.createdAt).slice(0, 10) : '-',
-  }));
+  return list.map((item: any) => {
+    const r = String(item.role || 'user').toLowerCase();
+    const role: UserRole = r === 'admin' ? 'admin' : r === 'worker' ? 'worker' : 'user';
+    return {
+      id: Number(item.id),
+      name: item.name || `用户${item.id}`,
+      email: item.email || '-',
+      role,
+      status: item.isActive === false ? '禁用' : '正常',
+      createdAt: item.createdAt ? String(item.createdAt).slice(0, 10) : '-',
+    };
+  });
 };
 
 const loadUsers = async () => {
@@ -142,19 +152,33 @@ onMounted(() => {
 
 <style scoped lang="less">
 .admin-users-container {
-  padding: 20px 24px;
+  padding: 32px 24px 24px;
   background: #f6f8fb;
   min-height: calc(100vh - 64px);
 }
 
 .header {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 12px;
   margin-bottom: 12px;
 
   h1 {
     margin: 0;
   }
+}
+
+.header-left {
+  min-width: 200px;
+}
+
+.sub {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.45;
+  max-width: 520px;
 }
 </style>

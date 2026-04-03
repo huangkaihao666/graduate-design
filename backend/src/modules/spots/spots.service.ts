@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { CityRegion, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -11,22 +11,41 @@ export class SpotsService {
   constructor(private readonly prisma: PrismaService) {}
 
   /** 用户端 / 选目的地：公开列表（无需登录） */
-  findPublic() {
-    return this.prisma.spot.findMany({
-      orderBy: [
-        { recommended: 'desc' },
-        { city: { name: 'asc' } },
-        { id: 'asc' },
-      ],
+  async findPublic() {
+    const rows = await this.prisma.spot.findMany({
       include: { city: true },
+    });
+    return rows.sort((a, b) => {
+      if (a.recommended !== b.recommended) {
+        return (b.recommended ? 1 : 0) - (a.recommended ? 1 : 0);
+      }
+      const an = a.city?.name ?? '';
+      const bn = b.city?.name ?? '';
+      if (an !== bn) return an.localeCompare(bn, 'zh-Hans-CN');
+      return a.id - b.id;
     });
   }
 
-  findAll() {
-    return this.prisma.spot.findMany({
-      orderBy: [{ city: { name: 'asc' } }, { id: 'asc' }],
+  private static sortSpotsByCityNameAndId<
+    T extends { id: number; city: { name: string } | null },
+  >(rows: T[]): T[] {
+    return [...rows].sort((a, b) => {
+      const an = a.city?.name ?? '';
+      const bn = b.city?.name ?? '';
+      if (an !== bn) return an.localeCompare(bn, 'zh-Hans-CN');
+      return a.id - b.id;
+    });
+  }
+
+  /**
+   * 管理员全量列表。
+   * 不在 SQL 里按 city.name 排序：景点含大图 JSON，MySQL 关联排序易触发 Out of sort memory（1038）。
+   */
+  async findAll() {
+    const rows = await this.prisma.spot.findMany({
       include: { city: true },
     });
+    return SpotsService.sortSpotsByCityNameAndId(rows);
   }
 
   async create(data: {
@@ -124,33 +143,60 @@ export class SpotsService {
     });
   }
 
-  async createCity(name: string) {
+  private parseCityRegion(
+    input: string | undefined,
+    fallback: CityRegion,
+  ): CityRegion {
+    if (input === undefined || input === null) return fallback;
+    return input === 'international'
+      ? CityRegion.international
+      : CityRegion.domestic;
+  }
+
+  async createCity(name: string, regionInput?: string) {
     const trimmed = name.trim();
     if (!trimmed) {
       throw new BadRequestException('城市名称不能为空');
     }
-    return this.prisma.city.create({
-      data: { name: trimmed },
-    });
+    const region = this.parseCityRegion(regionInput, CityRegion.domestic);
+    try {
+      return await this.prisma.city.create({
+        data: { name: trimmed, region },
+      });
+    } catch (e) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2002'
+      ) {
+        throw new BadRequestException('该城市已存在，无需重复新增');
+      }
+      throw e;
+    }
   }
 
-  async updateCity(id: number, name: string) {
-    const trimmed = name.trim();
+  async updateCity(id: number, dto: { name: string; region?: string }) {
+    const trimmed = dto.name.trim();
     if (!trimmed) {
       throw new BadRequestException('城市名称不能为空');
     }
     const before = await this.ensureCityRow(id);
-    if (before.name === trimmed) {
+    const nextRegion =
+      dto.region === undefined
+        ? before.region
+        : this.parseCityRegion(dto.region, before.region);
+    if (before.name === trimmed && before.region === nextRegion) {
       return before;
     }
     const updated = await this.prisma.city.update({
       where: { id },
-      data: { name: trimmed },
+      data: { name: trimmed, region: nextRegion },
     });
-    await this.prisma.travelPackage.updateMany({
-      where: { spot: { cityId: id } },
-      data: { location: trimmed },
-    });
+    if (before.name !== trimmed) {
+      await this.prisma.travelPackage.updateMany({
+        where: { spot: { cityId: id } },
+        data: { location: trimmed },
+      });
+    }
     return updated;
   }
 

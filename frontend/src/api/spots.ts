@@ -1,8 +1,12 @@
 import { httpClient } from './client';
 
+/** 城市所属区域（景点管理国内/国外分区） */
+export type CityRegion = 'domestic' | 'international';
+
 export interface City {
   id: number;
   name: string;
+  region?: CityRegion;
   createdAt?: string;
   updatedAt?: string;
   _count?: { spots: number };
@@ -29,10 +33,10 @@ function unwrap<T>(res: unknown): T {
 export const citiesApi = {
   list: () => httpClient.get<City[]>('/cities').then((res) => unwrap<City[]>(res)),
 
-  create: (body: { name: string }) =>
+  create: (body: { name: string; region?: CityRegion }) =>
     httpClient.post<City>('/cities', body).then((res) => unwrap<City>(res)),
 
-  update: (id: number, body: { name: string }) =>
+  update: (id: number, body: { name: string; region?: CityRegion }) =>
     httpClient.patch<City>(`/cities/${id}`, body).then((res) => unwrap<City>(res)),
 
   remove: (id: number) => httpClient.delete(`/cities/${id}`).then((res) => unwrap(res)),
