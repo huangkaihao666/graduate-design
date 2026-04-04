@@ -8,6 +8,101 @@ import { Prisma, type VirtualTryOnHistory } from '@prisma/client';
 import axios from 'axios';
 import { PrismaService } from '../../prisma/prisma.service';
 
+/** 与前端 MakeupAI.vue 选项保持一致 */
+const MAKEUP_ADVISOR_FACE_SHAPES = [
+  '鹅蛋脸',
+  '圆脸',
+  '方脸',
+  '方圆脸',
+  '长脸',
+  '心形脸',
+  '菱形脸',
+] as const;
+
+const MAKEUP_ADVISOR_SKIN_TONES = [
+  '冷白皮',
+  '中性肤色',
+  '暖黄皮',
+  '小麦色',
+  '偏红肌',
+  '偏暗沉',
+] as const;
+
+const MAKEUP_ADVISOR_FEATURES = [
+  '单眼皮',
+  '内双',
+  '双眼皮',
+  '眼距偏宽',
+  '眼距偏近',
+  '黑眼圈明显',
+  '鼻梁偏低',
+  '高鼻梁',
+  '面中偏短',
+  '面中偏长',
+  '唇形偏薄',
+  '唇形偏厚',
+  '嘴角偏下',
+  '痘痘肌/闭口',
+  '毛孔明显/出油',
+  '干皮/卡粉',
+  '平眉',
+  '挑眉',
+  '弯眉',
+  '眉峰明显',
+  '眉毛偏粗',
+  '眉毛偏细',
+] as const;
+
+/** 照片中可见皮肤状态（非诊断，仅妆面参考） */
+const MAKEUP_ADVISOR_SKIN_VISIBLE = [
+  '未见明显瑕疵',
+  '略有暗沉',
+  '可见泛红',
+  '可见痘印',
+  'T区油光/毛孔可见',
+  '干燥起皮可见',
+] as const;
+
+/** 三庭五眼大致比例倾向（粗粒度） */
+const MAKEUP_ADVISOR_FACE_RATIO = [
+  '上庭略长',
+  '上庭略短',
+  '中庭略长',
+  '中庭略短',
+  '下庭略长',
+  '下庭略短',
+  '眼距略宽',
+  '眼距略窄',
+  '三庭比例较均衡',
+  '五眼比例较均衡',
+] as const;
+
+/** 适合的妆容风格标签（可多选） */
+const MAKEUP_ADVISOR_MAKEUP_STYLES = [
+  '可爱',
+  '御姐',
+  '清冷',
+  '温柔知性',
+  '元气少女',
+  '气场全开',
+  '伪素颜',
+  '复古文艺',
+  '轻熟优雅',
+] as const;
+
+export type MakeupAdvisorFaceAnalysisResult = {
+  faceShape?: string;
+  skinTone?: string;
+  features: string[];
+  /** 可见皮肤状态（证件照可见范围内） */
+  skinVisible: string[];
+  /** 三庭五眼大致倾向 */
+  faceRatio: string[];
+  /** 推荐妆容风格 */
+  makeupStyles: string[];
+  rawNote?: string;
+};
+
 /** 虚拍出镜：女生（新娘）/ 男生（新郎）/ 双人合影 */
 export type VirtualTryOnSubjectRole = 'female' | 'male' | 'couple';
 export type VirtualTryOnHistoryScene =
@@ -148,29 +243,42 @@ export class AiService {
     return AiService.shanghaiYmd(prev);
   }
 
-  // 火山引擎（字节跳动）图像生成 API 配置
+  // 火山引擎（字节跳动）方舟：官方文档常用 ARK_API_KEY，与本项目 VOLCES_API_KEY 二选一即可
   private readonly volcesApiKey =
-    process.env.VOLCES_API_KEY || 'b36d35f5-5fc6-45ff-a279-5650574d947d';
+    process.env.VOLCES_API_KEY?.trim() || process.env.ARK_API_KEY?.trim() || '';
   private readonly volcesApiUrl =
     process.env.VOLCES_API_URL ||
     'https://ark.cn-beijing.volces.com/api/v3/images/generations';
   private readonly volcesModel =
     process.env.VOLCES_MODEL || 'doubao-seedream-4-5-251128';
+  /** 方舟「图片理解」对话：与图像生成不同，需单独创建支持视觉的推理接入点，model 填 ep-xxx */
+  private readonly volcesChatCompletionsUrl =
+    process.env.VOLCES_CHAT_URL?.trim() ||
+    'https://ark.cn-beijing.volces.com/api/v3/chat/completions';
+  private readonly volcesVisionChatModel =
+    process.env.VOLCES_VISION_CHAT_MODEL?.trim() || '';
 
   // DeepSeek API 配置
   private readonly deepseekApiKey =
     process.env.DEEPSEEK_API_KEY || 'sk-9ac47d9827ba4f20be971e7dace87264';
   private readonly deepseekBaseURL =
     'https://api.deepseek.com/chat/completions';
-
   constructor(private readonly prisma: PrismaService) {
     console.log('[AI Service] 初始化配置:');
     console.log(
       '[AI Service] Volces API Key:',
-      this.volcesApiKey.substring(0, 20) + '...',
+      this.volcesApiKey
+        ? `${this.volcesApiKey.substring(0, 8)}...`
+        : 'NOT_SET（请配置 VOLCES_API_KEY 或 ARK_API_KEY）',
     );
     console.log('[AI Service] Volces Model:', this.volcesModel);
     console.log('[AI Service] Volces URL:', this.volcesApiUrl);
+    console.log(
+      '[AI Service] 妆容识别人脸（方舟视觉）:',
+      this.volcesVisionChatModel
+        ? `model=${this.volcesVisionChatModel.substring(0, 12)}... chat=${this.volcesChatCompletionsUrl}`
+        : 'VOLCES_VISION_CHAT_MODEL 未配置',
+    );
     console.log(
       '[AI Service] DeepSeek API Key:',
       this.deepseekApiKey.substring(0, 20) + '...',
@@ -911,6 +1019,371 @@ export class AiService {
         `AI Service Error: ${error.message}`,
         statusCode || HttpStatus.BAD_GATEWAY,
       );
+    }
+  }
+
+  /**
+   * 多模态识别人脸：DeepSeek 官方 chat 接口仅接受纯文本 content，不支持 image_url。
+   * 此处走火山方舟 Chat Completions（VOLCES_API_KEY 或 ARK_API_KEY），需配置支持图片理解的接入点 ID。
+   */
+  private parseOpenAiCompatibleApiError(error: unknown): {
+    status?: number;
+    message: string;
+  } {
+    const err = error as {
+      response?: { status?: number; data?: unknown };
+      message?: string;
+    };
+    const status = err.response?.status;
+    const data = err.response?.data;
+    let message = '';
+    if (typeof data === 'string' && data.trim()) {
+      message = data.trim().slice(0, 500);
+    } else if (data && typeof data === 'object') {
+      const o = data as Record<string, unknown>;
+      if (o.error && typeof o.error === 'object') {
+        const er = o.error as Record<string, unknown>;
+        if (typeof er.message === 'string') message = er.message;
+        else if (Array.isArray(er.message))
+          message = er.message.map(String).join('; ');
+        const codeStr =
+          typeof er.code === 'string' || typeof er.code === 'number'
+            ? String(er.code)
+            : '';
+        if (!message && codeStr) message = codeStr;
+        if (typeof er.message === 'string' && codeStr)
+          message = `${codeStr}: ${er.message}`;
+      }
+      if (!message && typeof o.msg === 'string') message = o.msg;
+      const meta = o.ResponseMetadata as Record<string, unknown> | undefined;
+      if (!message && meta?.Error && typeof meta.Error === 'object') {
+        const e = meta.Error as Record<string, unknown>;
+        if (typeof e.Message === 'string') message = e.Message;
+        if (typeof e.Code === 'string') message = `${e.Code}: ${message || ''}`;
+      }
+      if (!message && typeof o.message === 'string') message = o.message;
+      if (!message && Array.isArray(o.message))
+        message = o.message.map(String).join('; ');
+    }
+    if (!message) message = err.message || '视觉对话 API 调用失败';
+    return { status, message };
+  }
+
+  /** 方舟 / OpenAI 兼容：content 可能为 string 或多段结构 */
+  private extractChatCompletionText(data: unknown): string {
+    const content = (
+      data as { choices?: Array<{ message?: { content?: unknown } }> }
+    )?.choices?.[0]?.message?.content;
+    if (typeof content === 'string') return content;
+    if (Array.isArray(content)) {
+      return content
+        .map((p: unknown) => {
+          if (typeof p === 'string') return p;
+          if (p && typeof p === 'object' && 'text' in p) {
+            const t = (p as { text?: unknown }).text;
+            if (typeof t === 'string') return t;
+          }
+          return '';
+        })
+        .join('');
+    }
+    return '';
+  }
+
+  /**
+   * 方舟返回 401/403 时 body 有时很简略，补充可操作的排查说明（仍保留上游原文便于搜文档）。
+   */
+  private formatVolcesVisionClientError(
+    status: number | undefined,
+    upstreamMessage: string,
+  ): string {
+    const detail = (upstreamMessage || '').trim();
+    const prefix = detail ? `${detail} ` : '';
+    if (status === 403) {
+      return (
+        `${prefix}` +
+        '（403 来自火山方舟，非本系统权限）请逐项核对：① VOLCES_API_KEY / ARK_API_KEY 必须与「推理接入点」在同一火山引擎项目（控制台左上角项目切换后再复制 Key）；② 该 Key 已开通对本接入点所用模型的调用权限；③ VOLCES_CHAT_URL 的地域与接入点一致（如北京区默认 https://ark.cn-beijing.volces.com/api/v3/chat/completions）。'
+      );
+    }
+    if (status === 401) {
+      return (
+        `${prefix}` +
+        '（401）请确认 API Key 与控制台一致、未过期、无多余空格；若刚新建 Key 需等待生效或重新启动后端以加载 .env。'
+      );
+    }
+    return detail || '视觉对话请求被拒绝';
+  }
+
+  private async callVolcesVisionChat(messages: unknown[]): Promise<string> {
+    if (!this.volcesVisionChatModel) {
+      throw new BadRequestException(
+        'DeepSeek 开放平台当前 chat 接口不支持在消息中附带图片（仅支持纯文本）。请使用火山引擎方舟：在控制台创建「支持图片理解」的推理接入点，将接入点 ID（一般为 ep- 开头）填入环境变量 VOLCES_VISION_CHAT_MODEL，并确保 VOLCES_API_KEY 或 ARK_API_KEY 与虚拍生图相同且与接入点属同一项目。文档：火山方舟 - 图片理解。',
+      );
+    }
+    if (!this.volcesApiKey) {
+      throw new BadRequestException(
+        '未配置方舟 API Key：请在 backend/.env 中设置 VOLCES_API_KEY 或 ARK_API_KEY（与控制台「API Key」一致，且与推理接入点属同一项目）。',
+      );
+    }
+    try {
+      const response = await axios.post(
+        this.volcesChatCompletionsUrl,
+        {
+          model: this.volcesVisionChatModel,
+          messages,
+          temperature: 0.15,
+          max_tokens: 900,
+          stream: false,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${this.volcesApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 120000,
+        },
+      );
+
+      const text = this.extractChatCompletionText(response.data);
+      if (text.trim()) return text;
+
+      throw new Error(
+        `Invalid vision chat response: ${JSON.stringify(response.data).slice(0, 400)}`,
+      );
+    } catch (error: unknown) {
+      if (error instanceof HttpException) throw error;
+      if (error instanceof BadRequestException) throw error;
+      const { status, message } = this.parseOpenAiCompatibleApiError(error);
+      console.error(
+        '[AI Service] 方舟视觉对话失败',
+        this.volcesChatCompletionsUrl,
+        this.volcesVisionChatModel,
+        status,
+        message,
+      );
+      const httpStatus =
+        status && status >= 400 && status < 600
+          ? status
+          : HttpStatus.BAD_GATEWAY;
+      const clientMessage =
+        status === 403 || status === 401
+          ? this.formatVolcesVisionClientError(status, message)
+          : message;
+      throw new HttpException(clientMessage, httpStatus);
+    }
+  }
+
+  async analyzeFaceForMakeupAdvisor(body: {
+    /** 单张正面/证件类人脸照（推荐） */
+    photo?: string;
+    /** 兼容旧版：两张分传 */
+    idPhoto?: string;
+    frontPhoto?: string;
+  }): Promise<MakeupAdvisorFaceAnalysisResult> {
+    const single = this.sanitizeMakeupAdvisorImage(body.photo);
+    const legacyId = this.sanitizeMakeupAdvisorImage(body.idPhoto);
+    const legacyFront = this.sanitizeMakeupAdvisorImage(body.frontPhoto);
+    const imageUrls: string[] = [];
+    if (single) {
+      imageUrls.push(single);
+    } else {
+      if (legacyId) imageUrls.push(legacyId);
+      if (legacyFront) imageUrls.push(legacyFront);
+    }
+    if (imageUrls.length === 0) {
+      throw new BadRequestException(
+        '请上传一张清晰的正面人脸照片（支持 JPEG/PNG/WebP 的 data URL）',
+      );
+    }
+
+    const listShapes = MAKEUP_ADVISOR_FACE_SHAPES.join('、');
+    const listTones = MAKEUP_ADVISOR_SKIN_TONES.join('、');
+    const listFeats = MAKEUP_ADVISOR_FEATURES.join('、');
+    const listSkinVis = MAKEUP_ADVISOR_SKIN_VISIBLE.join('、');
+    const listRatio = MAKEUP_ADVISOR_FACE_RATIO.join('、');
+    const listStyles = MAKEUP_ADVISOR_MAKEUP_STYLES.join('、');
+
+    const multiHint =
+      imageUrls.length > 1
+        ? '所附为多张照片，请综合判断。'
+        : '所附为单张正面或证件类清晰人脸照片。';
+
+    const userText = `你是专业妆造助理。${multiHint}请据此推断客户特征，用于妆容建议表单。
+
+脸型必须且只能从下列原文选一项；看不清填 null：
+${listShapes}
+
+肤色必须且只能从下列原文选一项；看不清填 null：
+${listTones}
+
+五官特点为数组，每项必须完全等于下列原文之一（含眉型），不要自造词；看不清则 features 用 []，最多 8 项：
+${listFeats}
+
+照片中可见的皮肤状态（非医学诊断，仅妆面参考）为数组，每项必须完全等于下列原文之一；看不清则 skinVisible 用 []，最多 5 项：
+${listSkinVis}
+
+三庭五眼大致比例倾向为数组，每项必须完全等于下列原文之一；看不清则 faceRatio 用 []，最多 5 项：
+${listRatio}
+
+适合的妆容风格为数组，每项必须完全等于下列原文之一；看不清则 makeupStyles 用 []，最多 3 项：
+${listStyles}
+
+只输出一个 JSON 对象，不要 markdown，不要解释。格式示例：
+{"faceShape":"鹅蛋脸","skinTone":"暖黄皮","features":["双眼皮","平眉"],"skinVisible":["略有暗沉"],"faceRatio":["中庭略长","眼距略窄"],"makeupStyles":["温柔知性","轻熟优雅"],"note":"一句可选说明"}`;
+
+    const userContent: Array<Record<string, unknown>> = [
+      { type: 'text', text: userText },
+    ];
+    for (const url of imageUrls) {
+      userContent.push({
+        type: 'image_url',
+        image_url: { url },
+      });
+    }
+
+    let raw: string;
+    try {
+      raw = await this.callVolcesVisionChat([
+        {
+          role: 'system',
+          content:
+            '你只输出合法 JSON。键：faceShape、skinTone、features、skinVisible、faceRatio、makeupStyles、note（除 faceShape/skinTone 外均可省略或空数组）。不要代码围栏。',
+        },
+        { role: 'user', content: userContent },
+      ]);
+    } catch (e: unknown) {
+      if (e instanceof HttpException) throw e;
+      if (e instanceof BadRequestException) throw e;
+      throw new BadRequestException(
+        `照片识别失败：${String((e as Error)?.message || e)}`,
+      );
+    }
+
+    const parsed = this.parseMakeupAdvisorFaceJson(raw);
+    const faceShape = this.pickMakeupAdvisorLabel(
+      parsed.faceShape,
+      MAKEUP_ADVISOR_FACE_SHAPES,
+    );
+    const skinTone = this.pickMakeupAdvisorLabel(
+      parsed.skinTone,
+      MAKEUP_ADVISOR_SKIN_TONES,
+    );
+    const features = this.pickMakeupAdvisorMulti(
+      parsed.features,
+      MAKEUP_ADVISOR_FEATURES,
+      8,
+    );
+    const skinVisible = this.pickMakeupAdvisorMulti(
+      parsed.skinVisible,
+      MAKEUP_ADVISOR_SKIN_VISIBLE,
+      5,
+    );
+    const faceRatio = this.pickMakeupAdvisorMulti(
+      parsed.faceRatio,
+      MAKEUP_ADVISOR_FACE_RATIO,
+      5,
+    );
+    const makeupStyles = this.pickMakeupAdvisorMulti(
+      parsed.makeupStyles,
+      MAKEUP_ADVISOR_MAKEUP_STYLES,
+      3,
+    );
+
+    if (
+      !faceShape &&
+      !skinTone &&
+      features.length === 0 &&
+      skinVisible.length === 0 &&
+      faceRatio.length === 0 &&
+      makeupStyles.length === 0
+    ) {
+      throw new BadRequestException(
+        '未能从照片中解析出有效选项，请换更清晰正脸照或手动填写',
+      );
+    }
+
+    return {
+      faceShape,
+      skinTone,
+      features,
+      skinVisible,
+      faceRatio,
+      makeupStyles,
+      rawNote:
+        typeof parsed.note === 'string' && parsed.note.trim()
+          ? parsed.note.trim()
+          : undefined,
+    };
+  }
+
+  private sanitizeMakeupAdvisorImage(s?: string): string | undefined {
+    if (!s || typeof s !== 'string') return undefined;
+    const t = s.trim();
+    const okPrefix =
+      t.startsWith('data:image/jpeg') ||
+      t.startsWith('data:image/jpg') ||
+      t.startsWith('data:image/png') ||
+      t.startsWith('data:image/webp');
+    if (!okPrefix) return undefined;
+    if (t.length > 14_000_000) {
+      throw new BadRequestException('单张图片过大，请压缩后重试');
+    }
+    return t;
+  }
+
+  private pickMakeupAdvisorLabel(
+    v: unknown,
+    list: readonly string[],
+  ): string | undefined {
+    if (v == null) return undefined;
+    const s = typeof v === 'string' ? v.trim() : '';
+    if (!s || s === 'null') return undefined;
+    if (list.includes(s)) return s;
+    for (const x of list) {
+      if (s.includes(x) || x.includes(s)) return x;
+    }
+    return undefined;
+  }
+
+  private pickMakeupAdvisorMulti(
+    raw: unknown,
+    list: readonly string[],
+    max: number,
+  ): string[] {
+    if (!Array.isArray(raw)) return [];
+    const out: string[] = [];
+    const seen = new Set<string>();
+    for (const item of raw) {
+      const s = typeof item === 'string' ? item.trim() : '';
+      if (!s) continue;
+      const hit = list.find((x) => x === s || s.includes(x) || x.includes(s));
+      if (hit && !seen.has(hit)) {
+        seen.add(hit);
+        out.push(hit);
+      }
+      if (out.length >= max) break;
+    }
+    return out;
+  }
+
+  private parseMakeupAdvisorFaceJson(content: string): {
+    faceShape?: unknown;
+    skinTone?: unknown;
+    features?: unknown;
+    skinVisible?: unknown;
+    faceRatio?: unknown;
+    makeupStyles?: unknown;
+    note?: unknown;
+  } {
+    const trimmed = content.trim();
+    const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    const raw = fenced ? fenced[1].trim() : trimmed;
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return {};
+    try {
+      return JSON.parse(jsonMatch[0]) as Record<string, unknown>;
+    } catch {
+      return {};
     }
   }
 
@@ -1815,16 +2288,22 @@ export class AiService {
   getDebugConfig() {
     return {
       volces: {
-        apiKey:
-          this.volcesApiKey.substring(0, 20) +
-          '...' +
-          this.volcesApiKey.substring(this.volcesApiKey.length - 5),
+        apiKey: this.volcesApiKey
+          ? `${this.volcesApiKey.substring(0, 12)}...${this.volcesApiKey.substring(this.volcesApiKey.length - 4)}`
+          : 'NOT_SET',
         apiUrl: this.volcesApiUrl,
         model: this.volcesModel,
+        visionChatModel: this.volcesVisionChatModel || 'NOT_SET',
+        chatCompletionsUrl: this.volcesChatCompletionsUrl,
         envVars: {
           VOLCES_API_KEY: process.env.VOLCES_API_KEY ? 'SET' : 'NOT_SET',
+          ARK_API_KEY: process.env.ARK_API_KEY ? 'SET' : 'NOT_SET',
           VOLCES_API_URL: process.env.VOLCES_API_URL ? 'SET' : 'NOT_SET',
           VOLCES_MODEL: process.env.VOLCES_MODEL ? 'SET' : 'NOT_SET',
+          VOLCES_VISION_CHAT_MODEL: process.env.VOLCES_VISION_CHAT_MODEL
+            ? 'SET'
+            : 'NOT_SET',
+          VOLCES_CHAT_URL: process.env.VOLCES_CHAT_URL ? 'SET' : 'NOT_SET',
         },
       },
       deepseek: {

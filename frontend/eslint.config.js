@@ -61,6 +61,8 @@ export default [
         HTMLImageElement: 'readonly',
         Element: 'readonly',
         FileReader: 'readonly',
+        createImageBitmap: 'readonly',
+        ImageBitmap: 'readonly',
         Event: 'readonly',
         DragEvent: 'readonly',
         setTimeout: 'readonly',

@@ -25,6 +25,8 @@ import type {
   VirtualTryOnSubjectRole,
 } from './ai.service';
 import { AiService } from './ai.service';
+import { MakeupAdvisorAnalyzeFaceDto } from './dto/makeup-advisor-analyze-face.dto';
+
 @Controller('ai')
 export class AiController {
   constructor(private readonly aiService: AiService) {}
@@ -167,6 +169,34 @@ export class AiController {
           message: error?.message || '生成景点草稿失败',
         },
         status || HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
+   * 妆造师妆容建议页：上传证件照/正脸照，方舟视觉对话识别脸型、肤色、五官（需 VOLCES_VISION_CHAT_MODEL）
+   */
+  @Post('makeup-advisor/analyze-face')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  async analyzeFaceForMakeupAdvisor(@Body() body: MakeupAdvisorAnalyzeFaceDto) {
+    try {
+      const data = await this.aiService.analyzeFaceForMakeupAdvisor(body);
+      return {
+        statusCode: 200,
+        message: '识别完成',
+        data,
+      };
+    } catch (error: unknown) {
+      if (error instanceof HttpException) throw error;
+      const err = error as { message?: string };
+      console.error('[AI Controller] 妆容建议人脸特征识别失败:', error);
+      throw new HttpException(
+        {
+          statusCode: 400,
+          message: err.message || '识别失败',
+        },
+        HttpStatus.BAD_REQUEST,
       );
     }
   }

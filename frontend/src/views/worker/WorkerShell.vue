@@ -465,7 +465,7 @@ const handleLogout = () => {
 }
 
 .content {
-  padding: 8px 16px 10px 20px;
+  padding: 12px 16px 10px 20px;
   max-width: none;
   width: 100%;
 }

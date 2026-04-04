@@ -38,6 +38,20 @@ export interface ItineraryPlanningRequest {
   interests?: string[];
 }
 
+/** 妆造师妆容建议：照片识别填充脸型/肤色/五官等 */
+export interface MakeupAdvisorFaceAnalysis {
+  faceShape?: string;
+  skinTone?: string;
+  features: string[];
+  /** 照片中可见皮肤状态（非诊断） */
+  skinVisible?: string[];
+  /** 三庭五眼大致倾向 */
+  faceRatio?: string[];
+  /** 推荐妆容风格 */
+  makeupStyles?: string[];
+  rawNote?: string;
+}
+
 /** 管理端景点：AI 生成介绍 + 后台配图 */
 export interface SpotDraftRequest {
   cityName: string;
@@ -86,6 +100,14 @@ export const aiApi = {
    */
   generateSpotDraft: (data: SpotDraftRequest) =>
     httpClient.post('/ai/admin/spot-draft', data, { timeout: 180000 }),
+
+  /**
+   * 妆造师端：证件照/正脸照识别脸型、肤色、五官（后端走火山方舟图片理解，需 VOLCES_VISION_CHAT_MODEL）
+   */
+  analyzeFaceForMakeupAdvisor: (data: { photo?: string; idPhoto?: string; frontPhoto?: string }) =>
+    httpClient.post<unknown>('/ai/makeup-advisor/analyze-face', data, {
+      timeout: 130000,
+    }),
 
   /**
    * 帮助中心智能客服问答
