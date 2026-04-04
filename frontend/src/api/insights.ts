@@ -1,8 +1,23 @@
 import { httpClient } from './client';
 
-function unwrap<T>(res: unknown): T {
-  const r = res as { data?: T };
-  return (r?.data ?? res) as T;
+/**
+ * 解析 Nest TransformInterceptor 包一层后的 body：{ statusCode, message, data: T }
+ * 仅当内层仍像同一格式的信封时才继续剥 data，避免误剥业务对象里合法的 data 字段；
+ * 且 data 为 null 时不再剥，防止整段结果变成 null。
+ */
+function peelInsightPayload<T>(res: unknown): T {
+  let v: unknown = (res as { data?: unknown })?.data ?? res;
+  for (let i = 0; i < 2; i++) {
+    if (!v || typeof v !== 'object' || Array.isArray(v)) break;
+    const o = v as Record<string, unknown>;
+    const looksLikeEnvelope =
+      typeof o.statusCode === 'number' && typeof o.message === 'string' && 'data' in o;
+    if (!looksLikeEnvelope) break;
+    const inner = o.data;
+    if (inner === undefined || inner === null) break;
+    v = inner;
+  }
+  return v as T;
 }
 
 export type InsightRank = { key: string; label: string; count: number };
@@ -42,6 +57,11 @@ export type OperationalInsightReport = {
   improvementSuggestions: string[];
 };
 
+export type MarketingSuggestionsResponse = {
+  reportGeneratedAt: string;
+  items: string[];
+};
+
 export const insightsApi = {
   logBrowse: (packageId: number, context?: string) =>
     httpClient
@@ -52,5 +72,10 @@ export const insightsApi = {
   getOperationalReport: () =>
     httpClient
       .get<unknown>('/admin/insights/report')
-      .then((res) => unwrap<OperationalInsightReport>(res)),
+      .then((res) => peelInsightPayload<OperationalInsightReport>(res)),
+
+  generateMarketingSuggestions: () =>
+    httpClient
+      .post<unknown>('/admin/insights/marketing-suggestions', {}, { timeout: 120000 })
+      .then((res) => peelInsightPayload<MarketingSuggestionsResponse>(res)),
 };

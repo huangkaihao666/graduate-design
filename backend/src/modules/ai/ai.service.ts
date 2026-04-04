@@ -1,4 +1,9 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+} from '@nestjs/common';
 import { Prisma, type VirtualTryOnHistory } from '@prisma/client';
 import axios from 'axios';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -68,6 +73,26 @@ export interface CustomerSupportMessage {
 export interface CustomerSupportRequest {
   question: string;
   history?: CustomerSupportMessage[];
+}
+
+/** 管理端：景点介绍 AI 草稿（DeepSeek）；配图由后台调用图库 API 检索并下载为 data URL */
+export interface SpotDraftRequest {
+  cityName: string;
+  spotName: string;
+  /** 风格分类展示名或 key */
+  category?: string;
+}
+
+export interface SpotDraftResult {
+  description: string;
+  /**
+   * 可直接用于 <img src> 与写入景点 images 的 data URL（后台已从 Pexels/Unsplash 拉取）
+   */
+  imageUrls: string[];
+  /** 配图说明或配置提示 */
+  imagesNote?: string;
+  /** 中文搜图关键词（展示用，可选） */
+  imageSearchQuery: string;
 }
 
 export interface CustomerSupportHistoryList {
@@ -887,6 +912,538 @@ export class AiService {
         statusCode || HttpStatus.BAD_GATEWAY,
       );
     }
+  }
+
+  /**
+   * 运营洞察：根据报表 JSON 生成营销建议（返回结构化列表）。
+   */
+  async generateOperationalMarketingSuggestions(
+    report: Record<string, unknown>,
+  ): Promise<{ items: string[] }> {
+    const snapshot = {
+      generatedAt: report.generatedAt,
+      summary: report.summary,
+      purchaseDemand: report.purchaseDemand,
+      browseInterest: report.browseInterest,
+      favorites: report.favorites,
+      aiBehavior: report.aiBehavior,
+      situationAnalysis: report.situationAnalysis,
+      dataInterpretationAndIssues: report.dataInterpretationAndIssues,
+      improvementSuggestions: report.improvementSuggestions,
+    };
+    const userContent = JSON.stringify(snapshot);
+    const content = await this.callDeepSeek([
+      {
+        role: 'system',
+        content:
+          '你是婚纱摄影与旅拍 O2O 平台的增长与营销顾问。只根据用户提供的运营数据 JSON 与系统报告要点作答，不编造不存在的数据。输出必须是合法 JSON，且仅包含一个对象，键为 items（字符串数组）。',
+      },
+      {
+        role: 'user',
+        content: `以下为本平台当前运营快照与系统生成的商业报告要点（JSON）。请输出可直接落地的营销建议：需包含渠道/触点（如小红书、抖音、微信私域、SEM、门店、套餐页等）、文案或活动方向、与数据中热门风格/目的地/套餐的挂钩方式（若有）。\n\n要求：\n1) 严格只输出 JSON，格式为 {"items":["建议1","建议2",...]}，不要 markdown 代码围栏。\n2) 5～8 条，每条 1～3 句中文，具体可执行，避免空泛口号。\n3) 若某项数据为空或极少，可写「样本不足时的小成本验证动作」类建议，但不要虚构数字。\n\n数据：\n${userContent}`,
+      },
+    ]);
+    const items = this.parseMarketingSuggestionsJson(content);
+    return { items };
+  }
+
+  private parseMarketingSuggestionsJson(content: string): string[] {
+    const trimmed = content.trim();
+    const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    const raw = fenced ? fenced[1].trim() : trimmed;
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return [];
+    try {
+      const obj = JSON.parse(jsonMatch[0]) as { items?: unknown };
+      if (!Array.isArray(obj.items)) return [];
+      return obj.items
+        .map((x) => String(x).trim())
+        .filter(Boolean)
+        .slice(0, 12);
+    } catch {
+      return [];
+    }
+  }
+
+  /** 解析 JSON 字段为展示用字符串，避免对 object 误用 String() 触发 lint */
+  private jsonUnknownToTrimmedString(v: unknown): string {
+    if (v == null) return '';
+    if (typeof v === 'string') return v.trim();
+    if (typeof v === 'number' || typeof v === 'boolean') {
+      return String(v).trim();
+    }
+    return '';
+  }
+
+  private parseSpotDraftJson(content: string): {
+    description: string;
+    imageSearchQuery: string;
+    imageSearchQueries: string[];
+  } {
+    const trimmed = content.trim();
+    const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    const raw = fenced ? fenced[1].trim() : trimmed;
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      return {
+        description: trimmed,
+        imageSearchQuery: '',
+        imageSearchQueries: [],
+      };
+    }
+    try {
+      const obj = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
+      const description = this.jsonUnknownToTrimmedString(obj.description);
+      const imageSearchQuery = this.jsonUnknownToTrimmedString(
+        obj.imageSearchQuery,
+      );
+      const q = obj.imageSearchQueries;
+      const imageSearchQueries = Array.isArray(q)
+        ? q
+            .map((x) => String(x).trim())
+            .filter(Boolean)
+            .slice(0, 6)
+        : [];
+      return { description, imageSearchQuery, imageSearchQueries };
+    } catch {
+      return {
+        description: trimmed,
+        imageSearchQuery: '',
+        imageSearchQueries: [],
+      };
+    }
+  }
+
+  /** 从 HTTPS 图床拉取二进制并转为 data URL，供前端直接展示与写入景点 */
+  private async downloadImageAsDataUrl(
+    httpsUrl: string,
+  ): Promise<string | null> {
+    try {
+      const r = await axios.get<ArrayBuffer>(httpsUrl, {
+        responseType: 'arraybuffer',
+        timeout: 28000,
+        maxContentLength: 4 * 1024 * 1024,
+        maxBodyLength: 4 * 1024 * 1024,
+        maxRedirects: 8,
+        validateStatus: (s) => s >= 200 && s < 400,
+        headers: {
+          'User-Agent': 'GraduateDesignSpotAdmin/1.0 (image-fetch)',
+          Accept: 'image/*,*/*;q=0.8',
+        },
+      });
+      const ctRaw = String(r.headers['content-type'] || 'image/jpeg')
+        .split(';')[0]
+        .trim();
+      const ct = ctRaw.startsWith('image/') ? ctRaw : 'image/jpeg';
+      const b64 = Buffer.from(r.data).toString('base64');
+      return `data:${ct};base64,${b64}`;
+    } catch (e: any) {
+      console.warn(
+        '[AI Service] downloadImageAsDataUrl failed:',
+        httpsUrl.slice(0, 80),
+        e?.message,
+      );
+      return null;
+    }
+  }
+
+  /** Pexels：Authorization 头为裸 API Key（非 Bearer） */
+  private async searchPexelsPhotoUrls(
+    queries: string[],
+    maxTotal: number,
+  ): Promise<string[]> {
+    const key = process.env.PEXELS_API_KEY?.trim();
+    if (!key || maxTotal <= 0) return [];
+    const out: string[] = [];
+    const seen = new Set<string>();
+    for (const q of queries) {
+      if (out.length >= maxTotal) break;
+      const qq = String(q).trim();
+      if (qq.length < 2) continue;
+      try {
+        const res = await axios.get('https://api.pexels.com/v1/search', {
+          params: {
+            query: qq,
+            per_page: Math.min(8, maxTotal - out.length + 2),
+            orientation: 'portrait',
+          },
+          headers: { Authorization: key },
+          timeout: 16000,
+        });
+        const photos = Array.isArray(res.data?.photos) ? res.data.photos : [];
+        for (const p of photos) {
+          if (out.length >= maxTotal) break;
+          const u =
+            typeof p?.src?.medium === 'string'
+              ? p.src.medium
+              : typeof p?.src?.large === 'string'
+                ? p.src.large
+                : typeof p?.src?.small === 'string'
+                  ? p.src.small
+                  : '';
+          if (u && !seen.has(u)) {
+            seen.add(u);
+            out.push(u);
+          }
+        }
+      } catch (e: any) {
+        console.warn('[AI Service] Pexels search failed:', qq, e?.message);
+      }
+    }
+    return out.slice(0, maxTotal);
+  }
+
+  /**
+   * 维基共享资源：按中文/任意关键词搜「文件」命名空间，取原图直链（知名景区常为实地拍摄）
+   * 无需 API Key；需服务器能访问 commons 与 upload.wikimedia.org
+   */
+  private async searchWikimediaCommonsPhotoUrls(
+    searchTerms: string[],
+    maxTotal: number,
+  ): Promise<string[]> {
+    if (maxTotal <= 0) return [];
+    const out: string[] = [];
+    const seen = new Set<string>();
+    const ua =
+      process.env.WIKIMEDIA_USER_AGENT?.trim() ||
+      'GraduateDesignTravelApp/1.0 (commons-spot-images; +https://wikimediafoundation.org)';
+    const terms = [
+      ...new Set(
+        searchTerms.map((t) => String(t).trim()).filter((t) => t.length >= 2),
+      ),
+    ];
+    for (const term of terms.slice(0, 6)) {
+      if (out.length >= maxTotal) break;
+      try {
+        const res = await axios.get('https://commons.wikimedia.org/w/api.php', {
+          params: {
+            action: 'query',
+            format: 'json',
+            generator: 'search',
+            gsrsearch: term,
+            gsrnamespace: 6,
+            gsrlimit: 14,
+            prop: 'imageinfo',
+            iiprop: 'url|mime',
+          },
+          headers: { 'User-Agent': ua },
+          timeout: 16000,
+        });
+        const pages = res.data?.query?.pages;
+        if (!pages || typeof pages !== 'object') continue;
+        for (const p of Object.values(pages)) {
+          if (out.length >= maxTotal) break;
+          if (!p || typeof p !== 'object') continue;
+          const page = p as Record<string, unknown>;
+          const imageinfo = page.imageinfo;
+          if (!Array.isArray(imageinfo) || !imageinfo[0]) continue;
+          const ii = imageinfo[0] as Record<string, unknown>;
+          const mime = this.jsonUnknownToTrimmedString(ii.mime);
+          if (mime.includes('svg') || mime.includes('djvu')) continue;
+          let u = typeof ii.url === 'string' ? ii.url.trim() : '';
+          if (u.startsWith('//')) u = `https:${u}`;
+          if (!/^https?:\/\//i.test(u)) continue;
+          if (!seen.has(u)) {
+            seen.add(u);
+            out.push(u);
+          }
+        }
+      } catch (e: any) {
+        console.warn(
+          '[AI Service] Wikimedia Commons search failed:',
+          term,
+          e?.message,
+        );
+      }
+    }
+    return out.slice(0, maxTotal);
+  }
+
+  private async searchUnsplashPhotoUrls(
+    queries: string[],
+    maxTotal: number,
+  ): Promise<string[]> {
+    const key = process.env.UNSPLASH_ACCESS_KEY?.trim();
+    if (!key || maxTotal <= 0) return [];
+    const out: string[] = [];
+    const seen = new Set<string>();
+    for (const q of queries) {
+      if (out.length >= maxTotal) break;
+      const qq = String(q).trim();
+      if (qq.length < 2) continue;
+      try {
+        const res = await axios.get('https://api.unsplash.com/search/photos', {
+          params: {
+            query: qq,
+            per_page: Math.min(8, maxTotal - out.length + 2),
+            orientation: 'portrait',
+          },
+          headers: { Authorization: `Client-ID ${key}` },
+          timeout: 16000,
+        });
+        const results = Array.isArray(res.data?.results)
+          ? res.data.results
+          : [];
+        for (const r of results) {
+          if (out.length >= maxTotal) break;
+          const u =
+            typeof r?.urls?.regular === 'string'
+              ? r.urls.regular
+              : typeof r?.urls?.small === 'string'
+                ? r.urls.small
+                : '';
+          if (u && !seen.has(u)) {
+            seen.add(u);
+            out.push(u);
+          }
+        }
+      } catch (e: any) {
+        console.warn('[AI Service] Unsplash search failed:', qq, e?.message);
+      }
+    }
+    return out.slice(0, maxTotal);
+  }
+
+  /**
+   * 无密钥/外网失败时的竖版占位图（SVG data URL），保证弹窗内始终有可选项
+   */
+  private buildSpotDraftPlaceholderDataUrls(
+    count: number,
+    title: string,
+  ): string[] {
+    const safe = String(title || '景点')
+      .replace(/&/g, ' ')
+      .replace(/</g, ' ')
+      .replace(/"/g, ' ')
+      .slice(0, 24);
+    const out: string[] = [];
+    for (let i = 0; i < count; i++) {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="360" height="480" viewBox="0 0 360 480">
+<rect fill="#eef2f7" width="360" height="480"/>
+<text x="180" y="200" text-anchor="middle" fill="#64748b" font-size="15" font-family="system-ui,sans-serif">配图 ${i + 1}</text>
+<text x="180" y="232" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="system-ui,sans-serif">${safe}</text>
+<text x="180" y="268" text-anchor="middle" fill="#cbd5e1" font-size="11" font-family="system-ui,sans-serif">请配置 PEXELS_API_KEY</text>
+<text x="180" y="288" text-anchor="middle" fill="#cbd5e1" font-size="11" font-family="system-ui,sans-serif">以匹配真实景点图</text>
+</svg>`;
+      out.push(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`);
+    }
+    return out;
+  }
+
+  /** Lorem Picsum：无需 API Key，按种子固定图片（外网可访问时优于纯占位） */
+  private async fillSpotDraftWithPicsum(
+    seedBase: string,
+    maxImages: number,
+  ): Promise<string[]> {
+    const dataUrls: string[] = [];
+    let h = 2166136261;
+    const base = String(seedBase || 'spot');
+    for (let i = 0; i < base.length; i++) {
+      h ^= base.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    for (let i = 0; i < maxImages; i++) {
+      const seed = `gd-spot-${(h >>> 0).toString(16)}-${i}`;
+      const url = `https://picsum.photos/seed/${encodeURIComponent(seed)}/720/960`;
+      const d = await this.downloadImageAsDataUrl(url);
+      if (d) dataUrls.push(d);
+    }
+    return dataUrls;
+  }
+
+  /**
+   * 优先维基共享资源（中文景区名 → 实地照片概率高），再用 Pexels/Unsplash 英文关键词补足；失败则 Picsum → SVG
+   */
+  private async buildSpotDraftImageDataUrls(
+    englishQueries: string[],
+    commonsSearchTerms: string[],
+    maxImages: number,
+    fallbackSeed: string,
+  ): Promise<{ dataUrls: string[]; note?: string }> {
+    const hasPexels = Boolean(process.env.PEXELS_API_KEY?.trim());
+    const hasUnsplash = Boolean(process.env.UNSPLASH_ACCESS_KEY?.trim());
+    const qList = englishQueries.length
+      ? englishQueries
+      : ['travel destination landscape photography'];
+
+    const commonsUrls = await this.searchWikimediaCommonsPhotoUrls(
+      commonsSearchTerms,
+      maxImages,
+    );
+    const hadCommonsLinks = commonsUrls.length > 0;
+
+    const seenHttps = new Set<string>();
+    const httpsList: string[] = [];
+    for (const u of commonsUrls) {
+      if (!seenHttps.has(u)) {
+        seenHttps.add(u);
+        httpsList.push(u);
+      }
+    }
+
+    if (httpsList.length < maxImages && hasPexels) {
+      const need = maxImages - httpsList.length;
+      for (const u of await this.searchPexelsPhotoUrls(qList, need + 2)) {
+        if (httpsList.length >= maxImages) break;
+        if (!seenHttps.has(u)) {
+          seenHttps.add(u);
+          httpsList.push(u);
+        }
+      }
+    }
+    if (httpsList.length < maxImages && hasUnsplash) {
+      const need = maxImages - httpsList.length;
+      for (const u of await this.searchUnsplashPhotoUrls(qList, need + 2)) {
+        if (httpsList.length >= maxImages) break;
+        if (!seenHttps.has(u)) {
+          seenHttps.add(u);
+          httpsList.push(u);
+        }
+      }
+    }
+
+    const dataUrls: string[] = [];
+    for (const u of httpsList) {
+      if (dataUrls.length >= maxImages) break;
+      const d = await this.downloadImageAsDataUrl(u);
+      if (d) dataUrls.push(d);
+    }
+
+    if (dataUrls.length >= maxImages) {
+      return {
+        dataUrls: dataUrls.slice(0, maxImages),
+        note: hadCommonsLinks
+          ? `已下载 ${dataUrls.length} 张：优先来自维基共享资源（按「城市+景点」等中文检索，知名景区多为实地照片），不足部分由 Pexels/Unsplash 补足；选用前请核对画面与景点是否一致。`
+          : `已下载 ${dataUrls.length} 张：Commons 未检索到可用图（小众景点或网络限制较常见），当前来自 Pexels/Unsplash 英文关键词；选用前请核对。`,
+      };
+    }
+
+    const noteParts: string[] = [];
+    if (!httpsList.length) {
+      noteParts.push(
+        '维基共享资源与 Pexels/Unsplash 均未取到可用链接；请检查网络、密钥或更换景点名称后重试。',
+      );
+    } else if (!dataUrls.length) {
+      noteParts.push(
+        '已取得图片链接但服务器下载失败（常见于无法访问 upload.wikimedia.org 或图床）；请检查网络/代理。',
+      );
+    } else if (!hasPexels && !hasUnsplash && !hadCommonsLinks) {
+      noteParts.push(
+        '建议配置 PEXELS_API_KEY 以便在 Commons 无结果时用英文关键词搜素材图。',
+      );
+    }
+
+    const needFill = maxImages - dataUrls.length;
+    const picsum = await this.fillSpotDraftWithPicsum(fallbackSeed, needFill);
+    for (const p of picsum) {
+      if (dataUrls.length >= maxImages) break;
+      dataUrls.push(p);
+    }
+
+    if (dataUrls.length < maxImages) {
+      const placeholders = this.buildSpotDraftPlaceholderDataUrls(
+        maxImages - dataUrls.length,
+        fallbackSeed.split('|')[1] || fallbackSeed,
+      );
+      dataUrls.push(...placeholders);
+    }
+
+    const hasSvg = dataUrls.some((u) => u.includes('image/svg+xml'));
+    const filledByPicsum = picsum.length > 0;
+    if (hasSvg) {
+      noteParts.push(
+        '当前含 SVG 占位图：请在 backend/.env 配置 PEXELS_API_KEY 并保证服务器可访问外网后重试。',
+      );
+    } else if (filledByPicsum) {
+      noteParts.push(
+        '已用 Lorem Picsum 补足；配置 Pexels/Unsplash 后可按英文关键词匹配更接近景点的照片。',
+      );
+    }
+
+    return {
+      dataUrls: dataUrls.slice(0, maxImages),
+      note: noteParts.filter(Boolean).join(' '),
+    };
+  }
+
+  /**
+   * 管理端：生成景点介绍 + 后台拉取配图（data URL）
+   */
+  async generateSpotDraft(request: SpotDraftRequest): Promise<SpotDraftResult> {
+    const cityName = String(request.cityName || '').trim();
+    const spotName = String(request.spotName || '').trim();
+    if (!spotName) {
+      throw new BadRequestException('请填写景点名称后再生成');
+    }
+    const category = String(request.category || '').trim() || '未指定';
+
+    const prompt = `你是旅游线路与旅拍文案编辑。根据下列信息撰写管理后台使用的「景点介绍」：
+
+城市：${cityName || '未填写'}
+景点名称：${spotName}
+旅拍风格分类：${category}
+
+要求：
+1. 用简体中文写一段 220～450 字的介绍，分段叙述；包含景观/文化特色、婚纱旅拍适拍亮点、季节或游览提示中的至少两类信息；勿杜撰具体门票价格、开放时间数字（可用「建议出行前核实」类表述）。
+2. 「imageSearchQuery」：单行中文关键词（8～40 字），含城市+景点+如 风景/旅拍 等。
+3. 「imageSearchQueries」：3～5 条英文关键词短语（每条 2～8 个单词），用于在国际免费图库（Pexels/Unsplash）中搜索与该景点相关的竖版风景/旅拍照片，需具体可检索（可用景点通用英文名、城市英文名+landmark 等）。
+
+只输出一个 JSON 对象，不要用 markdown 代码块，不要其它文字：
+{"description":"……","imageSearchQuery":"三亚 天涯海角 风景","imageSearchQueries":["Sanya Tianya Haijiao coast","Hainan tropical beach landmark","China seaside wedding photography"]}`;
+
+    const content = await this.callDeepSeek([
+      {
+        role: 'system',
+        content:
+          '你只输出合法 JSON：description（中文）、imageSearchQuery（中文单行）、imageSearchQueries（英文字符串数组），不要输出其它内容。',
+      },
+      { role: 'user', content: prompt },
+    ]);
+
+    const parsed = this.parseSpotDraftJson(content);
+    let description = parsed.description;
+    if (!description) {
+      description = content.trim();
+    }
+
+    let imageSearchQuery = parsed.imageSearchQuery;
+    if (!imageSearchQuery) {
+      imageSearchQuery = [cityName, spotName, '旅游景点', '风景']
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+    }
+
+    const englishQueries =
+      parsed.imageSearchQueries.length > 0
+        ? parsed.imageSearchQueries
+        : [
+            `${spotName} travel landscape`,
+            `${cityName || 'China'} scenic spot`,
+            'destination wedding photography beach',
+          ].filter((x) => x.trim().length > 2);
+
+    const commonsSearchTerms = [
+      [cityName, spotName].filter(Boolean).join(' '),
+      spotName,
+      cityName,
+      imageSearchQuery,
+    ].filter((t) => String(t).trim().length >= 2);
+
+    const maxImages = 6;
+    const built = await this.buildSpotDraftImageDataUrls(
+      englishQueries,
+      commonsSearchTerms,
+      maxImages,
+      `${cityName}|${spotName}`,
+    );
+
+    return {
+      description,
+      imageUrls: built.dataUrls,
+      imagesNote: built.note,
+      imageSearchQuery,
+    };
   }
 
   /**

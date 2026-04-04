@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AiService } from '../ai/ai.service';
 import { CANONICAL_STYLE_TAGS } from '../style-tags/canonical-style-tags';
 
 type Rank = { key: string; label: string; count: number };
@@ -19,7 +20,10 @@ type BrowseGroupRow = { packageId: number; _count: { _all: number } };
 export class AdminInsightsService {
   private readonly logger = new Logger(AdminInsightsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ai: AiService,
+  ) {}
 
   async logBrowse(
     packageId: number,
@@ -448,6 +452,23 @@ export class AdminInsightsService {
       situationAnalysis,
       dataInterpretationAndIssues,
       improvementSuggestions,
+    };
+  }
+
+  /**
+   * 基于当前库内运营快照调用 DeepSeek，生成可落地的营销建议（与「刷新报告」同源数据）。
+   */
+  async generateMarketingSuggestions() {
+    const report = await this.buildOperationalReport();
+    const { items } = await this.ai.generateOperationalMarketingSuggestions(
+      report as Record<string, unknown>,
+    );
+    if (!items.length) {
+      throw new BadRequestException('未能生成有效营销建议，请稍后重试');
+    }
+    return {
+      reportGeneratedAt: report.generatedAt,
+      items,
     };
   }
 }

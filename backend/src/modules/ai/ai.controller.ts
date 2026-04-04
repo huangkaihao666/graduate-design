@@ -13,10 +13,13 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth } from '@nestjs/swagger';
+import { AdminOrJwtAuthGuard } from '../auth/admin-or-jwt-auth.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type {
   CustomerSupportRequest,
   ItineraryPlanningRequest,
+  SpotDraftRequest,
   StyleRecommendationRequest,
   VirtualTryOnRequest,
   VirtualTryOnSubjectRole,
@@ -134,6 +137,36 @@ export class AiController {
           message: error.message || '生成行程规划失败',
         },
         HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
+   * 管理端：景点介绍 AI 草稿（DeepSeek）+ 后台拉取配图（Pexels/Unsplash → data URL）
+   */
+  @Post('admin/spot-draft')
+  @UseGuards(AdminOrJwtAuthGuard)
+  @ApiBearerAuth()
+  async generateSpotDraftAdmin(@Body() body: SpotDraftRequest) {
+    try {
+      const data = await this.aiService.generateSpotDraft(body);
+      return {
+        statusCode: 200,
+        message: '景点草稿生成成功',
+        data,
+      };
+    } catch (error: any) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      const status = error?.status ?? error?.statusCode;
+      console.error('[AI Controller] 景点草稿生成失败:', error);
+      throw new HttpException(
+        {
+          statusCode: status || 400,
+          message: error?.message || '生成景点草稿失败',
+        },
+        status || HttpStatus.BAD_REQUEST,
       );
     }
   }

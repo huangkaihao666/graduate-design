@@ -38,6 +38,13 @@ export interface ItineraryPlanningRequest {
   interests?: string[];
 }
 
+/** 管理端景点：AI 生成介绍 + 后台配图 */
+export interface SpotDraftRequest {
+  cityName: string;
+  spotName: string;
+  category?: string;
+}
+
 export interface CustomerSupportMessage {
   role: 'user' | 'assistant';
   content: string;
@@ -73,6 +80,12 @@ export const aiApi = {
    */
   planItinerary: (data: ItineraryPlanningRequest) =>
     httpClient.post('/ai/itinerary-planning', data, { timeout: 90000 }),
+
+  /**
+   * 管理端：景点介绍 AI 草稿 + 后台自动配图（返回 data URL，需配置 PEXELS_API_KEY 等）
+   */
+  generateSpotDraft: (data: SpotDraftRequest) =>
+    httpClient.post('/ai/admin/spot-draft', data, { timeout: 180000 }),
 
   /**
    * 帮助中心智能客服问答

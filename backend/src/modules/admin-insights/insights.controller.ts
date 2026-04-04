@@ -46,4 +46,14 @@ export class AdminInsightsController {
   report() {
     return this.insights.buildOperationalReport();
   }
+
+  @Post('marketing-suggestions')
+  @UseGuards(AdminOrJwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: '基于当前运营数据（DeepSeek）生成营销建议',
+  })
+  marketingSuggestions() {
+    return this.insights.generateMarketingSuggestions();
+  }
 }

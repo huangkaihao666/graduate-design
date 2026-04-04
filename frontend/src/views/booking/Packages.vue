@@ -327,16 +327,13 @@
     >
       <div v-if="selectedPackage" class="package-detail">
         <div class="detail-images">
-          <a-image
-            v-for="(img, index) in [selectedPackage.coverImage, ...(selectedPackage.images || [])]
-              .filter(Boolean)
-              .slice(0, 2)"
-            :key="`detail-img-${index}`"
-            :src="img"
-            :alt="selectedPackage.name"
-            :preview="true"
-            class="detail-half-image"
-          />
+          <div
+            v-for="(img, index) in detailPreviewImages"
+            :key="`detail-img-${index}-${String(img).slice(0, 48)}`"
+            class="detail-image-cell"
+          >
+            <a-image :src="img" :alt="selectedPackage.name" :preview="true" />
+          </div>
         </div>
 
         <div class="detail-content">
@@ -615,6 +612,14 @@ const allPackages = ref<Package[]>([]);
 const detailModalVisible = ref(false);
 const recommendDrawerVisible = ref(false);
 const selectedPackage = ref<Package | null>(null);
+
+/** 详情弹窗顶部展示图（封面 + 图集，最多 2 张）；3:4 竖版、每格宽度为详情区一半，由 .detail-image-cell 约束 */
+const detailPreviewImages = computed(() => {
+  const p = selectedPackage.value;
+  if (!p) return [] as string[];
+  return [p.coverImage, ...(p.images || [])].filter(Boolean).slice(0, 2) as string[];
+});
+
 const favoritePackageIds = ref<Set<number>>(new Set());
 const favoriteLoading = ref<Set<number>>(new Set());
 const cfRecommendedPackages = ref<Package[]>([]);
@@ -1938,31 +1943,40 @@ onMounted(async () => {
 // 套餐详情模态框
 .package-detail {
   .detail-images {
-    --detail-img-h: clamp(220px, 38vh, 340px);
     display: flex;
+    flex-wrap: wrap;
     gap: 12px;
     margin-bottom: 16px;
-    align-items: stretch;
+    align-items: flex-start;
 
-    .detail-half-image {
-      flex: 1 1 0;
-      height: var(--detail-img-h);
+    .detail-image-cell {
+      /* 宽度为详情图区域的一半（双列中间留 gap） */
+      flex: 0 0 calc(50% - 6px);
+      width: calc(50% - 6px);
+      max-width: calc(50% - 6px);
+      box-sizing: border-box;
+      /* 3:4 竖版（宽:高 = 3:4） */
+      aspect-ratio: 3 / 4;
       border-radius: 12px;
       overflow: hidden;
+      background: #f0f0f0;
 
+      /* a-image 的 class 会落在内部 img 上，外层用包裹层约束 .ant-image（见 ant-design-vue vc-image） */
       :deep(.ant-image) {
         width: 100% !important;
-        height: var(--detail-img-h) !important;
-        display: block;
+        height: 100% !important;
+        display: block !important;
       }
 
       :deep(.ant-image-img),
       :deep(img) {
         width: 100% !important;
-        height: var(--detail-img-h) !important;
-        max-height: var(--detail-img-h) !important;
+        height: 100% !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
         object-fit: cover !important;
         display: block;
+        vertical-align: top;
       }
     }
   }

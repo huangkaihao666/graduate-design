@@ -153,6 +153,15 @@
 
         <a-divider style="margin: 10px 0 14px" />
 
+        <p v-if="form.spotId != null" class="field-tip image-flow-tip">
+          已选景点时，封面与下图集默认使用「景点管理」中该景点的照片（首图为封面，其余为详情缩略图）；您仍可上传或删除以单独调整套餐展示。
+        </p>
+        <p v-if="form.spotId != null" class="sync-spot-images">
+          <a-button type="link" size="small" @click="syncImagesFromCurrentSpot"
+            >重新同步景点照片</a-button
+          >
+        </p>
+
         <a-form-item label="套餐封面图（用户端套餐浏览展示）">
           <a-upload
             :file-list="coverFileList"
@@ -316,6 +325,77 @@ const packagesRaw = ref<Package[]>([]);
 const coverFileList = ref<UploadFile[]>([]);
 const galleryFileList = ref<UploadFile[]>([]);
 
+/** 与景点管理 Spots.vue 中 normalizeImages 一致 */
+const normalizeSpotImages = (v: unknown): string[] => {
+  if (!v) return [];
+  if (Array.isArray(v)) return v.map(String).filter(Boolean);
+  return [];
+};
+
+const setCoverFileListFromUrl = (url: string, uidSuffix: string) => {
+  if (!url) {
+    coverFileList.value = [];
+    return;
+  }
+  coverFileList.value = [
+    {
+      uid: `cover-${uidSuffix}`,
+      name: '封面',
+      status: 'done',
+      url,
+    } as UploadFile,
+  ];
+};
+
+const setGalleryFileListFromUrls = (urls: string[], uidPrefix: string) => {
+  galleryFileList.value = urls.map(
+    (imgUrl, idx) =>
+      ({
+        uid: `gallery-${uidPrefix}-${idx}`,
+        name: `图${idx + 1}`,
+        status: 'done',
+        url: imgUrl,
+      }) as UploadFile
+  );
+};
+
+/** 景点照片 → 套餐：首图封面，其余为详情图集 */
+const applyPackageImagesFromSpot = (spot: Spot) => {
+  const imgs = normalizeSpotImages(spot.images);
+  if (!imgs.length) {
+    form.coverImage = '';
+    form.images = [];
+    coverFileList.value = [];
+    galleryFileList.value = [];
+    return;
+  }
+  form.coverImage = imgs[0] ?? '';
+  form.images = imgs.slice(1);
+  setCoverFileListFromUrl(form.coverImage, `spot-${spot.id}`);
+  setGalleryFileListFromUrls(form.images, `spot-${spot.id}`);
+};
+
+const syncImagesFromCurrentSpot = async () => {
+  if (form.spotId === undefined || form.spotId === null) {
+    message.warning('请先选择景点');
+    return;
+  }
+  const id = form.spotId;
+  try {
+    await loadSpots();
+  } catch (e: any) {
+    message.error(e?.message || '刷新景点列表失败');
+    return;
+  }
+  const spot = spots.value.find((s) => s.id === id);
+  if (!spot) {
+    message.warning('未找到该景点');
+    return;
+  }
+  applyPackageImagesFromSpot(spot);
+  message.success('已同步景点照片');
+};
+
 const readAsDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -328,14 +408,7 @@ const beforeUploadCover = async (file: File) => {
   try {
     const url = await readAsDataUrl(file);
     form.coverImage = url;
-    coverFileList.value = [
-      {
-        uid: `cover-${Date.now()}`,
-        name: file.name,
-        status: 'done',
-        url,
-      } as UploadFile,
-    ];
+    setCoverFileListFromUrl(url, String(Date.now()));
   } catch (e: any) {
     message.error(e?.message || '读取封面失败');
   }
@@ -405,13 +478,14 @@ const loadSpots = async () => {
   spots.value = await spotsApi.list();
 };
 
-/** 选中景点后，目的地与景点所属城市对齐（与后台写入 location 一致） */
+/** 选中景点后，目的地与景点所属城市对齐，并填入景点照片供套餐使用（可再手动改） */
 const onSpotChange = (id: number | undefined) => {
   if (id === undefined || id === null) return;
   const spot = spots.value.find((s) => s.id === id);
   if (spot?.city?.name) {
     form.location = spot.city.name;
   }
+  if (spot) applyPackageImagesFromSpot(spot);
 };
 
 watch(
@@ -473,25 +547,8 @@ const openEdit = (record: AdminRow) => {
   form.coverImage = pkg?.coverImage ?? '';
   form.images = Array.isArray(pkg?.images) ? pkg!.images! : [];
 
-  coverFileList.value = form.coverImage
-    ? ([
-        {
-          uid: `cover-${record.id}`,
-          name: 'cover',
-          status: 'done',
-          url: form.coverImage,
-        } as UploadFile,
-      ] as UploadFile[])
-    : [];
-  galleryFileList.value = (form.images || []).map(
-    (url, idx) =>
-      ({
-        uid: `gallery-${record.id}-${idx}`,
-        name: `image-${idx + 1}`,
-        status: 'done',
-        url,
-      }) as UploadFile
-  );
+  setCoverFileListFromUrl(form.coverImage, `edit-${record.id}`);
+  setGalleryFileListFromUrls(form.images || [], `edit-${record.id}`);
   modalOpen.value = true;
 };
 

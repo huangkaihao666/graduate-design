@@ -174,10 +174,25 @@
             :filter-option="filterCategoryOption"
           />
         </a-form-item>
-        <a-form-item label="景点介绍">
+        <a-form-item>
+          <template #label>
+            <div class="spot-desc-label-row">
+              <span>景点介绍</span>
+              <a-button
+                type="link"
+                size="small"
+                class="spot-ai-gen-btn"
+                :loading="spotDraftGenerating"
+                :disabled="!spotForm.name.trim()"
+                @click="runSpotDraftGeneration"
+              >
+                生成描述
+              </a-button>
+            </div>
+          </template>
           <a-textarea
             v-model:value="spotForm.description"
-            placeholder="可填写景点特色、开放时间、注意事项等"
+            placeholder="可填写景点特色、开放时间、注意事项等；也可点击「生成描述」由 DeepSeek 生成后自行修改"
             :rows="4"
             allow-clear
           />
@@ -198,10 +213,49 @@
         </a-form-item>
       </a-form>
     </a-modal>
+
+    <a-modal
+      v-model:open="spotDraftModalOpen"
+      title="AI 生成结果"
+      width="min(96vw, 640px)"
+      ok-text="保存到表单"
+      cancel-text="取消"
+      :destroy-on-close="true"
+      @ok="applySpotDraft"
+    >
+      <p v-if="spotDraftImagesNote" class="draft-note">{{ spotDraftImagesNote }}</p>
+      <a-form layout="vertical" class="draft-form">
+        <a-form-item label="介绍文案（可编辑后再保存到景点）">
+          <a-textarea v-model:value="spotDraftDescription" :rows="9" allow-clear />
+        </a-form-item>
+        <a-form-item v-if="spotDraftImageUrls.length" label="推荐配图">
+          <p class="draft-images-hint">
+            已由后台下载为可嵌入格式；勾选后将追加到下方「景点照片」（不超过 12
+            张，可再删除或继续上传）。
+          </p>
+          <a-checkbox-group v-model:value="spotDraftSelectedUrls" class="draft-checkbox-group">
+            <a-row :gutter="[12, 12]">
+              <a-col
+                v-for="(url, idx) in spotDraftImageUrls"
+                :key="'draft-img-' + idx + '-' + String(url).slice(0, 48)"
+                :xs="12"
+                :sm="8"
+              >
+                <div class="draft-img-tile">
+                  <img :src="url" alt="" loading="lazy" />
+                  <a-checkbox :value="url" class="draft-img-check">选用</a-checkbox>
+                </div>
+              </a-col>
+            </a-row>
+          </a-checkbox-group>
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
 <script setup lang="ts">
+import { aiApi } from '@/api/ai';
 import { citiesApi, spotsApi, type City, type CityRegion, type Spot } from '@/api/spots';
 import {
   getSpotCategoryLabel,
@@ -214,6 +268,14 @@ import { PlusOutlined } from '@ant-design/icons-vue';
 import { message, Modal } from 'ant-design-vue';
 import type { UploadFile } from 'ant-design-vue';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
+
+/** AI 景点草稿（与后端 SpotDraftResult 对应；响应经全局包装后取 data.data 或 data） */
+type SpotDraftPayload = {
+  description?: string;
+  imageUrls?: string[];
+  imagesNote?: string;
+  imageSearchQuery?: string;
+};
 
 const ALPHABET_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
@@ -263,6 +325,13 @@ const spotForm = reactive({
 });
 const spotGalleryUrls = ref<string[]>([]);
 const spotGalleryFileList = ref<UploadFile[]>([]);
+
+const spotDraftGenerating = ref(false);
+const spotDraftModalOpen = ref(false);
+const spotDraftDescription = ref('');
+const spotDraftImageUrls = ref<string[]>([]);
+const spotDraftSelectedUrls = ref<string[]>([]);
+const spotDraftImagesNote = ref('');
 
 const knownStyleCategoryKeys = new Set(Object.keys(TRAVEL_STYLE_LABELS));
 
@@ -409,6 +478,75 @@ const removeSpotGallery = (file: UploadFile) => {
   }
   spotGalleryFileList.value = spotGalleryFileList.value.filter((x) => x.uid !== file.uid);
   return true;
+};
+
+const appendGalleryUrls = (urls: string[]) => {
+  for (const url of urls) {
+    if (!url || spotGalleryUrls.value.includes(url)) continue;
+    if (spotGalleryUrls.value.length >= 12) break;
+    spotGalleryUrls.value = [...spotGalleryUrls.value, url];
+    spotGalleryFileList.value = [
+      ...spotGalleryFileList.value,
+      {
+        uid: `ai-img-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        name: '推荐配图',
+        status: 'done',
+        url,
+      } as UploadFile,
+    ];
+  }
+};
+
+const runSpotDraftGeneration = async () => {
+  if (!spotForm.name.trim()) {
+    message.warning('请先填写景点名称');
+    return;
+  }
+  spotDraftGenerating.value = true;
+  try {
+    const cityLabel = creatingCityName.value;
+    const raw = await aiApi.generateSpotDraft({
+      cityName: cityLabel === '—' ? '' : cityLabel,
+      spotName: spotForm.name.trim(),
+      category: getSpotCategoryLabel(spotForm.category) || spotForm.category || undefined,
+    });
+    /** 与 VirtualTryOn 一致：全局 TransformInterceptor 外包一层 data，控制器再返回 { data: 草稿 } */
+    const r = raw as { data?: { data?: SpotDraftPayload } & SpotDraftPayload };
+    const data = (r?.data?.data ?? r?.data) as SpotDraftPayload | undefined;
+    if (!data || typeof data !== 'object') {
+      message.warning('接口返回异常，请稍后重试');
+      return;
+    }
+    spotDraftDescription.value = String(data.description ?? '').trim();
+    const imgs = Array.isArray(data.imageUrls)
+      ? data.imageUrls.map(String).filter((u) => u.startsWith('data:image/'))
+      : [];
+    spotDraftImageUrls.value = imgs;
+    spotDraftSelectedUrls.value = [...imgs];
+    spotDraftImagesNote.value = String(data.imagesNote ?? '').trim();
+    if (!imgs.length) {
+      message.warning(
+        spotDraftImagesNote.value || '未收到配图数据：请确认后端已重启且接口未截断大体积 JSON。'
+      );
+    }
+    if (!spotDraftDescription.value) {
+      message.warning('未得到有效介绍文案，请稍后重试');
+      return;
+    }
+    spotDraftModalOpen.value = true;
+  } catch (e: unknown) {
+    message.error(getApiErrorMessage(e) || '生成失败');
+  } finally {
+    spotDraftGenerating.value = false;
+  }
+};
+
+const applySpotDraft = () => {
+  spotForm.description = spotDraftDescription.value.trim();
+  const picked = spotDraftSelectedUrls.value.filter((u) => spotDraftImageUrls.value.includes(u));
+  appendGalleryUrls(picked);
+  spotDraftModalOpen.value = false;
+  message.success('已写入表单，确认后点击「保存」保存景点');
 };
 
 const load = async () => {
@@ -806,5 +944,68 @@ onMounted(() => {
 .ant-upload-text {
   margin-top: 4px;
   font-size: 12px;
+}
+
+.spot-desc-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
+  padding-right: 0;
+}
+
+.spot-ai-gen-btn {
+  padding: 0;
+  height: auto;
+  line-height: 1.4;
+}
+
+.draft-note {
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #666;
+  background: #f6f8fb;
+  border-radius: 8px;
+  line-height: 1.5;
+}
+
+.draft-form {
+  margin-top: 4px;
+}
+
+.draft-images-hint {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: #888;
+}
+
+.draft-checkbox-group {
+  display: block;
+  width: 100%;
+}
+
+.draft-img-tile {
+  border: 1px solid #e8ecf2;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fafafa;
+
+  img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    object-fit: cover;
+    vertical-align: top;
+  }
+
+  .draft-img-check {
+    display: flex;
+    align-items: center;
+    padding: 6px 8px;
+    margin: 0;
+    font-size: 13px;
+  }
 }
 </style>

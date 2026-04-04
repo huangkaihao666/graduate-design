@@ -2,11 +2,10 @@
   <div class="admin-insights">
     <div class="page-header">
       <h1>运营洞察与商业报告</h1>
-      <p>
-        报告由三部分构成：<strong>现状分析</strong>（规模与转化概况）、<strong>数据解读与问题发现</strong>（基于埋点与订单的结构化解读）、<strong>针对性改善建议</strong>（可落地的运营与产品动作）。下方指标卡与明细表供交叉验证。
-      </p>
-      <a-space>
-        <a-button type="primary" :loading="loading" @click="loadReport">刷新报告</a-button>
+      <a-space wrap>
+        <a-button type="primary" html-type="button" :loading="loading" @click.stop="loadReport">
+          刷新报告
+        </a-button>
         <span v-if="report?.generatedAt" class="muted"
           >生成时间：{{ formatTime(report.generatedAt) }}</span
         >
@@ -43,10 +42,45 @@
                 <li v-for="(p, i) in report.improvementSuggestions" :key="'m-' + i">{{ p }}</li>
               </ol>
             </a-card>
+            <a-card
+              title="四、AI 营销建议"
+              :bordered="false"
+              class="pane-card part-card marketing-card"
+            >
+              <template #extra>
+                <a-button
+                  type="primary"
+                  html-type="button"
+                  :disabled="loading || marketingLoading"
+                  :loading="marketingLoading"
+                  @click.stop="runMarketingSuggestions"
+                >
+                  {{ marketingItems.length ? '重新生成' : '生成营销建议' }}
+                </a-button>
+              </template>
+              <p v-if="!marketingItems.length && !marketingLoading" class="marketing-placeholder">
+                点击本卡片右上角「生成营销建议」，将基于当前库内运营数据调用 AI
+                生成渠道、文案与活动向的可执行建议（与「刷新报告」同源快照）。
+              </p>
+              <ol v-else-if="marketingItems.length" class="prose-list numbered marketing-list">
+                <li v-for="(p, i) in marketingItems" :key="'mk-' + i">{{ p }}</li>
+              </ol>
+              <a-spin v-else :spinning="marketingLoading" />
+              <p v-if="marketingReportAt" class="marketing-meta muted">
+                基于报告快照：{{ formatTime(marketingReportAt) }}
+              </p>
+            </a-card>
           </div>
         </a-tab-pane>
         <a-tab-pane key="metrics" tab="指标明细">
-          <a-row :gutter="[16, 16]">
+          <a-alert
+            v-if="marketingItems.length"
+            type="info"
+            show-icon
+            class="metrics-marketing-hint"
+            message="AI 营销建议已在「商业报告」页签第四节展示，可切换页签查看。"
+          />
+          <a-row :gutter="[16, 16]" class="metrics-detail">
             <a-col :xs="24" :lg="12">
               <a-card title="购买需求 · 热门风格" :bordered="false" size="small">
                 <a-table
@@ -140,6 +174,9 @@ import { computed, onMounted, ref } from 'vue';
 const loading = ref(false);
 const report = ref<OperationalInsightReport | null>(null);
 const activeTab = ref('report');
+const marketingLoading = ref(false);
+const marketingItems = ref<string[]>([]);
+const marketingReportAt = ref<string | null>(null);
 
 const rankCols = [
   { title: '名称', dataIndex: 'label', key: 'label', ellipsis: true },
@@ -183,11 +220,44 @@ async function loadReport() {
   loading.value = true;
   try {
     report.value = await insightsApi.getOperationalReport();
+    marketingItems.value = [];
+    marketingReportAt.value = null;
   } catch (e) {
     console.error(e);
     message.error(formatApiError(e));
   } finally {
     loading.value = false;
+  }
+}
+
+async function runMarketingSuggestions() {
+  if (marketingLoading.value) return;
+  if (loading.value) {
+    message.warning('请先等待当前报告加载完成');
+    return;
+  }
+  marketingLoading.value = true;
+  const closeLoading = message.loading({
+    content: '正在生成营销建议，请稍候…',
+    duration: 0,
+    key: 'insight-marketing',
+  });
+  try {
+    const res = await insightsApi.generateMarketingSuggestions();
+    marketingItems.value = Array.isArray(res?.items) ? res.items : [];
+    marketingReportAt.value = res?.reportGeneratedAt ?? null;
+    activeTab.value = 'report';
+    if (!marketingItems.value.length) {
+      message.warning('未返回有效建议，请重试');
+    } else {
+      message.success('已生成营销建议');
+    }
+  } catch (e) {
+    console.error(e);
+    message.error(formatApiError(e));
+  } finally {
+    closeLoading();
+    marketingLoading.value = false;
   }
 }
 
@@ -211,15 +281,8 @@ onMounted(() => {
     font-size: 26px;
   }
 
-  p {
-    color: #666;
-    margin: 6px 0 0;
-    max-width: 920px;
-    line-height: 1.6;
-  }
-
   :deep(.ant-space) {
-    margin-top: 14px;
+    margin-top: 12px;
   }
 }
 
@@ -260,6 +323,15 @@ onMounted(() => {
   padding: 12px 16px 20px;
   border-radius: 12px;
   border: 1px solid rgba(17, 24, 39, 0.08);
+
+  :deep(.ant-tabs-tab) {
+    font-size: 16px;
+    padding: 12px 0;
+  }
+
+  :deep(.ant-tabs-tab-active .ant-tabs-tab-btn) {
+    font-weight: 600;
+  }
 }
 
 .report-three-parts {
@@ -275,6 +347,10 @@ onMounted(() => {
   :deep(.ant-card-head) {
     border-bottom: 1px solid rgba(17, 24, 39, 0.06);
     font-weight: 700;
+    min-height: 52px;
+  }
+  :deep(.ant-card-head-title) {
+    font-size: 17px;
   }
 }
 
@@ -287,12 +363,62 @@ onMounted(() => {
   margin: 0;
   padding-left: 1.2rem;
   color: #374151;
-  line-height: 1.75;
+  font-size: 16px;
+  line-height: 1.8;
   li + li {
-    margin-top: 10px;
+    margin-top: 12px;
   }
   &.numbered {
     list-style: decimal;
+  }
+}
+
+.metrics-marketing-hint {
+  margin-bottom: 16px;
+}
+
+.marketing-placeholder {
+  margin: 0;
+  color: #6b7280;
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.marketing-list {
+  margin-bottom: 8px;
+}
+
+.marketing-meta {
+  margin: 12px 0 0;
+  font-size: 13px;
+}
+
+.marketing-card :deep(.ant-card-extra) {
+  padding: 12px 0;
+}
+
+.metrics-detail {
+  :deep(.ant-card-head-title) {
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  :deep(.ant-card-body) {
+    font-size: 15px;
+  }
+
+  :deep(.ant-table) {
+    font-size: 15px;
+  }
+
+  :deep(.ant-table-thead > tr > th) {
+    font-size: 15px;
+    padding: 12px 14px;
+  }
+
+  :deep(.ant-table-tbody > tr > td) {
+    font-size: 15px;
+    padding: 12px 14px;
   }
 }
 </style>
