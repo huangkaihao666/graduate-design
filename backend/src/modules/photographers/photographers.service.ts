@@ -91,7 +91,6 @@ type PhotographerRow = {
   availableDates: unknown;
   restDates: unknown;
   scheduleNote: string | null;
-  fixedMakeupArtistId: number | null;
   sortOrder: number;
   enabled: boolean;
   approvalStatus: string;
@@ -182,7 +181,6 @@ export class PhotographersService {
       availableDates,
       restDates,
       scheduleNote: row.scheduleNote ?? undefined,
-      fixedMakeupArtistId: row.fixedMakeupArtistId ?? undefined,
       sortOrder: row.sortOrder,
     };
   }
@@ -282,7 +280,10 @@ export class PhotographersService {
     if (!row) {
       throw new NotFoundException('摄影师档案不存在');
     }
-    return this.toAdminListItem(row as PhotographerRow);
+    const base = this.toAdminListItem(row as PhotographerRow);
+    const makeupCooperations =
+      await this.buildMakeupCooperationDtosForPhotographer(row.id);
+    return { ...base, makeupCooperations };
   }
 
   /** 提交审核前：档案须已保存且必填项完整 */
@@ -634,10 +635,82 @@ export class PhotographersService {
     }
   }
 
-  async setFixedMakeupArtistForMine(
-    userId: number,
-    makeupArtistId?: number | null,
+  private normalizeCooperationText(v: unknown, label: string): string {
+    const s = typeof v === 'string' ? v.trim() : '';
+    if (s.length < 4) {
+      throw new BadRequestException(`${label}请至少填写 4 个字`);
+    }
+    if (s.length > 500) {
+      throw new BadRequestException(`${label}请勿超过 500 字`);
+    }
+    return s;
+  }
+
+  /** 摄影师端：当前档案下全部妆造合作（含妆造师公开字段便于展示风格/作品/档期） */
+  private async buildMakeupCooperationDtosForPhotographer(
+    photographerId: number,
   ) {
+    const rows = await this.prisma.photographerMakeupCooperation.findMany({
+      where: { photographerId },
+      include: { makeupArtist: true },
+      orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+    });
+    return rows.map((c) => ({
+      id: c.id,
+      makeupArtistId: c.makeupArtistId,
+      status: c.status,
+      inviteNote: c.inviteNote
+        ? String(c.inviteNote).trim() || undefined
+        : undefined,
+      cooperationRejectReason: c.cooperationRejectReason
+        ? String(c.cooperationRejectReason).trim() || undefined
+        : undefined,
+      cooperationRejectAt: c.cooperationRejectAt
+        ? c.cooperationRejectAt.toISOString()
+        : undefined,
+      dissolvePending: c.dissolvePending,
+      dissolveInitiator: c.dissolveInitiator ?? undefined,
+      dissolveRequestedAt: c.dissolveRequestedAt
+        ? c.dissolveRequestedAt.toISOString()
+        : undefined,
+      dissolveNote: c.dissolveNote
+        ? String(c.dissolveNote).trim() || undefined
+        : undefined,
+      dissolveRejectReason: c.dissolveRejectReason
+        ? String(c.dissolveRejectReason).trim() || undefined
+        : undefined,
+      dissolveRejectAt: c.dissolveRejectAt
+        ? c.dissolveRejectAt.toISOString()
+        : undefined,
+      sortOrder: c.sortOrder,
+      createdAt: c.createdAt.toISOString(),
+      updatedAt: c.updatedAt.toISOString(),
+      makeupArtist: this.mapPublic(c.makeupArtist as PhotographerRow),
+    }));
+  }
+
+  private cooperationClearDissolveFields() {
+    return {
+      dissolvePending: false,
+      dissolveInitiator: null,
+      dissolveRequestedAt: null,
+      dissolveNote: null,
+      dissolveRejectReason: null,
+      dissolveRejectAt: null,
+    };
+  }
+
+  /** 摄影师：新增一位固定合作妆造师邀请（可多位；同一妆造师仅一条记录） */
+  async addMakeupCooperationForMine(
+    userId: number,
+    makeupArtistId: number,
+    inviteNote?: string | null,
+  ) {
+    const mid = Number(makeupArtistId);
+    if (!mid) {
+      throw new BadRequestException('请选择妆造师');
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { role: true, workerPhotographerId: true },
@@ -646,15 +719,26 @@ export class PhotographersService {
       throw new ForbiddenException('当前账号未绑定摄影师档案');
     }
     const pid = user.workerPhotographerId;
-    if (!makeupArtistId) {
-      await this.prisma.photographer.update({
-        where: { id: pid },
-        data: { fixedMakeupArtistId: null },
-      });
-      return { ok: true as const, fixedMakeupArtistId: null };
+    const selfRow = await this.prisma.photographer.findUnique({
+      where: { id: pid },
+      select: {
+        id: true,
+        name: true,
+        title: true,
+        shootingStyle: true,
+        specialtyTopics: true,
+        bio: true,
+      },
+    });
+    if (!selfRow) {
+      throw new NotFoundException('摄影师档案不存在');
     }
+    if (this.isMakeupProfile(selfRow)) {
+      throw new BadRequestException('仅摄影师账号可添加固定合作妆造师');
+    }
+
     const target = await this.prisma.photographer.findUnique({
-      where: { id: makeupArtistId },
+      where: { id: mid },
       select: {
         id: true,
         enabled: true,
@@ -672,15 +756,547 @@ export class PhotographersService {
     if (!this.isMakeupProfile(target)) {
       throw new BadRequestException('目标档案不是妆造师类型');
     }
-    await this.prisma.photographer.update({
-      where: { id: pid },
-      data: { fixedMakeupArtistId: target.id },
+
+    const existing = await this.prisma.photographerMakeupCooperation.findUnique(
+      {
+        where: {
+          photographerId_makeupArtistId: {
+            photographerId: pid,
+            makeupArtistId: mid,
+          },
+        },
+      },
+    );
+
+    const note = this.normalizeCooperationText(inviteNote, '合作邀请理由');
+
+    const nextSortOrder = async () => {
+      const agg = await this.prisma.photographerMakeupCooperation.aggregate({
+        where: { photographerId: pid },
+        _max: { sortOrder: true },
+      });
+      return (agg._max.sortOrder ?? -1) + 1;
+    };
+
+    if (existing) {
+      if (existing.status === 'confirmed') {
+        if (existing.dissolvePending) {
+          throw new BadRequestException(
+            '与该妆造师的解除合作尚在确认中，请稍后再操作',
+          );
+        }
+        throw new BadRequestException('该妆造师已在你的固定合作列表中');
+      }
+      if (existing.status === 'pending') {
+        throw new BadRequestException(
+          '已向该妆造师发送待确认邀请，请等待对方处理',
+        );
+      }
+      await this.prisma.photographerMakeupCooperation.update({
+        where: { id: existing.id },
+        data: {
+          status: 'pending',
+          inviteNote: note,
+          cooperationRejectReason: null,
+          cooperationRejectAt: null,
+          ...this.cooperationClearDissolveFields(),
+          sortOrder: await nextSortOrder(),
+        },
+      });
+      return this.findMineByUserId(userId);
+    }
+
+    await this.prisma.photographerMakeupCooperation.create({
+      data: {
+        photographerId: pid,
+        makeupArtistId: mid,
+        status: 'pending',
+        inviteNote: note,
+        sortOrder: await nextSortOrder(),
+      },
+    });
+    return this.findMineByUserId(userId);
+  }
+
+  /** 摄影师：撤销一条待妆造师确认的邀请 */
+  async revokePendingMakeupCooperationForMine(
+    userId: number,
+    cooperationId: number,
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true, workerPhotographerId: true },
+    });
+    if (!user || user.role !== 'worker' || !user.workerPhotographerId) {
+      throw new ForbiddenException('当前账号未绑定摄影师档案');
+    }
+    const pid = user.workerPhotographerId;
+    const row = await this.prisma.photographerMakeupCooperation.findFirst({
+      where: {
+        id: cooperationId,
+        photographerId: pid,
+        status: 'pending',
+      },
+    });
+    if (!row) {
+      throw new NotFoundException('未找到待撤销的邀请或已失效');
+    }
+    await this.prisma.photographerMakeupCooperation.delete({
+      where: { id: row.id },
+    });
+    return this.findMineByUserId(userId);
+  }
+
+  /** 妆造师：待确认的固定合作申请（摄影师侧已提交） */
+  async listIncomingFixedCooperationByUserId(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true, workerPhotographerId: true },
+    });
+    if (!user || user.role !== 'worker' || !user.workerPhotographerId) {
+      throw new ForbiddenException('当前账号未绑定工作人员档案');
+    }
+    const mid = user.workerPhotographerId;
+    const selfRow = await this.prisma.photographer.findUnique({
+      where: { id: mid },
+      select: {
+        name: true,
+        title: true,
+        shootingStyle: true,
+        specialtyTopics: true,
+        bio: true,
+      },
+    });
+    if (!selfRow || !this.isMakeupProfile(selfRow)) {
+      throw new BadRequestException('仅妆造师账号可查看合作邀请');
+    }
+
+    const cooperations =
+      await this.prisma.photographerMakeupCooperation.findMany({
+        where: {
+          makeupArtistId: mid,
+          status: 'pending',
+        },
+        include: {
+          photographer: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+              title: true,
+              shootingStyle: true,
+              enabled: true,
+              approvalStatus: true,
+            },
+          },
+        },
+        orderBy: { updatedAt: 'desc' },
+      });
+
+    return cooperations
+      .filter(
+        (c) =>
+          c.photographer.enabled &&
+          c.photographer.approvalStatus === 'approved' &&
+          !this.isMakeupProfile(c.photographer as PhotographerRow),
+      )
+      .map((c) => ({
+        cooperationId: c.id,
+        photographerId: c.photographer.id,
+        name: c.photographer.name,
+        avatar: c.photographer.avatar ?? undefined,
+        title: c.photographer.title ?? undefined,
+        shootingStyle: c.photographer.shootingStyle,
+        inviteNote: c.inviteNote ? String(c.inviteNote).trim() : undefined,
+        requestedAt: c.updatedAt.toISOString(),
+      }));
+  }
+
+  /** 妆造师：已将你设为「已确认」固定合作妆造师的摄影师列表（每位摄影师一条合作记录） */
+  async listBoundPhotographersForMakeupByUserId(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true, workerPhotographerId: true },
+    });
+    if (!user || user.role !== 'worker' || !user.workerPhotographerId) {
+      throw new ForbiddenException('当前账号未绑定工作人员档案');
+    }
+    const mid = user.workerPhotographerId;
+    const selfRow = await this.prisma.photographer.findUnique({
+      where: { id: mid },
+      select: {
+        name: true,
+        title: true,
+        shootingStyle: true,
+        specialtyTopics: true,
+        bio: true,
+      },
+    });
+    if (!selfRow || !this.isMakeupProfile(selfRow)) {
+      throw new BadRequestException('仅妆造师账号可查看固定合作摄影师');
+    }
+
+    const cooperations =
+      await this.prisma.photographerMakeupCooperation.findMany({
+        where: {
+          makeupArtistId: mid,
+          status: 'confirmed',
+        },
+        include: {
+          photographer: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+              title: true,
+              shootingStyle: true,
+              specialtyTopics: true,
+              bio: true,
+              enabled: true,
+              approvalStatus: true,
+              updatedAt: true,
+            },
+          },
+        },
+        orderBy: { updatedAt: 'desc' },
+      });
+
+    return cooperations
+      .filter(
+        (c) =>
+          c.photographer.enabled &&
+          c.photographer.approvalStatus === 'approved' &&
+          !this.isMakeupProfile(c.photographer as PhotographerRow),
+      )
+      .map((c) => ({
+        cooperationId: c.id,
+        photographerId: c.photographer.id,
+        name: c.photographer.name,
+        avatar: c.photographer.avatar ?? undefined,
+        title: c.photographer.title ?? undefined,
+        shootingStyle: c.photographer.shootingStyle,
+        boundAt: c.updatedAt.toISOString(),
+        dissolvePending: c.dissolvePending,
+        dissolveInitiator: c.dissolveInitiator ?? undefined,
+        dissolveRequestedAt: c.dissolveRequestedAt
+          ? c.dissolveRequestedAt.toISOString()
+          : undefined,
+        dissolveNote: c.dissolveNote
+          ? String(c.dissolveNote).trim() || undefined
+          : undefined,
+        dissolveRejectReason: c.dissolveRejectReason
+          ? String(c.dissolveRejectReason).trim() || undefined
+          : undefined,
+        dissolveRejectAt: c.dissolveRejectAt
+          ? c.dissolveRejectAt.toISOString()
+          : undefined,
+      }));
+  }
+
+  /** 妆造师：同意或拒绝某位摄影师的固定合作申请（cooperationId 优先，兼容 photographerId） */
+  async respondFixedCooperationByUserId(
+    userId: number,
+    photographerProfileId: number | undefined,
+    accept: boolean,
+    rejectReason?: string | null,
+    cooperationId?: number,
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true, workerPhotographerId: true },
+    });
+    if (!user || user.role !== 'worker' || !user.workerPhotographerId) {
+      throw new ForbiddenException('当前账号未绑定工作人员档案');
+    }
+    const mid = user.workerPhotographerId;
+    const selfRow = await this.prisma.photographer.findUnique({
+      where: { id: mid },
+      select: {
+        name: true,
+        title: true,
+        shootingStyle: true,
+        specialtyTopics: true,
+        bio: true,
+      },
+    });
+    if (!selfRow || !this.isMakeupProfile(selfRow)) {
+      throw new BadRequestException('仅妆造师账号可处理合作邀请');
+    }
+
+    let coopId = cooperationId;
+    if (!coopId && photographerProfileId != null) {
+      const found = await this.prisma.photographerMakeupCooperation.findFirst({
+        where: {
+          photographerId: photographerProfileId,
+          makeupArtistId: mid,
+          status: 'pending',
+        },
+        select: { id: true },
+      });
+      coopId = found?.id;
+    }
+    if (!coopId) {
+      throw new BadRequestException('请提供 cooperationId 或 photographerId');
+    }
+
+    const coop = await this.prisma.photographerMakeupCooperation.findFirst({
+      where: {
+        id: coopId,
+        makeupArtistId: mid,
+        status: 'pending',
+      },
+      include: {
+        photographer: {
+          select: { id: true, name: true, enabled: true, approvalStatus: true },
+        },
+      },
+    });
+    if (
+      !coop ||
+      !coop.photographer.enabled ||
+      coop.photographer.approvalStatus !== 'approved'
+    ) {
+      throw new NotFoundException('未找到待处理的邀请或已失效');
+    }
+
+    if (accept) {
+      const maxSort = await this.prisma.photographerMakeupCooperation.aggregate(
+        {
+          where: {
+            photographerId: coop.photographerId,
+            status: 'confirmed',
+          },
+          _max: { sortOrder: true },
+        },
+      );
+      const nextSort = (maxSort._max.sortOrder ?? -1) + 1;
+      await this.prisma.photographerMakeupCooperation.update({
+        where: { id: coop.id },
+        data: {
+          status: 'confirmed',
+          inviteNote: null,
+          cooperationRejectReason: null,
+          cooperationRejectAt: null,
+          ...this.cooperationClearDissolveFields(),
+          sortOrder: nextSort,
+        },
+      });
+      return {
+        ok: true as const,
+        accepted: true as const,
+        photographerId: coop.photographer.id,
+        photographerName: coop.photographer.name,
+      };
+    }
+
+    const reason = this.normalizeCooperationText(rejectReason, '拒绝理由');
+
+    await this.prisma.photographerMakeupCooperation.update({
+      where: { id: coop.id },
+      data: {
+        status: 'rejected',
+        inviteNote: null,
+        cooperationRejectReason: reason,
+        cooperationRejectAt: new Date(),
+      },
     });
     return {
       ok: true as const,
-      fixedMakeupArtistId: target.id,
-      fixedMakeupArtistName: target.name,
+      accepted: false as const,
+      photographerId: coop.photographer.id,
     };
+  }
+
+  /** 申请解除：须指定合作记录 id（cooperationId） */
+  async requestFixedCooperationDissolveByUserId(
+    userId: number,
+    reason: string,
+    cooperationId: number,
+  ) {
+    const note = this.normalizeCooperationText(reason, '解除合作理由');
+    const cid = Number(cooperationId);
+    if (!cid) {
+      throw new BadRequestException('请指定合作记录 id');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true, workerPhotographerId: true },
+    });
+    if (!user || user.role !== 'worker' || !user.workerPhotographerId) {
+      throw new ForbiddenException('当前账号未绑定工作人员档案');
+    }
+    const wid = user.workerPhotographerId;
+    const selfRow = await this.prisma.photographer.findUnique({
+      where: { id: wid },
+      select: {
+        name: true,
+        title: true,
+        shootingStyle: true,
+        specialtyTopics: true,
+        bio: true,
+      },
+    });
+    if (!selfRow) {
+      throw new NotFoundException('档案不存在');
+    }
+
+    const coop = await this.prisma.photographerMakeupCooperation.findFirst({
+      where: {
+        id: cid,
+        status: 'confirmed',
+      },
+    });
+    if (!coop) {
+      throw new NotFoundException('未找到已确认的合作记录');
+    }
+
+    if (this.isMakeupProfile(selfRow)) {
+      if (coop.makeupArtistId !== wid) {
+        throw new ForbiddenException('无权操作该合作记录');
+      }
+      if (coop.dissolvePending) {
+        throw new BadRequestException('该合作已有进行中的解除申请');
+      }
+      await this.prisma.photographerMakeupCooperation.update({
+        where: { id: cid },
+        data: {
+          dissolvePending: true,
+          dissolveInitiator: 'makeup',
+          dissolveRequestedAt: new Date(),
+          dissolveNote: note,
+          dissolveRejectReason: null,
+          dissolveRejectAt: null,
+        },
+      });
+      return { ok: true as const, cooperationId: cid };
+    }
+
+    if (coop.photographerId !== wid) {
+      throw new ForbiddenException('无权操作该合作记录');
+    }
+    if (coop.dissolvePending) {
+      throw new BadRequestException('已有进行中的解除合作申请');
+    }
+    await this.prisma.photographerMakeupCooperation.update({
+      where: { id: cid },
+      data: {
+        dissolvePending: true,
+        dissolveInitiator: 'photographer',
+        dissolveRequestedAt: new Date(),
+        dissolveNote: note,
+        dissolveRejectReason: null,
+        dissolveRejectAt: null,
+      },
+    });
+    return this.findMineByUserId(userId);
+  }
+
+  /** 回应解除申请（cooperationId 指定一条已确认合作） */
+  async respondFixedCooperationDissolveByUserId(
+    userId: number,
+    accept: boolean,
+    cooperationId: number,
+    rejectReason?: string | null,
+  ) {
+    const cid = Number(cooperationId);
+    if (!cid) {
+      throw new BadRequestException('请指定合作记录 id');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true, workerPhotographerId: true },
+    });
+    if (!user || user.role !== 'worker' || !user.workerPhotographerId) {
+      throw new ForbiddenException('当前账号未绑定工作人员档案');
+    }
+    const wid = user.workerPhotographerId;
+    const selfRow = await this.prisma.photographer.findUnique({
+      where: { id: wid },
+      select: {
+        name: true,
+        title: true,
+        shootingStyle: true,
+        specialtyTopics: true,
+        bio: true,
+      },
+    });
+    if (!selfRow) {
+      throw new NotFoundException('档案不存在');
+    }
+
+    const coop = await this.prisma.photographerMakeupCooperation.findFirst({
+      where: {
+        id: cid,
+        status: 'confirmed',
+        dissolvePending: true,
+      },
+    });
+    if (!coop) {
+      throw new NotFoundException('未找到待确认的解除申请或已失效');
+    }
+
+    if (this.isMakeupProfile(selfRow)) {
+      if (coop.makeupArtistId !== wid) {
+        throw new ForbiddenException('无权操作该合作记录');
+      }
+      if (coop.dissolveInitiator !== 'photographer') {
+        throw new BadRequestException('当前解除申请不是由摄影师发起');
+      }
+      if (accept) {
+        await this.prisma.photographerMakeupCooperation.delete({
+          where: { id: cid },
+        });
+        return {
+          ok: true as const,
+          accepted: true as const,
+          cooperationId: cid,
+          photographerId: coop.photographerId,
+        };
+      }
+      const reason = this.normalizeCooperationText(
+        rejectReason,
+        '拒绝解除理由',
+      );
+      await this.prisma.photographerMakeupCooperation.update({
+        where: { id: cid },
+        data: {
+          ...this.cooperationClearDissolveFields(),
+          dissolveRejectReason: reason,
+          dissolveRejectAt: new Date(),
+        },
+      });
+      return {
+        ok: true as const,
+        accepted: false as const,
+        cooperationId: cid,
+        photographerId: coop.photographerId,
+      };
+    }
+
+    if (coop.photographerId !== wid) {
+      throw new ForbiddenException('无权操作该合作记录');
+    }
+    if (coop.dissolveInitiator !== 'makeup') {
+      throw new BadRequestException('当前解除申请不是由妆造师发起');
+    }
+    if (accept) {
+      await this.prisma.photographerMakeupCooperation.delete({
+        where: { id: cid },
+      });
+      return this.findMineByUserId(userId);
+    }
+    const reason = this.normalizeCooperationText(rejectReason, '拒绝解除理由');
+    await this.prisma.photographerMakeupCooperation.update({
+      where: { id: cid },
+      data: {
+        ...this.cooperationClearDissolveFields(),
+        dissolveRejectReason: reason,
+        dissolveRejectAt: new Date(),
+      },
+    });
+    return this.findMineByUserId(userId);
   }
 
   private async ensureExists(id: number) {

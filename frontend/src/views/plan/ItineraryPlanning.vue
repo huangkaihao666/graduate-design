@@ -18,11 +18,11 @@
               placeholder="选择或输入目的地"
               allow-clear
               :filter-option="false"
+              style="width: 100%"
               @search="handleDestinationSearch"
               @select="handleDestinationSelect"
-              style="width: 100%"
             >
-              <template #option="{ value, label }">
+              <template #option="{ label }">
                 <div class="destination-option">
                   <span>{{ label }}</span>
                 </div>
@@ -54,14 +54,16 @@
               v-model:value="formData.style"
               placeholder="选择拍摄风格"
               allow-clear
+              :loading="stylesLoading"
               @change="saveStateToStorage"
             >
-              <a-select-option value="romantic">✨ 浪漫梦幻</a-select-option>
-              <a-select-option value="artistic">🎨 艺术文艺</a-select-option>
-              <a-select-option value="bohemian">🌻 波西米亚</a-select-option>
-              <a-select-option value="minimalist">⬜ 极简现代</a-select-option>
-              <a-select-option value="classical">👑 古典优雅</a-select-option>
-              <a-select-option value="adventure">⛰️ 冒险活力</a-select-option>
+              <a-select-option
+                v-for="opt in styleSelectOptions"
+                :key="opt.value"
+                :value="opt.value"
+              >
+                {{ opt.label }}
+              </a-select-option>
             </a-select>
           </a-form-item>
 
@@ -83,8 +85,8 @@
               size="large"
               block
               :loading="loading"
-              @click="handlePlanItinerary"
               class="submit-btn"
+              @click="handlePlanItinerary"
             >
               {{ loading ? '正在生成行程...' : '🎬 生成详细行程' }}
             </a-button>
@@ -202,7 +204,13 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import { message } from 'ant-design-vue';
 import { aiApi, ItineraryPlanningRequest } from '@/api/ai';
+import {
+  TRAVEL_STYLE_CARD_DESCRIPTIONS,
+  TRAVEL_STYLE_LABELS,
+} from '@/constants/travel-style-labels';
 import { useAuthStore } from '@/store/auth';
+
+type ItineraryStyleRow = { id: string; name: string; description?: string; icon?: string };
 
 const formData = reactive({
   destination: '',
@@ -212,10 +220,101 @@ const formData = reactive({
 });
 
 const loading = ref<boolean>(false);
+const stylesLoading = ref(false);
+const availableStyles = ref<ItineraryStyleRow[]>([]);
 const result = ref<any>(null);
 const selectedDay = ref<number | null>(null);
 const authStore = useAuthStore();
 const searchKeyword = ref<string>('');
+
+/** 与 VirtualTryOn 一致：来自 /ai/styles，展示名与图标与虚拍试衣同步 */
+const styleSelectOptions = computed(() =>
+  availableStyles.value.map((s) => ({
+    value: s.id,
+    label: `${s.icon ? `${s.icon} ` : ''}${s.name}`.trim(),
+  }))
+);
+
+const defaultStylesFallback = (): ItineraryStyleRow[] => [
+  {
+    id: 'minimalist',
+    name: TRAVEL_STYLE_LABELS.minimalist,
+    description: TRAVEL_STYLE_CARD_DESCRIPTIONS.minimalist,
+    icon: '⬜',
+  },
+  {
+    id: 'classical',
+    name: TRAVEL_STYLE_LABELS.classical,
+    description: TRAVEL_STYLE_CARD_DESCRIPTIONS.classical,
+    icon: '👑',
+  },
+  {
+    id: 'bohemian',
+    name: TRAVEL_STYLE_LABELS.bohemian,
+    description: TRAVEL_STYLE_CARD_DESCRIPTIONS.bohemian,
+    icon: '🌻',
+  },
+  {
+    id: 'romantic',
+    name: TRAVEL_STYLE_LABELS.romantic,
+    description: TRAVEL_STYLE_CARD_DESCRIPTIONS.romantic,
+    icon: '✨',
+  },
+  {
+    id: 'adventure',
+    name: TRAVEL_STYLE_LABELS.adventure,
+    description: TRAVEL_STYLE_CARD_DESCRIPTIONS.adventure,
+    icon: '⛰️',
+  },
+  {
+    id: 'artistic',
+    name: TRAVEL_STYLE_LABELS.artistic,
+    description: TRAVEL_STYLE_CARD_DESCRIPTIONS.artistic,
+    icon: '🎨',
+  },
+];
+
+const syncStyleFieldWithAvailable = () => {
+  const ids = new Set(availableStyles.value.map((s) => s.id));
+  if (formData.style && !ids.has(formData.style)) {
+    formData.style = '';
+    saveStateToStorage();
+  }
+};
+
+const loadAvailableStyles = async () => {
+  stylesLoading.value = true;
+  try {
+    const response: { data?: { styles?: unknown } } | { styles?: unknown } =
+      (await aiApi.getStyles()) as { data?: { styles?: unknown } };
+    const stylesData = (response as { data?: { styles?: unknown } })?.data ?? response;
+    const list = (stylesData as { styles?: unknown })?.styles;
+    const raw = Array.isArray(list) ? list : [];
+    availableStyles.value = raw
+      .map((s: unknown) => {
+        const row = s as { id?: string; name?: string; description?: string; icon?: string };
+        const id = String(row?.id || '').trim();
+        if (!id) return null;
+        return {
+          id,
+          name: String(row?.name || TRAVEL_STYLE_LABELS[id] || id),
+          description: row?.description,
+          icon: row?.icon,
+        } as ItineraryStyleRow;
+      })
+      .filter((x): x is ItineraryStyleRow => x != null);
+    if (!availableStyles.value.length) {
+      throw new Error('风格列表为空');
+    }
+  } catch {
+    console.error('[ItineraryPlanning] 获取风格列表失败，使用与虚拍试衣相同的默认列表');
+    message.error('获取风格列表失败，已使用默认风格');
+    availableStyles.value = defaultStylesFallback();
+  } finally {
+    stylesLoading.value = false;
+  }
+  syncStyleFieldWithAvailable();
+};
 
 // 状态持久化的 key
 const STORAGE_KEY = 'itinerary-planning-state';
@@ -549,7 +648,7 @@ const handleSaveItinerary = async () => {
 // 下载行程
 const handleDownloadItinerary = () => {
   const content = JSON.stringify(result.value, null, 2);
-  const blob = new Blob([content], { type: 'application/json' });
+  const blob = new window.Blob([content], { type: 'application/json' });
   const url = window.URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -570,8 +669,10 @@ const handleReset = () => {
   clearStateAndStorage();
 };
 
-onMounted(() => {
+onMounted(async () => {
+  authStore.initializeAuth();
   restoreStateFromStorage();
+  await loadAvailableStyles();
 });
 </script>
 

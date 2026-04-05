@@ -513,7 +513,6 @@ export class OrdersService {
           shootingStyle: true,
           specialtyTopics: true,
           bio: true,
-          fixedMakeupArtistId: true,
         },
       });
       if (profile && this.isMakeupProfile(profile)) {
@@ -547,15 +546,17 @@ export class OrdersService {
       } as any,
     });
 
-    const photographerProfile = user.workerPhotographerId
-      ? await this.prisma.photographer.findUnique({
-          where: { id: user.workerPhotographerId },
-          select: { fixedMakeupArtistId: true },
+    const fixedCoops = user.workerPhotographerId
+      ? await this.prisma.photographerMakeupCooperation.findMany({
+          where: {
+            photographerId: user.workerPhotographerId,
+            status: 'confirmed',
+          },
+          orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+          select: { makeupArtistId: true },
         })
-      : null;
+      : [];
     const requestedMid = Number(order.requestedMakeupArtistId || 0) || null;
-    const fixedMid =
-      Number(photographerProfile?.fixedMakeupArtistId || 0) || null;
     let assigned: { id: number; name: string } | null = null;
 
     if (requestedMid) {
@@ -565,16 +566,21 @@ export class OrdersService {
         Number(order.id),
       );
       assigned = { id: mk.id, name: mk.name };
-    } else if (fixedMid) {
-      try {
-        const mk = await this.validateMakeupArtistAvailability(
-          fixedMid,
-          String(order.shootingDate || '').trim(),
-          Number(order.id),
-        );
-        assigned = { id: mk.id, name: mk.name };
-      } catch {
-        assigned = null;
+    } else if (fixedCoops.length) {
+      for (const c of fixedCoops) {
+        const fixedMid = Number(c.makeupArtistId || 0) || null;
+        if (!fixedMid) continue;
+        try {
+          const mk = await this.validateMakeupArtistAvailability(
+            fixedMid,
+            String(order.shootingDate || '').trim(),
+            Number(order.id),
+          );
+          assigned = { id: mk.id, name: mk.name };
+          break;
+        } catch {
+          /* 尝试下一位固定合作妆造师 */
+        }
       }
     }
     if (!assigned) {

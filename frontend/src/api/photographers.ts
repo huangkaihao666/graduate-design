@@ -22,7 +22,57 @@ export interface PhotographerPublic {
   restDates?: string[];
   scheduleNote?: string;
   sortOrder: number;
-  fixedMakeupArtistId?: number;
+}
+
+/** 摄影师端：与妆造师的一条合作记录（含对方公开档案便于展示风格/作品/档期） */
+export interface PhotographerMakeupCooperationMine {
+  id: number;
+  makeupArtistId: number;
+  status: 'pending' | 'confirmed' | 'rejected';
+  inviteNote?: string;
+  cooperationRejectReason?: string;
+  cooperationRejectAt?: string;
+  dissolvePending?: boolean;
+  dissolveInitiator?: 'photographer' | 'makeup';
+  dissolveRequestedAt?: string;
+  dissolveNote?: string;
+  dissolveRejectReason?: string;
+  dissolveRejectAt?: string;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+  makeupArtist: PhotographerPublic;
+}
+
+/** 妆造师端：摄影师发来的固定合作邀请 */
+export interface FixedCooperationInvite {
+  cooperationId: number;
+  photographerId: number;
+  name: string;
+  avatar?: string;
+  title?: string;
+  shootingStyle: string;
+  /** 摄影师填写的合作邀请说明 */
+  inviteNote?: string;
+  requestedAt: string;
+}
+
+/** 妆造师端：已确认将你设为固定合作的摄影师 */
+export interface FixedCooperationBoundPhotographer {
+  cooperationId: number;
+  photographerId: number;
+  name: string;
+  avatar?: string;
+  title?: string;
+  shootingStyle: string;
+  /** 档案最近更新时间（绑定变更会更新） */
+  boundAt: string;
+  dissolvePending?: boolean;
+  dissolveInitiator?: 'photographer' | 'makeup';
+  dissolveRequestedAt?: string;
+  dissolveNote?: string;
+  dissolveRejectReason?: string;
+  dissolveRejectAt?: string;
 }
 
 export interface MakeupArtistPublic extends PhotographerPublic {
@@ -38,7 +88,9 @@ export interface PhotographerAdmin extends PhotographerPublic {
   updatedAt: string;
 }
 
-export type PhotographerMine = PhotographerAdmin;
+export type PhotographerMine = PhotographerAdmin & {
+  makeupCooperations?: PhotographerMakeupCooperationMine[];
+};
 
 function unwrap<T>(res: unknown): T {
   const r = res as { data?: T };
@@ -85,9 +137,70 @@ export const photographersApi = {
       })
       .then((res) => unwrapList<MakeupArtistPublic>(res)),
 
-  setMineFixedMakeupArtist: (makeupArtistId?: number | null) =>
+  /** 摄影师：新增一位固定合作妆造师邀请 */
+  addMakeupCooperation: (makeupArtistId: number, inviteNote?: string | null) =>
     httpClient
-      .patch<unknown>('/photographers/me/fixed-makeup', { makeupArtistId: makeupArtistId ?? null })
+      .post<unknown>('/photographers/me/makeup-cooperations', {
+        makeupArtistId,
+        inviteNote: inviteNote ?? undefined,
+      })
+      .then((res) => unwrap<PhotographerMine>(res)),
+
+  /** 摄影师：撤销待确认的邀请 */
+  revokeMakeupCooperation: (cooperationId: number) =>
+    httpClient
+      .delete<unknown>(`/photographers/me/makeup-cooperations/${cooperationId}`)
+      .then((res) => unwrap<PhotographerMine>(res)),
+
+  /** 妆造师：待确认的固定合作邀请 */
+  getIncomingFixedCooperation: () =>
+    httpClient
+      .get<unknown>('/photographers/me/fixed-cooperation/incoming')
+      .then((res) => unwrapList<FixedCooperationInvite>(res)),
+
+  /** 妆造师：已确认将你设为固定合作的摄影师 */
+  getBoundPhotographersAsMakeup: () =>
+    httpClient
+      .get<unknown>('/photographers/me/fixed-cooperation/bound-photographers')
+      .then((res) => unwrapList<FixedCooperationBoundPhotographer>(res)),
+
+  /** 妆造师：同意/拒绝固定合作（优先传 cooperationId） */
+  respondFixedCooperation: (params: {
+    accept: boolean;
+    cooperationId?: number;
+    photographerId?: number;
+    rejectReason?: string | null;
+  }) =>
+    httpClient
+      .post<unknown>('/photographers/me/fixed-cooperation/respond', {
+        accept: params.accept,
+        cooperationId: params.cooperationId,
+        photographerId: params.photographerId,
+        rejectReason: params.rejectReason ?? undefined,
+      })
+      .then((res) => unwrap(res)),
+
+  /** 申请解除已确认的固定合作（传 cooperationId） */
+  requestFixedCooperationDissolve: (reason: string, cooperationId: number) =>
+    httpClient
+      .post<unknown>('/photographers/me/fixed-cooperation/dissolve/request', {
+        reason,
+        cooperationId,
+      })
+      .then((res) => unwrap(res)),
+
+  /** 回应解除申请 */
+  respondFixedCooperationDissolve: (params: {
+    cooperationId: number;
+    accept: boolean;
+    rejectReason?: string | null;
+  }) =>
+    httpClient
+      .post<unknown>('/photographers/me/fixed-cooperation/dissolve/respond', {
+        cooperationId: params.cooperationId,
+        accept: params.accept,
+        rejectReason: params.rejectReason ?? undefined,
+      })
       .then((res) => unwrap(res)),
 
   /** 当前登录摄影师档案（工作人员 JWT） */

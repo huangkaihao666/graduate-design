@@ -177,14 +177,8 @@
     <!-- 个性化推荐（仅在未筛选时展示） -->
     <div v-if="!isFilteringActive && recommendedPackages.length > 0" class="recommend-section">
       <div class="section-header">
-        <h2>你可能喜欢</h2>
-        <p>
-          {{
-            isUsingCollaborativeRecommendation
-              ? '基于协同滤波算法（收藏/下单行为）推荐'
-              : '基于你的浏览与生成偏好，为你智能推荐'
-          }}
-        </p>
+        <h2>猜你喜欢</h2>
+        <p v-if="!isUsingCollaborativeRecommendation">基于你的浏览与生成偏好，为你智能推荐</p>
         <div v-if="recommendedLocations.length > 0" class="recommended-locations">
           <span class="loc-label">推荐地点：</span>
           <button
@@ -423,14 +417,8 @@
 
       <div v-if="recommendedPackages.length > 0" class="recommend-section drawer-mode">
         <div class="section-header">
-          <h2>你可能喜欢</h2>
-          <p>
-            {{
-              isUsingCollaborativeRecommendation
-                ? '协同滤波推荐结果：点击卡片可查看详情或直接预约'
-                : '点击卡片可查看详情或直接预约'
-            }}
-          </p>
+          <h2>猜你喜欢</h2>
+          <p>点击卡片可查看详情或直接预约</p>
           <div v-if="recommendedLocations.length > 0" class="recommended-locations">
             <span class="loc-label">推荐地点：</span>
             <button

@@ -319,8 +319,6 @@ model Photographer {
   restDates        Json    @default("[]")
   /// 档期说明（如：每周二店休、节假日可约等）
   scheduleNote     String? @db.Text
-  /// 固定合作妆造师（同表自关联，指向妆造师档案 id）
-  fixedMakeupArtistId Int? @db.UnsignedInt
   sortOrder        Int     @default(0) @db.UnsignedInt
   enabled          Boolean @default(true)
   /// draft=待提交审核 | pending=审核中 | approved=已通过 | rejected=已驳回
@@ -333,13 +331,46 @@ model Photographer {
 
   workerAccounts User[] @relation("WorkerPhotographer")
   customShootRequests CustomShootRequest[]
-  fixedMakeupArtist Photographer? @relation("PhotographerFixedMakeupArtist", fields: [fixedMakeupArtistId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  fixedByPhotographers Photographer[] @relation("PhotographerFixedMakeupArtist")
+  makeupCooperationsAsPhotographer PhotographerMakeupCooperation[] @relation("CoopPhotographer")
+  makeupCooperationsAsMakeup       PhotographerMakeupCooperation[] @relation("CoopMakeup")
 
   @@map("photographers")
   @@index([enabled, sortOrder])
   @@index([approvalStatus])
-  @@index([fixedMakeupArtistId])
+}
+
+/// 摄影师与妆造师的固定合作（可多对多；pending/confirmed/rejected）
+model PhotographerMakeupCooperation {
+  id             Int    @id @default(autoincrement()) @db.UnsignedInt
+  photographerId Int    @db.UnsignedInt
+  makeupArtistId Int    @db.UnsignedInt
+  /// pending | confirmed | rejected
+  status         String @db.VarChar(20)
+
+  inviteNote               String?   @db.Text
+  cooperationRejectReason  String?   @db.Text
+  cooperationRejectAt      DateTime?
+
+  dissolvePending          Boolean   @default(false)
+  dissolveInitiator        String?   @db.VarChar(20)
+  dissolveRequestedAt      DateTime?
+  dissolveNote             String?   @db.Text
+  dissolveRejectReason     String?   @db.Text
+  dissolveRejectAt         DateTime?
+
+  /// 接单时优先尝试的顺序，数值越小越优先
+  sortOrder Int @default(0) @db.UnsignedInt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  photographer Photographer @relation("CoopPhotographer", fields: [photographerId], references: [id], onDelete: Cascade)
+  makeupArtist Photographer @relation("CoopMakeup", fields: [makeupArtistId], references: [id], onDelete: Cascade)
+
+  @@unique([photographerId, makeupArtistId], map: "pm_coop_photo_makeup_uidx")
+  @@index([makeupArtistId, status])
+  @@index([photographerId, status])
+  @@map("photographer_makeup_cooperations")
 }
 
 /// 套餐浏览埋点（详情弹窗 / 下单入口），供运营报告统计兴趣热度

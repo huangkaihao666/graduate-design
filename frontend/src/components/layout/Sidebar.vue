@@ -19,7 +19,7 @@
           </router-link>
           <router-link to="/ai/style-recommendation" class="nav-link" active-class="active">
             <span class="icon">🎨</span>
-            <span v-if="!isCollapsed" class="label">风格推荐</span>
+            <span v-if="!isCollapsed" class="label">个性化推荐</span>
           </router-link>
           <router-link to="/ai/itinerary-planning" class="nav-link" active-class="active">
             <span class="icon">🗺️</span>

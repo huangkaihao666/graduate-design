@@ -153,7 +153,7 @@ const routes: RouteRecordRaw[] = [
         name: 'StyleRecommendation',
         component: StyleRecommendation,
         meta: {
-          title: '风格推荐',
+          title: '个性化推荐',
         },
       },
       {

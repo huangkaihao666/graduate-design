@@ -13,7 +13,7 @@
           <router-link to="/dashboard" class="nav-item">首页</router-link>
           <router-link to="/ai/virtual-try-on" class="nav-item">虚拍试衣</router-link>
           <router-link to="/ai/makeup-try-on" class="nav-item">一键试妆</router-link>
-          <router-link to="/ai/style-recommendation" class="nav-item">风格推荐</router-link>
+          <router-link to="/ai/style-recommendation" class="nav-item">个性化推荐</router-link>
           <router-link to="/ai/itinerary-planning" class="nav-item">行程规划</router-link>
           <router-link to="/booking/packages" class="nav-item">套餐浏览</router-link>
           <router-link to="/booking/photographers" class="nav-item">本店服务团队</router-link>

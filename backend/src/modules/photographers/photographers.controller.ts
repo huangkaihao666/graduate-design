@@ -169,17 +169,120 @@ export class PhotographersController {
     return this.photographersService.removeAdmin(id);
   }
 
-  @Patch('me/fixed-makeup')
+  @Post('me/makeup-cooperations')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: '摄影师设置固定合作妆造师（为空则解绑）' })
-  setFixedMakeup(
+  @ApiOperation({
+    summary: '摄影师：新增一位固定合作妆造师邀请（可绑定多位；需妆造师确认）',
+  })
+  addMakeupCooperation(
     @Request() req: { user: { sub: number } },
-    @Body() body: { makeupArtistId?: number | null },
+    @Body() body: { makeupArtistId: number; inviteNote?: string | null },
   ) {
-    return this.photographersService.setFixedMakeupArtistForMine(
+    return this.photographersService.addMakeupCooperationForMine(
       req.user.sub,
-      body?.makeupArtistId == null ? null : Number(body.makeupArtistId),
+      Number(body?.makeupArtistId),
+      body?.inviteNote,
+    );
+  }
+
+  @Delete('me/makeup-cooperations/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '摄影师：撤销一条待妆造师确认的邀请' })
+  revokeMakeupCooperation(
+    @Request() req: { user: { sub: number } },
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.photographersService.revokePendingMakeupCooperationForMine(
+      req.user.sub,
+      id,
+    );
+  }
+
+  @Get('me/fixed-cooperation/incoming')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '妆造师：待确认的固定合作邀请列表' })
+  listIncomingFixedCooperation(@Request() req: { user: { sub: number } }) {
+    return this.photographersService.listIncomingFixedCooperationByUserId(
+      req.user.sub,
+    );
+  }
+
+  @Get('me/fixed-cooperation/bound-photographers')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: '妆造师：已确认将你设为固定合作的摄影师列表',
+  })
+  listBoundPhotographersForMakeup(@Request() req: { user: { sub: number } }) {
+    return this.photographersService.listBoundPhotographersForMakeupByUserId(
+      req.user.sub,
+    );
+  }
+
+  @Post('me/fixed-cooperation/respond')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '妆造师：同意或拒绝摄影师的固定合作申请' })
+  respondFixedCooperation(
+    @Request() req: { user: { sub: number } },
+    @Body()
+    body: {
+      photographerId?: number;
+      cooperationId?: number;
+      accept: boolean;
+      rejectReason?: string | null;
+    },
+  ) {
+    return this.photographersService.respondFixedCooperationByUserId(
+      req.user.sub,
+      body?.photographerId == null ? undefined : Number(body.photographerId),
+      body?.accept === true,
+      body?.rejectReason,
+      body?.cooperationId == null ? undefined : Number(body.cooperationId),
+    );
+  }
+
+  @Post('me/fixed-cooperation/dissolve/request')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      '申请解除已确认的固定合作（需对方确认；传 cooperationId 为合作记录 id）',
+  })
+  requestFixedCooperationDissolve(
+    @Request() req: { user: { sub: number } },
+    @Body() body: { reason: string; cooperationId: number },
+  ) {
+    return this.photographersService.requestFixedCooperationDissolveByUserId(
+      req.user.sub,
+      String(body?.reason ?? ''),
+      Number(body?.cooperationId),
+    );
+  }
+
+  @Post('me/fixed-cooperation/dissolve/respond')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: '回应解除固定合作申请（须传 cooperationId）',
+  })
+  respondFixedCooperationDissolve(
+    @Request() req: { user: { sub: number } },
+    @Body()
+    body: {
+      cooperationId: number;
+      accept: boolean;
+      rejectReason?: string | null;
+    },
+  ) {
+    return this.photographersService.respondFixedCooperationDissolveByUserId(
+      req.user.sub,
+      body?.accept === true,
+      Number(body?.cooperationId),
+      body?.rejectReason,
     );
   }
 }

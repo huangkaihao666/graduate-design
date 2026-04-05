@@ -118,6 +118,7 @@
 
 <script setup lang="ts">
 import { httpClient } from '@/api/client';
+import { photographersApi } from '@/api/photographers';
 import { useAuthStore } from '@/store/auth';
 import { unwrapOrderListPayload } from '@/utils/workerOrders';
 import dayjs, { Dayjs } from 'dayjs';
@@ -129,6 +130,8 @@ type OrderRow = any;
 const router = useRouter();
 const authStore = useAuthStore();
 const uid = () => authStore.user?.id ?? 'guest';
+/** 与作品管理页 Portfolio.vue 一致：完整作品列表缓存 */
+const portfolioItemsKey = () => `worker_portfolio_items_v1_${uid()}`;
 const portfolioUrlsKey = () => `worker_portfolio_urls_${uid()}`;
 const scheduleAvailKey = () => `worker_${uid()}_schedule_available`;
 const scheduleFullKey = () => `worker_${uid()}_schedule_full_auto`;
@@ -137,6 +140,8 @@ const dashboardMonth = ref(dayjs().startOf('month'));
 const weekLabels = ['一', '二', '三', '四', '五', '六', '日'];
 
 const orders = ref<OrderRow[]>([]);
+/** 从 /photographers/me 拉取，与作品页同源；避免仅读 urls 缓存（轻量模式下不写入 urls） */
+const previewUrlsFromApi = ref<string[]>([]);
 
 const stats = computed(() => {
   const today = new Date();
@@ -154,10 +159,28 @@ const stats = computed(() => {
   return { today: todayCount, pending };
 });
 
+const galleryFromLocalStorage = computed((): string[] => {
+  try {
+    const rawItems = localStorage.getItem(portfolioItemsKey());
+    if (rawItems) {
+      const list = JSON.parse(rawItems) as Array<{ url?: string }>;
+      if (Array.isArray(list)) {
+        const urls = list.map((x) => String(x?.url || '').trim()).filter(Boolean);
+        if (urls.length) return urls.slice(0, 8);
+      }
+    }
+    const rawUrls = localStorage.getItem(portfolioUrlsKey());
+    const arr = rawUrls ? (JSON.parse(rawUrls) as string[]) : [];
+    return Array.isArray(arr) ? arr.slice(0, 8) : [];
+  } catch {
+    return [];
+  }
+});
+
 const gallery = computed(() => {
-  const raw = localStorage.getItem(portfolioUrlsKey());
-  const arr = raw ? (JSON.parse(raw) as string[]) : [];
-  return Array.isArray(arr) ? arr.slice(0, 8) : [];
+  const api = previewUrlsFromApi.value;
+  if (api.length) return api.slice(0, 8);
+  return galleryFromLocalStorage.value;
 });
 
 const upcomingDates = computed(() => {
@@ -236,9 +259,30 @@ const loadOrders = async () => {
   }
 };
 
+const loadPortfolioPreview = async () => {
+  if (!authStore.accessToken) {
+    previewUrlsFromApi.value = [];
+    return;
+  }
+  try {
+    const hit = await photographersApi.getMine();
+    const serverItems = Array.isArray(hit.portfolioItems) ? hit.portfolioItems : [];
+    let urls = Array.isArray(hit.portfolioImages)
+      ? hit.portfolioImages.map((u) => String(u || '').trim()).filter(Boolean)
+      : [];
+    if (!urls.length && serverItems.length) {
+      urls = serverItems.map((x) => String(x.url || '').trim()).filter(Boolean);
+    }
+    previewUrlsFromApi.value = urls;
+  } catch {
+    previewUrlsFromApi.value = [];
+  }
+};
+
 onMounted(() => {
   authStore.initializeAuth();
   loadOrders();
+  void loadPortfolioPreview();
 });
 </script>
 
