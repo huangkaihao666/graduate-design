@@ -1055,18 +1055,19 @@ const showResultImagePlaceholder = (target: any) => {
   text-align: center;
   padding-top: 28px;
   margin-top: 0;
-  margin-bottom: 23px;
+  margin-bottom: 10px;
   color: #334155;
   text-shadow: none;
 
   h1 {
-    font-size: 2.5rem;
+    font-size: 2.1rem;
     font-weight: 700;
     margin-bottom: 10px;
   }
 
   p {
-    font-size: 1.1rem;
+    margin: 0;
+    font-size: 1.05rem;
     opacity: 0.9;
   }
 }

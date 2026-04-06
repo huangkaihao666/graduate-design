@@ -67,7 +67,7 @@
           <h2>热门旅拍目的地</h2>
           <span class="line"></span>
         </div>
-        <div class="scroll-row">
+        <div class="scroll-row scroll-row--destinations scroll-row--hover-scrollbar">
           <article
             v-for="item in destinations"
             :key="item.name"
@@ -110,15 +110,15 @@
         </div>
         <div class="gallery-grid">
           <article
-            v-for="(item, idx) in gallery"
+            v-for="item in gallery"
             :key="item.image"
             class="gallery-card card"
             :style="{ backgroundImage: `url(${item.image})` }"
-            @click="goPackages"
+            @click="goPackages(item)"
           >
             <div class="mask">
-              <span class="style-tag">{{ hoverStyleLabels[idx % hoverStyleLabels.length] }}</span>
-              <a-button class="same-btn" @click.stop="goPackages">我要拍同款</a-button>
+              <span class="style-tag">{{ item.style }}</span>
+              <a-button class="same-btn" @click.stop="goPackages(item)">我要拍同款</a-button>
             </div>
           </article>
         </div>
@@ -129,7 +129,7 @@
           <h2>摄影师团队</h2>
           <span class="line"></span>
         </div>
-        <div class="scroll-row photographers">
+        <div class="scroll-row photographers scroll-row--hover-scrollbar">
           <article
             v-for="item in photographers"
             :key="item.name"
@@ -148,7 +148,7 @@
           <h2>妆造师团队</h2>
           <span class="line"></span>
         </div>
-        <div class="scroll-row makeup-artists">
+        <div class="scroll-row makeup-artists scroll-row--hover-scrollbar">
           <article
             v-for="item in makeupArtists"
             :key="item.name"
@@ -202,6 +202,8 @@ import hero2 from '@/assets/images/hero/hero2.jpg';
 import hero3 from '@/assets/images/hero/hero3.jpg';
 import hero4 from '@/assets/images/hero/hero4.jpg';
 import hero5 from '@/assets/images/hero/hero5.jpg';
+import { TRAVEL_STYLE_LABELS } from '@/constants/travel-style-labels';
+import { packagesApi } from '@/api/packages';
 import { photographersApi, type PhotographerPublic } from '@/api/photographers';
 import { useAuthStore } from '@/store/auth';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
@@ -276,7 +278,10 @@ const featureModules = [
   },
 ];
 
-const destinations = [
+type DestinationCard = { name: string; tag: string; image: string };
+
+/** 接口失败或无数据时的静态兜底 */
+const fallbackDestinations: DestinationCard[] = [
   {
     name: '三亚',
     tag: '热门',
@@ -308,6 +313,26 @@ const destinations = [
       'https://images.unsplash.com/photo-1493558103817-58b2924bce98?q=80&w=1200&auto=format&fit=crop',
   },
 ];
+
+/** 热门目的地：默认静态，挂载后拉取「浏览+收藏+下单」加权排序结果 */
+const destinations = ref<DestinationCard[]>([...fallbackDestinations]);
+
+const loadHotDestinations = async () => {
+  try {
+    const res = await packagesApi.getHotDestinations();
+    const items = Array.isArray(res?.items) ? res.items : [];
+    const valid = items.filter((x) => String(x?.name || '').trim());
+    if (valid.length === 0) return;
+    destinations.value = valid.map((x, i) => ({
+      name: String(x.name).trim(),
+      tag: String(x.tag || '').trim() || (i < 3 ? '热门' : '推荐'),
+      image:
+        String(x.image || '').trim() || fallbackDestinations[i % fallbackDestinations.length].image,
+    }));
+  } catch {
+    /* 保持 fallbackDestinations */
+  }
+};
 
 const packages = [
   {
@@ -342,41 +367,65 @@ const packages = [
 type GalleryItem = {
   style: string;
   image: string;
+  styleKey?: string;
 };
 
-const GALLERY_CACHE_KEY = 'dashboard-gallery-cache-v1';
-const hoverStyleLabels = ['新中式', '古镇纪实', '雪山自由', '森系草坪', '海岛清新', '韩式简约'];
+/** 客片区从左到右与后端 style key、套餐筛选一致（与 TRAVEL_STYLE_LABELS 顺序对应） */
+const SHOWCASE_STYLE_KEYS = [
+  'classical',
+  'artistic',
+  'adventure',
+  'romantic',
+  'bohemian',
+  'minimalist',
+] as const;
 
+const showcaseStyleSlot = (index: number): { styleKey: string; style: string } => {
+  const styleKey = SHOWCASE_STYLE_KEYS[index % SHOWCASE_STYLE_KEYS.length];
+  return { styleKey, style: TRAVEL_STYLE_LABELS[styleKey] };
+};
+
+const GALLERY_CACHE_KEY = 'dashboard-gallery-cache-v2';
+const STYLE_KEY_ALIASES: Array<{ key: string; aliases: string[] }> = [
+  { key: 'minimalist', aliases: ['minimalist', '韩式简约', '韩系', '韩式', '清新'] },
+  { key: 'classical', aliases: ['classical', '国风典雅', '新中式', '中式国风', '中式'] },
+  { key: 'bohemian', aliases: ['bohemian', '海岛松弛', '海岛', '海边', '海岛轻旅拍'] },
+  { key: 'romantic', aliases: ['romantic', '森系草坪', '森系', '草坪', '清新自然'] },
+  { key: 'adventure', aliases: ['adventure', '旷野自由', '雪山', '公路', '旅拍'] },
+  { key: 'artistic', aliases: ['artistic', '纪实故事', '纪实', '故事', '电影感'] },
+];
+
+/** 配图与悬停文案一一对应：国风典雅 → … → 韩式简约 */
 const fallbackGallery: GalleryItem[] = [
   {
-    style: '清新',
-    image:
-      'https://images.unsplash.com/photo-1520854221256-17451cc331bf?q=80&w=900&auto=format&fit=crop',
-  },
-  {
-    style: '复古',
-    image:
-      'https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=900&auto=format&fit=crop',
-  },
-  {
-    style: '中式',
+    ...showcaseStyleSlot(0),
     image:
       'https://images.unsplash.com/photo-1523438885200-e635ba2c371e?q=80&w=900&auto=format&fit=crop',
   },
   {
-    style: '电影感',
+    ...showcaseStyleSlot(1),
     image:
       'https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=900&auto=format&fit=crop',
   },
   {
-    style: '森系',
+    ...showcaseStyleSlot(2),
+    image:
+      'https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=900&auto=format&fit=crop',
+  },
+  {
+    ...showcaseStyleSlot(3),
     image:
       'https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=80&w=900&auto=format&fit=crop',
   },
   {
-    style: '法式',
+    ...showcaseStyleSlot(4),
     image:
       'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?q=80&w=900&auto=format&fit=crop',
+  },
+  {
+    ...showcaseStyleSlot(5),
+    image:
+      'https://images.unsplash.com/photo-1520854221256-17451cc331bf?q=80&w=900&auto=format&fit=crop',
   },
 ];
 
@@ -432,6 +481,17 @@ const normalizeStyleLabel = (style: string) => {
 
   const first = raw.split(/[、,，/|·\s]+/).find(Boolean) || raw;
   return first.length > 8 ? `${first.slice(0, 8)}...` : first;
+};
+
+const inferStyleKey = (style: string): string | undefined => {
+  const raw = String(style || '')
+    .trim()
+    .toLowerCase();
+  if (!raw) return undefined;
+  const hit = STYLE_KEY_ALIASES.find((group) =>
+    group.aliases.some((alias) => raw.includes(alias.toLowerCase()))
+  );
+  return hit?.key;
 };
 
 const fallbackPhotographers = [
@@ -503,6 +563,7 @@ const loadHomepagePhotographers = async () => {
     const cards: GalleryItem[] = [];
     const workers: Array<{ name: string; style: string; avatar: string }> = [];
     const makeupWorkers: Array<{ name: string; style: string; avatar: string }> = [];
+    let showcaseCardIndex = 0;
 
     list.forEach((p: PhotographerPublic) => {
       const urlsFromItems = Array.isArray(p.portfolioItems)
@@ -514,9 +575,12 @@ const loadHomepagePhotographers = async () => {
       const uniqueUrls = [...new Set([...urlsFromItems, ...urlsFromImages])];
       const firstImage = uniqueUrls[0];
       if (firstImage) {
+        const slot = showcaseStyleSlot(showcaseCardIndex);
+        showcaseCardIndex += 1;
         cards.push({
           image: firstImage,
-          style: normalizeStyleLabel(p.shootingStyle),
+          style: slot.style,
+          styleKey: slot.styleKey,
         });
       }
 
@@ -572,7 +636,17 @@ const reviews = [
 ];
 
 const goHelpCenter = () => router.push('/help-center');
-const goPackages = () => router.push('/booking/packages');
+const goPackages = (item?: GalleryItem) => {
+  const styleKey = item?.styleKey || inferStyleKey(item?.style || '');
+  if (styleKey) {
+    router.push({
+      path: '/booking/packages',
+      query: { style: styleKey, fromShowcase: '1' },
+    });
+    return;
+  }
+  router.push('/booking/packages');
+};
 const goFeature = (path: string) => router.push(path);
 const goDestination = (location: string) =>
   router.push({ path: '/booking/packages', query: { location } });
@@ -746,7 +820,7 @@ onMounted(async () => {
     router.replace('/worker/dashboard');
     return;
   }
-  await loadHomepagePhotographers();
+  await Promise.all([loadHomepagePhotographers(), loadHotDestinations()]);
   restartAutoPlay();
   document.addEventListener('visibilitychange', handleVisibilityChange);
 });
@@ -902,6 +976,19 @@ onBeforeUnmount(() => {
   padding: 28px 18px;
   background: #fff;
   backdrop-filter: none;
+  border: 1px solid transparent;
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease,
+    border-color 0.3s ease;
+
+  &:hover {
+    transform: translateY(-8px);
+    box-shadow:
+      0 20px 36px rgba(255, 107, 139, 0.22),
+      0 12px 24px rgba(0, 0, 0, 0.16);
+    border-color: rgba(255, 107, 139, 0.28);
+  }
 
   .icon {
     font-size: 40px;
@@ -931,14 +1018,75 @@ onBeforeUnmount(() => {
   padding-bottom: 6px;
 }
 
+/* 热门旅拍目的地：预留上下空间，避免卡片上浮与阴影被裁切 */
+.scroll-row--destinations {
+  overflow-x: auto;
+  overflow-y: visible;
+  padding-top: 16px;
+  padding-bottom: 22px;
+}
+
+/* 横向滚动条：默认轨道/滑块透明，悬停在该行区域时淡入（与热门目的地一致） */
+.scroll-row--hover-scrollbar {
+  scrollbar-width: auto;
+  /* Firefox：thumb track */
+  scrollbar-color: rgba(0, 0, 0, 0) rgba(0, 0, 0, 0);
+  transition: scrollbar-color 0.35s ease;
+
+  &::-webkit-scrollbar {
+    height: 10px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0);
+    border-radius: 5px;
+    transition: background 0.35s ease;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0);
+    border-radius: 5px;
+    transition: background 0.35s ease;
+  }
+
+  &:hover {
+    scrollbar-color: rgba(0, 0, 0, 0.2) rgba(0, 0, 0, 0.035);
+
+    &::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.035);
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.16);
+    }
+
+    &::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 0, 0, 0.28);
+    }
+  }
+}
+
 .destination-card {
   flex: 0 0 300px;
   height: 200px;
   position: relative;
-  overflow: hidden;
+  /* 勿用 overflow:hidden：会裁掉悬停时的 box-shadow，且上移时顶部易看起来像被「吃掉」 */
+  overflow: visible;
+  border-radius: 12px;
   cursor: pointer;
   background-size: cover;
   background-position: center;
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
+
+  &:hover {
+    z-index: 2;
+    transform: translateY(-12px);
+    box-shadow:
+      0 20px 40px rgba(255, 107, 139, 0.22),
+      0 12px 28px rgba(0, 0, 0, 0.14);
+  }
 
   .overlay {
     position: absolute;
@@ -1026,6 +1174,16 @@ onBeforeUnmount(() => {
   cursor: pointer;
   background-size: cover;
   background-position: center;
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
+
+  &:hover {
+    transform: translateY(-12px);
+    box-shadow:
+      0 20px 40px rgba(255, 107, 139, 0.22),
+      0 12px 28px rgba(0, 0, 0, 0.14);
+  }
 
   .mask {
     position: absolute;

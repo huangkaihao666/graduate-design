@@ -87,8 +87,8 @@
               size="large"
               block
               :loading="loading"
-              @click="handleRecommend"
               class="submit-btn"
+              @click="handleRecommend"
             >
               {{ loading ? '正在生成推荐...' : '🎨 生成个性化推荐' }}
             </a-button>
@@ -557,18 +557,18 @@ onMounted(() => {
 .page-header {
   text-align: center;
   padding-top: 28px;
-  margin-bottom: 40px;
+  margin-bottom: 28px;
   color: #334155;
   text-shadow: none;
 
   h1 {
-    font-size: 2.5rem;
+    font-size: 2.1rem;
     font-weight: 700;
     margin-bottom: 10px;
   }
 
   p {
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     opacity: 0.9;
   }
 }

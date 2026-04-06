@@ -1575,12 +1575,12 @@ onUnmounted(() => {
 
 .page-header {
   text-align: center;
-  margin-bottom: 28px;
+  margin-bottom: 20px;
   color: #334155;
   text-shadow: none;
 
   h1 {
-    font-size: 2.3rem;
+    font-size: 2.1rem;
     font-weight: 800;
     margin-bottom: 8px;
   }

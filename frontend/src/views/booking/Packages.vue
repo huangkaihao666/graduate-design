@@ -64,6 +64,7 @@
             v-model:value="filters.style"
             placeholder="全部风格"
             allow-clear
+            :disabled="isStyleLockedByShowcase"
             size="middle"
             style="width: 176px"
             :options="styleSelectOptions"
@@ -518,6 +519,8 @@ const authStore = useAuthStore();
 /** 从「本店服务团队」页跳转时 URL 携带 photographerId / makeupArtistId */
 const pendingPhotographer = ref<{ id: number; name: string } | null>(null);
 const pendingMakeupArtist = ref<{ id: number; name: string } | null>(null);
+const lockedStyleFromShowcase = ref<string | undefined>(undefined);
+const isStyleLockedByShowcase = computed(() => Boolean(lockedStyleFromShowcase.value));
 
 const syncPhotographerFromRoute = async () => {
   const raw = route.query.photographerId;
@@ -588,6 +591,27 @@ const syncLocationFromRoute = () => {
     filters.region = undefined;
     locationOptions.value = [...combinedLocationsSorted];
   }
+  pagination.page = 1;
+};
+
+const syncStyleFromRoute = () => {
+  const raw = route.query.style;
+  const style = Array.isArray(raw) ? String(raw[0] || '').trim() : String(raw || '').trim();
+  const isFromShowcase = String(route.query.fromShowcase || '') === '1';
+
+  if (!style || !isFromShowcase) {
+    lockedStyleFromShowcase.value = undefined;
+    return;
+  }
+
+  const styleExists = Object.prototype.hasOwnProperty.call(loadedStyleMap.value, style);
+  if (!styleExists) {
+    lockedStyleFromShowcase.value = undefined;
+    return;
+  }
+
+  lockedStyleFromShowcase.value = style;
+  filters.style = style;
   pagination.page = 1;
 };
 
@@ -1006,7 +1030,7 @@ const toggleHotTag = (tagValue: HotTagKey) => {
 
 const resetFilters = () => {
   filters.region = undefined;
-  filters.style = undefined;
+  filters.style = lockedStyleFromShowcase.value || undefined;
   filters.location = undefined;
   filters.minPrice = undefined;
   filters.maxPrice = undefined;
@@ -1045,8 +1069,9 @@ const fetchPackages = async () => {
     if (filters.region) {
       filtered = filtered.filter((p) => locationRegionMap.get(p.location) === filters.region);
     }
-    if (filters.style) {
-      filtered = filtered.filter((p) => p.style === filters.style);
+    const effectiveStyle = lockedStyleFromShowcase.value || filters.style;
+    if (effectiveStyle) {
+      filtered = filtered.filter((p) => p.style === effectiveStyle);
     }
     if (filters.location) {
       filtered = filtered.filter((p) => p.location === filters.location);
@@ -1235,6 +1260,14 @@ watch(
   }
 );
 
+watch(
+  () => [route.query.style, route.query.fromShowcase],
+  () => {
+    syncStyleFromRoute();
+    fetchPackages();
+  }
+);
+
 onMounted(async () => {
   await loadStyleTags();
   authStore.initializeAuth();
@@ -1254,6 +1287,7 @@ onMounted(async () => {
   await syncPhotographerFromRoute();
   await syncMakeupArtistFromRoute();
   syncLocationFromRoute();
+  syncStyleFromRoute();
   updateBehaviorProfile();
   fetchPackages();
   await loadFavoriteStatus();

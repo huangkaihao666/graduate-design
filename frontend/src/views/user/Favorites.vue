@@ -1088,18 +1088,18 @@ onMounted(() => {
 
 .page-header {
   text-align: center;
-  margin-bottom: 30px;
+  margin-bottom: 22px;
   color: white;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
 
   h1 {
-    font-size: 2.3rem;
+    font-size: 2.1rem;
     font-weight: 700;
     margin-bottom: 8px;
   }
 
   p {
-    font-size: 1rem;
+    font-size: 1.05rem;
     opacity: 0.9;
   }
 }

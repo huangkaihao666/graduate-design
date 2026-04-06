@@ -40,7 +40,7 @@
           <a-form-item label="旅程天数" required>
             <a-slider
               v-model:value="formData.duration"
-              :min="2"
+              :min="1"
               :max="14"
               :tip-formatter="(value: number) => `${value} 天`"
               @change="saveStateToStorage"
@@ -102,14 +102,16 @@
         </div>
 
         <div v-else class="itinerary-detail">
-          <!-- 行程概览 -->
+          <!-- 行程标题：地点 + 天数 -->
           <div class="overview-card">
             <h2>{{ result.destination }} - {{ result.duration }} 天行程</h2>
-            <p>{{ result.overview }}</p>
           </div>
 
-          <!-- 日程详情 -->
-          <div class="daily-schedules">
+          <!-- 日程详情：3 天及以上时固定三列，保证一排三张 -->
+          <div
+            class="daily-schedules"
+            :class="{ 'daily-schedules--three-col': dayScheduleCount >= 3 }"
+          >
             <div
               v-for="day in result.dailySchedule"
               :key="day.day"
@@ -124,41 +126,26 @@
             >
               <div class="day-number">第 {{ day.day }} 天</div>
               <div class="day-theme">{{ day.theme }}</div>
-              <div class="day-spots">
-                <span v-for="(spot, index) in day.spots" :key="index" class="spot-tag">
-                  {{ spot }}
-                </span>
-              </div>
             </div>
           </div>
 
           <!-- 选中日期的详情 -->
           <div v-if="selectedDay" class="day-detail">
             <div class="detail-header">
-              <h3>第 {{ selectedDay }} 天 - {{ getSelectedDayData()?.theme }}</h3>
+              <h3>第 {{ selectedDay }} 天 - {{ selectedDayData?.theme }}</h3>
             </div>
 
             <div class="detail-content">
               <div class="detail-item">
                 <h4>📅 日程安排</h4>
-                <p>{{ getSelectedDayData()?.schedule }}</p>
-              </div>
-
-              <div class="detail-item">
-                <h4>⏰ 最佳拍摄时间</h4>
-                <p>{{ getSelectedDayData()?.bestTime }}</p>
-              </div>
-
-              <div class="detail-item">
-                <h4>📸 拍摄技巧</h4>
-                <p>{{ getSelectedDayData()?.tips }}</p>
+                <p>{{ selectedDayData?.schedule }}</p>
               </div>
 
               <div class="detail-item">
                 <h4>📍 主要景点</h4>
                 <div class="spots-list">
                   <div
-                    v-for="(spot, index) in getSelectedDayData()?.spots"
+                    v-for="(spot, index) in selectedDayData?.spots || []"
                     :key="index"
                     class="spot-item"
                   >
@@ -167,30 +154,76 @@
                   </div>
                 </div>
               </div>
+
+              <!-- 底部：拍摄时间/技巧 + 准备清单 + 拍摄实用建议（同一区域） -->
+              <div
+                v-if="hasShootingTimeOrTips || hasPackingList || hasLocalTips"
+                class="day-detail-bottom-card"
+              >
+                <div v-if="hasShootingTimeOrTips" class="itinerary-extras-block">
+                  <div class="itinerary-extras-bar">
+                    <span class="extras-label">📷 拍摄说明</span>
+                    <a-button
+                      type="default"
+                      class="extras-toggle-btn"
+                      @click="shootingTimeTipsOpen = !shootingTimeTipsOpen"
+                    >
+                      {{ shootingTimeTipsOpen ? '收起详情' : '查看详情' }}
+                    </a-button>
+                  </div>
+                  <div v-show="shootingTimeTipsOpen" class="itinerary-extras-body">
+                    <div v-if="shootingBestTimeText" class="shooting-subsection">
+                      <h5>⏰ 最佳拍摄时间</h5>
+                      <p>{{ shootingBestTimeText }}</p>
+                    </div>
+                    <div v-if="shootingTipsText" class="shooting-subsection">
+                      <h5>📸 拍摄技巧</h5>
+                      <p>{{ shootingTipsText }}</p>
+                    </div>
+                  </div>
+                </div>
+                <div v-if="hasPackingList" class="itinerary-extras-block">
+                  <div class="itinerary-extras-bar">
+                    <span class="extras-label">📦 准备清单</span>
+                    <a-button
+                      type="default"
+                      class="extras-toggle-btn"
+                      @click="packingDetailOpen = !packingDetailOpen"
+                    >
+                      {{ packingDetailOpen ? '收起详情' : '查看详情' }}
+                    </a-button>
+                  </div>
+                  <div v-show="packingDetailOpen" class="itinerary-extras-body">
+                    <ul>
+                      <li v-for="(item, index) in result.packingList" :key="index">
+                        <a-checkbox />
+                        {{ item }}
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+                <div v-if="hasLocalTips" class="itinerary-extras-block">
+                  <div class="itinerary-extras-bar">
+                    <span class="extras-label">💡 拍摄实用建议</span>
+                    <a-button
+                      type="default"
+                      class="extras-toggle-btn"
+                      @click="localTipsDetailOpen = !localTipsDetailOpen"
+                    >
+                      {{ localTipsDetailOpen ? '收起详情' : '查看详情' }}
+                    </a-button>
+                  </div>
+                  <div v-show="localTipsDetailOpen" class="itinerary-extras-body">
+                    <p>{{ result.localTips }}</p>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-
-          <!-- 准备清单 -->
-          <div class="packing-list">
-            <h3>📦 准备清单</h3>
-            <ul>
-              <li v-for="(item, index) in result.packingList" :key="index">
-                <a-checkbox />
-                {{ item }}
-              </li>
-            </ul>
-          </div>
-
-          <!-- 本地建议 -->
-          <div class="local-tips">
-            <h3>💡 当地实用建议</h3>
-            <p>{{ result.localTips }}</p>
           </div>
 
           <!-- 操作按钮 -->
           <div class="itinerary-actions">
-            <a-button type="primary" @click="handleSaveItinerary"> 💾 保存行程 </a-button>
-            <a-button @click="handleDownloadItinerary"> ⬇️ 下载详情 </a-button>
+            <a-button type="primary" @click="handleDownloadItinerary"> ⬇️ 下载详情 </a-button>
             <a-button @click="handlePrintItinerary"> 🖨️ 打印行程 </a-button>
             <a-button @click="handleReset"> 🔄 重新生成 </a-button>
           </div>
@@ -201,14 +234,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue';
-import { message } from 'ant-design-vue';
 import { aiApi, ItineraryPlanningRequest } from '@/api/ai';
 import {
   TRAVEL_STYLE_CARD_DESCRIPTIONS,
   TRAVEL_STYLE_LABELS,
 } from '@/constants/travel-style-labels';
 import { useAuthStore } from '@/store/auth';
+import { message } from 'ant-design-vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 
 type ItineraryStyleRow = { id: string; name: string; description?: string; icon?: string };
 
@@ -224,6 +257,52 @@ const stylesLoading = ref(false);
 const availableStyles = ref<ItineraryStyleRow[]>([]);
 const result = ref<any>(null);
 const selectedDay = ref<number | null>(null);
+/** 准备清单、当地建议各自是否展开正文 */
+const packingDetailOpen = ref(false);
+const localTipsDetailOpen = ref(false);
+
+const hasPackingList = computed(() => {
+  const r = result.value;
+  return Boolean(r && Array.isArray(r.packingList) && r.packingList.length > 0);
+});
+
+const hasLocalTips = computed(() => {
+  const r = result.value;
+  return Boolean(r && typeof r.localTips === 'string' && r.localTips.trim().length > 0);
+});
+
+const dayScheduleCount = computed(() =>
+  Array.isArray(result.value?.dailySchedule) ? result.value.dailySchedule.length : 0
+);
+
+const selectedDayData = computed(() => {
+  if (!result.value || !selectedDay.value) return null;
+  const list = result.value.dailySchedule;
+  if (!Array.isArray(list)) return null;
+  return list.find((day: any) => day.day === selectedDay.value) ?? null;
+});
+
+const shootingBestTimeText = computed(() => {
+  const t = selectedDayData.value?.bestTime;
+  return typeof t === 'string' ? t.trim() : '';
+});
+
+const shootingTipsText = computed(() => {
+  const t = selectedDayData.value?.tips;
+  return typeof t === 'string' ? t.trim() : '';
+});
+
+const hasShootingTimeOrTips = computed(() =>
+  Boolean(shootingBestTimeText.value || shootingTipsText.value)
+);
+
+/** 当日「拍摄说明」折叠区是否展开 */
+const shootingTimeTipsOpen = ref(false);
+
+watch(selectedDay, () => {
+  shootingTimeTipsOpen.value = false;
+});
+
 const authStore = useAuthStore();
 const searchKeyword = ref<string>('');
 
@@ -343,11 +422,17 @@ const restoreStateFromStorage = () => {
     if (savedState) {
       const state = JSON.parse(savedState);
       formData.destination = state.destination || '';
-      formData.duration = state.duration ?? 5;
+      {
+        const d = Number(state.duration);
+        formData.duration = Number.isFinite(d) ? Math.min(14, Math.max(1, Math.round(d))) : 5;
+      }
       formData.style = state.style || '';
       formData.interests = state.interests || [];
       result.value = state.result || null;
       selectedDay.value = state.selectedDay ?? null;
+      packingDetailOpen.value = false;
+      localTipsDetailOpen.value = false;
+      shootingTimeTipsOpen.value = false;
       console.log('已恢复行程规划页面状态');
     }
   } catch (error) {
@@ -599,6 +684,9 @@ const handlePlanItinerary = async () => {
     // 处理嵌套的响应结构，取最内层的 data
     result.value = response.data?.data || response.data;
     selectedDay.value = 1;
+    packingDetailOpen.value = false;
+    localTipsDetailOpen.value = false;
+    shootingTimeTipsOpen.value = false;
     message.success('行程规划生成成功！');
 
     // 保存状态到 sessionStorage
@@ -622,26 +710,6 @@ const handlePlanItinerary = async () => {
     message.error(error.message || '生成失败，请重试');
   } finally {
     loading.value = false;
-  }
-};
-
-// 获取选中日期的数据
-const getSelectedDayData = () => {
-  if (!result.value || !selectedDay.value) return null;
-  return result.value.dailySchedule.find((day: any) => day.day === selectedDay.value);
-};
-
-// 保存行程
-const handleSaveItinerary = async () => {
-  try {
-    await aiApi.saveHistory({
-      type: 'itinerary-planning',
-      input: formData,
-      output: result.value,
-    });
-    message.success('已保存到历史记录');
-  } catch (error: any) {
-    message.error(error.message || '保存失败');
   }
 };
 
@@ -690,18 +758,19 @@ onMounted(async () => {
 .page-header {
   text-align: center;
   padding-top: 28px;
-  margin-bottom: 40px;
+  margin-bottom: 28px;
   color: #334155;
   text-shadow: none;
 
   h1 {
-    font-size: 2.5rem;
+    font-size: 2.1rem;
     font-weight: 700;
     margin-bottom: 10px;
   }
 
   p {
-    font-size: 1.1rem;
+    margin: 0;
+    font-size: 1.05rem;
     opacity: 0.9;
   }
 }
@@ -818,26 +887,25 @@ onMounted(async () => {
 }
 
 .overview-card {
-  padding: 20px;
-  background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%);
-  border-radius: 12px;
-  color: white;
+  padding: 0;
+  text-align: center;
+  margin-top: -4px;
 
   h2 {
-    margin: 0 0 10px 0;
-    font-size: 1.3rem;
-  }
-
-  p {
     margin: 0;
-    line-height: 1.6;
+    font-size: 1.6rem;
+    color: #111;
   }
 }
 
 .daily-schedules {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 12px;
+
+  &--three-col {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .day-card {
@@ -862,11 +930,6 @@ onMounted(async () => {
     .day-theme {
       color: white;
     }
-
-    .day-spots .spot-tag {
-      background: rgba(255, 255, 255, 0.3);
-      color: white;
-    }
   }
 
   .day-number {
@@ -878,22 +941,6 @@ onMounted(async () => {
   .day-theme {
     font-size: 0.85rem;
     color: #ff758c;
-    margin-bottom: 6px;
-  }
-
-  .day-spots {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    justify-content: center;
-
-    .spot-tag {
-      font-size: 0.7rem;
-      background: #f0f0f0;
-      padding: 2px 4px;
-      border-radius: 2px;
-      white-space: nowrap;
-    }
   }
 }
 
@@ -901,6 +948,13 @@ onMounted(async () => {
   padding: 16px;
   background: #f8f9fa;
   border-radius: 8px;
+}
+
+.day-detail-bottom-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
 }
 
 .detail-header {
@@ -965,17 +1019,46 @@ onMounted(async () => {
   }
 }
 
-.packing-list,
-.local-tips {
-  padding: 16px;
+.itinerary-extras-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 16px;
   background: #f8f9fa;
   border-radius: 8px;
+  border: 1px solid #f0f0f0;
+}
 
-  h3 {
-    margin: 0 0 12px 0;
-    color: #333;
-    font-size: 1rem;
+.itinerary-extras-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.extras-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #111;
+}
+
+.extras-toggle-btn {
+  flex-shrink: 0;
+  min-width: 100px;
+  border-color: #ff758c;
+  color: #ff758c;
+
+  &:hover {
+    color: #fff !important;
+    border-color: #ff758c !important;
+    background: #ff758c !important;
   }
+}
+
+.itinerary-extras-body {
+  padding-top: 4px;
+  border-top: 1px dashed #e5e7eb;
 
   ul {
     margin: 0;
@@ -1004,6 +1087,28 @@ onMounted(async () => {
   }
 }
 
+.shooting-subsection {
+  &:not(:first-child) {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed #e5e7eb;
+  }
+
+  h5 {
+    margin: 0 0 6px 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #333;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #666;
+    line-height: 1.5;
+  }
+}
+
 .itinerary-actions {
   display: flex;
   gap: 10px;
@@ -1027,6 +1132,14 @@ onMounted(async () => {
 
   .itinerary-actions {
     display: none;
+  }
+
+  .itinerary-extras-bar {
+    display: none;
+  }
+
+  .day-detail .itinerary-extras-body {
+    display: block !important;
   }
 }
 </style>

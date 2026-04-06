@@ -3,10 +3,7 @@
     <div class="page-hero">
       <h1>个性预约 · 定制旅拍需求</h1>
       <p class="lead">
-        若您已有明确想法与档期，希望由摄影师按您的风格与地点来拍摄，可在此发布需求。平台将为您匹配本店服务团队，接单后需您确认才会正式合作。
-      </p>
-      <p class="lead">
-        请尽量写清拍摄地点、风格偏好、期望日期与人数。已发布的需求与关联预约订单请在「我的订单」顶部切换至「个性预约」查看与操作；本页仅用于发布新需求。
+        若您有个性化想法，可在此发布需求，平台将为您匹配本店服务团队，接单后需您确认才会正式合作。
       </p>
       <p class="lead">若您更倾向固定套餐与标准流程，请从「套餐浏览」选择后进入套餐预约下单。</p>
     </div>
@@ -20,7 +17,13 @@
           <a-input v-model:value="form.location" placeholder="城市或具体区域" />
         </a-form-item>
         <a-form-item label="拍摄风格" required>
-          <a-input v-model:value="form.style" placeholder="如韩系清新/古风典雅" />
+          <a-select
+            v-model:value="form.style"
+            :options="customRequestStyleOptions"
+            placeholder="请选择拍摄风格"
+            style="width: 100%"
+            allow-clear
+          />
         </a-form-item>
         <a-form-item label="期望拍摄日期" required extra="请在日历中选择，格式为 YYYY-MM-DD">
           <a-date-picker
@@ -81,6 +84,7 @@
 
 <script setup lang="ts">
 import { customShootRequestsApi, type CreateCustomShootBody } from '@/api/customShootRequests';
+import { TRAVEL_STYLE_LABELS } from '@/constants/travel-style-labels';
 import { useAuthStore } from '@/store/auth';
 import { mergeBookingOrderIntoLocalHistory } from '@/utils/mergeOnlineOrderHistory';
 import { message } from 'ant-design-vue';
@@ -98,6 +102,20 @@ const CN_MOBILE_REGEX = /^1[3-9]\d{9}$/;
 const authStore = useAuthStore();
 const router = useRouter();
 const submitting = ref(false);
+
+const CUSTOM_REQUEST_STYLE_KEYS = [
+  'minimalist',
+  'classical',
+  'bohemian',
+  'romantic',
+  'adventure',
+  'artistic',
+] as const;
+
+const customRequestStyleOptions = CUSTOM_REQUEST_STYLE_KEYS.map((key) => ({
+  label: TRAVEL_STYLE_LABELS[key],
+  value: TRAVEL_STYLE_LABELS[key],
+}));
 
 /** 期望拍摄日（日历选择，提交时写入 form.shootingDate 为 YYYY-MM-DD） */
 const shootingDateDayjs = ref<Dayjs | null>(null);
@@ -222,11 +240,11 @@ onMounted(() => {
 }
 .page-hero {
   max-width: 920px;
-  margin: 0 auto 28px;
+  margin: 0 auto 22px;
   text-align: center;
 
   h1 {
-    font-size: 1.65rem;
+    font-size: 2.1rem;
     font-weight: 800;
     margin: 0 0 16px;
     color: #1e293b;
@@ -238,10 +256,14 @@ onMounted(() => {
 
   .lead {
     color: #64748b;
-    margin: 0 0 12px;
+    margin: 0 0 2px;
     line-height: 1.65;
-    font-size: 0.98rem;
+    font-size: 1.05rem;
     text-align: left;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
   }
 }
 
@@ -266,6 +288,105 @@ onMounted(() => {
 
 .form {
   margin-top: 8px;
+
+  :deep(.ant-input),
+  :deep(.ant-input-number),
+  :deep(.ant-input-number-affix-wrapper),
+  :deep(.ant-select-selector),
+  :deep(.ant-picker) {
+    border-color: #f0d7df;
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease,
+      background 0.2s ease;
+  }
+
+  :deep(.ant-input:hover),
+  :deep(.ant-input-number:hover),
+  :deep(.ant-input-number-affix-wrapper:hover),
+  :deep(.ant-select:not(.ant-select-disabled):hover .ant-select-selector),
+  :deep(.ant-picker:hover) {
+    border-color: #ff9fbe !important;
+  }
+
+  :deep(.ant-input:focus),
+  :deep(.ant-input-focused),
+  :deep(.ant-input-number-focused),
+  :deep(.ant-input-number:focus-within),
+  :deep(.ant-input-number-affix-wrapper-focused),
+  :deep(.ant-input-number-affix-wrapper:focus-within),
+  :deep(.ant-select-focused .ant-select-selector),
+  :deep(.ant-picker-focused),
+  :deep(.ant-picker:focus-within) {
+    border-color: #ff758c !important;
+    box-shadow: 0 0 0 2px rgba(255, 117, 140, 0.18) !important;
+    outline: none;
+  }
+}
+
+/* DatePicker 弹层（可视日历）粉色主题 */
+:deep(.ant-picker-dropdown) {
+  .ant-picker-cell .ant-picker-cell-inner {
+    border-radius: 6px;
+  }
+
+  .ant-picker-cell-in-view.ant-picker-cell-today .ant-picker-cell-inner::before {
+    border-color: #ff758c !important;
+  }
+
+  .ant-picker-cell-in-view.ant-picker-cell-selected .ant-picker-cell-inner,
+  .ant-picker-cell-in-view.ant-picker-cell-range-start .ant-picker-cell-inner,
+  .ant-picker-cell-in-view.ant-picker-cell-range-end .ant-picker-cell-inner {
+    background: #ff758c !important;
+  }
+
+  .ant-picker-cell-in-view.ant-picker-cell-selected:not(.ant-picker-cell-disabled)
+    .ant-picker-cell-inner,
+  .ant-picker-cell-in-view.ant-picker-cell-range-start:not(.ant-picker-cell-disabled)
+    .ant-picker-cell-inner,
+  .ant-picker-cell-in-view.ant-picker-cell-range-end:not(.ant-picker-cell-disabled)
+    .ant-picker-cell-inner {
+    color: #fff !important;
+  }
+
+  .ant-picker-cell-in-view:hover .ant-picker-cell-inner {
+    background: rgba(255, 117, 140, 0.16) !important;
+  }
+
+  .ant-picker-cell-in-view.ant-picker-cell-today:hover .ant-picker-cell-inner::before {
+    border-color: #ff758c !important;
+  }
+
+  .ant-picker-cell-in-view.ant-picker-cell-selected:hover .ant-picker-cell-inner {
+    background: #ff5f84 !important;
+  }
+
+  .ant-picker-header-view button:hover,
+  .ant-picker-header button:hover {
+    color: #ff758c !important;
+  }
+
+  .ant-picker-today-btn {
+    color: #ff758c !important;
+  }
+
+  .ant-picker-today-btn:hover {
+    color: #ff5f84 !important;
+  }
+
+  .ant-picker-header-super-prev-btn,
+  .ant-picker-header-prev-btn,
+  .ant-picker-header-next-btn,
+  .ant-picker-header-super-next-btn {
+    color: #9ca3af;
+  }
+
+  .ant-picker-header-super-prev-btn:hover,
+  .ant-picker-header-prev-btn:hover,
+  .ant-picker-header-next-btn:hover,
+  .ant-picker-header-super-next-btn:hover {
+    color: #ff758c !important;
+  }
 }
 
 .pink-btn {

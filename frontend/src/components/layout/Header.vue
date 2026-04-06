@@ -16,10 +16,10 @@
           <router-link to="/ai/style-recommendation" class="nav-item">个性化推荐</router-link>
           <router-link to="/ai/itinerary-planning" class="nav-item">行程规划</router-link>
           <router-link to="/booking/packages" class="nav-item">套餐浏览</router-link>
-          <router-link to="/booking/photographers" class="nav-item">本店服务团队</router-link>
           <router-link v-if="!authStore.isWorker" to="/user/custom-requests" class="nav-item"
             >个性预约</router-link
           >
+          <router-link to="/booking/photographers" class="nav-item">本店服务团队</router-link>
         </template>
         <template v-else>
           <router-link to="/booking/packages" class="nav-item">套餐浏览</router-link>
@@ -131,12 +131,13 @@ const handleLogout = () => {
 
   .logo-area {
     flex-shrink: 0;
+    margin-left: -6px;
 
     .logo {
       display: flex;
       align-items: center;
       gap: 8px;
-      font-size: 1.35rem;
+      font-size: 1.5rem;
       font-weight: 800;
       color: #333;
       text-decoration: none;
@@ -148,7 +149,7 @@ const handleLogout = () => {
       }
 
       .icon {
-        font-size: 1.65rem;
+        font-size: 1.8rem;
       }
 
       .text {
@@ -164,7 +165,7 @@ const handleLogout = () => {
     flex: 1;
     display: flex;
     justify-content: flex-start;
-    gap: 12px;
+    gap: 6px;
     margin: 0 20px;
     overflow-x: auto;
     scrollbar-width: thin;
@@ -172,9 +173,9 @@ const handleLogout = () => {
     .nav-item {
       color: #4b5563;
       text-decoration: none;
-      font-size: 18px;
+      font-size: 17px;
       white-space: nowrap;
-      padding: 10px 14px;
+      padding: 8px 10px;
       border-radius: 999px;
       line-height: 1;
       transition:
@@ -211,7 +212,7 @@ const handleLogout = () => {
     .btn-text {
       color: #666;
       text-decoration: none;
-      font-size: 14px;
+      font-size: 13px;
       transition: color 0.3s;
 
       &:hover {
@@ -221,12 +222,12 @@ const handleLogout = () => {
 
     .btn-primary {
       display: inline-block;
-      padding: 8px 20px;
+      padding: 7px 18px;
       background: linear-gradient(90deg, #ff758c 0%, #ff7eb3 100%);
       color: white;
       border-radius: 20px;
       text-decoration: none;
-      font-size: 14px;
+      font-size: 13px;
       transition: all 0.3s;
 
       &:hover {
@@ -250,7 +251,7 @@ const handleLogout = () => {
         }
 
         .username {
-          font-size: 14px;
+          font-size: 13px;
           color: #333;
         }
       }
@@ -269,11 +270,15 @@ const handleLogout = () => {
     }
 
     .logo-area .logo {
-      font-size: 1rem;
+      font-size: 1.25rem;
 
       .text {
         display: none;
       }
+    }
+
+    .logo-area {
+      margin-left: -4px;
     }
   }
 }

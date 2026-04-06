@@ -466,13 +466,23 @@ const routes: RouteRecordRaw[] = [
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
-  scrollBehavior(to, _from, savedPosition) {
+  scrollBehavior(to, from, savedPosition) {
     // 首页统一回到顶部，避免“返回首页停留在旧滚动位置”
     if (to.path === '/dashboard') {
       return { left: 0, top: 0 };
     }
     if (savedPosition) {
       return savedPosition;
+    }
+    // 从其它页进入套餐浏览时，等一帧再滚顶，避免首屏布局/async 内容把视口“顶”在中间
+    if (to.path === '/booking/packages' && from.path !== to.path) {
+      return new Promise((resolve) => {
+        window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(() => {
+            resolve({ left: 0, top: 0 });
+          });
+        });
+      });
     }
     return { left: 0, top: 0 };
   },

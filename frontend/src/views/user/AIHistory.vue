@@ -18,7 +18,7 @@
         </a-tabs>
 
         <div class="right-tools">
-          <a-button type="default" size="small" @click="refresh" :loading="loading">
+          <a-button type="default" size="small" :loading="loading" @click="refresh">
             刷新
           </a-button>
         </div>
@@ -51,7 +51,7 @@
         <!-- 全部：三类分段展示 -->
         <template v-if="activeTab === 'all'">
           <template v-for="slot in vtoAllSlots" :key="slot.role">
-            <section class="history-section" v-if="slot.list.items.length">
+            <section v-if="slot.list.items.length" class="history-section">
               <div class="section-header">
                 <h2>{{ slot.icon }} {{ slot.title }}</h2>
                 <span class="count-badge">{{ slot.list.pagination.total }} 条</span>
@@ -68,18 +68,18 @@
                     danger
                     size="small"
                     class="delete-btn"
-                    @click.stop="handleDelete('virtual-try-on', item.id)"
                     :loading="deletingIds.has(`vto-${item.id}`)"
+                    @click.stop="handleDelete('virtual-try-on', item.id)"
                   >
                     🗑️
                   </a-button>
                   <div
                     class="card-body"
-                    @click="openVirtualTryOnDetail(item)"
                     :data-item-id="item.id"
+                    @click="openVirtualTryOnDetail(item)"
                   >
                     <div class="card-main">
-                      <div class="thumb" v-if="getImageUrl(item)">
+                      <div v-if="getImageUrl(item)" class="thumb">
                         <a-image
                           :src="getImageUrl(item)!"
                           alt="预览"
@@ -98,13 +98,13 @@
                         <div class="meta-title">
                           风格：<span class="highlight">{{ getStyleName(item.style) }}</span>
                         </div>
-                        <div class="meta-row" v-if="item.preferences">
+                        <div v-if="item.preferences" class="meta-row">
                           <span class="preferences-label">个性化偏好：</span>
                           <span class="preferences-value">{{
                             formatPreferences(item.preferences)
                           }}</span>
                         </div>
-                        <div class="meta-row" v-else>
+                        <div v-else class="meta-row">
                           <span class="preferences-label">个性化偏好：</span>
                           <span class="preferences-value">无</span>
                         </div>
@@ -125,15 +125,15 @@
                   :current="slot.list.pagination.page"
                   :page-size="slot.list.pagination.pageSize"
                   :total="slot.list.pagination.total"
-                  @change="(page, pageSize) => handlePageChangeVto(slot.role, page, pageSize)"
                   :show-size-changer="true"
                   :page-size-options="['5', '10', '20']"
+                  @change="(page, pageSize) => handlePageChangeVto(slot.role, page, pageSize)"
                 />
               </div>
             </section>
           </template>
 
-          <section class="history-section" v-if="makeupTryOn.items.length">
+          <section v-if="makeupTryOn.items.length" class="history-section">
             <div class="section-header">
               <h2>💄 一键试妆历史</h2>
               <span class="count-badge">{{ makeupTryOn.pagination.total }} 条</span>
@@ -146,18 +146,18 @@
                   danger
                   size="small"
                   class="delete-btn"
-                  @click.stop="handleDelete('virtual-try-on', item.id)"
                   :loading="deletingIds.has(`vto-${item.id}`)"
+                  @click.stop="handleDelete('virtual-try-on', item.id)"
                 >
                   🗑️
                 </a-button>
                 <div
                   class="card-body"
-                  @click="openVirtualTryOnDetail(item)"
                   :data-item-id="item.id"
+                  @click="openVirtualTryOnDetail(item)"
                 >
                   <div class="card-main">
-                    <div class="thumb" v-if="getImageUrl(item)">
+                    <div v-if="getImageUrl(item)" class="thumb">
                       <a-image
                         :src="getImageUrl(item)!"
                         alt="预览"
@@ -173,13 +173,13 @@
                       <div class="meta-title">
                         风格：<span class="highlight">{{ getStyleName(item.style) }}</span>
                       </div>
-                      <div class="meta-row" v-if="item.preferences">
+                      <div v-if="item.preferences" class="meta-row">
                         <span class="preferences-label">试妆偏好：</span>
                         <span class="preferences-value">{{
                           formatPreferences(item.preferences)
                         }}</span>
                       </div>
-                      <div class="meta-row" v-else>
+                      <div v-else class="meta-row">
                         <span class="preferences-label">试妆偏好：</span>
                         <span class="preferences-value">无</span>
                       </div>
@@ -200,14 +200,14 @@
                 :current="makeupTryOn.pagination.page"
                 :page-size="makeupTryOn.pagination.pageSize"
                 :total="makeupTryOn.pagination.total"
-                @change="(page, pageSize) => handlePageChange('makeup-try-on', page, pageSize)"
                 :show-size-changer="true"
                 :page-size-options="['5', '10', '20']"
+                @change="(page, pageSize) => handlePageChange('makeup-try-on', page, pageSize)"
               />
             </div>
           </section>
 
-          <section class="history-section" v-if="styleRecommendation.items.length">
+          <section v-if="styleRecommendation.items.length" class="history-section">
             <div class="section-header">
               <h2>🎨 风格推荐历史</h2>
               <span class="count-badge">{{ styleRecommendation.pagination.total }} 条</span>
@@ -224,8 +224,8 @@
                   danger
                   size="small"
                   class="delete-btn"
-                  @click.stop="handleDelete('style-recommendation', item.id)"
                   :loading="deletingIds.has(`sr-${item.id}`)"
+                  @click.stop="handleDelete('style-recommendation', item.id)"
                 >
                   🗑️
                 </a-button>
@@ -267,16 +267,16 @@
                 :current="styleRecommendation.pagination.page"
                 :page-size="styleRecommendation.pagination.pageSize"
                 :total="styleRecommendation.pagination.total"
+                :show-size-changer="true"
+                :page-size-options="['5', '10', '20']"
                 @change="
                   (page, pageSize) => handlePageChange('style-recommendation', page, pageSize)
                 "
-                :show-size-changer="true"
-                :page-size-options="['5', '10', '20']"
               />
             </div>
           </section>
 
-          <section class="history-section" v-if="itineraryPlanning.items.length">
+          <section v-if="itineraryPlanning.items.length" class="history-section">
             <div class="section-header">
               <h2>📍 行程规划历史</h2>
               <span class="count-badge">{{ itineraryPlanning.pagination.total }} 条</span>
@@ -293,8 +293,8 @@
                   danger
                   size="small"
                   class="delete-btn"
-                  @click.stop="handleDelete('itinerary-planning', item.id)"
                   :loading="deletingIds.has(`ip-${item.id}`)"
+                  @click.stop="handleDelete('itinerary-planning', item.id)"
                 >
                   🗑️
                 </a-button>
@@ -329,9 +329,9 @@
                 :current="itineraryPlanning.pagination.page"
                 :page-size="itineraryPlanning.pagination.pageSize"
                 :total="itineraryPlanning.pagination.total"
-                @change="(page, pageSize) => handlePageChange('itinerary-planning', page, pageSize)"
                 :show-size-changer="true"
                 :page-size-options="['5', '10', '20']"
+                @change="(page, pageSize) => handlePageChange('itinerary-planning', page, pageSize)"
               />
             </div>
           </section>
@@ -339,7 +339,7 @@
 
         <!-- 单一类型：复用对应 section -->
         <template v-else>
-          <section class="history-section" v-if="showSingleTypeSection">
+          <section v-if="showSingleTypeSection" class="history-section">
             <div class="section-header">
               <h2>{{ currentTitle }}</h2>
               <span class="count-badge">{{ currentList.pagination.total }} 条</span>
@@ -361,8 +361,8 @@
             </div>
 
             <div
-              class="card-grid"
               v-if="activeTab === 'virtual-try-on' && currentList.items.length"
+              class="card-grid"
             >
               <div
                 v-for="item in currentList.items"
@@ -375,18 +375,18 @@
                   danger
                   size="small"
                   class="delete-btn"
-                  @click.stop="handleDelete('virtual-try-on', item.id)"
                   :loading="deletingIds.has(`vto-${item.id}`)"
+                  @click.stop="handleDelete('virtual-try-on', item.id)"
                 >
                   🗑️
                 </a-button>
                 <div
                   class="card-body"
-                  @click="openVirtualTryOnDetail(item)"
                   :data-item-id="item.id"
+                  @click="openVirtualTryOnDetail(item)"
                 >
                   <div class="card-main">
-                    <div class="thumb" v-if="getImageUrl(item)">
+                    <div v-if="getImageUrl(item)" class="thumb">
                       <a-image
                         :src="getImageUrl(item)!"
                         alt="预览"
@@ -405,13 +405,13 @@
                       <div class="meta-title">
                         风格：<span class="highlight">{{ getStyleName(item.style) }}</span>
                       </div>
-                      <div class="meta-row" v-if="item.preferences">
+                      <div v-if="item.preferences" class="meta-row">
                         <span class="preferences-label">个性化偏好：</span>
                         <span class="preferences-value">{{
                           formatPreferences(item.preferences)
                         }}</span>
                       </div>
-                      <div class="meta-row" v-else>
+                      <div v-else class="meta-row">
                         <span class="preferences-label">个性化偏好：</span>
                         <span class="preferences-value">无</span>
                       </div>
@@ -427,7 +427,7 @@
               </div>
             </div>
 
-            <div class="card-grid" v-else-if="activeTab === 'makeup-try-on'">
+            <div v-else-if="activeTab === 'makeup-try-on'" class="card-grid">
               <div
                 v-for="item in currentList.items"
                 :key="`mto-single-${item.id}`"
@@ -439,18 +439,18 @@
                   danger
                   size="small"
                   class="delete-btn"
-                  @click.stop="handleDelete('virtual-try-on', item.id)"
                   :loading="deletingIds.has(`vto-${item.id}`)"
+                  @click.stop="handleDelete('virtual-try-on', item.id)"
                 >
                   🗑️
                 </a-button>
                 <div
                   class="card-body"
-                  @click="openVirtualTryOnDetail(item)"
                   :data-item-id="item.id"
+                  @click="openVirtualTryOnDetail(item)"
                 >
                   <div class="card-main">
-                    <div class="thumb" v-if="getImageUrl(item)">
+                    <div v-if="getImageUrl(item)" class="thumb">
                       <a-image
                         :src="getImageUrl(item)!"
                         alt="预览"
@@ -466,13 +466,13 @@
                       <div class="meta-title">
                         风格：<span class="highlight">{{ getStyleName(item.style) }}</span>
                       </div>
-                      <div class="meta-row" v-if="item.preferences">
+                      <div v-if="item.preferences" class="meta-row">
                         <span class="preferences-label">试妆偏好：</span>
                         <span class="preferences-value">{{
                           formatPreferences(item.preferences)
                         }}</span>
                       </div>
-                      <div class="meta-row" v-else>
+                      <div v-else class="meta-row">
                         <span class="preferences-label">试妆偏好：</span>
                         <span class="preferences-value">无</span>
                       </div>
@@ -486,7 +486,7 @@
               </div>
             </div>
 
-            <div class="card-grid" v-else-if="activeTab === 'style-recommendation'">
+            <div v-else-if="activeTab === 'style-recommendation'" class="card-grid">
               <div
                 v-for="item in currentList.items"
                 :key="`sr-single-${item.id}`"
@@ -498,8 +498,8 @@
                   danger
                   size="small"
                   class="delete-btn"
-                  @click.stop="handleDelete('style-recommendation', item.id)"
                   :loading="deletingIds.has(`sr-single-${item.id}`)"
+                  @click.stop="handleDelete('style-recommendation', item.id)"
                 >
                   🗑️
                 </a-button>
@@ -536,7 +536,7 @@
               </div>
             </div>
 
-            <div class="card-grid" v-else-if="activeTab === 'itinerary-planning'">
+            <div v-else-if="activeTab === 'itinerary-planning'" class="card-grid">
               <div
                 v-for="item in currentList.items"
                 :key="`ip-single-${item.id}`"
@@ -548,8 +548,8 @@
                   danger
                   size="small"
                   class="delete-btn"
-                  @click.stop="handleDelete('itinerary-planning', item.id)"
                   :loading="deletingIds.has(`ip-single-${item.id}`)"
+                  @click.stop="handleDelete('itinerary-planning', item.id)"
                 >
                   🗑️
                 </a-button>
@@ -579,15 +579,15 @@
               </div>
             </div>
 
-            <div class="section-pagination" v-if="currentList.pagination.total > 0">
+            <div v-if="currentList.pagination.total > 0" class="section-pagination">
               <a-pagination
                 size="small"
                 :current="currentList.pagination.page"
                 :page-size="currentList.pagination.pageSize"
                 :total="currentList.pagination.total"
-                @change="(page, pageSize) => handlePageChange(activeTab as any, page, pageSize)"
                 :show-size-changer="true"
                 :page-size-options="['5', '10', '20']"
+                @change="(page, pageSize) => handlePageChange(activeTab as any, page, pageSize)"
               />
             </div>
           </section>
@@ -1747,24 +1747,29 @@ onMounted(() => {
 <style scoped lang="less">
 .ai-history-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  padding: 0 0 40px;
+  background: linear-gradient(180deg, #fff5f7 0%, #ffffff 32%);
+  padding: 0 80px 40px;
+
+  @media (max-width: 768px) {
+    padding: 0 36px 32px;
+  }
 }
 
 .page-header {
   text-align: center;
-  margin-bottom: 30px;
-  color: white;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  padding-top: 28px;
+  margin-bottom: 28px;
+  color: #334155;
+  text-shadow: none;
 
   h1 {
-    font-size: 2.3rem;
+    font-size: 2.1rem;
     font-weight: 700;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
   }
 
   p {
-    font-size: 1rem;
+    font-size: 1.05rem;
     opacity: 0.9;
   }
 }

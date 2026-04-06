@@ -41,6 +41,14 @@ export class PackagesController {
     return this.packagesService.recommendForUser(req.user.id, 6);
   }
 
+  @Get('hot-destinations')
+  @ApiOperation({
+    summary: '首页热门旅拍目的地（综合浏览/收藏/下单加权，无需登录）',
+  })
+  getHotDestinations() {
+    return this.packagesService.getHotDestinations(8);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: '套餐详情（用户端，仅已上架）' })
   findOne(@Param('id', ParseIntPipe) id: number) {

@@ -61,6 +61,17 @@ export interface PackageRecommendationResponse {
   locations: string[];
 }
 
+/** 首页热门目的地卡片（与 Dashboard 热门旅拍目的地一致） */
+export interface HotDestinationItem {
+  name: string;
+  tag: string;
+  image: string;
+}
+
+export interface HotDestinationsResponse {
+  items: HotDestinationItem[];
+}
+
 export type CreatePackageBody = {
   spotId?: number | null;
   location?: string;
@@ -92,6 +103,12 @@ export const packagesApi = {
   getRecommendations: (): Promise<PackageRecommendationResponse> =>
     httpClient
       .get<PackageRecommendationResponse>('/packages/recommendations')
+      .then((res) => unwrap(res)),
+
+  /** 首页热门目的地（综合浏览/收藏/下单，无需登录） */
+  getHotDestinations: (): Promise<HotDestinationsResponse> =>
+    httpClient
+      .get<HotDestinationsResponse>('/packages/hot-destinations')
       .then((res) => unwrap(res)),
 
   /** 管理端 */

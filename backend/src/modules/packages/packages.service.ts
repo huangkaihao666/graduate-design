@@ -242,6 +242,175 @@ export class PackagesService {
     return { items, locations };
   }
 
+  /**
+   * 首页「热门旅拍目的地」：综合全站套餐浏览、收藏、订单（支付状态加权），
+   * 与协同推荐中的隐式反馈权重口径一致（收藏 3、未支付单 4、已支付/完成 6）。
+   * 行为数据不足时回退为已上架套餐的城市（按热门/爆款标记）。
+   */
+  async getHotDestinations(limit = 8) {
+    type HotItem = { name: string; tag: string; image: string };
+    const safeLimit = Math.min(Math.max(Number(limit) || 8, 4), 20);
+
+    const packages = await this.prisma.travelPackage.findMany({
+      where: { status: 'published' },
+      select: {
+        id: true,
+        location: true,
+        coverImage: true,
+        isPopular: true,
+        isHot: true,
+      },
+      orderBy: { id: 'asc' },
+    });
+
+    if (!packages.length) {
+      return { items: [] as HotItem[] };
+    }
+
+    const publishedIds = new Set(packages.map((p) => p.id));
+    const pkgToLoc = new Map(
+      packages.map((p) => [p.id, String(p.location || '').trim()]),
+    );
+
+    const locationScore = new Map<string, number>();
+    const add = (loc: string, w: number) => {
+      const k = String(loc || '').trim();
+      if (!k || w <= 0) return;
+      locationScore.set(k, (locationScore.get(k) || 0) + w);
+    };
+
+    const W_BROWSE = 1;
+    const W_FAV = 3;
+
+    const [browseAgg, favAgg, orders] = await Promise.all([
+      this.prisma.packageBrowseLog.groupBy({
+        by: ['packageId'],
+        _count: { _all: true },
+      }),
+      this.prisma.favorite.groupBy({
+        by: ['packageId'],
+        _count: { _all: true },
+      }),
+      this.prisma.bookingOrder.findMany({
+        select: { location: true, paymentStatus: true },
+      }),
+    ]);
+
+    for (const row of browseAgg) {
+      if (!publishedIds.has(row.packageId)) continue;
+      const loc = pkgToLoc.get(row.packageId);
+      if (!loc) continue;
+      add(loc, W_BROWSE * row._count._all);
+    }
+
+    for (const row of favAgg) {
+      if (!publishedIds.has(row.packageId)) continue;
+      const loc = pkgToLoc.get(row.packageId);
+      if (!loc) continue;
+      add(loc, W_FAV * row._count._all);
+    }
+
+    for (const o of orders) {
+      const st = String(o.paymentStatus || '').toLowerCase();
+      if (st === 'cancelled') continue;
+      const w =
+        st === 'paid' || st === 'completed'
+          ? 6
+          : st === 'offline_pending'
+            ? 4
+            : 4;
+      add(o.location, w);
+    }
+
+    let ranked = [...locationScore.entries()].filter(([, s]) => s > 0);
+    ranked.sort((a, b) => b[1] - a[1]);
+
+    if (ranked.length === 0) {
+      const locBest = new Map<string, number>();
+      for (const p of packages) {
+        const loc = String(p.location || '').trim();
+        if (!loc) continue;
+        const sc = (p.isPopular ? 2 : 0) + (p.isHot ? 1 : 0);
+        locBest.set(loc, Math.max(locBest.get(loc) || 0, sc));
+      }
+      ranked = [...locBest.entries()].sort((a, b) => b[1] - a[1]);
+    }
+
+    const fallbackImages = [
+      'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1200&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1519817650390-64a93db51149?q=80&w=1200&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1470219556762-1771e7f9427d?q=80&w=1200&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1549144511-f099e773c147?q=80&w=1200&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1493558103817-58b2924bce98?q=80&w=1200&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1520854221256-17451cc331bf?q=80&w=1200&auto=format&fit=crop',
+    ];
+
+    const hashPick = (s: string) => {
+      let h = 0;
+      for (let i = 0; i < s.length; i += 1) {
+        h = (h + s.charCodeAt(i)) % fallbackImages.length;
+      }
+      return fallbackImages[h] || fallbackImages[0];
+    };
+
+    const bestCoverForLocation = (loc: string): string => {
+      const candidates = packages
+        .filter(
+          (p) =>
+            String(p.location || '').trim() === loc &&
+            String(p.coverImage || '').trim(),
+        )
+        .sort((a, b) => {
+          const sa = (a.isPopular ? 2 : 0) + (a.isHot ? 1 : 0);
+          const sb = (b.isPopular ? 2 : 0) + (b.isHot ? 1 : 0);
+          if (sb !== sa) return sb - sa;
+          return a.id - b.id;
+        });
+      const url = candidates[0]?.coverImage;
+      return url ? String(url) : '';
+    };
+
+    const topLocs: string[] = [];
+    const used = new Set<string>();
+    for (const [loc] of ranked) {
+      if (topLocs.length >= safeLimit) break;
+      if (!loc || used.has(loc)) continue;
+      used.add(loc);
+      topLocs.push(loc);
+    }
+
+    if (topLocs.length < safeLimit) {
+      const rest = [
+        ...new Set(
+          packages.map((p) => String(p.location || '').trim()).filter(Boolean),
+        ),
+      ]
+        .filter((loc) => !used.has(loc))
+        .sort((a, b) => {
+          const scoreLoc = (loc: string) =>
+            Math.max(
+              ...packages
+                .filter((p) => String(p.location || '').trim() === loc)
+                .map((p) => (p.isPopular ? 2 : 0) + (p.isHot ? 1 : 0)),
+              0,
+            );
+          return scoreLoc(b) - scoreLoc(a);
+        });
+      for (const loc of rest) {
+        if (topLocs.length >= safeLimit) break;
+        topLocs.push(loc);
+      }
+    }
+
+    const items: HotItem[] = topLocs.map((name, idx) => ({
+      name,
+      tag: idx < 3 ? '热门' : '推荐',
+      image: bestCoverForLocation(name) || hashPick(name),
+    }));
+
+    return { items };
+  }
+
   /** 管理端：全部套餐 */
   async findAllAdmin() {
     const rows = await this.prisma.travelPackage.findMany({

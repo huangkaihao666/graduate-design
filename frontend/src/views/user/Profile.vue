@@ -32,11 +32,11 @@
       <!-- 基本信息 -->
       <div v-if="activeTab === 'info'" class="profile-content">
         <a-form
+          ref="profileFormRef"
           :model="profileForm"
           :rules="profileRules"
           :label-col="{ span: 6 }"
           :wrapper-col="{ span: 16 }"
-          ref="profileFormRef"
           @finish="handleUpdateProfile"
         >
           <a-form-item label="用户ID" name="id">
@@ -85,11 +85,11 @@
       <!-- 修改密码 -->
       <div v-if="activeTab === 'password'" class="profile-content">
         <a-form
+          ref="passwordFormRef"
           :model="passwordForm"
           :rules="passwordRules"
           :label-col="{ span: 6 }"
           :wrapper-col="{ span: 16 }"
-          ref="passwordFormRef"
           @finish="handleUpdatePassword"
         >
           <a-form-item label="当前密码" name="currentPassword">
@@ -429,18 +429,18 @@ onMounted(() => {
 .page-header {
   text-align: center;
   padding-top: 28px;
-  margin-bottom: 30px;
+  margin-bottom: 22px;
   color: #334155;
   text-shadow: none;
 
   h1 {
-    font-size: 2.3rem;
+    font-size: 2.1rem;
     font-weight: 700;
     margin-bottom: 8px;
   }
 
   p {
-    font-size: 1rem;
+    font-size: 1.05rem;
     opacity: 0.9;
     margin-top: 10px;
   }
