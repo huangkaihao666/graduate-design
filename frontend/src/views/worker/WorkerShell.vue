@@ -62,6 +62,9 @@
                 <a-menu-item v-if="!isMakeupWorker" key="worker-custom-market">
                   <router-link to="/worker/custom-market">定制需求广场</router-link>
                 </a-menu-item>
+                <a-menu-item key="worker-help-chat">
+                  <router-link to="/worker/help-chat">智能客服</router-link>
+                </a-menu-item>
                 <a-menu-item key="worker-profile">
                   <router-link to="/worker/profile">个人中心</router-link>
                 </a-menu-item>
@@ -199,6 +202,7 @@ const sideItems = computed(() => [
   { label: '作品相册', to: '/worker/portfolio', icon: '🖼️' },
   { label: '消息中心', to: '/worker/messages', icon: '💬' },
   ...(isMakeupWorker.value ? [{ label: '妆容建议', to: '/worker/makeup-ai', icon: '💄' }] : []),
+  { label: '智能客服', to: '/worker/help-chat', icon: '🤖' },
   { label: '个人中心', to: '/worker/profile', icon: '👤' },
 ]);
 
@@ -210,6 +214,7 @@ const topTabs = computed(() => [
   { label: '作品管理', to: '/worker/portfolio' },
   { label: '消息中心', to: '/worker/messages' },
   ...(isMakeupWorker.value ? [{ label: '妆容建议', to: '/worker/makeup-ai' }] : []),
+  { label: '智能客服', to: '/worker/help-chat' },
   { label: '个人中心', to: '/worker/profile' },
 ]);
 

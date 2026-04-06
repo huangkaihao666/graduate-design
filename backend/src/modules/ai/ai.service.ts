@@ -170,6 +170,129 @@ export interface CustomerSupportRequest {
   history?: CustomerSupportMessage[];
 }
 
+/** 智能客服对话角色（由登录用户邮箱 + workerKind 等解析） */
+export type CustomerSupportPersona =
+  | 'guest'
+  | 'end_user'
+  | 'end_user_demo'
+  | 'photographer'
+  | 'makeup_artist'
+  | 'worker_generic'
+  | 'admin';
+
+function normalizeSupportEmail(email?: string | null): string {
+  return String(email ?? '')
+    .trim()
+    .toLowerCase();
+}
+
+/** 演示/内置账号与角色映射（与库内 workerKind 互补） */
+const DEMO_PHOTOGRAPHER_EMAILS = new Set([
+  'lin@qq.com',
+  'zhang@qq.com',
+  'chen@qq.com',
+]);
+const DEMO_MAKEUP_EMAILS = new Set(['hzs@qq.com', 'zhou@qq.com', 'yan@qq.com']);
+const DEMO_CUSTOMER_EMAIL = '3320704979@qq.com';
+
+export function resolveCustomerSupportPersona(
+  user:
+    | {
+        email?: string | null;
+        role?: string | null;
+        workerKind?: string | null;
+      }
+    | null
+    | undefined,
+): CustomerSupportPersona {
+  if (!user) return 'guest';
+  const email = normalizeSupportEmail(user.email);
+  const role = String(user.role || '').toLowerCase();
+  const workerKind = String(user.workerKind || '')
+    .trim()
+    .toLowerCase();
+
+  if (role === 'admin') return 'admin';
+
+  if (role === 'worker') {
+    if (DEMO_PHOTOGRAPHER_EMAILS.has(email)) return 'photographer';
+    if (DEMO_MAKEUP_EMAILS.has(email)) return 'makeup_artist';
+    if (workerKind === 'photographer') return 'photographer';
+    if (workerKind === 'makeup') return 'makeup_artist';
+    return 'worker_generic';
+  }
+
+  if (role === 'user') {
+    if (email === DEMO_CUSTOMER_EMAIL) return 'end_user_demo';
+    return 'end_user';
+  }
+
+  return 'guest';
+}
+
+function buildCustomerSupportSystemPrompt(
+  persona: CustomerSupportPersona,
+): string {
+  const commonRules = `
+回答要求：
+1. 若问题信息不足，请先提出 1-2 个澄清问题，不要编造不存在的规则。
+2. 回答要简洁、可执行，可用分点形式。
+3. 若涉及退款、账号异常等需人工介入的问题，请明确建议联系人工客服并说明需准备的信息（订单号、手机号、截图等）。
+`.trim();
+
+  const guestOrUserBase = `
+你是「旅拍·智享」平台的智能客服助手，请使用中文回答。
+
+服务对象：未登录访客或平台终端用户（消费者）。
+优先解答：套餐浏览、下单预约、支付、订单、收藏、AI 功能（风格推荐、行程规划、试妆等）、账号与登录。
+`.trim();
+
+  switch (persona) {
+    case 'guest':
+      return `${guestOrUserBase}\n${commonRules}`.trim();
+    case 'end_user':
+      return `${guestOrUserBase}\n当前对话对象为已登录的终端用户，可按「我的订单/我的收藏」等消费者场景举例说明。\n${commonRules}`.trim();
+    case 'end_user_demo':
+      return `${guestOrUserBase}\n【重要】当前登录邮箱为演示用消费者账号（3320704979@qq.com），回答时默认对方是终端用户，举例与指引以消费者侧操作为主。\n${commonRules}`.trim();
+    case 'photographer':
+      return `
+你是「旅拍·智享」平台的工作人员侧智能助手，请使用中文回答。
+
+【当前用户角色】摄影师（工作台账号；演示邮箱含 lin@qq.com、zhang@qq.com、chen@qq.com 等均按摄影师上下文理解）。
+
+请优先围绕摄影师工作流解答：接单与订单状态、档期与休息日、作品/相册管理、定制需求广场、消息中心、与个人中心相关的档案/审核/固定合作妆造师绑定与解除等。
+不要按「我要下单买套餐」的消费者口吻回答，除非用户明确在替客户咨询。
+${commonRules}
+`.trim();
+    case 'makeup_artist':
+      return `
+你是「旅拍·智享」平台的工作人员侧智能助手，请使用中文回答。
+
+【当前用户角色】妆造师（工作台账号；演示邮箱含 hzs@qq.com、zhou@qq.com、yan@qq.com 等均按妆造师上下文理解）。
+
+请优先围绕妆造师工作流解答：订单与妆造任务、合作邀请与固定合作摄影师、个人中心资料与审核、「妆容建议」类 AI 功能使用说明、消息通知等。
+不要默认对方是下单消费者，除非用户明确在替客户咨询。
+${commonRules}
+`.trim();
+    case 'worker_generic':
+      return `
+你是「旅拍·智享」平台的工作人员侧智能助手，请使用中文回答。
+
+【当前用户角色】平台工作人员（摄影师/妆造师子类型未明确或需通用说明时）。请兼顾摄影师与妆造师两侧常见操作：订单、档期、作品、消息、个人中心与合作绑定等，必要时可先问清对方是摄影还是妆造岗位。
+${commonRules}
+`.trim();
+    case 'admin':
+      return `
+你是「旅拍·智享」平台的智能助手，请使用中文回答。
+
+【当前用户角色】管理员或运营侧。可涉及后台管理、内容维护、用户与订单排查思路等；涉及敏感操作时请说明权限与审计要求，避免编造具体后台菜单路径。
+${commonRules}
+`.trim();
+    default:
+      return `${guestOrUserBase}\n${commonRules}`.trim();
+  }
+}
+
 /** 管理端：景点介绍 AI 草稿（DeepSeek）；配图由后台调用图库 API 检索并下载为 data URL */
 export interface SpotDraftRequest {
   cityName: string;
@@ -2051,9 +2174,12 @@ ${listStyles}
   }
 
   /**
-   * 智能客服问答 - 面向平台用户的帮助咨询
+   * 智能客服问答：根据登录用户解析角色（摄影师/妆造师/消费者等），注入对应系统提示词
    */
-  async customerSupport(request: CustomerSupportRequest): Promise<{
+  async customerSupport(
+    request: CustomerSupportRequest,
+    actor?: { user?: any } | null,
+  ): Promise<{
     answer: string;
   }> {
     const cleanQuestion = request.question?.trim();
@@ -2069,15 +2195,8 @@ ${listStyles}
         content: String(item.content).slice(0, 1000),
       }));
 
-    const systemPrompt = `
-你是“旅拍·智享”平台的智能客服助手，请使用中文回答用户问题。
-
-回答要求：
-1. 优先解答平台常见问题：套餐浏览、下单预约、支付、订单、收藏、AI 功能使用、账号与登录。
-2. 如果问题信息不足，请先提出 1-2 个澄清问题，不要编造不存在的规则。
-3. 回答要简洁、可执行，可用分点形式。
-4. 若涉及退款、账号异常等需要人工介入的问题，请明确建议联系人工客服并说明需准备的信息（订单号、手机号、问题截图等）。
-`.trim();
+    const persona = resolveCustomerSupportPersona(actor?.user);
+    const systemPrompt = buildCustomerSupportSystemPrompt(persona);
 
     const messages: Array<{
       role: 'system' | 'user' | 'assistant';

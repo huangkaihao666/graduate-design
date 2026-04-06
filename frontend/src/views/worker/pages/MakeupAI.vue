@@ -108,29 +108,49 @@
 
               <a-row :gutter="[14, 10]">
                 <a-col :xs="24" :md="12">
-                  <a-form-item label="拍摄主题/场景">
-                    <a-input
-                      v-model:value="adviceForm.shootTheme"
-                      placeholder="如：海边旅拍 / 室内棚拍 / 夕阳街拍"
-                    />
+                  <a-form-item label="拍摄主题/场景（可多选）">
+                    <a-select
+                      v-model:value="adviceForm.shootThemes"
+                      mode="multiple"
+                      allow-clear
+                      placeholder="如：海边旅拍、室内棚拍、夕阳街拍"
+                      @change="onShootThemesChange"
+                    >
+                      <a-select-option v-for="x in shootThemeOptions" :key="x" :value="x">{{
+                        x
+                      }}</a-select-option>
+                    </a-select>
                   </a-form-item>
                 </a-col>
                 <a-col :xs="24" :md="12">
-                  <a-form-item label="想要的风格关键词">
-                    <a-input
+                  <a-form-item label="想要的风格关键词（可多选）">
+                    <a-select
                       v-model:value="adviceForm.keywords"
-                      placeholder="如：清透、耐看、上镜、显幼态、氛围感"
-                    />
+                      mode="multiple"
+                      allow-clear
+                      placeholder="如：清透、耐看、上镜、氛围感"
+                      @change="onStyleKeywordsChange"
+                    >
+                      <a-select-option v-for="x in styleKeywordOptions" :key="x" :value="x">{{
+                        x
+                      }}</a-select-option>
+                    </a-select>
                   </a-form-item>
                 </a-col>
               </a-row>
 
-              <a-form-item label="其他补充（可选）" class="notes-field-item">
-                <a-textarea
+              <a-form-item label="其他补充（可选，可多选）" class="notes-field-item">
+                <a-select
                   v-model:value="adviceForm.notes"
-                  :rows="3"
-                  placeholder="如：易出油/痘痘肌；希望遮黑眼圈；对红唇接受度低等"
-                />
+                  mode="multiple"
+                  allow-clear
+                  placeholder="如：易出油、遮黑眼圈、对红唇接受度低等"
+                  @change="onExtraNotesChange"
+                >
+                  <a-select-option v-for="x in extraNoteOptions" :key="x" :value="x">{{
+                    x
+                  }}</a-select-option>
+                </a-select>
               </a-form-item>
 
               <div class="actions">
@@ -213,7 +233,9 @@
             <div class="history-row">
               <span class="history-time">{{ item.time }}</span>
               <a-space>
-                <a-button size="small" @click="viewHistoryDetail(item)">查看详情</a-button>
+                <a-button size="small" class="history-detail-btn" @click="viewHistoryDetail(item)"
+                  >查看详情</a-button
+                >
                 <a-button size="small" danger @click="removeHistory(item.id)">删除</a-button>
               </a-space>
             </div>
@@ -268,13 +290,27 @@
           </div>
           <div>
             <strong>拍摄主题/场景：</strong
-            >{{ currentHistoryDetail.adviceForm.shootTheme || '未填写' }}
+            >{{
+              currentHistoryDetail.adviceForm.shootThemes?.length
+                ? currentHistoryDetail.adviceForm.shootThemes.join('、')
+                : '未填写'
+            }}
           </div>
           <div>
-            <strong>风格关键词：</strong>{{ currentHistoryDetail.adviceForm.keywords || '未填写' }}
+            <strong>风格关键词：</strong
+            >{{
+              currentHistoryDetail.adviceForm.keywords?.length
+                ? currentHistoryDetail.adviceForm.keywords.join('、')
+                : '未填写'
+            }}
           </div>
           <div>
-            <strong>其他补充：</strong>{{ currentHistoryDetail.adviceForm.notes || '未填写' }}
+            <strong>其他补充：</strong
+            >{{
+              currentHistoryDetail.adviceForm.notes?.length
+                ? currentHistoryDetail.adviceForm.notes.join('；')
+                : '未填写'
+            }}
           </div>
         </div>
         <pre class="advice-pre detail-pre">{{ currentHistoryDetail.adviceText }}</pre>
@@ -459,6 +495,71 @@ const makeupStyleOptions = [
   '轻熟优雅',
 ];
 
+const shootThemeOptions = [
+  '海边旅拍',
+  '草坪婚礼/森系外景',
+  '室内棚拍（白底或简约布景）',
+  '城市街拍',
+  '古镇/园林（汉服或新中式）',
+  '教堂或酒店宴会厅婚礼',
+  '雪山/高原外景',
+  '夕阳/夜景氛围感',
+];
+
+const styleKeywordOptions = [
+  '清透自然',
+  '上镜立体',
+  '显气色',
+  '减龄幼态',
+  '氛围感',
+  '伪素颜',
+  '高级感',
+  '温柔知性',
+  '甜酷',
+  '复古红唇（可淡）',
+  '耐看不出错',
+];
+
+const extraNoteOptions = [
+  'T区易出油，需控油定妆',
+  '敏感肌，妆品尽量温和',
+  '希望重点遮黑眼圈',
+  '痘痘肌，遮瑕要自然不厚重',
+  '干皮易卡粉，妆前保湿加强',
+  '汗多易脱妆，需加强防脱',
+  '对浓睫、夸张眼线接受度低',
+  '对红唇接受度低，偏豆沙/奶茶色',
+  '戴眼镜，眉眼可适当加强',
+];
+
+function migrateShootThemesField(v: unknown): string[] {
+  if (Array.isArray(v)) return v.filter((x) => typeof x === 'string');
+  if (typeof v === 'string' && v.trim()) return [v.trim()];
+  return [];
+}
+
+function migrateKeywordsField(v: unknown): string[] {
+  if (Array.isArray(v)) return v.filter((x) => typeof x === 'string');
+  if (typeof v === 'string' && v.trim()) {
+    return v
+      .split(/[、，,]/g)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function migrateNotesField(v: unknown): string[] {
+  if (Array.isArray(v)) return v.filter((x) => typeof x === 'string');
+  if (typeof v === 'string' && v.trim()) {
+    return v
+      .split(/[；;]/g)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
 function onFeaturesChange(v: string[]) {
   adviceForm.features = v.slice(0, 8);
 }
@@ -479,10 +580,22 @@ const adviceForm = reactive({
   skinVisible: [] as string[],
   faceRatio: [] as string[],
   makeupStyles: [] as string[],
-  shootTheme: '',
-  keywords: '',
-  notes: '',
+  shootThemes: [] as string[],
+  keywords: [] as string[],
+  notes: [] as string[],
 });
+
+function onShootThemesChange(v: string[] | undefined) {
+  adviceForm.shootThemes = (v || []).slice(0, shootThemeOptions.length);
+}
+
+function onStyleKeywordsChange(v: string[] | undefined) {
+  adviceForm.keywords = (v || []).slice(0, styleKeywordOptions.length);
+}
+
+function onExtraNotesChange(v: string[] | undefined) {
+  adviceForm.notes = (v || []).slice(0, extraNoteOptions.length);
+}
 
 const adviceLoading = ref(false);
 const adviceText = ref('');
@@ -498,9 +611,9 @@ type AdviceHistoryItem = {
     skinVisible?: string[];
     faceRatio?: string[];
     makeupStyles?: string[];
-    shootTheme?: string;
-    keywords?: string;
-    notes?: string;
+    shootThemes?: string[];
+    keywords?: string[];
+    notes?: string[];
   };
 };
 const adviceHistory = ref<AdviceHistoryItem[]>([]);
@@ -518,9 +631,9 @@ const canGenerateAdvice = computed(() => {
     (Array.isArray(adviceForm.skinVisible) && adviceForm.skinVisible.length > 0) ||
     (Array.isArray(adviceForm.faceRatio) && adviceForm.faceRatio.length > 0) ||
     (Array.isArray(adviceForm.makeupStyles) && adviceForm.makeupStyles.length > 0) ||
-    String(adviceForm.shootTheme || '').trim() ||
-    String(adviceForm.keywords || '').trim() ||
-    String(adviceForm.notes || '').trim()
+    (Array.isArray(adviceForm.shootThemes) && adviceForm.shootThemes.length > 0) ||
+    (Array.isArray(adviceForm.keywords) && adviceForm.keywords.length > 0) ||
+    (Array.isArray(adviceForm.notes) && adviceForm.notes.length > 0)
   );
 });
 
@@ -545,9 +658,9 @@ function buildAdvicePrompt() {
   parts.push(`可见皮肤状态（非诊断）：${(adviceForm.skinVisible || []).join('、') || '未提供'}`);
   parts.push(`三庭五眼大致倾向：${(adviceForm.faceRatio || []).join('、') || '未提供'}`);
   parts.push(`适合妆容风格：${(adviceForm.makeupStyles || []).join('、') || '未提供'}`);
-  parts.push(`拍摄主题/场景：${adviceForm.shootTheme.trim() || '未提供'}`);
-  parts.push(`风格关键词：${adviceForm.keywords.trim() || '未提供'}`);
-  parts.push(`其他补充：${adviceForm.notes.trim() || '未提供'}`);
+  parts.push(`拍摄主题/场景：${(adviceForm.shootThemes || []).join('、') || '未提供'}`);
+  parts.push(`风格关键词：${(adviceForm.keywords || []).join('、') || '未提供'}`);
+  parts.push(`其他补充：${(adviceForm.notes || []).join('；') || '未提供'}`);
   parts.push('');
   parts.push('注意：不要输出与“无法判断”相关的废话；给出明确建议；尽量用条目/小标题。');
   return parts.join('\n');
@@ -588,9 +701,9 @@ async function generateAdvice() {
             makeupStyles: Array.isArray(adviceForm.makeupStyles)
               ? [...adviceForm.makeupStyles]
               : [],
-            shootTheme: adviceForm.shootTheme,
-            keywords: adviceForm.keywords,
-            notes: adviceForm.notes,
+            shootThemes: Array.isArray(adviceForm.shootThemes) ? [...adviceForm.shootThemes] : [],
+            keywords: Array.isArray(adviceForm.keywords) ? [...adviceForm.keywords] : [],
+            notes: Array.isArray(adviceForm.notes) ? [...adviceForm.notes] : [],
           },
         },
         ...adviceHistory.value,
@@ -615,9 +728,9 @@ function persistAdviceState() {
         skinVisible: Array.isArray(adviceForm.skinVisible) ? [...adviceForm.skinVisible] : [],
         faceRatio: Array.isArray(adviceForm.faceRatio) ? [...adviceForm.faceRatio] : [],
         makeupStyles: Array.isArray(adviceForm.makeupStyles) ? [...adviceForm.makeupStyles] : [],
-        shootTheme: adviceForm.shootTheme,
-        keywords: adviceForm.keywords,
-        notes: adviceForm.notes,
+        shootThemes: Array.isArray(adviceForm.shootThemes) ? [...adviceForm.shootThemes] : [],
+        keywords: Array.isArray(adviceForm.keywords) ? [...adviceForm.keywords] : [],
+        notes: Array.isArray(adviceForm.notes) ? [...adviceForm.notes] : [],
       },
       adviceText: adviceText.value,
       adviceHistory: adviceHistory.value,
@@ -641,26 +754,29 @@ function restoreAdviceState() {
         faceRatio?: string[];
         makeupStyles?: string[];
         shootTheme?: string;
-        keywords?: string;
-        notes?: string;
+        shootThemes?: string[];
+        keywords?: string | string[];
+        notes?: string | string[];
       };
       adviceText?: string;
       adviceHistory?: AdviceHistoryItem[];
     };
     const form = parsed.adviceForm || {};
+    const rawForm = form as Record<string, unknown>;
     adviceForm.faceShape = form.faceShape || undefined;
     adviceForm.skinTone = form.skinTone || undefined;
     adviceForm.features = Array.isArray(form.features) ? form.features : [];
     adviceForm.skinVisible = Array.isArray(form.skinVisible) ? form.skinVisible : [];
     adviceForm.faceRatio = Array.isArray(form.faceRatio) ? form.faceRatio : [];
     adviceForm.makeupStyles = Array.isArray(form.makeupStyles) ? form.makeupStyles : [];
-    adviceForm.shootTheme = form.shootTheme || '';
-    adviceForm.keywords = form.keywords || '';
-    adviceForm.notes = form.notes || '';
+    adviceForm.shootThemes = migrateShootThemesField(rawForm.shootThemes ?? rawForm.shootTheme);
+    adviceForm.keywords = migrateKeywordsField(rawForm.keywords);
+    adviceForm.notes = migrateNotesField(rawForm.notes);
     adviceText.value = parsed.adviceText || '';
     adviceHistory.value = Array.isArray(parsed.adviceHistory)
       ? parsed.adviceHistory.map((h) => {
           const f = h.adviceForm || {};
+          const snap = f as Record<string, unknown>;
           return {
             ...h,
             adviceForm: {
@@ -670,9 +786,9 @@ function restoreAdviceState() {
               skinVisible: Array.isArray(f.skinVisible) ? f.skinVisible : [],
               faceRatio: Array.isArray(f.faceRatio) ? f.faceRatio : [],
               makeupStyles: Array.isArray(f.makeupStyles) ? f.makeupStyles : [],
-              shootTheme: f.shootTheme ?? '',
-              keywords: f.keywords ?? '',
-              notes: f.notes ?? '',
+              shootThemes: migrateShootThemesField(snap.shootThemes ?? snap.shootTheme),
+              keywords: migrateKeywordsField(snap.keywords),
+              notes: migrateNotesField(snap.notes),
             },
           };
         })
@@ -689,10 +805,11 @@ function clearAdviceRecords() {
   adviceForm.skinVisible = [];
   adviceForm.faceRatio = [];
   adviceForm.makeupStyles = [];
-  adviceForm.shootTheme = '';
-  adviceForm.keywords = '';
-  adviceForm.notes = '';
+  adviceForm.shootThemes = [];
+  adviceForm.keywords = [];
+  adviceForm.notes = [];
   adviceText.value = '';
+  clearPhoto();
   // 仅清空当前输入与当前建议，历史记录保留
   persistAdviceState();
   message.success('已清空当前妆容建议');
@@ -732,7 +849,7 @@ watch(
     adviceForm.skinVisible,
     adviceForm.faceRatio,
     adviceForm.makeupStyles,
-    adviceForm.shootTheme,
+    adviceForm.shootThemes,
     adviceForm.keywords,
     adviceForm.notes,
     adviceText.value,
@@ -910,6 +1027,27 @@ watch(
   line-height: 1.5;
 }
 
+/* 表单内选择框/输入框：悬停与聚焦时粉色描边（替代主题蓝） */
+.form {
+  :deep(.ant-select:not(.ant-select-disabled):hover .ant-select-selector),
+  :deep(.ant-select-focused:not(.ant-select-disabled) .ant-select-selector),
+  :deep(.ant-select-open:not(.ant-select-disabled) .ant-select-selector) {
+    border-color: rgba(255, 107, 139, 0.78) !important;
+    box-shadow: none !important;
+  }
+
+  :deep(textarea.ant-input:hover:not(:disabled)),
+  :deep(textarea.ant-input:focus),
+  :deep(.ant-input:not(:disabled):hover),
+  :deep(.ant-input:focus),
+  :deep(.ant-input-focused:not(.ant-input-disabled)),
+  :deep(.ant-input-affix-wrapper:not(.ant-input-affix-wrapper-disabled):hover),
+  :deep(.ant-input-affix-wrapper-focused) {
+    border-color: rgba(255, 107, 139, 0.78) !important;
+    box-shadow: none !important;
+  }
+}
+
 .pill {
   border-radius: 999px;
   background: var(--pink);
@@ -1029,6 +1167,27 @@ watch(
   color: #475569;
   font-size: 13px;
   line-height: 1.6;
+}
+
+.history-list :deep(.history-detail-btn.ant-btn-default) {
+  border-color: rgba(255, 107, 139, 0.42);
+  color: #d6336c;
+  background: #fff;
+  box-shadow: none;
+}
+
+.history-list :deep(.history-detail-btn.ant-btn-default:hover),
+.history-list :deep(.history-detail-btn.ant-btn-default:focus) {
+  border-color: rgba(240, 84, 123, 0.85) !important;
+  color: #be185d !important;
+  background: rgba(255, 107, 139, 0.06) !important;
+  box-shadow: none !important;
+}
+
+.history-list :deep(.history-detail-btn.ant-btn-default:active) {
+  border-color: #e23f67 !important;
+  color: #9d174d !important;
+  background: rgba(255, 107, 139, 0.1) !important;
 }
 
 .detail-wrap {

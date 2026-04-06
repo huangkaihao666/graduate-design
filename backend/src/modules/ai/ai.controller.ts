@@ -16,6 +16,7 @@ import {
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { AdminOrJwtAuthGuard } from '../auth/admin-or-jwt-auth.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import type {
   CustomerSupportRequest,
   ItineraryPlanningRequest,
@@ -202,15 +203,18 @@ export class AiController {
   }
 
   /**
-   * 帮助中心智能客服问答
+   * 帮助中心 / 工作人员智能客服问答（可选登录：有 JWT 时按账号角色注入系统提示词）
    */
+  @UseGuards(OptionalJwtAuthGuard)
   @Post('customer-support')
   async customerSupport(
     @Body() request: CustomerSupportRequest,
     @Req() req: any,
   ) {
     try {
-      const result = await this.aiService.customerSupport(request);
+      const result = await this.aiService.customerSupport(request, {
+        user: req.user,
+      });
       const userId = req.user?.sub ? parseInt(req.user.sub, 10) : undefined;
 
       return {

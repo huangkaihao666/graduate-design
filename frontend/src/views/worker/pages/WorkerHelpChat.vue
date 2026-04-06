@@ -1,16 +1,16 @@
 <template>
-  <div class="help-center-page">
+  <div class="worker-help-chat-page">
     <div class="help-layout">
       <div class="chat-card">
         <div ref="messagesRef" class="chat-messages">
           <div v-if="messages.length === 0" class="empty-state">
             <div class="empty-icon">🤖</div>
-            <div class="empty-title">你好，我是智能客服</div>
+            <div class="empty-title">你好，我是工作台智能助手</div>
             <div class="empty-tips">
               你可以这样问我：<br />
-              - 如何下单预约？<br />
-              - 支付失败怎么办？<br />
-              - AI 风格推荐怎么用？
+              - 接单后在哪里看订单详情？<br />
+              - 固定合作妆造师怎么发起或解除？<br />
+              - 档期/休息日在哪里设置？
             </div>
           </div>
 
@@ -34,7 +34,7 @@
           <a-input
             v-model:value="question"
             size="large"
-            placeholder="请输入你的问题，例如：我想预约套餐，下一步怎么做？"
+            placeholder="请输入你的问题，例如：摄影师审核未通过要在哪里修改资料？"
             :maxlength="400"
             @press-enter="handleSend"
           />
@@ -87,7 +87,7 @@
           <div class="quick-questions-label">常见快捷问题</div>
           <div class="quick-questions-chips">
             <button
-              v-for="q in userQuickQuestions"
+              v-for="q in workerQuickQuestions"
               :key="q"
               type="button"
               class="quick-q-btn"
@@ -217,15 +217,6 @@ import { useAuthStore } from '@/store/auth';
 import { message, Modal } from 'ant-design-vue';
 import { computed, nextTick, onMounted, ref } from 'vue';
 
-/** 终端用户（帮助中心）常见快捷问题 */
-const userQuickQuestions = [
-  '如何浏览套餐并完成下单预约？',
-  '支付失败或订单里没有记录怎么办？',
-  'AI 风格推荐和智能行程规划在哪里用？',
-  '怎么查看我的订单状态和退款说明？',
-  '虚拟试妆或试拍从哪里进入？',
-];
-
 interface HistoryItem {
   id: number;
   question: string;
@@ -260,6 +251,47 @@ const editTitleModalVisible = ref(false);
 const editTitleValue = ref('');
 const editingItemId = ref<number | null>(null);
 const editTitleSaving = ref(false);
+
+/** 与后端演示账号映射一致，用于快捷问题文案分流 */
+const DEMO_PHOTO_EMAILS = new Set(['lin@qq.com', 'zhang@qq.com', 'chen@qq.com']);
+const DEMO_MAKEUP_EMAILS = new Set(['hzs@qq.com', 'zhou@qq.com', 'yan@qq.com']);
+
+const workerQuickQuestions = computed(() => {
+  const email = String(authStore.user?.email || '')
+    .trim()
+    .toLowerCase();
+  const k = String(authStore.user?.workerKind || '')
+    .trim()
+    .toLowerCase();
+  const isPhoto = DEMO_PHOTO_EMAILS.has(email) || k === 'photographer';
+  const isMakeup = DEMO_MAKEUP_EMAILS.has(email) || k === 'makeup';
+
+  if (isPhoto) {
+    return [
+      '接单后在哪里查看订单详情和客户信息？',
+      '档期与休息日在哪里设置？会怎么影响接单？',
+      '个人中心如何提交审核资料并绑定固定合作妆造师？',
+      '定制需求广场如何接单与沟通？',
+      '审核未通过时提示的修改入口在哪里？',
+    ];
+  }
+  if (isMakeup) {
+    return [
+      '妆造相关任务在订单里如何查看与确认？',
+      '摄影师的固定合作邀请在哪里同意或拒绝？',
+      '申请解除固定合作或处理对方解除申请的流程是什么？',
+      '「妆容建议」页面如何上传照片识别并生成方案？',
+      '个人中心资料审核未通过时如何修改后重新提交？',
+    ];
+  }
+  return [
+    '工作台订单列表和订单详情里能看到哪些信息？',
+    '档期与休息日在哪里设置？',
+    '个人中心档案审核与固定合作相关入口在哪里？',
+    '消息中心一般会收到哪些通知？',
+    '摄影师和妆造师在工作台的主要区别是什么？',
+  ];
+});
 
 const scrollToBottom = async () => {
   await nextTick();
@@ -594,13 +626,15 @@ onMounted(() => {
 </script>
 
 <style scoped lang="less">
-.help-center-page {
-  min-height: 100vh;
-  background: linear-gradient(180deg, #fff5f7 0%, #ffffff 32%);
-  padding: 12px 96px 40px;
+.worker-help-chat-page {
+  min-height: 0;
+  background: linear-gradient(180deg, #fff5f7 0%, #ffffff 40%);
+  padding: 0 0 24px;
+  max-width: 1100px;
+  margin: 0 auto;
 
   @media (max-width: 768px) {
-    padding: 12px 40px 32px;
+    padding: 0 0 20px;
   }
 }
 
@@ -609,9 +643,10 @@ onMounted(() => {
   grid-template-columns: 1fr 280px;
   gap: 12px;
   align-items: stretch;
-  height: calc(100vh - 112px);
-  min-height: 500px;
-  max-height: calc(100vh - 84px);
+  /* 工作台内容区内：左右同高、各自内部滚动（已去掉顶部说明区） */
+  height: calc(100vh - 115px);
+  min-height: 445px;
+  max-height: calc(100vh - 71px);
 }
 
 .chat-card {

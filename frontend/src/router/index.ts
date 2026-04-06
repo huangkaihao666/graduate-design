@@ -38,6 +38,7 @@ const WorkerMessages = () => import('../views/worker/pages/Messages.vue');
 const WorkerProfile = () => import('../views/worker/pages/Profile.vue');
 const WorkerCustomMarket = () => import('../views/worker/pages/CustomMarket.vue');
 const WorkerMakeupAI = () => import('../views/worker/pages/MakeupAI.vue');
+const WorkerHelpChat = () => import('../views/worker/pages/WorkerHelpChat.vue');
 
 // 预约模块 (延迟加载)
 const Packages = () => import('../views/booking/Packages.vue');
@@ -348,6 +349,12 @@ const routes: RouteRecordRaw[] = [
         name: 'WorkerMakeupAI',
         component: WorkerMakeupAI,
         meta: { title: '智能试妆' },
+      },
+      {
+        path: 'help-chat',
+        name: 'WorkerHelpChat',
+        component: WorkerHelpChat,
+        meta: { title: '智能客服' },
       },
       {
         path: 'profile',

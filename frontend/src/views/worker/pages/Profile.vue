@@ -2007,6 +2007,9 @@ onMounted(async () => {
 .page {
   --pink: #ff6b8b;
   --r: 12px;
+  /* 工作台内容区右侧默认较窄，个人中心单独加大右侧留白 */
+  padding-right: 24px;
+  box-sizing: border-box;
 }
 
 .approval-alert {
@@ -2769,10 +2772,20 @@ onMounted(async () => {
 }
 .dissolve-request-btn.ant-btn-dangerous:hover:not(:disabled),
 .dissolve-request-btn.ant-btn-dangerous:focus:not(:disabled) {
+  background: #ef3b5d !important;
+  border-color: #ef3b5d !important;
   color: #fff !important;
 }
 .dissolve-request-btn.ant-btn-dangerous:hover:not(:disabled) :deep(span),
 .dissolve-request-btn.ant-btn-dangerous:focus:not(:disabled) :deep(span) {
+  color: #fff !important;
+}
+.dissolve-request-btn.ant-btn-dangerous:active:not(:disabled) {
+  background: #d6336c !important;
+  border-color: #c2255c !important;
+  color: #fff !important;
+}
+.dissolve-request-btn.ant-btn-dangerous:active:not(:disabled) :deep(span) {
   color: #fff !important;
 }
 
