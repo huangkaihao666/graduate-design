@@ -10,6 +10,8 @@ export interface Package {
   id: number;
   /** 关联景点 ID；景点删除后下架套餐可能为空 */
   spotId: number | null;
+  /** 关联多个景点（同城） */
+  spotIds?: number[];
   name: string;
   description: string;
   price: number;
@@ -19,6 +21,8 @@ export interface Package {
   location: string;
   /** 景点名称（展示） */
   spotName?: string;
+  /** 多景点名称（展示） */
+  spotNames?: string[];
   style: string;
   coverImage: string;
   images?: string[];
@@ -73,7 +77,10 @@ export interface HotDestinationsResponse {
 }
 
 export type CreatePackageBody = {
+  /** 兼容旧字段：单景点 */
   spotId?: number | null;
+  /** 新字段：多景点（同城） */
+  spotIds?: number[];
   location?: string;
   name: string;
   style: string;

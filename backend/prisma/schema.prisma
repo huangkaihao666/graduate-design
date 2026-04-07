@@ -203,6 +203,8 @@ model TravelPackage {
   /// 删除景点时下架/草稿套餐会置空；仅已上架套餐会阻止删景点
   spotId        Int?     @db.UnsignedInt
   spot          Spot?    @relation(fields: [spotId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  /** 套餐可绑定多个景点（同城），用于用户端详情突出展示与后台管理多选 */
+  packageSpots  TravelPackageSpot[]
   /// 风格 key，如 romantic / artistic，与 StyleTag.key 对齐便于筛选
   style         String   @db.VarChar(50)
   coverImage    String?  @db.LongText
@@ -247,6 +249,24 @@ model City {
   @@map("cities")
 }
 
+/// 套餐 - 景点（多对多，按套餐维度维护关联）
+model TravelPackageSpot {
+  id        Int      @id @default(autoincrement()) @db.UnsignedInt
+  packageId Int      @db.UnsignedInt
+  spotId    Int      @db.UnsignedInt
+  /** 前端选中顺序（可选，用于展示“主推荐景点”） */
+  order     Int      @default(0) @db.UnsignedInt
+  createdAt DateTime @default(now())
+
+  package TravelPackage @relation(fields: [packageId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  spot    Spot         @relation(fields: [spotId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("travel_package_spots")
+  @@unique([packageId, spotId])
+  @@index([packageId])
+  @@index([spotId])
+}
+
 /// 景点（隶属于城市；套餐引用景点时 destination = 城市名）
 model Spot {
   id          Int      @id @default(autoincrement()) @db.UnsignedInt
@@ -264,6 +284,7 @@ model Spot {
   updatedAt DateTime @updatedAt
 
   packages TravelPackage[]
+  packageSpots TravelPackageSpot[]
 
   @@map("spots")
   @@index([cityId])

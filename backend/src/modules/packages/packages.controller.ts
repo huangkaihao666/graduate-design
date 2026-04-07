@@ -63,6 +63,7 @@ export class PackagesController {
     @Body()
     body: {
       spotId?: number;
+      spotIds?: number[];
       location?: string;
       name: string;
       style: string;
@@ -93,6 +94,7 @@ export class PackagesController {
     @Body()
     body: Partial<{
       spotId: number | null;
+      spotIds: number[];
       location: string;
       name: string;
       style: string;

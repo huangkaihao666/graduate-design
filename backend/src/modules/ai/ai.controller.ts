@@ -20,6 +20,7 @@ import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import type {
   CustomerSupportRequest,
   ItineraryPlanningRequest,
+  PackageDescriptionDraftRequest,
   SpotDraftRequest,
   StyleRecommendationRequest,
   VirtualTryOnRequest,
@@ -168,6 +169,38 @@ export class AiController {
         {
           statusCode: status || 400,
           message: error?.message || '生成景点草稿失败',
+        },
+        status || HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
+   * 管理端：套餐介绍 AI 文案（DeepSeek，仅文本）
+   */
+  @Post('admin/package-description-draft')
+  @UseGuards(AdminOrJwtAuthGuard)
+  @ApiBearerAuth()
+  async generatePackageDescriptionDraftAdmin(
+    @Body() body: PackageDescriptionDraftRequest,
+  ) {
+    try {
+      const data = await this.aiService.generatePackageDescriptionDraft(body);
+      return {
+        statusCode: 200,
+        message: '套餐介绍生成成功',
+        data,
+      };
+    } catch (error: any) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      const status = error?.status ?? error?.statusCode;
+      console.error('[AI Controller] 套餐介绍生成失败:', error);
+      throw new HttpException(
+        {
+          statusCode: status || 400,
+          message: error?.message || '生成套餐介绍失败',
         },
         status || HttpStatus.BAD_REQUEST,
       );

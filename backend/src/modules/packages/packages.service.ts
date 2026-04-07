@@ -14,11 +14,15 @@ function asStringArray(v: unknown): string[] {
 }
 
 type TravelPackageWithSpot = Prisma.TravelPackageGetPayload<{
-  include: { spot: { include: { city: true } } };
+  include: {
+    spot: { include: { city: true } };
+    packageSpots: { include: { spot: { include: { city: true } } } };
+  };
 }>;
 
 const packageSpotInclude = {
   spot: { include: { city: true } },
+  packageSpots: { include: { spot: { include: { city: true } } } },
 } as const;
 
 @Injectable()
@@ -26,9 +30,21 @@ export class PackagesService {
   constructor(private readonly prisma: PrismaService) {}
 
   private mapRow(row: TravelPackageWithSpot) {
+    const related = row.packageSpots || [];
+    const spotIds = related
+      .map((x) => Number(x.spotId))
+      .filter((id: number) => Number.isFinite(id) && id > 0);
+    const spotNames = related
+      .map((x) => String(x.spot?.name || '').trim())
+      .filter(Boolean);
+    const fallbackSpotId = row.spotId ? [row.spotId] : [];
+    const fallbackSpotName = row.spot?.name ? [row.spot.name] : [];
+    const mergedSpotIds = spotIds.length ? spotIds : fallbackSpotId;
+    const mergedSpotNames = spotNames.length ? spotNames : fallbackSpotName;
     return {
       id: row.id,
       spotId: row.spotId,
+      spotIds: mergedSpotIds,
       name: row.name,
       description: row.description ?? '',
       price: row.price,
@@ -36,6 +52,7 @@ export class PackagesService {
       duration: row.duration,
       location: row.location,
       spotName: row.spot?.name,
+      spotNames: mergedSpotNames,
       style: row.style,
       coverImage: row.coverImage ?? '',
       images: asStringArray(row.images),
@@ -432,7 +449,10 @@ export class PackagesService {
   }
 
   async create(data: {
+    /** 兼容旧字段：单景点 */
     spotId?: number;
+    /** 新字段：多景点（同城），优先于 spotId */
+    spotIds?: number[];
     location?: string;
     name: string;
     style: string;
@@ -452,18 +472,36 @@ export class PackagesService {
   }) {
     let spotId: number | null = null;
     let location = String(data.location || '').trim();
-    if (data.spotId !== undefined && data.spotId !== null) {
-      const spot = await this.prisma.spot.findUnique({
-        where: { id: data.spotId },
+    const idsFromArray = Array.isArray(data.spotIds)
+      ? data.spotIds
+          .map((x) => Number(x))
+          .filter((x) => Number.isFinite(x) && x > 0)
+      : [];
+    const chosenIds = idsFromArray.length
+      ? [...new Set(idsFromArray)].slice(0, 20)
+      : data.spotId != null
+        ? [Number(data.spotId)]
+        : [];
+
+    let joinRows: Array<{ spotId: number; order: number }> = [];
+    if (chosenIds.length) {
+      const spots = await this.prisma.spot.findMany({
+        where: { id: { in: chosenIds } },
         include: { city: true },
       });
-      if (!spot) {
-        throw new BadRequestException(
-          '无效的景点，请先选择「景点管理」中的目的地',
-        );
+      if (spots.length !== chosenIds.length) {
+        throw new BadRequestException('所选景点无效，请重新选择');
       }
-      spotId = spot.id;
-      location = spot.city.name;
+      const cityName = String(spots[0]?.city?.name || '').trim();
+      const allSameCity = spots.every(
+        (s) => String(s.city?.name || '').trim() === cityName,
+      );
+      if (!cityName || !allSameCity) {
+        throw new BadRequestException('一个套餐只能选择同一城市下的多个景点');
+      }
+      location = cityName;
+      spotId = spots[0].id; // 兼容：保留主景点
+      joinRows = chosenIds.map((id, idx) => ({ spotId: id, order: idx }));
     }
     if (!location) {
       throw new BadRequestException('请填写目的地');
@@ -488,6 +526,16 @@ export class PackagesService {
         isPopular: data.isPopular ?? false,
         isHot: data.isHot ?? false,
         status: data.status ?? 'published',
+        ...(joinRows.length
+          ? {
+              packageSpots: {
+                createMany: {
+                  data: joinRows,
+                  skipDuplicates: true,
+                },
+              },
+            }
+          : {}),
       },
       include: packageSpotInclude,
     });
@@ -498,6 +546,7 @@ export class PackagesService {
     id: number,
     data: Partial<{
       spotId: number | null;
+      spotIds: number[];
       location: string;
       name: string;
       style: string;
@@ -518,6 +567,53 @@ export class PackagesService {
   ) {
     await this.ensureExists(id);
     const updateData: Record<string, unknown> = { ...data };
+
+    const rawSpotIds = (data as Partial<{ spotIds: number[] }>)
+      .spotIds as unknown;
+    const hasSpotIdsArray = Array.isArray(rawSpotIds);
+    const idsFromArray: number[] = hasSpotIdsArray
+      ? (rawSpotIds as unknown[])
+          .map((x) => Number(x))
+          .filter((x): x is number => Number.isFinite(x) && x > 0)
+      : [];
+
+    let packageSpotsUpdate:
+      | Prisma.TravelPackageUpdateInput['packageSpots']
+      | undefined;
+
+    // 新字段 spotIds 优先（空数组代表清空关联）
+    if (hasSpotIdsArray) {
+      const chosenIds = [...new Set(idsFromArray)].slice(0, 20);
+      if (chosenIds.length === 0) {
+        updateData.spotId = null;
+        // location 若由前端手填可继续保留；这里不强制改 location
+        packageSpotsUpdate = { deleteMany: {} };
+      } else {
+        const spots = await this.prisma.spot.findMany({
+          where: { id: { in: chosenIds } },
+          include: { city: true },
+        });
+        if (spots.length !== chosenIds.length) {
+          throw new BadRequestException('所选景点无效，请重新选择');
+        }
+        const cityName = String(spots[0]?.city?.name || '').trim();
+        const allSameCity = spots.every(
+          (s) => String(s.city?.name || '').trim() === cityName,
+        );
+        if (!cityName || !allSameCity) {
+          throw new BadRequestException('一个套餐只能选择同一城市下的多个景点');
+        }
+        updateData.location = cityName;
+        updateData.spotId = spots[0].id; // 兼容：保留主景点
+        packageSpotsUpdate = {
+          deleteMany: {},
+          create: chosenIds.map((sid, idx) => ({
+            order: idx,
+            spot: { connect: { id: sid } },
+          })),
+        };
+      }
+    }
 
     if (data.spotId !== undefined) {
       if (data.spotId === null) {
@@ -543,7 +639,7 @@ export class PackagesService {
         throw new BadRequestException('目的地不能为空');
       }
       updateData.location = location;
-      if (data.spotId === undefined) {
+      if (data.spotId === undefined && !hasSpotIdsArray) {
         // 手填地点时默认解除景点绑定，避免数据冲突
         updateData.spotId = null;
       }
@@ -551,7 +647,10 @@ export class PackagesService {
 
     const row = await this.prisma.travelPackage.update({
       where: { id },
-      data: updateData as Prisma.TravelPackageUpdateInput,
+      data: {
+        ...(updateData as Prisma.TravelPackageUpdateInput),
+        ...(packageSpotsUpdate ? { packageSpots: packageSpotsUpdate } : {}),
+      },
       include: packageSpotInclude,
     });
     return this.mapRow(row);

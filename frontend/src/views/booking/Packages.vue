@@ -204,7 +204,9 @@
           <a-image :src="pkg.coverImage" :preview="false" class="recommend-cover" />
           <div class="recommend-info">
             <h4>{{ getPackageDisplayName(pkg) }}</h4>
-            <p>📍 {{ pkg.location }} · 🎨 {{ getStyleName(pkg.style) }} · {{ pkg.duration }} 天</p>
+            <p>
+              📍 {{ pkg.location }} · 🗺️ {{ getPackageSpotSummary(pkg) }} · {{ pkg.duration }} 天
+            </p>
             <span class="recommend-price">¥{{ pkg.price.toLocaleString() }}</span>
             <a-button
               type="primary"
@@ -287,8 +289,8 @@
                 最多 {{ pkg.maxPeople }} 人
               </span>
               <span class="meta-item">
-                <span class="meta-icon">🎨</span>
-                {{ getStyleName(pkg.style) }}
+                <span class="meta-icon">📍</span>
+                {{ getPackageSpotSummary(pkg) }}
               </span>
             </div>
             <div class="card-footer">
@@ -358,6 +360,38 @@
             <div class="meta-row">
               <span class="meta-label">👥 适合人数：</span>
               <span class="meta-value">最多 {{ selectedPackage.maxPeople }} 人</span>
+            </div>
+          </div>
+
+          <div v-if="selectedSpotCards.length" class="detail-spot">
+            <div class="spot-title-row">
+              <h3>包含景点</h3>
+            </div>
+            <div class="spot-card-list">
+              <div
+                v-for="(spot, idx) in selectedSpotCards"
+                :key="`spot-card-${idx}-${spot.id || spot.name}`"
+                class="spot-card"
+              >
+                <div class="spot-card-head">
+                  <div class="spot-name">{{ spot.name }}</div>
+                  <a-tag v-if="spot.categoryLabel" color="pink">{{ spot.categoryLabel }}</a-tag>
+                </div>
+                <p v-if="spot.description" class="spot-desc">
+                  {{ spot.description }}
+                </p>
+                <div v-if="spot.images.length" class="spot-images">
+                  <a-image
+                    v-for="(img, sIdx) in spot.images"
+                    :key="`spot-img-${spot.id || spot.name}-${sIdx}`"
+                    :src="img"
+                    :preview="true"
+                    :width="92"
+                    :height="68"
+                    style="object-fit: cover; border-radius: 10px"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -445,7 +479,7 @@
             <div class="recommend-info">
               <h4>{{ getPackageDisplayName(pkg) }}</h4>
               <p>
-                📍 {{ pkg.location }} · 🎨 {{ getStyleName(pkg.style) }} · {{ pkg.duration }} 天
+                📍 {{ pkg.location }} · 🗺️ {{ getPackageSpotSummary(pkg) }} · {{ pkg.duration }} 天
               </p>
               <span class="recommend-price">¥{{ pkg.price.toLocaleString() }}</span>
               <a-button
@@ -495,6 +529,7 @@ import { favoritesApi } from '@/api/favorites';
 import { insightsApi } from '@/api/insights';
 import { packagesApi, type Package, type PackageListResponse } from '@/api/packages';
 import { photographersApi } from '@/api/photographers';
+import { spotsApi, type Spot } from '@/api/spots';
 import { styleTagsApi } from '@/api/styleTags';
 import {
   PENDING_MAKEUP_ARTIST_BOOKING_KEY,
@@ -515,6 +550,9 @@ import { useRoute, useRouter } from 'vue-router';
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+
+const publicSpots = ref<Spot[]>([]);
+const publicSpotById = computed(() => new Map(publicSpots.value.map((s) => [s.id, s])));
 
 /** 从「本店服务团队」页跳转时 URL 携带 photographerId / makeupArtistId */
 const pendingPhotographer = ref<{ id: number; name: string } | null>(null);
@@ -630,6 +668,50 @@ const detailPreviewImages = computed(() => {
   const p = selectedPackage.value;
   if (!p) return [] as string[];
   return [p.coverImage, ...(p.images || [])].filter(Boolean).slice(0, 2) as string[];
+});
+
+/** 套餐详情中突出展示「关联景点」（支持多景点） */
+const selectedSpotCards = computed<
+  Array<{
+    id: number | null;
+    name: string;
+    description: string;
+    categoryLabel: string;
+    images: string[];
+  }>
+>(() => {
+  const pkg = selectedPackage.value;
+  if (!pkg) return [];
+  const ids = Array.isArray(pkg.spotIds)
+    ? pkg.spotIds.map(Number).filter((x) => Number.isFinite(x) && x > 0)
+    : pkg.spotId
+      ? [pkg.spotId]
+      : [];
+  const uniqueIds = [...new Set(ids)];
+  const fromIds = uniqueIds
+    .map((id) => publicSpotById.value.get(id))
+    .filter((x): x is Spot => !!x)
+    .map((s) => ({
+      id: s.id ?? null,
+      name: String(s.name || '').trim(),
+      description: String(s.description || '').trim(),
+      categoryLabel: getStyleName(String(s.category || '').trim()),
+      images: (Array.isArray(s.images) ? s.images : []).map(String).filter(Boolean).slice(0, 6),
+    }));
+  if (fromIds.length) return fromIds;
+
+  const names = Array.isArray(pkg.spotNames)
+    ? pkg.spotNames.map((x) => String(x || '').trim()).filter(Boolean)
+    : pkg.spotName
+      ? [String(pkg.spotName).trim()]
+      : [];
+  return names.map((n) => ({
+    id: null,
+    name: n,
+    description: '',
+    categoryLabel: '',
+    images: [] as string[],
+  }));
 });
 
 const favoritePackageIds = ref<Set<number>>(new Set());
@@ -826,6 +908,17 @@ const recommendedLocations = computed(() => {
 
 const getStyleName = (style: string) => {
   return loadedStyleMap.value[style] || style;
+};
+
+const getPackageSpotSummary = (pkg: Package) => {
+  const names = Array.isArray(pkg.spotNames)
+    ? pkg.spotNames.map((x) => String(x || '').trim()).filter(Boolean)
+    : pkg.spotName
+      ? [String(pkg.spotName).trim()]
+      : [];
+  if (!names.length) return '景点待配置';
+  const text = names.join('、');
+  return text.length > 16 ? `${text.slice(0, 16)}...` : text;
 };
 
 const getPackageDisplayName = (pkg: Package) =>
@@ -1271,6 +1364,11 @@ watch(
 onMounted(async () => {
   await loadStyleTags();
   authStore.initializeAuth();
+  try {
+    publicSpots.value = await spotsApi.getPublic();
+  } catch {
+    publicSpots.value = [];
+  }
   const pending = sessionStorage.getItem(PENDING_PHOTOGRAPHER_BOOKING_KEY);
   const pendingMakeup = sessionStorage.getItem(PENDING_MAKEUP_ARTIST_BOOKING_KEY);
   if ((pending || pendingMakeup) && authStore.isAuthenticated) {
@@ -2057,6 +2155,70 @@ onMounted(async () => {
         .meta-value {
           color: #333;
         }
+      }
+    }
+
+    .detail-spot {
+      margin-bottom: 25px;
+      padding: 14px 14px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 117, 140, 0.22);
+      background: linear-gradient(180deg, rgba(255, 245, 247, 0.95) 0%, #ffffff 70%);
+      box-shadow: 0 10px 24px rgba(255, 117, 140, 0.12);
+
+      .spot-title-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 8px;
+
+        h3 {
+          font-size: 1.15rem;
+          margin: 0;
+          color: #334155;
+          font-weight: 800;
+        }
+      }
+
+      .spot-card-list {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+
+      .spot-card {
+        background: #fff;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 12px;
+        padding: 10px 10px 8px;
+      }
+
+      .spot-card-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+
+      .spot-name {
+        font-size: 1.03rem;
+        font-weight: 700;
+        color: #0f172a;
+      }
+
+      .spot-desc {
+        margin: 0 0 8px;
+        color: #475569;
+        font-size: 0.94rem;
+        line-height: 1.65;
+      }
+
+      .spot-images {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
       }
     }
 

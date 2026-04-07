@@ -313,6 +313,28 @@ export interface SpotDraftResult {
   imageSearchQuery: string;
 }
 
+/** 管理端：套餐介绍文案（仅文本，不配图） */
+export interface PackageDescriptionDraftRequest {
+  location: string;
+  /** 关联景点名称（可选） */
+  spotName?: string;
+  /** 关联多个景点名称（可选，优先于 spotName） */
+  spotNames?: string[];
+  /** 拍摄风格展示名，如「韩式简约」 */
+  styleLabel: string;
+  priceYuan: number;
+  durationDays: number;
+  /** 可选：亮点摘要，供模型提炼 */
+  featuresHint?: string;
+}
+
+export interface PackageDescriptionDraftResult {
+  description: string;
+  features: string[];
+  includes: string[];
+  excludes: string[];
+}
+
 export interface CustomerSupportHistoryList {
   items: Array<{
     id: number;
@@ -2039,6 +2061,140 @@ ${listStyles}
       imageUrls: built.dataUrls,
       imagesNote: built.note,
       imageSearchQuery,
+    };
+  }
+
+  private parsePackageDescriptionJson(content: string): {
+    description: string;
+    features: string[];
+    includes: string[];
+    excludes: string[];
+  } {
+    const trimmed = content.trim();
+    const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    const raw = fenced ? fenced[1].trim() : trimmed;
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      return { description: trimmed, features: [], includes: [], excludes: [] };
+    }
+    try {
+      const obj = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
+      const description = this.jsonUnknownToTrimmedString(obj.description);
+      const toList = (v: unknown): string[] => {
+        if (!Array.isArray(v)) return [];
+        return v
+          .map((x) => this.jsonUnknownToTrimmedString(x))
+          .filter(Boolean)
+          .slice(0, 20);
+      };
+      const features = toList(obj.features);
+      const includes = toList(obj.includes);
+      const excludes = toList(obj.excludes);
+      return {
+        description: description || trimmed,
+        features,
+        includes,
+        excludes,
+      };
+    } catch {
+      return { description: trimmed, features: [], includes: [], excludes: [] };
+    }
+  }
+
+  /**
+   * 管理端：根据目的地、风格、价格、天数等生成套餐介绍（DeepSeek，仅文案）
+   */
+  async generatePackageDescriptionDraft(
+    request: PackageDescriptionDraftRequest,
+  ): Promise<PackageDescriptionDraftResult> {
+    const location = String(request.location || '').trim();
+    const styleLabel = String(request.styleLabel || '').trim();
+    if (!location || !styleLabel) {
+      throw new BadRequestException('请填写目的地与拍摄风格后再生成');
+    }
+    const price = Number(request.priceYuan);
+    const duration = Number(request.durationDays);
+    if (!Number.isFinite(price) || price < 0) {
+      throw new BadRequestException('请填写有效的套餐价格');
+    }
+    if (!Number.isFinite(duration) || duration < 1) {
+      throw new BadRequestException('请填写有效的行程天数（至少 1 天）');
+    }
+    const spotNames = Array.isArray(request.spotNames)
+      ? request.spotNames
+          .map((x) => String(x || '').trim())
+          .filter(Boolean)
+          .slice(0, 12)
+      : [];
+    const spotName = String(request.spotName || '').trim();
+    const mergedSpotNames = spotNames.length
+      ? spotNames
+      : spotName
+        ? [spotName]
+        : [];
+    const spotText = mergedSpotNames.length ? mergedSpotNames.join('、') : '';
+    const featuresHint = String(request.featuresHint || '').trim();
+    // 约束可交付数量，确保「费用包含」明确写出张数
+    const refinedPhotos = Math.min(
+      220,
+      Math.max(20, Math.round(duration * 18 + Math.floor(price / 1200))),
+    );
+    const electronicPhotos = Math.min(
+      800,
+      Math.max(refinedPhotos + 40, Math.round(refinedPhotos * 3.2)),
+    );
+
+    const prompt = `你是婚纱旅拍产品文案编辑。根据下列套餐要素生成管理后台使用的文案与条目：
+
+目的地（城市）：${location}
+${spotText ? `关联景点：${spotText}\n` : ''}拍摄风格：${styleLabel}
+套餐价格：${price} 元（人民币）
+行程天数：${duration} 天
+${featuresHint ? `套餐亮点参考（可提炼，非必须逐条照抄）：${featuresHint}\n` : ''}
+费用包含中必须出现的交付数量：
+- 精修照片：${refinedPhotos} 张
+- 电子版照片：${electronicPhotos} 张
+
+要求：
+1. description：用简体中文写 180～320 字介绍，可分 2～3 个短段落；突出目的地与风格特色，以及${spotText ? '所有关联景点（需覆盖提及）' : '景点氛围'}、行程天数与价位带来的价值感、适合人群（如蜜月旅拍、周年纪念）；勿编造具体门店地址、合同细则或无法核实的承诺。文中提及的价格（${price} 元）与天数（${duration} 天）须与给定数字一致。
+2. features：5～8 条「套餐亮点」，每条 8～18 字，避免空泛（如“服务很好”）。
+3. includes：5～10 条「费用包含」，以服务/产出/保障为主（如“摄影师跟拍”“精修张数”“妆造服务”“服装造型”等）。必须包含且只能使用上述指定数量的两条：①“精修照片${refinedPhotos}张”；②“电子版照片${electronicPhotos}张”。
+4. excludes：3～8 条「费用不含」，如交通住宿、餐费门票、个人消费、加急等，表述清晰。
+
+只输出一个 JSON 对象，不要用 markdown 代码块，不要其它文字：
+{"description":"……","features":["..."],"includes":["..."],"excludes":["..."]}`;
+
+    const content = await this.callDeepSeek([
+      {
+        role: 'system',
+        content:
+          '你只输出合法 JSON：包含 description/features/includes/excludes 四个字段，不要输出其它内容。',
+      },
+      { role: 'user', content: prompt },
+    ]);
+
+    const parsed = this.parsePackageDescriptionJson(content);
+    let description = parsed.description;
+    if (!description) {
+      description = content.trim();
+    }
+    if (!description) {
+      throw new BadRequestException('模型未返回有效文案，请稍后重试');
+    }
+    const mustRefined = `精修照片${refinedPhotos}张`;
+    const mustElectronic = `电子版照片${electronicPhotos}张`;
+    const includes = [...parsed.includes];
+    if (!includes.some((x) => x.includes('精修') && /\d+/.test(x))) {
+      includes.unshift(mustRefined);
+    }
+    if (!includes.some((x) => x.includes('电子版') && /\d+/.test(x))) {
+      includes.unshift(mustElectronic);
+    }
+    return {
+      description,
+      features: parsed.features,
+      includes: includes.slice(0, 20),
+      excludes: parsed.excludes,
     };
   }
 

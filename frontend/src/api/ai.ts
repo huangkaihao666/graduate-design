@@ -59,6 +59,24 @@ export interface SpotDraftRequest {
   category?: string;
 }
 
+/** 管理端套餐：AI 生成介绍（仅文案） */
+export interface PackageDescriptionDraftRequest {
+  location: string;
+  spotName?: string;
+  spotNames?: string[];
+  styleLabel: string;
+  priceYuan: number;
+  durationDays: number;
+  featuresHint?: string;
+}
+
+export interface PackageDescriptionDraftResult {
+  description: string;
+  features?: string[];
+  includes?: string[];
+  excludes?: string[];
+}
+
 export interface CustomerSupportMessage {
   role: 'user' | 'assistant';
   content: string;
@@ -100,6 +118,10 @@ export const aiApi = {
    */
   generateSpotDraft: (data: SpotDraftRequest) =>
     httpClient.post('/ai/admin/spot-draft', data, { timeout: 180000 }),
+
+  /** 管理端：套餐介绍文案（DeepSeek） */
+  generatePackageDescriptionDraft: (data: PackageDescriptionDraftRequest) =>
+    httpClient.post('/ai/admin/package-description-draft', data, { timeout: 120000 }),
 
   /**
    * 妆造师端：证件照/正脸照识别脸型、肤色、五官（后端走火山方舟图片理解，需 VOLCES_VISION_CHAT_MODEL）

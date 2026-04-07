@@ -14,7 +14,7 @@
     </div>
 
     <p class="hint">
-      请先填写<strong>目的地</strong>（须与「景点管理」中的城市名称一致，如：三亚），再在下拉框中选择该城市下的<strong>景点</strong>（可选）；不选景点则仅以目的地作为套餐展示。
+      请先填写<strong>目的地</strong>（须与「景点管理」中的城市名称一致，如：三亚），再在下拉框中选择该城市下的<strong>景点</strong>（可选）；不选景点则仅以目的地作为套餐展示。若已选景点，<strong>拍摄风格</strong>将与该景点在景点管理中的「风格分类」一致，并可在套餐介绍处使用「生成描述」辅助撰写文案。
     </p>
 
     <p v-if="packageSearchKeyword.trim()" class="filter-tip">
@@ -82,8 +82,9 @@
         </a-form-item>
         <a-form-item label="景点（可选）">
           <a-select
-            v-model:value="form.spotId"
-            placeholder="请先填写目的地；仅展示该城市下景点管理中的景点"
+            v-model:value="form.spotIds"
+            mode="multiple"
+            placeholder="请先填写目的地；仅展示该城市下景点管理中的景点（可多选，同城）"
             style="width: 100%"
             allow-clear
             show-search
@@ -102,8 +103,12 @@
             placeholder="请选择对应拍摄风格"
             style="width: 100%"
             allow-clear
+            :disabled="isStyleLockedBySpot"
             :options="styleOptions"
           />
+          <p v-if="isStyleLockedBySpot" class="field-tip">
+            已选景点，风格自动取「第一个景点」在景点管理中的「风格分类」，无需手动选择。
+          </p>
         </a-form-item>
         <a-form-item label="价格"
           ><a-input-number
@@ -120,13 +125,29 @@
             style="width: 100%"
           />
         </a-form-item>
-        <a-form-item label="套餐介绍">
+        <a-form-item>
+          <template #label>
+            <div class="package-desc-label-row">
+              <span>套餐介绍</span>
+              <a-button
+                type="link"
+                size="small"
+                class="package-ai-gen-btn"
+                :loading="packageDescGenerating"
+                :disabled="!canGeneratePackageDesc"
+                @click="runPackageDescGeneration"
+              >
+                生成描述
+              </a-button>
+            </div>
+          </template>
           <a-textarea
             v-model:value="form.description"
-            :rows="3"
-            placeholder="请输入套餐介绍"
+            :rows="4"
+            placeholder="可填写套系亮点与说明；也可点击「生成描述」由 AI 根据目的地、价格、行程天数等生成后自行修改"
             show-count
-            :maxlength="500"
+            :maxlength="900"
+            allow-clear
           />
         </a-form-item>
         <a-form-item label="套餐亮点（每行一条）">
@@ -153,10 +174,10 @@
 
         <a-divider style="margin: 10px 0 14px" />
 
-        <p v-if="form.spotId != null" class="field-tip image-flow-tip">
-          已选景点时，封面与下图集默认使用「景点管理」中该景点的照片（首图为封面，其余为详情缩略图）；您仍可上传或删除以单独调整套餐展示。
+        <p v-if="form.spotIds.length" class="field-tip image-flow-tip">
+          已选景点时，封面与下图集默认合并使用「景点管理」中所选景点的照片（首图为封面，其余为详情缩略图）；您仍可上传或删除以单独调整套餐展示。
         </p>
-        <p v-if="form.spotId != null" class="sync-spot-images">
+        <p v-if="form.spotIds.length" class="sync-spot-images">
           <a-button type="link" size="small" @click="syncImagesFromCurrentSpot"
             >重新同步景点照片</a-button
           >
@@ -200,10 +221,12 @@
 </template>
 
 <script setup lang="ts">
+import { aiApi, type PackageDescriptionDraftResult } from '@/api/ai';
 import { packagesApi, type Package } from '@/api/packages';
 import { spotsApi, type Spot } from '@/api/spots';
 import { styleTagsApi } from '@/api/styleTags';
 import { TRAVEL_STYLE_LABELS } from '@/constants/travel-style-labels';
+import { getApiErrorMessage } from '@/utils/apiError';
 import type { UploadFile } from 'ant-design-vue';
 import { message } from 'ant-design-vue';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
@@ -211,10 +234,12 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 type AdminRow = {
   id: number;
   spotId: number | null;
+  spotIds: number[];
   name: string;
   displayName: string;
   location: string;
   spotName?: string;
+  spotNames?: string[];
   style: string;
   styleLabel: string;
   price: number;
@@ -268,6 +293,26 @@ const styleOptions = computed(() =>
   }))
 );
 
+/** 已选景点时，风格与景点「风格分类」绑定，不可手改 */
+const isStyleLockedBySpot = computed(() => Array.isArray(form.spotIds) && form.spotIds.length > 0);
+
+const packageDescGenerating = ref(false);
+
+const canGeneratePackageDesc = computed(() => {
+  const loc = String(form.location || '').trim();
+  if (!loc || !form.style) return false;
+  if (form.price === null || form.price === undefined || Number(form.price) < 0) return false;
+  if (
+    form.duration === null ||
+    form.duration === undefined ||
+    !Number.isFinite(Number(form.duration)) ||
+    Number(form.duration) < 1
+  ) {
+    return false;
+  }
+  return true;
+});
+
 /** 与景点管理中城市名比对（去首尾空格） */
 const normalizeCityLabel = (s: string | undefined) => String(s ?? '').trim();
 
@@ -307,7 +352,7 @@ const modalOpen = ref(false);
 const editingId = ref<number | null>(null);
 const form = reactive({
   location: '',
-  spotId: undefined as number | undefined,
+  spotIds: [] as number[],
   /** 未选须为 undefined，空字符串会导致 Select 不显示 placeholder */
   style: undefined as string | undefined,
   price: null as number | null,
@@ -359,40 +404,45 @@ const setGalleryFileListFromUrls = (urls: string[], uidPrefix: string) => {
   );
 };
 
-/** 景点照片 → 套餐：首图封面，其余为详情图集 */
-const applyPackageImagesFromSpot = (spot: Spot) => {
-  const imgs = normalizeSpotImages(spot.images);
-  if (!imgs.length) {
+/** 景点照片 → 套餐：合并去重，首图封面，其余为详情图集 */
+const applyPackageImagesFromSpots = (picked: Spot[]) => {
+  const imgs = picked.flatMap((s) => normalizeSpotImages(s.images));
+  const unique = [...new Set(imgs)].filter(Boolean);
+  if (!unique.length) {
     form.coverImage = '';
     form.images = [];
     coverFileList.value = [];
     galleryFileList.value = [];
     return;
   }
-  form.coverImage = imgs[0] ?? '';
-  form.images = imgs.slice(1);
-  setCoverFileListFromUrl(form.coverImage, `spot-${spot.id}`);
-  setGalleryFileListFromUrls(form.images, `spot-${spot.id}`);
+  form.coverImage = unique[0] ?? '';
+  form.images = unique.slice(1);
+  const uidSuffix = picked.length
+    ? `spots-${picked.map((s) => s.id).join('-')}`
+    : String(Date.now());
+  setCoverFileListFromUrl(form.coverImage, uidSuffix);
+  setGalleryFileListFromUrls(form.images, uidSuffix);
 };
 
 const syncImagesFromCurrentSpot = async () => {
-  if (form.spotId === undefined || form.spotId === null) {
+  if (!form.spotIds.length) {
     message.warning('请先选择景点');
     return;
   }
-  const id = form.spotId;
   try {
     await loadSpots();
   } catch (e: any) {
     message.error(e?.message || '刷新景点列表失败');
     return;
   }
-  const spot = spots.value.find((s) => s.id === id);
-  if (!spot) {
-    message.warning('未找到该景点');
+  const picked = form.spotIds
+    .map((id) => spots.value.find((s) => s.id === id))
+    .filter((x): x is Spot => !!x);
+  if (!picked.length) {
+    message.warning('未找到所选景点');
     return;
   }
-  applyPackageImagesFromSpot(spot);
+  applyPackageImagesFromSpots(picked);
   message.success('已同步景点照片');
 };
 
@@ -458,10 +508,16 @@ const splitLines = (text: string): string[] =>
 const toAdminRow = (p: Package): AdminRow => ({
   id: p.id,
   spotId: p.spotId,
+  spotIds: Array.isArray(p.spotIds)
+    ? p.spotIds.map(Number).filter((x) => Number.isFinite(x) && x > 0)
+    : p.spotId
+      ? [p.spotId]
+      : [],
   name: p.name,
   displayName: `${p.location}${p.duration}日${TRAVEL_STYLE_LABELS[p.style] || p.style}旅拍套餐`,
   location: p.location,
   spotName: p.spotName,
+  spotNames: Array.isArray(p.spotNames) ? p.spotNames.map(String).filter(Boolean) : undefined,
   style: p.style,
   styleLabel: TRAVEL_STYLE_LABELS[p.style] || p.style,
   price: p.price,
@@ -478,26 +534,95 @@ const loadSpots = async () => {
   spots.value = await spotsApi.list();
 };
 
-/** 选中景点后，目的地与景点所属城市对齐，并填入景点照片供套餐使用（可再手动改） */
-const onSpotChange = (id: number | undefined) => {
-  if (id === undefined || id === null) return;
-  const spot = spots.value.find((s) => s.id === id);
-  if (spot?.city?.name) {
-    form.location = spot.city.name;
+/** 选中景点后：同城约束；目的地与第一个景点所属城市对齐；风格取第一个景点分类；同步合并照片 */
+const onSpotChange = (ids: number[] | undefined) => {
+  const nextIds = Array.isArray(ids)
+    ? ids.map((x) => Number(x)).filter((x) => Number.isFinite(x) && x > 0)
+    : [];
+  if (nextIds.length === 0) {
+    form.spotIds = [];
+    return;
   }
-  if (spot) applyPackageImagesFromSpot(spot);
+  const picked = nextIds
+    .map((id) => spots.value.find((s) => s.id === id))
+    .filter((x): x is Spot => !!x);
+  if (!picked.length) {
+    form.spotIds = [];
+    return;
+  }
+  const city = String(picked[0]?.city?.name || '').trim();
+  const filtered = picked.filter((s) => String(s.city?.name || '').trim() === city);
+  const filteredIds = filtered.map((s) => s.id);
+  if (filteredIds.length !== nextIds.length) {
+    message.warning('一个套餐只能选择同一城市下的多个景点，已自动移除跨城市景点');
+  }
+  form.spotIds = filteredIds;
+  if (city) form.location = city;
+  if (filtered[0]?.category) form.style = filtered[0].category;
+  applyPackageImagesFromSpots(filtered);
+};
+
+const runPackageDescGeneration = async () => {
+  if (!canGeneratePackageDesc.value) {
+    message.warning('请先填写目的地、风格、价格与行程天数');
+    return;
+  }
+  const loc = String(form.location || '').trim();
+  const styleLabel = TRAVEL_STYLE_LABELS[form.style as string] || form.style || '';
+  const pickedSpots = form.spotIds
+    .map((id) => spots.value.find((s) => s.id === id))
+    .filter((x): x is Spot => !!x);
+  const spotNames = pickedSpots.map((s) => String(s.name || '').trim()).filter(Boolean);
+  const featuresHint = splitLines(form.featuresText).slice(0, 5).join('；');
+
+  packageDescGenerating.value = true;
+  try {
+    const raw = await aiApi.generatePackageDescriptionDraft({
+      location: loc,
+      spotName: spotNames[0] || undefined,
+      spotNames: spotNames.length ? spotNames : undefined,
+      styleLabel,
+      priceYuan: Number(form.price),
+      durationDays: Number(form.duration),
+      featuresHint: featuresHint || undefined,
+    });
+    const r = raw as {
+      data?: { data?: PackageDescriptionDraftResult } & PackageDescriptionDraftResult;
+    };
+    const data = (r?.data?.data ?? r?.data) as PackageDescriptionDraftResult | undefined;
+    const text = String(data?.description ?? '').trim();
+    if (!text) {
+      message.warning('未得到有效介绍文案，请稍后重试');
+      return;
+    }
+    form.description = text.slice(0, 900);
+    const f = Array.isArray(data?.features) ? data!.features!.map(String).filter(Boolean) : [];
+    const inc = Array.isArray(data?.includes) ? data!.includes!.map(String).filter(Boolean) : [];
+    const exc = Array.isArray(data?.excludes) ? data!.excludes!.map(String).filter(Boolean) : [];
+    if (f.length) form.featuresText = f.slice(0, 20).join('\n');
+    if (inc.length) form.includesText = inc.slice(0, 30).join('\n');
+    if (exc.length) form.excludesText = exc.slice(0, 20).join('\n');
+    message.success('已生成套餐文案（介绍/亮点/包含/不含），可继续修改后保存');
+  } catch (e: unknown) {
+    message.error(getApiErrorMessage(e) || '生成失败');
+  } finally {
+    packageDescGenerating.value = false;
+  }
 };
 
 watch(
   () => normalizedDestination.value,
   (loc) => {
     if (!loc) {
-      if (form.spotId !== undefined && form.spotId !== null) form.spotId = undefined;
+      if (form.spotIds.length) form.spotIds = [];
       return;
     }
-    if (form.spotId === undefined || form.spotId === null) return;
-    const ok = spotsInDestination.value.some((s) => s.id === form.spotId);
-    if (!ok) form.spotId = undefined;
+    if (!form.spotIds.length) return;
+    const allowed = new Set(spotsInDestination.value.map((s) => s.id));
+    const next = form.spotIds.filter((id) => allowed.has(id));
+    if (next.length !== form.spotIds.length) {
+      form.spotIds = next;
+    }
   }
 );
 
@@ -517,7 +642,7 @@ const loadPackages = async () => {
 const openCreate = () => {
   editingId.value = null;
   form.location = '';
-  form.spotId = undefined;
+  form.spotIds = [];
   form.style = undefined;
   form.price = null;
   form.duration = null;
@@ -536,8 +661,12 @@ const openEdit = (record: AdminRow) => {
   editingId.value = record.id;
   const pkg = packagesRaw.value.find((x) => x.id === record.id);
   form.location = record.location || '';
-  form.spotId = record.spotId ?? undefined;
+  form.spotIds = Array.isArray(record.spotIds) ? [...record.spotIds] : [];
   form.style = record.style || undefined;
+  if (form.spotIds.length) {
+    const sp = spots.value.find((s) => s.id === form.spotIds[0]);
+    if (sp?.category) form.style = sp.category;
+  }
   form.price = record.price;
   form.duration = record.duration;
   form.description = pkg?.description ?? '';
@@ -558,16 +687,26 @@ const savePackage = async () => {
     message.warning('请填写目的地');
     return;
   }
-  const hasSpot = form.spotId !== undefined && form.spotId !== null;
+  const hasSpot = form.spotIds.length > 0;
   if (hasSpot) {
-    const spot = spots.value.find((s) => s.id === form.spotId);
-    if (!spot) {
+    const picked = form.spotIds
+      .map((id) => spots.value.find((s) => s.id === id))
+      .filter((x): x is Spot => !!x);
+    if (!picked.length) {
       message.warning('所选景点无效，请重新选择');
       return;
     }
-    if (normalizeCityLabel(spot.city?.name) !== loc) {
-      message.warning('景点所属城市与目的地不一致，请重新选择景点或修改目的地');
+    const city = normalizeCityLabel(picked[0].city?.name);
+    const sameCity = picked.every((s) => normalizeCityLabel(s.city?.name) === city);
+    if (!sameCity) {
+      message.warning('一个套餐只能选择同一城市下的多个景点');
       return;
+    }
+    if (city && city !== loc) {
+      form.location = city;
+    }
+    if (picked[0].category) {
+      form.style = picked[0].category;
     }
   }
   if (!form.style) {
@@ -608,13 +747,13 @@ const savePackage = async () => {
     if (editingId.value) {
       await packagesApi.updatePackage(editingId.value, {
         ...common,
-        ...(hasSpot ? { spotId: form.spotId } : { spotId: null, location: loc }),
+        ...(hasSpot ? { spotIds: [...form.spotIds] } : { spotIds: [] as number[], location: loc }),
       });
       message.success('套餐已更新');
     } else {
       await packagesApi.createPackage({
         ...common,
-        ...(hasSpot ? { spotId: form.spotId } : { location: loc }),
+        ...(hasSpot ? { spotIds: [...form.spotIds] } : { location: loc }),
         status: 'published',
       });
       message.success('套餐已新增');
@@ -699,6 +838,20 @@ onMounted(async () => {
   margin: 6px 0 0;
   font-size: 12px;
   color: #888;
+}
+
+.package-desc-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 24px;
+}
+
+.package-ai-gen-btn {
+  padding: 0 4px;
+  flex-shrink: 0;
 }
 
 .spot-sub.muted {
