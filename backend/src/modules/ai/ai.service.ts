@@ -432,8 +432,15 @@ export class AiService {
 
   /**
    * 韩式简约：女生单人 / 男生单人 / 男女双人 三套文案（与前端展示、图生图提示一致）
+   * @param dressLabel 服装偏好文案（如含「蕾丝」则按蕾丝蓬蓬裙叙事，避免强调光滑缎面）
    */
-  private getMinimalistStyleAdvice(subjectRole: VirtualTryOnSubjectRole) {
+  private getMinimalistStyleAdvice(
+    subjectRole: VirtualTryOnSubjectRole,
+    dressLabel?: string,
+  ) {
+    const dr = (dressLabel || '').trim();
+    const laceBallgown = dr.includes('蕾丝');
+
     if (subjectRole === 'male') {
       return {
         style: 'minimalist',
@@ -456,6 +463,27 @@ export class AiService {
       };
     }
     if (subjectRole === 'couple') {
+      if (laceBallgown) {
+        return {
+          style: 'minimalist',
+          virtualAdvice:
+            '男女双人：3:4竖版，浅灰米白极简纯色背景，柔和漫射光铺满画面，低饱和温柔色调，细腻胶片质感，氛围治愈高级。新娘蕾丝蓬蓬裙婚纱配轻薄头纱：蕾丝刺绣、镂空与薄纱层次，蓬松裙摆显甜美体量，避免强调光滑绸缎反光；新郎简约西装利落沉稳。两人自然互动，或轻拥依偎、或并肩对视、或牵手浅笑，肢体松弛无摆拍感。蕾丝裙身层次与新郎西装线条相互映衬，光影均匀细腻，极简构图+韩系画报质感，定格甜蜜瞬间。',
+          makeupAdvice:
+            '双人均清透低饱和妆面：新娘伪素颜感、豆沙或奶茶唇；新郎自然修容、眉形整洁，气色干净。',
+          hairstyleAdvice:
+            '新娘低盘或披肩配轻薄头纱；新郎短发侧分或服帖造型，与西装风格统一。',
+          dressAdvice:
+            '新娘蕾丝蓬蓬裙婚纱与轻薄头纱（蕾丝肌理为主，非通体光滑缎面）；新郎黑色或深灰简约西装、领结或领带任选，线条利落成对。',
+          shootingTips: [
+            '3:4 竖版，浅灰米白背景，漫射光均匀、无杂乱阴影',
+            '互动自然：轻拥依偎、并肩对视、牵手浅笑，避免僵硬摆拍',
+            '无多余道具，蕾丝裙型与西装线条呼应，极简构图',
+            '低饱和、细腻胶片、韩系画报质感，甜蜜治愈氛围',
+          ],
+          previewDescription:
+            '双人韩式简约：极简背景、漫射柔光、新娘蕾丝蓬蓬裙与新郎西装线条映衬，依偎对视自然甜蜜。',
+        };
+      }
       return {
         style: 'minimalist',
         virtualAdvice:
@@ -477,6 +505,27 @@ export class AiService {
       };
     }
     // female
+    if (laceBallgown) {
+      return {
+        style: 'minimalist',
+        virtualAdvice:
+          '女生单人：3:4竖版，纯色浅灰米白极简背景，柔和漫射光打造通透低饱和画面，自带细腻胶片质感，韩式画报风拉满。婚纱为蕾丝蓬蓬裙：上身与裙摆以蕾丝刺绣、镂空花纹与薄纱叠层为主，蓬松裙摆显甜美层次，突出蕾丝肌理与轻柔哑光质感，避免通体光滑绸缎与镜面反光。搭配轻薄短头纱，妆容清透伪素颜，低盘发散落碎发，或侧身静立、或轻提裙摆，眼神温婉松弛，嘴角含淡笑，光影柔化轮廓，温柔治愈的高级感。',
+        makeupAdvice:
+          '清透伪素颜：底妆轻薄透亮，眼妆裸粉或大地色，唇色豆沙/奶茶，强调肌肤质感与温柔气色。',
+        hairstyleAdvice:
+          '低盘髻或低马尾，额前自然碎发；搭配轻薄短头纱，线条干净不厚重。',
+        dressAdvice:
+          '蕾丝蓬蓬裙婚纱：蕾丝刺绣/镂空与薄纱层次，蓬松裙型；避免大面积光滑缎面主身，与偏好选项一致。',
+        shootingTips: [
+          '3:4 竖构图，纯色浅灰/米白极简背景，柔和漫射光',
+          '姿态：侧身静立、轻提裙摆、眼神温婉，嘴角淡笑',
+          '光影柔化轮廓，突出蕾丝层次与蓬松裙型',
+          '画面通透低饱和，细腻胶片质感，韩式画报风',
+        ],
+        previewDescription:
+          '女生韩式简约：浅灰米白背景、漫射柔光、蕾丝蓬蓬裙与轻纱，低盘碎发，温婉松弛，温柔治愈高级感。',
+      };
+    }
     return {
       style: 'minimalist',
       virtualAdvice:
@@ -547,7 +596,7 @@ export class AiService {
       romantic: {
         style: 'romantic',
         virtualAdvice:
-          '虚拍画幅统一为 3:4 竖版。森系草坪风格强调自然光、草坪与绿植，清新柔美，适合森系婚礼与户外仪式。',
+          '虚拍画幅统一为 3:4 竖版。森系草坪风格强调自然光、草坪与绿植，清新柔美；生成画面背景宜保持清晰层次与可辨细节，避免整片过度虚化，更贴近真实户外旅拍。',
         makeupAdvice:
           '建议使用柔和的粉色系妆容，强调眼影的层次感，打造温柔的眼神。',
         hairstyleAdvice: '推荐盘发或半扎造型，配以精致的头饰，展现温婉气质。',
@@ -583,7 +632,7 @@ export class AiService {
       bohemian: {
         style: 'bohemian',
         virtualAdvice:
-          '虚拍画幅统一为 3:4 竖版。海岛松弛风格强调阳光、沙滩与度假感，轻盈纱裙与松弛姿态，适合海岛旅拍。',
+          '虚拍画幅统一为 3:4 竖版。海岛松弛风格强调阳光、沙滩与度假感，轻盈纱裙与松弛姿态；生成时远景海浪、沙滩与天际线宜保留纹理与清晰度，减少奶油虚化，更真实自然。',
         makeupAdvice:
           '建议使用自然的棕色系妆容，配以浓密的眉毛和少量的眼线，展现自然美感。',
         hairstyleAdvice: '推荐飘逸的长卷发或编织发型，配以花卉或羽毛装饰。',
@@ -645,7 +694,10 @@ export class AiService {
       request.subjectRole || 'female';
     let advice =
       normalizedStyle === 'minimalist'
-        ? this.getMinimalistStyleAdvice(subjectRole)
+        ? this.getMinimalistStyleAdvice(
+            subjectRole,
+            request.preferenceLabels?.dress,
+          )
         : styleAdvice[normalizedStyle];
     if (!advice) {
       const custom =
@@ -708,6 +760,22 @@ export class AiService {
       `避免僵硬直立正对镜头、双手紧贴裤缝、木讷证件照式站姿。` +
       ` Framing: within 3:4 vertical frame, environmental portrait, medium-wide shot, full body or 3/4 body visible, generous background and sky/ground; ` +
       `subject not oversized in frame. Pose: relaxed candid, natural movement, soft posture, not stiff standing portrait.`
+    );
+  }
+
+  /**
+   * 户外/环境类风格：抑制「唯美人像」式强虚化，背景保持可辨细节，贴近真实旅拍快照
+   */
+  private buildVirtualTryOnSharpBackgroundPrompt(style: string): string {
+    const outdoor = ['romantic', 'bohemian', 'adventure', 'artistic'];
+    if (!outdoor.includes(style)) {
+      return '';
+    }
+    return (
+      ` 【背景清晰度与景深】户外或大环境场景禁止整片背景糊成奶油色块或过度散景；` +
+      `采用较深景深、小光圈旅拍感，远景草坪层次、树木枝叶、海浪沙滩、建筑轮廓与天际线等须保留可辨认纹理与层次，整体锐利自然、像婚礼跟拍纪实而非棚拍虚化样片。` +
+      `人物略突出即可，勿 f/1.2 级强虚化。` +
+      ` English: deep depth of field, sharp detailed background (grass, trees, sea, architecture, sky), avoid heavy bokeh blur, realistic travel-wedding documentary look.`
     );
   }
 
@@ -822,36 +890,44 @@ export class AiService {
       });
       const adminStyleHint = tagRow?.description?.trim() || '';
 
+      const dressLabelForImg = preferenceLabels?.dress?.trim() || '';
+      const minimalistIsLace = dressLabelForImg.includes('蕾丝');
+      const minimalistFemaleVolces = minimalistIsLace
+        ? '韩式简约新娘单人婚纱照，3:4竖版，纯色浅灰米白极简背景，柔和漫射光通透低饱和，细腻胶片质感韩式画报风。蕾丝蓬蓬裙婚纱：蕾丝刺绣、镂空花纹与薄纱叠层，蓬松裙摆显层次，突出蕾丝肌理与哑光质感，避免通体光滑绸缎与镜面反光；轻薄短头纱，清透伪素颜妆，低盘碎发，侧身静立或轻提裙摆，温婉淡笑，温柔治愈高级感。高保真'
+        : '韩式简约新娘单人婚纱照，3:4竖版，纯色浅灰米白极简背景，柔和漫射光通透低饱和，细腻胶片质感韩式画报风。缎面婚纱可选法式方领A字垂坠、深V心形修身、圆领松弛、立领长袖伞裙；轻薄短头纱，清透伪素颜妆，低盘碎发，侧身静立或轻提裙摆，温婉淡笑，缎面光泽，温柔治愈高级感。高保真';
+      const minimalistCoupleVolces = minimalistIsLace
+        ? '韩式简约男女双人婚纱照，3:4竖版，浅灰米白极简纯色背景，柔和漫射光铺满，低饱和温柔色调，细腻胶片质感治愈高级。新娘蕾丝蓬蓬裙婚纱+轻薄头纱（蕾丝层次、蓬松裙型，非通体光滑缎面），新郎简约西装利落沉稳。轻拥依偎、并肩对视、牵手浅笑，肢体松弛无摆拍，表情温柔缱绻。蕾丝裙身与西装线条映衬，极简构图韩系画报，甜蜜瞬间。高保真'
+        : '韩式简约男女双人婚纱照，3:4竖版，浅灰米白极简纯色背景，柔和漫射光铺满，低饱和温柔色调，细腻胶片质感治愈高级。新娘缎面婚纱+轻薄头纱素雅干净，新郎简约西装利落沉稳。轻拥依偎、并肩对视、牵手浅笑，肢体松弛无摆拍，表情温柔缱绻。无多余道具，缎面与西装线条映衬，极简构图韩系画报，甜蜜瞬间。高保真';
+
       // 根据风格生成相应的提示词（女生/双人偏婚纱叙事）
       const stylePrompts: Record<string, string> = {
         romantic:
-          '3:4竖版，生成森系草坪风格的高级婚纱摄影照片，自然光、草坪绿植、清新柔美，高保真，森系婚礼感',
+          '3:4竖版，森系草坪风格高级婚纱摄影，自然光、草坪与绿植层次分明且背景清晰可辨，景深偏深勿整片虚化，清新柔美、真实户外旅拍质感，高保真，森系婚礼感',
         artistic:
-          '3:4竖版，生成纪实故事风格的高级婚纱摄影照片，古镇街巷与人文旅拍，情绪与构图，高保真，电影叙事感',
+          '3:4竖版，生成纪实故事风格的高级婚纱摄影照片，古镇街巷与人文旅拍，背景建筑与环境细节保持清晰少虚化，情绪与构图，高保真，电影叙事感',
         bohemian:
-          '3:4竖版，生成海岛松弛风格的高级婚纱摄影照片，阳光沙滩、轻盈纱裙、度假松弛感，高保真',
-        minimalist:
-          '韩式简约新娘单人婚纱照，3:4竖版，纯色浅灰米白极简背景，柔和漫射光通透低饱和，细腻胶片质感韩式画报风。缎面婚纱可选法式方领A字垂坠、深V心形修身、圆领松弛、立领长袖伞裙；轻薄短头纱，清透伪素颜妆，低盘碎发，侧身静立或轻提裙摆，温婉淡笑，缎面光泽，温柔治愈高级感。高保真',
+          '3:4竖版，海岛松弛风格高级婚纱摄影，阳光沙滩海浪与天际线纹理清晰可辨、少奶油虚化，轻盈纱裙、度假松弛感，深景深真实快照，高保真',
+        minimalist: minimalistFemaleVolces,
         classical:
           '新中式国风新娘单人婚纱照，3:4竖版，室内纯色正红背景无室外，色彩正红与暖棕为基底，秀禾龙凤褂或改良旗袍金饰刺绣，柔光均匀。表情自然亲切可面向镜头微笑，眼神温柔，避免僵硬。高保真',
         adventure:
-          '3:4竖版，生成旷野自由风格的高级婚纱摄影照片，可含公路山野或雪山雪景垭口远景、开阔天际、高原旅拍大片感，高保真',
+          '3:4竖版，旷野自由风格高级婚纱摄影，公路山野或雪山垭口远景层次清晰、背景勿过度虚化，开阔天际与地貌纹理可辨，高原旅拍大片真实景深，高保真',
       };
 
       /** 男生单人：避免「婚纱/纱裙」等新娘向词汇，强调西装/男装与环境，利于与偏好一致 */
       const stylePromptsMale: Record<string, string> = {
         romantic:
-          '3:4竖版，生成森系草坪风格的新郎婚礼人像照片，自然光、草坪绿植，男士西装或礼服造型，清新利落，高保真',
+          '3:4竖版，森系草坪风格新郎婚礼人像，自然光、草坪绿植层次清晰背景勿强虚化，男士西装或礼服造型，清新利落，真实外景质感，高保真',
         artistic:
-          '3:4竖版，生成纪实故事风格的新郎婚礼人像照片，古镇街巷与人文旅拍，男士西装或大衣，情绪与构图，高保真，电影叙事感',
+          '3:4竖版，生成纪实故事风格的新郎婚礼人像照片，古镇街巷与人文旅拍，环境细节清晰少虚化，男士西装或大衣，情绪与构图，高保真，电影叙事感',
         bohemian:
-          '3:4竖版，生成海岛松弛风格的新郎婚礼人像照片，阳光沙滩，男士浅色西装或亚麻休闲正装，度假松弛感，高保真',
+          '3:4竖版，海岛松弛风格新郎婚礼人像，阳光沙滩远景清晰、少散景糊化，男士浅色西装或亚麻休闲正装，度假松弛感，高保真',
         minimalist:
           '韩式简约新郎单人婚礼人像，3:4竖版，浅灰米白极简纯色背景，均匀柔和漫射光，低饱和通透干净，细腻胶片颗粒。西装可选黑色戗驳领+丝质领结、深灰平驳领修身+简约领带、黑色休闲单排扣微开领无领带。发型清爽，站姿放松，单手插袋或自然垂臂，面部光影柔和，表情温和淡然，韩系简约绅士格调。高保真',
         classical:
           '新中式国风新郎单人，3:4竖版，室内纯色正红背景，正红暖棕色调，中山装长衫或新中式男装。表情自然微笑可面向镜头，神态放松，避免僵硬。高保真',
         adventure:
-          '3:4竖版，生成旷野自由风格的新郎婚礼人像照片，可含公路山野或雪山垭口远景，男士大衣/皮衣/西装叠穿，高原旅拍大片感，高保真',
+          '3:4竖版，旷野自由风格新郎婚礼人像，公路山野或雪山远景清晰少强散景，男士大衣/皮衣/西装叠穿，高原旅拍真实景深，高保真',
       };
 
       const subjectTail: Record<VirtualTryOnSubjectRole, string> = {
@@ -864,8 +940,7 @@ export class AiService {
 
       /** 双人合影：韩式简约使用用户提供的完整画报向描述（含新郎新娘造型） */
       const stylePromptsCouple: Partial<Record<string, string>> = {
-        minimalist:
-          '韩式简约男女双人婚纱照，3:4竖版，浅灰米白极简纯色背景，柔和漫射光铺满，低饱和温柔色调，细腻胶片质感治愈高级。新娘缎面婚纱+轻薄头纱素雅干净，新郎简约西装利落沉稳。轻拥依偎、并肩对视、牵手浅笑，肢体松弛无摆拍，表情温柔缱绻。无多余道具，缎面与西装线条映衬，极简构图韩系画报，甜蜜瞬间。高保真',
+        minimalist: minimalistCoupleVolces,
         classical:
           '新中式国风男女双人婚纱照，3:4竖版，室内纯色正红背景，正红与暖棕为色彩基底，新娘秀禾龙凤褂或红裙旗袍，新郎中山装或新中式男装金饰细节。两人表情自然，可面向镜头微笑，并肩或轻靠，亲密放松，避免僵硬摆拍。高保真',
       };
@@ -905,13 +980,15 @@ export class AiService {
               style === 'classical'
                 ? this.buildClassicalNeoChineseCompositionPrompt()
                 : this.buildVirtualTryOnCompositionPrompt();
+            const sharpBgBlock =
+              this.buildVirtualTryOnSharpBackgroundPrompt(style);
             const editBlock = this.buildVirtualTryOnImageEditPrompt(
               subjectRole,
               style,
               preferences,
               preferenceLabels,
             );
-            return `${aspectRatioBlock}${basePrompt}${subjectTail[subjectRole]}${compositionBlock}${editBlock}`;
+            return `${aspectRatioBlock}${basePrompt}${subjectTail[subjectRole]}${compositionBlock}${sharpBgBlock}${editBlock}`;
           })();
 
       const volcesRequest: VolcesImageRequest = {
@@ -2273,10 +2350,10 @@ ${featuresHint ? `套餐亮点参考（可提炼，非必须逐条照抄）：${
 
 请提供：
 1. **行程总览**（overview 字段）：用一段话精炼概括主题与亮点，**中文总字数控制在 60 字以内**，避免冗长排比与套话
-2. **日程安排**: 每天的详细日程
+2. **日程安排**: 每天的详细日程（必须细化到上午/下午/傍晚三个时段）
 3. **景点介绍**: 主要景点的拍摄要点
 4. **最佳光线**: 每天的最佳拍摄时间
-5. **实用建议**: 当地天气、交通、美食等建议
+5. **实用建议**: 当地天气、交通、美食等建议（需给出至少 3 条可执行交通建议）
 6. **准备清单**: 需要准备的物品和装备
 
 请用JSON格式返回，包含以下结构：
@@ -2288,21 +2365,21 @@ ${featuresHint ? `套餐亮点参考（可提炼，非必须逐条照抄）：${
     {
       "day": 1,
       "theme": "主题",
-      "schedule": "日程详情",
+      "schedule": "上午：...；下午：...；傍晚：...（每个时段都要写清景点顺序、建议停留时长、以及上一站到下一站的交通方式+大致耗时）",
       "spots": ["景点1", "景点2"],
       "bestTime": "最佳拍摄时间",
       "tips": "拍摄技巧"
     }
   ],
   "packingList": ["物品1", "物品2"],
-  "localTips": "当地实用建议"
+  "localTips": "当地实用建议（包含到达主城区交通、跨景点通勤路线、高峰避堵时段）"
 }`;
 
     const content = await this.callDeepSeek([
       {
         role: 'system',
         content:
-          '你是一位专业的婚纱旅拍行程规划师，擅长根据目的地和风格为用户设计完整的旅拍行程。输出 JSON 时 overview 须简短有力，中文不超过约 60 字。',
+          '你是一位专业的婚纱旅拍行程规划师，擅长根据目的地和风格为用户设计完整的旅拍行程。输出 JSON 时 overview 须简短有力，中文不超过约 60 字；dailySchedule[].schedule 必须严格采用“上午：...；下午：...；傍晚：...”格式，并在每个时段写明交通路线（如地铁X号线/打车/步行）与大致耗时。',
       },
       {
         role: 'user',

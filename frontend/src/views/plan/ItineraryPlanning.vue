@@ -96,7 +96,7 @@
 
       <!-- 右侧：行程展示 -->
       <div class="right-panel">
-        <div v-if="!result" class="empty-state">
+        <div v-if="!result && !loading" class="empty-state">
           <span class="empty-icon">🗺️</span>
           <p>完成左侧配置后，点击按钮生成最优行程</p>
         </div>
@@ -138,7 +138,13 @@
             <div class="detail-content">
               <div class="detail-item">
                 <h4>📅 日程安排</h4>
-                <p>{{ selectedDayData?.schedule }}</p>
+                <template v-if="scheduleSegments.length > 0">
+                  <p v-for="seg in scheduleSegments" :key="seg.label" class="schedule-segment">
+                    <span class="schedule-segment-label">{{ seg.label }}：</span>
+                    <span>{{ seg.content }}</span>
+                  </p>
+                </template>
+                <p v-else>{{ selectedDayData?.schedule }}</p>
               </div>
 
               <div class="detail-item">
@@ -214,7 +220,16 @@
                     </a-button>
                   </div>
                   <div v-show="localTipsDetailOpen" class="itinerary-extras-body">
-                    <p>{{ result.localTips }}</p>
+                    <template v-if="localTipsParagraphs.length > 0">
+                      <p
+                        v-for="(tip, idx) in localTipsParagraphs"
+                        :key="`local-tip-${idx}`"
+                        class="local-tip-paragraph"
+                      >
+                        {{ tip }}
+                      </p>
+                    </template>
+                    <p v-else>{{ result.localTips }}</p>
                   </div>
                 </div>
               </div>
@@ -230,11 +245,15 @@
         </div>
       </div>
     </div>
+
+    <AiGeneratingWaitModal :open="loading" feature-hint="行程规划生成中" />
   </div>
 </template>
 
 <script setup lang="ts">
+import AiGeneratingWaitModal from '@/components/ai/AiGeneratingWaitModal.vue';
 import { aiApi, ItineraryPlanningRequest } from '@/api/ai';
+import { runAiFlight, useAiFlightPending } from '@/utils/ai-generation-flight';
 import {
   TRAVEL_STYLE_CARD_DESCRIPTIONS,
   TRAVEL_STYLE_LABELS,
@@ -252,7 +271,7 @@ const formData = reactive({
   interests: [],
 });
 
-const loading = ref<boolean>(false);
+const loading = useAiFlightPending('itinerary-planning');
 const stylesLoading = ref(false);
 const availableStyles = ref<ItineraryStyleRow[]>([]);
 const result = ref<any>(null);
@@ -271,6 +290,38 @@ const hasLocalTips = computed(() => {
   return Boolean(r && typeof r.localTips === 'string' && r.localTips.trim().length > 0);
 });
 
+/** 词连接符：阻止「时:分」在冒号处被浏览器拆到两行 */
+const WORD_JOINER = '\u2060';
+
+/** 将 H:MM / HH:MM 中冒号与分钟粘在一起，避免 9: 与 00 分行显示 */
+const glueClockTimes = (s: string) => s.replace(/(\d{1,2})[:：](\d{2})/g, `$1:${WORD_JOINER}$2`);
+
+const localTipsParagraphs = computed(() => {
+  const raw = result.value?.localTips;
+  const text = typeof raw === 'string' ? raw.trim() : '';
+  if (!text) return [] as string[];
+
+  // 兼容常见编号：1.  1、  （1） (1)
+  const normalized = text.replace(/\r\n/g, '\n').replace(/\s+/g, ' ').trim();
+  const pattern =
+    /((?:\d+[.\u3001]|[（(]\d+[）)]))\s*([\s\S]*?)(?=(?:\d+[.\u3001]|[（(]\d+[）)])|$)/g;
+  const matches = [...normalized.matchAll(pattern)];
+  if (!matches.length) return [];
+
+  return matches
+    .map((m) => `${String(m[1] || '').trim()} ${String(m[2] || '').trim()}`.trim())
+    .map((line) =>
+      glueClockTimes(
+        line
+          // 防止 9:\n00 或 9: 00 被浏览器断行为两行
+          .replace(/(\d{1,2})[:：]\s+(\d{2})/g, '$1:$2')
+          // 清理时间段连接符两侧多余空格，如 17:00 - 19:00
+          .replace(/(\d{1,2}:\d{2})\s*[-~～]\s*(\d{1,2}:\d{2})/g, '$1-$2')
+      )
+    )
+    .filter(Boolean);
+});
+
 const dayScheduleCount = computed(() =>
   Array.isArray(result.value?.dailySchedule) ? result.value.dailySchedule.length : 0
 );
@@ -280,6 +331,24 @@ const selectedDayData = computed(() => {
   const list = result.value.dailySchedule;
   if (!Array.isArray(list)) return null;
   return list.find((day: any) => day.day === selectedDay.value) ?? null;
+});
+
+const scheduleSegments = computed(() => {
+  const raw = selectedDayData.value?.schedule;
+  const text = typeof raw === 'string' ? raw.trim() : '';
+  if (!text) return [] as Array<{ label: '上午' | '下午' | '傍晚'; content: string }>;
+
+  const normalized = text.replace(/\s+/g, ' ');
+  const pattern = /(上午|下午|傍晚)[：:]\s*([\s\S]*?)(?=(上午|下午|傍晚)[：:]|$)/g;
+  const matches = [...normalized.matchAll(pattern)];
+  if (!matches.length) return [];
+
+  return matches
+    .map((m) => ({
+      label: m[1] as '上午' | '下午' | '傍晚',
+      content: String(m[2] || '').trim(),
+    }))
+    .filter((x) => x.content.length > 0);
 });
 
 const shootingBestTimeText = computed(() => {
@@ -671,46 +740,45 @@ const handlePlanItinerary = async () => {
     return;
   }
 
-  loading.value = true;
-  try {
-    const request: ItineraryPlanningRequest = {
-      destination,
-      duration: formData.duration,
-      style: formData.style,
-      interests: formData.interests.length > 0 ? formData.interests : undefined,
-    };
+  await runAiFlight('itinerary-planning', async () => {
+    try {
+      const request: ItineraryPlanningRequest = {
+        destination,
+        duration: formData.duration,
+        style: formData.style,
+        interests: formData.interests.length > 0 ? formData.interests : undefined,
+      };
 
-    const response = await aiApi.planItinerary(request);
-    // 处理嵌套的响应结构，取最内层的 data
-    result.value = response.data?.data || response.data;
-    selectedDay.value = 1;
-    packingDetailOpen.value = false;
-    localTipsDetailOpen.value = false;
-    shootingTimeTipsOpen.value = false;
-    message.success('行程规划生成成功！');
+      const response = await aiApi.planItinerary(request);
+      // 处理嵌套的响应结构，取最内层的 data
+      result.value = response.data?.data || response.data;
+      selectedDay.value = 1;
+      packingDetailOpen.value = false;
+      localTipsDetailOpen.value = false;
+      shootingTimeTipsOpen.value = false;
+      message.success('行程规划生成成功！');
 
-    // 保存状态到 sessionStorage
-    saveStateToStorage();
+      // 保存状态到 sessionStorage
+      saveStateToStorage();
 
-    // 如果用户已登录，自动保存到历史记录
-    if (authStore.isAuthenticated && result.value) {
-      try {
-        await aiApi.saveHistory({
-          type: 'itinerary-planning',
-          input: { ...formData },
-          output: result.value,
-        });
-        // 静默保存，不显示额外提示
-      } catch (saveError: any) {
-        // 保存失败不影响主流程，只记录日志
-        console.warn('自动保存历史记录失败:', saveError);
+      // 如果用户已登录，自动保存到历史记录
+      if (authStore.isAuthenticated && result.value) {
+        try {
+          await aiApi.saveHistory({
+            type: 'itinerary-planning',
+            input: { ...formData },
+            output: result.value,
+          });
+          // 静默保存，不显示额外提示
+        } catch (saveError: any) {
+          // 保存失败不影响主流程，只记录日志
+          console.warn('自动保存历史记录失败:', saveError);
+        }
       }
+    } catch (error: any) {
+      message.error(error.message || '生成失败，请重试');
     }
-  } catch (error: any) {
-    message.error(error.message || '生成失败，请重试');
-  } finally {
-    loading.value = false;
-  }
+  });
 };
 
 // 下载行程
@@ -736,6 +804,12 @@ const handlePrintItinerary = () => {
 const handleReset = () => {
   clearStateAndStorage();
 };
+
+watch(loading, (now, prev) => {
+  if (prev && !now) {
+    restoreStateFromStorage();
+  }
+});
 
 onMounted(async () => {
   authStore.initializeAuth();
@@ -986,6 +1060,17 @@ onMounted(async () => {
     color: #666;
     line-height: 1.5;
   }
+
+  .schedule-segment {
+    &:not(:first-of-type) {
+      margin-top: 8px;
+    }
+  }
+
+  .schedule-segment-label {
+    color: #334155;
+    font-weight: 600;
+  }
 }
 
 .spots-list {
@@ -1084,6 +1169,15 @@ onMounted(async () => {
     font-size: 0.9rem;
     color: #666;
     line-height: 1.6;
+  }
+
+  .local-tip-paragraph {
+    word-break: keep-all;
+    overflow-wrap: break-word;
+
+    &:not(:first-of-type) {
+      margin-top: 10px;
+    }
   }
 }
 

@@ -46,7 +46,7 @@ export const VTO_PREFERENCES_BY_STYLE: Record<VtoStyleKey, VtoPrefGroup> = {
       { value: 'ks_satin', label: '缎面抹胸' },
       { value: 'ks_slit', label: '开衩轻礼服' },
       { value: 'ks_suit', label: '西装式婚纱' },
-      { value: 'ks_cape', label: '披肩斗篷款' },
+      { value: 'ks_cape', label: '蕾丝蓬蓬裙婚纱' },
       { value: 'ks_short', label: '短款仪式纱' },
     ],
   },

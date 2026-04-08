@@ -1082,23 +1082,29 @@ onMounted(() => {
 <style scoped lang="less">
 .favorites-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  padding: 0 0 40px;
+  background: linear-gradient(180deg, #fff5f7 0%, #ffffff 32%);
+  padding: 0 80px 40px;
+
+  @media (max-width: 768px) {
+    padding: 0 36px 32px;
+  }
 }
 
 .page-header {
   text-align: center;
-  margin-bottom: 22px;
-  color: white;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  padding-top: 28px;
+  margin-bottom: 28px;
+  color: #334155;
+  text-shadow: none;
 
   h1 {
     font-size: 2.1rem;
     font-weight: 700;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
   }
 
   p {
+    margin: 0;
     font-size: 1.05rem;
     opacity: 0.9;
   }

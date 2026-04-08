@@ -86,11 +86,7 @@
       </div>
 
       <div class="right-panel">
-        <div v-if="generating" class="loading-state">
-          <div class="spinner"></div>
-          <p>正在生成试妆效果...</p>
-          <small>这可能需要 20-40 秒，请稍候</small>
-        </div>
+        <div v-if="generating" class="right-panel-generating-placeholder" aria-hidden="true" />
 
         <div v-else-if="!uploadedImage" class="empty-state">
           <span class="empty-icon">✨</span>
@@ -150,12 +146,16 @@
         </div>
       </div>
     </div>
+
+    <AiGeneratingWaitModal :open="generating" feature-hint="试妆效果生成中" />
   </div>
 </template>
 
 <script setup lang="ts">
+import AiGeneratingWaitModal from '@/components/ai/AiGeneratingWaitModal.vue';
 import { aiApi } from '@/api/ai';
 import { useAuthStore } from '@/store/auth';
+import { runAiFlight, useAiFlightPending } from '@/utils/ai-generation-flight';
 import { message } from 'ant-design-vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
@@ -172,7 +172,7 @@ const fileInput = ref<HTMLInputElement>();
 const dragActive = ref(false);
 const uploadedImage = ref('');
 const selectedStyle = ref<MakeupStyleId>('korean');
-const generating = ref(false);
+const generating = useAiFlightPending('makeup-try-on');
 const resultImage = ref('');
 const hasGenerated = ref(false);
 const authStore = useAuthStore();
@@ -376,63 +376,68 @@ const generateTryOn = async () => {
     message.warning('请先上传照片');
     return;
   }
-  generating.value = true;
-  try {
-    const resp: any = await aiApi.virtualTryOn({
-      imageUrl: uploadedImage.value,
-      style: `makeup-${selectedStyle.value}`,
-      makeupOnly: true,
-      subjectRole: 'female',
-      preferences: { makeup: selectedStyle.value },
-      preferenceLabels: {
-        makeup: `${styleName(selectedStyle.value)}。请严格按以下妆容特征生成：${styleFeaturePrompt[selectedStyle.value]}`,
-      },
-    });
-    const data = resp?.data?.data || resp?.data || resp;
-    const url = String(data?.modifiedImageUrl || '').trim();
-    if (url && (url.startsWith('data:') || url.startsWith('http'))) {
-      resultImage.value = url;
-    } else {
-      resultImage.value = '';
-    }
-    hasGenerated.value = true;
-
-    if (authStore.isAuthenticated) {
-      try {
-        await aiApi.saveHistory({
-          type: 'virtual-try-on',
-          input: {
-            imageUrl: uploadedImage.value,
-            style: `makeup-${selectedStyle.value}`,
-            makeupOnly: true,
-            subjectRole: 'female',
-            preferences: { makeup: selectedStyle.value },
-            preferenceLabels: {
-              makeup: `${styleName(selectedStyle.value)}。请严格按以下妆容特征生成：${styleFeaturePrompt[selectedStyle.value]}`,
-            },
-          },
-          output: data,
-        });
-        message.success('试妆效果已生成，已自动保存到 AI 历史');
-      } catch (saveErr) {
-        console.error('[MakeupTryOn] 自动保存历史失败:', saveErr);
-        message.warning('试妆效果已生成，但自动保存历史失败');
+  await runAiFlight('makeup-try-on', async () => {
+    try {
+      const resp: any = await aiApi.virtualTryOn({
+        imageUrl: uploadedImage.value,
+        style: `makeup-${selectedStyle.value}`,
+        makeupOnly: true,
+        subjectRole: 'female',
+        preferences: { makeup: selectedStyle.value },
+        preferenceLabels: {
+          makeup: `${styleName(selectedStyle.value)}。请严格按以下妆容特征生成：${styleFeaturePrompt[selectedStyle.value]}`,
+        },
+      });
+      const data = resp?.data?.data || resp?.data || resp;
+      const url = String(data?.modifiedImageUrl || '').trim();
+      if (url && (url.startsWith('data:') || url.startsWith('http'))) {
+        resultImage.value = url;
+      } else {
+        resultImage.value = '';
       }
-    } else if (url && (url.startsWith('data:') || url.startsWith('http'))) {
-      message.success('试妆效果已生成');
-    } else {
-      message.success('已生成，当前展示快速预览');
+      hasGenerated.value = true;
+
+      if (authStore.isAuthenticated) {
+        try {
+          await aiApi.saveHistory({
+            type: 'virtual-try-on',
+            input: {
+              imageUrl: uploadedImage.value,
+              style: `makeup-${selectedStyle.value}`,
+              makeupOnly: true,
+              subjectRole: 'female',
+              preferences: { makeup: selectedStyle.value },
+              preferenceLabels: {
+                makeup: `${styleName(selectedStyle.value)}。请严格按以下妆容特征生成：${styleFeaturePrompt[selectedStyle.value]}`,
+              },
+            },
+            output: data,
+          });
+          message.success('试妆效果已生成，已自动保存到 AI 历史');
+        } catch (saveErr) {
+          console.error('[MakeupTryOn] 自动保存历史失败:', saveErr);
+          message.warning('试妆效果已生成，但自动保存历史失败');
+        }
+      } else if (url && (url.startsWith('data:') || url.startsWith('http'))) {
+        message.success('试妆效果已生成');
+      } else {
+        message.success('已生成，当前展示快速预览');
+      }
+    } catch (e: any) {
+      hasGenerated.value = false;
+      message.error(e?.message || '生成失败，请重试');
     }
-  } catch (e: any) {
-    hasGenerated.value = false;
-    message.error(e?.message || '生成失败，请重试');
-  } finally {
-    generating.value = false;
-  }
+  });
 };
 
 watch([uploadedImage, selectedStyle, resultImage, hasGenerated], () => {
   saveStateToStorage();
+});
+
+watch(generating, (now, prev) => {
+  if (prev && !now) {
+    restoreStateFromStorage();
+  }
 });
 
 onMounted(() => {
@@ -694,40 +699,8 @@ onMounted(() => {
   flex-direction: column;
 }
 
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 400px;
-  color: #666;
-  gap: 20px;
-  .spinner {
-    width: 60px;
-    height: 60px;
-    border: 4px solid #f0f0f0;
-    border-top: 4px solid #ff758c;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-  p {
-    font-size: 1.1rem;
-    font-weight: 500;
-    margin: 0;
-  }
-  small {
-    font-size: 0.9rem;
-    color: #999;
-  }
-}
-
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
+.right-panel-generating-placeholder {
+  min-height: 400px;
 }
 
 .empty-state {

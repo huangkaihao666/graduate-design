@@ -123,7 +123,7 @@
 
       <!-- 右侧：详细推荐 -->
       <div class="right-panel">
-        <div v-if="!result" class="empty-state">
+        <div v-if="!result && !loading" class="empty-state">
           <span class="empty-icon">🎨</span>
           <p>填写左侧信息后，点击按钮获取个性化推荐</p>
         </div>
@@ -243,11 +243,15 @@
         </div>
       </div>
     </a-modal>
+
+    <AiGeneratingWaitModal :open="loading" feature-hint="个性化推荐生成中" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import AiGeneratingWaitModal from '@/components/ai/AiGeneratingWaitModal.vue';
+import { runAiFlight, useAiFlightPending } from '@/utils/ai-generation-flight';
+import { ref, reactive, onMounted, watch } from 'vue';
 import { message } from 'ant-design-vue';
 import { aiApi, StyleRecommendationRequest } from '@/api/ai';
 import { useAuthStore } from '@/store/auth';
@@ -295,7 +299,7 @@ const keywordSuggestions = [
   '氛围感灯光',
 ];
 
-const loading = ref<boolean>(false);
+const loading = useAiFlightPending('style-recommendation');
 const result = ref<any>(null);
 const selectedRecommendation = ref<number | null>(null);
 const authStore = useAuthStore();
@@ -380,42 +384,41 @@ const handleRecommend = async () => {
     return;
   }
 
-  loading.value = true;
-  try {
-    const request: StyleRecommendationRequest = {
-      preferences: formData.preferences,
-      budget: formData.budget,
-      occasions: formData.occasions.length > 0 ? formData.occasions : undefined,
-    };
+  await runAiFlight('style-recommendation', async () => {
+    try {
+      const request: StyleRecommendationRequest = {
+        preferences: formData.preferences,
+        budget: formData.budget,
+        occasions: formData.occasions.length > 0 ? formData.occasions : undefined,
+      };
 
-    const response = await aiApi.recommendStyle(request);
-    // 处理嵌套的响应结构，取最内层的 data
-    result.value = response.data?.data || response.data;
-    selectedRecommendation.value = 0;
-    message.success('推荐生成成功！');
+      const response = await aiApi.recommendStyle(request);
+      // 处理嵌套的响应结构，取最内层的 data
+      result.value = response.data?.data || response.data;
+      selectedRecommendation.value = 0;
+      message.success('推荐生成成功！');
 
-    // 保存状态到 sessionStorage
-    saveStateToStorage();
+      // 保存状态到 sessionStorage
+      saveStateToStorage();
 
-    // 如果用户已登录，自动保存到历史记录
-    if (authStore.isAuthenticated && result.value) {
-      try {
-        await aiApi.saveHistory({
-          type: 'style-recommendation',
-          input: { ...formData },
-          output: result.value,
-        });
-        // 静默保存，不显示额外提示
-      } catch (saveError: any) {
-        // 保存失败不影响主流程，只记录日志
-        console.warn('自动保存历史记录失败:', saveError);
+      // 如果用户已登录，自动保存到历史记录
+      if (authStore.isAuthenticated && result.value) {
+        try {
+          await aiApi.saveHistory({
+            type: 'style-recommendation',
+            input: { ...formData },
+            output: result.value,
+          });
+          // 静默保存，不显示额外提示
+        } catch (saveError: any) {
+          // 保存失败不影响主流程，只记录日志
+          console.warn('自动保存历史记录失败:', saveError);
+        }
       }
+    } catch (error: any) {
+      message.error(error.message || '生成失败，请重试');
     }
-  } catch (error: any) {
-    message.error(error.message || '生成失败，请重试');
-  } finally {
-    loading.value = false;
-  }
+  });
 };
 
 // 保存推荐
@@ -537,6 +540,12 @@ const getBestShootingTime = (spotName: string): string => {
   };
   return times[spotName] || '早晨 7:00-9:00 和傍晚 17:00-19:00（黄金光线时段）';
 };
+
+watch(loading, (now, prev) => {
+  if (prev && !now) {
+    restoreStateFromStorage();
+  }
+});
 
 onMounted(() => {
   restoreStateFromStorage();

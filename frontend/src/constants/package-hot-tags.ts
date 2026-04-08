@@ -1,6 +1,16 @@
 import type { Package } from '@/api/packages';
+import { TRAVEL_STYLE_LABELS } from '@/constants/travel-style-labels';
 
-export type HotTagKey = 'island' | 'ancientCity' | 'cityWalk' | 'couple' | 'weekend' | 'luxury';
+/**
+ * 与虚拍试衣（VirtualTryOn）可选风格 key 一致，共 6 种
+ */
+export type HotTagKey =
+  | 'minimalist'
+  | 'classical'
+  | 'bohemian'
+  | 'romantic'
+  | 'adventure'
+  | 'artistic';
 
 type HotTagRule = {
   locations?: string[];
@@ -15,36 +25,37 @@ export type HotTagConfigItem = {
   rule: HotTagRule;
 };
 
+/** 顺序与虚拍试衣默认列表一致 */
 export const HOT_TAGS_CONFIG: HotTagConfigItem[] = [
   {
-    label: '海岛旅拍',
-    value: 'island',
-    rule: { locations: ['三亚', '厦门', '巴厘岛', '普吉岛', '马尔代夫'] },
+    label: TRAVEL_STYLE_LABELS.minimalist,
+    value: 'minimalist',
+    rule: { styles: ['minimalist'] },
   },
   {
-    label: '古城旅拍',
-    value: 'ancientCity',
-    rule: { locations: ['大理', '丽江', '西安', '京都', '罗马'] },
+    label: TRAVEL_STYLE_LABELS.classical,
+    value: 'classical',
+    rule: { styles: ['classical'] },
   },
   {
-    label: '城市地标',
-    value: 'cityWalk',
-    rule: { locations: ['北京', '上海', '成都', '东京', '首尔', '巴黎'] },
+    label: TRAVEL_STYLE_LABELS.bohemian,
+    value: 'bohemian',
+    rule: { styles: ['bohemian'] },
   },
   {
-    label: '情侣首选',
-    value: 'couple',
-    rule: { styles: ['romantic', 'artistic', 'classical'] },
+    label: TRAVEL_STYLE_LABELS.romantic,
+    value: 'romantic',
+    rule: { styles: ['romantic'] },
   },
   {
-    label: '周末短途',
-    value: 'weekend',
-    rule: { maxDuration: 3 },
+    label: TRAVEL_STYLE_LABELS.adventure,
+    value: 'adventure',
+    rule: { styles: ['adventure'] },
   },
   {
-    label: '高端定制',
-    value: 'luxury',
-    rule: { minPrice: 7999 },
+    label: TRAVEL_STYLE_LABELS.artistic,
+    value: 'artistic',
+    rule: { styles: ['artistic'] },
   },
 ];
 

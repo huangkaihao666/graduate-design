@@ -111,25 +111,46 @@
           />
         </div>
 
-        <div class="filter-group">
-          <span class="filter-label">价格区间：</span>
-          <a-input-number
-            v-model:value="filters.minPrice"
-            placeholder="最低价"
-            :min="0"
-            size="middle"
-            style="width: 100px"
-            @change="handleFilterChange"
-          />
-          <span class="filter-separator">-</span>
-          <a-input-number
-            v-model:value="filters.maxPrice"
-            placeholder="最高价"
-            :min="0"
-            size="middle"
-            style="width: 100px"
-            @change="handleFilterChange"
-          />
+        <div class="filter-cluster filter-cluster--price">
+          <div
+            class="filter-group filter-group--price-tier"
+            title="基础：1 万元以下；景点：1 万～2.5 万元；高端：2.5 万元及以上。选择档位后会清空自定义最低价/最高价。"
+          >
+            <span class="filter-label">价格档位：</span>
+            <a-radio-group
+              v-model:value="filters.priceTier"
+              button-style="solid"
+              size="middle"
+              class="price-tier-radio"
+              @change="handlePriceTierChange"
+            >
+              <a-radio-button value="all">全部</a-radio-button>
+              <a-radio-button value="basic">基础</a-radio-button>
+              <a-radio-button value="spot">景点</a-radio-button>
+              <a-radio-button value="premium">高端</a-radio-button>
+            </a-radio-group>
+          </div>
+
+          <div class="filter-group">
+            <span class="filter-label">价格区间：</span>
+            <a-input-number
+              v-model:value="filters.minPrice"
+              placeholder="最低价"
+              :min="0"
+              size="middle"
+              style="width: 100px"
+              @change="handleManualPriceChange"
+            />
+            <span class="filter-separator">-</span>
+            <a-input-number
+              v-model:value="filters.maxPrice"
+              placeholder="最高价"
+              :min="0"
+              size="middle"
+              style="width: 100px"
+              @change="handleManualPriceChange"
+            />
+          </div>
         </div>
 
         <div class="filter-group">
@@ -163,11 +184,11 @@
       <div class="hot-tags-row">
         <span class="hot-tags-label">热门标签：</span>
         <a-button
-          v-for="tag in hotTags"
+          v-for="tag in hotTagsForDisplay"
           :key="tag.value"
           size="middle"
           class="hot-tag-btn"
-          :type="filters.hotTags.includes(tag.value) ? 'primary' : 'default'"
+          :type="filters.hotTag === tag.value ? 'primary' : 'default'"
           @click="toggleHotTag(tag.value)"
         >
           <span v-text="tag.label"></span>
@@ -203,7 +224,15 @@
         >
           <a-image :src="pkg.coverImage" :preview="false" class="recommend-cover" />
           <div class="recommend-info">
-            <h4>{{ getPackageDisplayName(pkg) }}</h4>
+            <div class="recommend-title-row">
+              <h4>{{ getPackageDisplayName(pkg) }}</h4>
+              <span
+                class="price-tier-pill price-tier-pill--sm"
+                :class="`price-tier-pill--${resolvePackagePriceTier(pkg.price)}`"
+              >
+                {{ PACKAGE_PRICE_TIER_LABEL[resolvePackagePriceTier(pkg.price)] }}
+              </span>
+            </div>
             <p>
               📍 {{ pkg.location }} · 🗺️ {{ getPackageSpotSummary(pkg) }} · {{ pkg.duration }} 天
             </p>
@@ -270,7 +299,15 @@
           </div>
           <div class="card-content">
             <div class="card-header">
-              <h3 class="package-name">{{ getPackageDisplayName(pkg) }}</h3>
+              <div class="card-title-block">
+                <h3 class="package-name">{{ getPackageDisplayName(pkg) }}</h3>
+                <span
+                  class="price-tier-pill"
+                  :class="`price-tier-pill--${resolvePackagePriceTier(pkg.price)}`"
+                >
+                  {{ PACKAGE_PRICE_TIER_LABEL[resolvePackagePriceTier(pkg.price)] }}
+                </span>
+              </div>
               <div class="price-section">
                 <span class="current-price">¥{{ pkg.price.toLocaleString() }}</span>
                 <span v-if="pkg.originalPrice" class="original-price">
@@ -360,6 +397,12 @@
             <div class="meta-row">
               <span class="meta-label">👥 适合人数：</span>
               <span class="meta-value">最多 {{ selectedPackage.maxPeople }} 人</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">💎 价格档位：</span>
+              <span class="meta-value">{{
+                PACKAGE_PRICE_TIER_LABEL[resolvePackagePriceTier(selectedPackage.price)]
+              }}</span>
             </div>
           </div>
 
@@ -477,7 +520,15 @@
           >
             <a-image :src="pkg.coverImage" :preview="false" class="recommend-cover" />
             <div class="recommend-info">
-              <h4>{{ getPackageDisplayName(pkg) }}</h4>
+              <div class="recommend-title-row">
+                <h4>{{ getPackageDisplayName(pkg) }}</h4>
+                <span
+                  class="price-tier-pill price-tier-pill--sm"
+                  :class="`price-tier-pill--${resolvePackagePriceTier(pkg.price)}`"
+                >
+                  {{ PACKAGE_PRICE_TIER_LABEL[resolvePackagePriceTier(pkg.price)] }}
+                </span>
+              </div>
               <p>
                 📍 {{ pkg.location }} · 🗺️ {{ getPackageSpotSummary(pkg) }} · {{ pkg.duration }} 天
               </p>
@@ -550,6 +601,26 @@ import { useRoute, useRouter } from 'vue-router';
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+
+/** 套餐价格档位分界（人民币，元）：基础 &lt; 1 万；景点 [1 万, 2.5 万)；高端 ≥ 2.5 万 */
+const PRICE_TIER_SPOT_MIN = 10_000;
+const PRICE_TIER_PREMIUM_MIN = 25_000;
+
+type PackagePriceTier = 'basic' | 'spot' | 'premium';
+
+const PACKAGE_PRICE_TIER_LABEL: Record<PackagePriceTier, string> = {
+  basic: '基础',
+  spot: '景点',
+  premium: '高端',
+};
+
+const resolvePackagePriceTier = (price: number): PackagePriceTier => {
+  const p = Number(price);
+  if (!Number.isFinite(p) || p < 0) return 'basic';
+  if (p < PRICE_TIER_SPOT_MIN) return 'basic';
+  if (p < PRICE_TIER_PREMIUM_MIN) return 'spot';
+  return 'premium';
+};
 
 const publicSpots = ref<Spot[]>([]);
 const publicSpotById = computed(() => new Map(publicSpots.value.map((s) => [s.id, s])));
@@ -816,17 +887,34 @@ const sortOptions = [
   { label: '行程天数从短到长', value: 'durationAsc' },
   { label: '最新上架', value: 'newest' },
 ];
-const hotTags = HOT_TAGS_CONFIG;
+/** 与虚拍试衣六种风格 key 一致；展示名与「拍摄风格」下拉同步（后台风格标签） */
+const HOT_TAG_STYLE_ORDER: HotTagKey[] = [
+  'minimalist',
+  'classical',
+  'bohemian',
+  'romantic',
+  'adventure',
+  'artistic',
+];
+
+const hotTagsForDisplay = computed(() =>
+  HOT_TAG_STYLE_ORDER.map((value) => ({
+    value,
+    label: loadedStyleMap.value[value] || TRAVEL_STYLE_LABELS[value] || value,
+  }))
+);
 
 const filters = reactive({
   region: undefined as 'domestic' | 'overseas' | undefined,
   style: undefined as string | undefined,
   location: undefined as string | undefined,
+  priceTier: 'all' as 'all' | PackagePriceTier,
   minPrice: undefined as number | undefined,
   maxPrice: undefined as number | undefined,
   duration: undefined as number | undefined,
   sortBy: 'recommended' as 'recommended' | 'priceAsc' | 'priceDesc' | 'durationAsc' | 'newest',
-  hotTags: [] as HotTagKey[],
+  /** 热门标签：单选，与套餐 style 对应 */
+  hotTag: undefined as HotTagKey | undefined,
 });
 
 const pagination = reactive({
@@ -841,7 +929,8 @@ const isFilteringActive = computed(() => {
     Boolean(filters.region) ||
     Boolean(filters.style) ||
     Boolean(filters.location) ||
-    filters.hotTags.length > 0 ||
+    filters.priceTier !== 'all' ||
+    filters.hotTag !== undefined ||
     filters.minPrice !== undefined ||
     filters.maxPrice !== undefined ||
     filters.duration !== undefined ||
@@ -1096,6 +1185,19 @@ const handleFilterChange = () => {
   fetchPackages();
 };
 
+const handlePriceTierChange = () => {
+  if (filters.priceTier !== 'all') {
+    filters.minPrice = undefined;
+    filters.maxPrice = undefined;
+  }
+  handleFilterChange();
+};
+
+const handleManualPriceChange = () => {
+  filters.priceTier = 'all';
+  handleFilterChange();
+};
+
 const handleRegionChange = () => {
   if (filters.region === 'domestic') {
     locationOptions.value = [...domesticLocations];
@@ -1113,11 +1215,7 @@ const handleRegionChange = () => {
 };
 
 const toggleHotTag = (tagValue: HotTagKey) => {
-  if (filters.hotTags.includes(tagValue)) {
-    filters.hotTags = filters.hotTags.filter((tag) => tag !== tagValue);
-  } else {
-    filters.hotTags = [...filters.hotTags, tagValue];
-  }
+  filters.hotTag = filters.hotTag === tagValue ? undefined : tagValue;
   handleFilterChange();
 };
 
@@ -1125,11 +1223,12 @@ const resetFilters = () => {
   filters.region = undefined;
   filters.style = lockedStyleFromShowcase.value || undefined;
   filters.location = undefined;
+  filters.priceTier = 'all';
   filters.minPrice = undefined;
   filters.maxPrice = undefined;
   filters.duration = undefined;
   filters.sortBy = 'recommended';
-  filters.hotTags = [];
+  filters.hotTag = undefined;
   locationOptions.value = [...combinedLocationsSorted];
   pagination.page = 1;
   fetchPackages();
@@ -1169,6 +1268,9 @@ const fetchPackages = async () => {
     if (filters.location) {
       filtered = filtered.filter((p) => p.location === filters.location);
     }
+    if (filters.priceTier !== 'all') {
+      filtered = filtered.filter((p) => resolvePackagePriceTier(p.price) === filters.priceTier);
+    }
     if (filters.minPrice !== undefined) {
       filtered = filtered.filter((p) => p.price >= filters.minPrice!);
     }
@@ -1187,17 +1289,11 @@ const fetchPackages = async () => {
           p.description.toLowerCase().includes(keyword)
       );
     }
-    if (filters.hotTags.length > 0) {
-      const hotTagMap = new Map(hotTags.map((tag) => [tag.value, tag]));
-      filtered = filtered.filter((p) =>
-        filters.hotTags.every((tag) => {
-          const tagConfig = hotTagMap.get(tag);
-          if (!tagConfig) {
-            return true;
-          }
-          return matchPackageByHotTag(p, tagConfig);
-        })
-      );
+    if (filters.hotTag !== undefined) {
+      const tagConfig = HOT_TAGS_CONFIG.find((t) => t.value === filters.hotTag);
+      if (tagConfig) {
+        filtered = filtered.filter((p) => matchPackageByHotTag(p, tagConfig));
+      }
     }
 
     if (filters.sortBy === 'priceAsc') {
@@ -1402,6 +1498,40 @@ onMounted(async () => {
   overflow-x: hidden;
 }
 
+.price-tier-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.35;
+  flex-shrink: 0;
+
+  &--sm {
+    padding: 1px 8px;
+    font-size: 0.68rem;
+  }
+
+  &--basic {
+    color: #276749;
+    background: #ecfdf5;
+    border: 1px solid rgba(56, 161, 105, 0.4);
+  }
+
+  &--spot {
+    color: #b83280;
+    background: #fff0f6;
+    border: 1px solid rgba(232, 121, 178, 0.45);
+  }
+
+  &--premium {
+    color: #975a16;
+    background: #fffbeb;
+    border: 1px solid rgba(214, 158, 46, 0.45);
+  }
+}
+
 .photographer-booking-banner {
   max-width: none;
   margin: 0 0 16px;
@@ -1573,6 +1703,26 @@ onMounted(async () => {
         color: #999;
         margin: 0 5px;
       }
+
+      &.filter-group--price-tier {
+        flex: 0 1 auto;
+
+        .price-tier-radio {
+          flex-wrap: wrap;
+
+          :deep(.ant-radio-button-wrapper) {
+            font-size: 0.88rem;
+            padding-inline: 12px;
+          }
+        }
+      }
+    }
+
+    .filter-cluster--price {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 24px;
     }
 
     .recommend-entry-btn {
@@ -1760,11 +1910,21 @@ onMounted(async () => {
     .recommend-info {
       padding: 8px 12px 9px;
 
+      .recommend-title-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: 6px 8px;
+        margin-bottom: 6px;
+      }
+
       h4 {
-        margin: 0 0 6px;
+        margin: 0;
         font-size: 0.98rem;
         color: #222;
         line-height: 1.4;
+        flex: 1;
+        min-width: 0;
       }
 
       p {
@@ -1983,7 +2143,17 @@ onMounted(async () => {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
+      gap: 12px;
       margin-bottom: 12px;
+
+      .card-title-block {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
 
       .package-name {
         font-size: 1.2rem;
@@ -1991,6 +2161,7 @@ onMounted(async () => {
         color: #333;
         margin: 0;
         flex: 1;
+        min-width: 0;
         line-height: 1.4;
       }
 
@@ -2358,6 +2529,12 @@ onMounted(async () => {
     .filters-content {
       flex-direction: column;
       align-items: stretch;
+
+      .filter-cluster--price {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 24px;
+      }
 
       .filter-group {
         flex-direction: column;

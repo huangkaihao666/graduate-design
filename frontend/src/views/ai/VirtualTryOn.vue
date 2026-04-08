@@ -194,11 +194,7 @@
       </div>
 
       <div class="right-panel">
-        <div v-if="generating" class="loading-state">
-          <div class="spinner"></div>
-          <p>正在生成虚拍建议...</p>
-          <small>这可能需要 30-60 秒，请耐心等待 ✨</small>
-        </div>
+        <div v-if="generating" class="right-panel-generating-placeholder" aria-hidden="true" />
 
         <div v-else-if="!result" class="empty-state">
           <span class="empty-icon">✨</span>
@@ -301,10 +297,13 @@
         </div>
       </div>
     </div>
+
+    <AiGeneratingWaitModal :open="generating" feature-hint="虚拍建议生成中" />
   </div>
 </template>
 
 <script setup lang="ts">
+import AiGeneratingWaitModal from '@/components/ai/AiGeneratingWaitModal.vue';
 import { aiApi, VirtualTryOnRequest } from '@/api/ai';
 import xpsy1 from '@/assets/images/hero/xpsy1.jpg';
 import xpsy2 from '@/assets/images/hero/xpsy2.jpg';
@@ -326,6 +325,7 @@ import {
   type VirtualTryOnSubjectRole,
 } from '@/constants/virtual-tryon-subject';
 import { useAuthStore } from '@/store/auth';
+import { runAiFlight, useAiFlightPending } from '@/utils/ai-generation-flight';
 import { message } from 'ant-design-vue';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
@@ -337,7 +337,7 @@ const dragActive = ref<boolean>(false);
 const selectedStyle = ref<string>('minimalist');
 const subjectRole = ref<VirtualTryOnSubjectRole>('female');
 const subjectOptions = VTO_SUBJECT_OPTIONS;
-const generating = ref<boolean>(false);
+const generating = useAiFlightPending('virtual-try-on');
 const result = ref<any>(null);
 const lastRequest = ref<VirtualTryOnRequest | null>(null);
 const fileInput = ref<HTMLInputElement>();
@@ -609,6 +609,13 @@ const restoreStateFromStorage = () => {
   }
 };
 
+// 切走页面后生成在后台完成时，新实例从 sessionStorage 拉回最新结果
+watch(generating, (now, prev) => {
+  if (prev && !now) {
+    restoreStateFromStorage();
+  }
+});
+
 // 获取可用风格列表
 onMounted(async () => {
   authStore.initializeAuth();
@@ -760,61 +767,60 @@ const handleGenerate = async () => {
     return;
   }
 
-  generating.value = true;
-  try {
-    // 使用用户实际上传的图片（Base64 格式）
-    // uploadedImage.value 已经是 Base64 格式：data:image/jpeg;base64,...
-    const request: VirtualTryOnRequest = {
-      imageUrl: uploadedImage.value, // 使用用户上传的图片，而不是固定的 URL
-      style: selectedStyle.value,
-      subjectRole: subjectRole.value,
-      preferences: {
-        makeup: preferences.makeup,
-        hairstyle: preferences.hairstyle,
-        dress: preferences.dress,
-        accessory: preferences.accessory,
-      },
-      preferenceLabels: {
-        makeup: buildAdaptiveMakeupPrompt(
-          resolveVtoPrefLabel(makeupOptions.value, preferences.makeup),
-          selectedStyle.value
-        ),
-        hairstyle: resolveVtoPrefLabel(hairstyleOptions.value, preferences.hairstyle),
-        dress: resolveVtoPrefLabel(dressOptions.value, preferences.dress),
-        accessory: preferences.accessory,
-      },
-    };
-    lastRequest.value = request;
+  await runAiFlight('virtual-try-on', async () => {
+    try {
+      // 使用用户实际上传的图片（Base64 格式）
+      // uploadedImage.value 已经是 Base64 格式：data:image/jpeg;base64,...
+      const request: VirtualTryOnRequest = {
+        imageUrl: uploadedImage.value, // 使用用户上传的图片，而不是固定的 URL
+        style: selectedStyle.value,
+        subjectRole: subjectRole.value,
+        preferences: {
+          makeup: preferences.makeup,
+          hairstyle: preferences.hairstyle,
+          dress: preferences.dress,
+          accessory: preferences.accessory,
+        },
+        preferenceLabels: {
+          makeup: buildAdaptiveMakeupPrompt(
+            resolveVtoPrefLabel(makeupOptions.value, preferences.makeup),
+            selectedStyle.value
+          ),
+          hairstyle: resolveVtoPrefLabel(hairstyleOptions.value, preferences.hairstyle),
+          dress: resolveVtoPrefLabel(dressOptions.value, preferences.dress),
+          accessory: preferences.accessory,
+        },
+      };
+      lastRequest.value = request;
 
-    const response = await aiApi.virtualTryOn(request);
-    // 处理嵌套的响应结构，取最内层的 data
-    result.value = response.data?.data || response.data;
+      const response = await aiApi.virtualTryOn(request);
+      // 处理嵌套的响应结构，取最内层的 data
+      result.value = response.data?.data || response.data;
 
-    // 生成成功后持久化（保存生成结果与最后一次请求）
-    saveStateToStorage();
+      // 生成成功后持久化（保存生成结果与最后一次请求）
+      saveStateToStorage();
 
-    // 登录用户：自动写入服务端「AI 生成历史」
-    if (authStore.isAuthenticated && result.value && lastRequest.value) {
-      try {
-        await aiApi.saveHistory({
-          type: 'virtual-try-on',
-          input: { ...lastRequest.value },
-          output: result.value,
-        });
-        message.success('虚拍建议生成成功，已保存到生成历史');
-      } catch (saveErr: any) {
-        console.error('[VirtualTryOn] 自动保存历史失败:', saveErr);
-        message.warning('生成成功，但保存到历史失败，请稍后重试或检查网络');
+      // 登录用户：自动写入服务端「AI 生成历史」
+      if (authStore.isAuthenticated && result.value && lastRequest.value) {
+        try {
+          await aiApi.saveHistory({
+            type: 'virtual-try-on',
+            input: { ...lastRequest.value },
+            output: result.value,
+          });
+          message.success('虚拍建议生成成功，已保存到生成历史');
+        } catch (saveErr: any) {
+          console.error('[VirtualTryOn] 自动保存历史失败:', saveErr);
+          message.warning('生成成功，但保存到历史失败，请稍后重试或检查网络');
+        }
+      } else {
+        message.success('虚拍建议生成成功！');
       }
-    } else {
-      message.success('虚拍建议生成成功！');
+    } catch (error: any) {
+      message.error(error.message || '生成失败，请重试');
+      console.error('虚拍生成错误:', error);
     }
-  } catch (error: any) {
-    message.error(error.message || '生成失败，请重试');
-    console.error('虚拍生成错误:', error);
-  } finally {
-    generating.value = false;
-  }
+  });
 };
 
 // 重新生成
@@ -1446,43 +1452,8 @@ const showResultImagePlaceholder = (target: any) => {
   flex-direction: column;
 }
 
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 400px;
-  color: #666;
-  gap: 20px;
-
-  .spinner {
-    width: 60px;
-    height: 60px;
-    border: 4px solid #f0f0f0;
-    border-top: 4px solid #ff758c;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-
-  p {
-    font-size: 1.1rem;
-    font-weight: 500;
-    margin: 0;
-  }
-
-  small {
-    font-size: 0.9rem;
-    color: #999;
-  }
-
-  @keyframes spin {
-    0% {
-      transform: rotate(0deg);
-    }
-    100% {
-      transform: rotate(360deg);
-    }
-  }
+.right-panel-generating-placeholder {
+  min-height: 400px;
 }
 
 .empty-state {
