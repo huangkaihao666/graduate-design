@@ -46,19 +46,22 @@
 git clone <项目地址>
 cd graduate-design
 
-# 2️⃣ 安装依赖
-pnpm install
+# 2️⃣ 在仓库根目录安装依赖（不要只在 backend 目录单独安装）
+pnpm install --registry=https://registry.npmjs.org
 
 # 3️⃣ 进入后端目录
 cd backend
 
-# 4️⃣ 配置数据库（见下面详细说明）
+# 4️⃣ 生成 Prisma Client
+pnpm prisma:generate
+
+# 5️⃣ 配置数据库（见下面详细说明）
 # 需要本地 MySQL 已启动且配置好用户
 
-# 5️⃣ 应用数据库迁移
+# 6️⃣ 应用数据库迁移
 pnpm prisma migrate deploy
 
-# 6️⃣ 启动项目
+# 7️⃣ 启动项目
 pnpm start:dev
 ```
 
@@ -117,6 +120,7 @@ DATABASE_URL="mysql://your_username:your_password@localhost:3306/graduate-design
 
 ```bash
 cd backend
+pnpm prisma:generate
 pnpm prisma migrate deploy
 ```
 
@@ -127,6 +131,8 @@ pnpm start:dev
 ```
 
 ✅ 看到 `NestApplication successfully started` 表示启动成功！
+
+如果刚执行过 `pnpm prisma:generate`，建议先按 `Ctrl + C` 停掉旧的 `pnpm start:dev`，再重新启动一次。
 
 #### 第 6 步：验证服务
 
@@ -190,6 +196,9 @@ pnpm prisma migrate dev
 # 生成 Prisma Client
 pnpm prisma:generate
 
+# 检查当前 TypeScript 是否已恢复正常
+pnpm exec tsc -p tsconfig.json --noEmit
+
 # 可视化管理数据
 pnpm prisma:studio
 ```
@@ -223,15 +232,46 @@ http://localhost:3000/api/docs
 2. 检查 `.env` 中的 `DATABASE_URL` 是否正确
 3. 验证用户名和密码
 
-### Prisma Client 未生成
-
-**错误**：`Cannot find module '@prisma/client'`
-
-**解决**：
+### 初次启动推荐顺序
 
 ```bash
+cd graduate-design
+pnpm install --registry=https://registry.npmjs.org
+
 cd backend
 pnpm prisma:generate
+pnpm prisma migrate deploy
+pnpm start:dev
+```
+
+说明：
+
+- 依赖请尽量在仓库根目录安装。
+- `pnpm prisma:generate` 用来生成 Prisma Client；如果没生成，后端会出现 `PrismaClient` 不存在这类报错。
+
+### 暂停项目后重新启动 / 重装依赖后报 Prisma 错误
+
+如果出现下面这类报错：
+
+- `Module '"@prisma/client"' has no exported member 'PrismaClient'`
+- `Property 'room' does not exist on type 'PrismaService'`
+- `Property 'user' does not exist on type 'PrismaService'`
+
+按这个顺序处理：
+
+```bash
+# 先停止旧的 start:dev
+# Ctrl + C
+
+cd backend
+pnpm prisma:generate
+pnpm start:dev
+```
+
+如果是刚重装过依赖，先在仓库根目录执行：
+
+```bash
+pnpm install --registry=https://registry.npmjs.org
 ```
 
 ### 数据库权限不足
@@ -253,8 +293,8 @@ FLUSH PRIVILEGES;
 **解决**：
 
 ```bash
-cd backend
-pnpm install
+cd ..
+pnpm install --registry=https://registry.npmjs.org
 ```
 
 ### CORS 错误
