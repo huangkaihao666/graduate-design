@@ -1,3 +1,9 @@
+import { resolve } from 'path';
+import { config as loadEnv } from 'dotenv';
+
+// 确保 backend/.env 在 Nest 启动时加载（含 COZE_API_KEY 等）
+loadEnv({ path: resolve(__dirname, '../.env') });
+
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';

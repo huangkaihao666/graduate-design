@@ -33,6 +33,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     if (!user) return ''
     return user.name || user.username || user.email || `用户 ${user.id}`
   }, [user])
+  const currentUserAvatar = user?.avatar
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -91,6 +92,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
               >
                 <Avatar
                   size="small"
+                  src={msg.senderId === currentUserId ? currentUserAvatar : undefined}
                   style={
                     msg.senderId === currentUserId
                       ? { backgroundColor: '#3182ce', color: '#fff' }

@@ -11,10 +11,13 @@ export class CozeService {
   private readonly apiKey: string;
 
   constructor() {
-    this.apiKey =
-      process.env.COZE_API_KEY ||
-      // 开发环境直接使用提供的 pat，生产环境请改为环境变量
-      'pat_qmMa4wlwAIynclGjsxfgp0yfcKgqyVzNn7jzBYhtwGPMGkVWtTWUxQy8vTfNAMyj';
+    const key = process.env.COZE_API_KEY?.trim();
+    if (!key) {
+      throw new Error(
+        'COZE_API_KEY is not set. Add it to backend/.env (see README).',
+      );
+    }
+    this.apiKey = key;
 
     this.client = axios.create({
       baseURL: 'https://api.coze.cn/v3',
