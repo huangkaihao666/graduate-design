@@ -9,7 +9,7 @@ import {
   MessageBody,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger, UseGuards } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '@/prisma/prisma.service';
 
@@ -55,27 +55,6 @@ export class RoomsGateway
     private readonly prisma: PrismaService,
   ) {
     this.logger.log('🚀 RoomsGateway constructor called');
-  }
-
-  private async attachUserIdFromHandshake(client: Socket) {
-    const token =
-      client.handshake.auth?.token ||
-      client.handshake.headers?.authorization
-        ?.toString()
-        .replace('Bearer ', '');
-
-    if (!token) return;
-
-    try {
-      const payload = await this.jwtService.verifyAsync(token);
-      const rawId = (payload as any).sub ?? (payload as any).id;
-      const userId =
-        typeof rawId === 'string' ? parseInt(rawId, 10) : Number(rawId);
-      client.data.userId = userId;
-      this.logger.log(`User ${client.data.userId} authenticated (handshake)`);
-    } catch (error: any) {
-      this.logger.warn(`JWT verification failed: ${error?.message || error}`);
-    }
   }
 
   /**
@@ -127,75 +106,6 @@ export class RoomsGateway
     } else {
       this.logger.warn('⚠️ Socket.IO Engine not found!');
     }
-
-    // 手动注册事件监听器（因为 @SubscribeMessage 装饰器可能不工作）
-    server.on('connection', (socket) => {
-      this.logger.log(`📥 Socket connected: ${socket.id}`);
-      void this.attachUserIdFromHandshake(socket);
-
-      socket.on('joinRoom', async (data, ack) => {
-        this.logger.log(`📨 Received joinRoom event from ${socket.id}:`, data);
-        try {
-          const result = await this.handleJoinRoom(socket, data);
-          ack?.(result);
-        } catch (e: any) {
-          const payload = {
-            success: false,
-            error: e?.message || 'joinRoom failed',
-          };
-          ack?.(payload);
-          socket.emit('wsError', payload);
-        }
-      });
-
-      socket.on('leaveRoom', async (data, ack) => {
-        this.logger.log(`📨 Received leaveRoom event from ${socket.id}:`, data);
-        try {
-          const result = await this.handleLeaveRoom(socket, data);
-          ack?.(result);
-        } catch (e: any) {
-          const payload = {
-            success: false,
-            error: e?.message || 'leaveRoom failed',
-          };
-          ack?.(payload);
-          socket.emit('wsError', payload);
-        }
-      });
-
-      socket.on('vote', async (data, ack) => {
-        this.logger.log(`📨 Received vote event from ${socket.id}:`, data);
-        try {
-          const result = await this.handleVote(socket, data);
-          ack?.(result);
-        } catch (e: any) {
-          const payload = {
-            success: false,
-            error: e?.message || 'vote failed',
-          };
-          ack?.(payload);
-          socket.emit('wsError', payload);
-        }
-      });
-
-      socket.on('sendMessage', async (data, ack) => {
-        this.logger.log(
-          `📨 Received sendMessage event from ${socket.id}:`,
-          data,
-        );
-        try {
-          const result = await this.handleSendMessage(socket, data);
-          ack?.(result);
-        } catch (e: any) {
-          const payload = {
-            success: false,
-            error: e?.message || 'sendMessage failed',
-          };
-          ack?.(payload);
-          socket.emit('wsError', payload);
-        }
-      });
-    });
   }
 
   /**
