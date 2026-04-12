@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpException,
   HttpStatus,
@@ -29,6 +30,7 @@ import type {
 } from './ai.service';
 import { AiService } from './ai.service';
 import { MakeupAdvisorAnalyzeFaceDto } from './dto/makeup-advisor-analyze-face.dto';
+import { PhotographerShootingAdviceDto } from './dto/photographer-shooting-advice.dto';
 
 @Controller('ai')
 export class AiController {
@@ -255,6 +257,50 @@ export class AiController {
         {
           statusCode: 400,
           message: err.message || '识别失败',
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
+   * 摄影师端：证件照/正面参考图 + 可选偏好 → 构图、姿势、机位与镜头、拍摄流程等（方舟视觉）
+   */
+  @Post('photographer-advisor/shooting-advice')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  async photographerShootingAdvice(
+    @Body() body: PhotographerShootingAdviceDto,
+    @Req() req: any,
+  ) {
+    const u = req.user as { role?: string; workerKind?: string | null };
+    if (String(u?.role || '') !== 'worker') {
+      throw new ForbiddenException('仅工作人员账号可使用');
+    }
+    if (
+      String(u?.workerKind || '')
+        .trim()
+        .toLowerCase() !== 'photographer'
+    ) {
+      throw new ForbiddenException('该功能仅对入驻摄影师开放');
+    }
+    try {
+      const data =
+        await this.aiService.analyzePhotoForPhotographerShootAdvice(body);
+      return {
+        statusCode: 200,
+        message: '生成完成',
+        data,
+      };
+    } catch (error: unknown) {
+      if (error instanceof HttpException) throw error;
+      if (error instanceof ForbiddenException) throw error;
+      const err = error as { message?: string };
+      console.error('[AI Controller] 摄影师拍摄建议失败:', error);
+      throw new HttpException(
+        {
+          statusCode: 400,
+          message: err.message || '生成失败',
         },
         HttpStatus.BAD_REQUEST,
       );

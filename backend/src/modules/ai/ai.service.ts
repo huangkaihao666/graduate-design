@@ -1779,6 +1779,89 @@ ${listStyles}
     };
   }
 
+  /**
+   * 摄影师端：证件照/正面参考人像 + 可选偏好 → 构图、姿势、机位与镜头、流程等（纯文本，走方舟视觉）
+   */
+  async analyzePhotoForPhotographerShootAdvice(body: {
+    photo?: string;
+    sceneHint?: string;
+    clientType?: string;
+    lensPreference?: string;
+    lightingCondition?: string;
+    shootStyle?: string;
+    notes?: string;
+  }): Promise<{ adviceText: string }> {
+    const imageUrl = this.sanitizeMakeupAdvisorImage(body.photo);
+    if (!imageUrl) {
+      throw new BadRequestException(
+        '请上传清晰的证件照或正面人像参考图（JPEG/PNG/WebP 的 data URL）',
+      );
+    }
+
+    const scene =
+      String(body.sceneHint || '').trim() ||
+      '未特别指定，按通用旅拍婚纱人像估计';
+    const client = String(body.clientType || '').trim() || '未指定';
+    const lens = String(body.lensPreference || '').trim() || '未指定';
+    const lighting = String(body.lightingCondition || '').trim() || '未指定';
+    const style = String(body.shootStyle || '').trim() || '未指定';
+    const notes = String(body.notes || '').trim() || '无';
+
+    const userText = `你是资深婚纱/旅拍摄影指导。请根据附带的人像参考图（可为证件照风格或正面胸像），结合下列文字偏好，输出给摄影师现场执行可用的拍摄指导。
+
+【文字偏好】
+拍摄场景/主题：${scene}
+客户类型：${client}
+镜头/焦段偏好：${lens}
+光线条件：${lighting}
+拍摄风格：${style}
+注意事项（须严格遵守、并在建议中明确回应）：${notes}
+
+输出要求：
+- 使用纯中文；不要使用 Markdown；不要使用 *、**、#、- 列表符等。
+- 分部分写出，每部分须有清晰小标题行（用「一、」「二、」或「1.」「2.」均可）。
+- 内容须包含并尽量具体：构图建议；姿势与摆拍引导；机位高度与移动、建议焦段/镜头类型（如 24/35/50/85/135mm 等）及适用画面；用光思路与曝光/感光度大致参考；至少 5 条专业拍摄技巧要点；从到场准备到结束的「拍摄流程」时间线（分步骤，每步说明目的与注意点）。
+- 紧密结合图中人物体态、肩颈线条、面部角度与背景留白，避免空泛套话。`;
+
+    const userContent: Array<Record<string, unknown>> = [
+      { type: 'text', text: userText },
+      { type: 'image_url', image_url: { url: imageUrl } },
+    ];
+
+    let raw: string;
+    try {
+      raw = await this.callVolcesVisionChat([
+        {
+          role: 'system',
+          content:
+            '你是专业摄影技术撰稿人，只输出可执行的中文段落与编号小标题，禁止 Markdown、禁止代码围栏。',
+        },
+        { role: 'user', content: userContent },
+      ]);
+    } catch (e: unknown) {
+      if (e instanceof HttpException) throw e;
+      if (e instanceof BadRequestException) throw e;
+      throw new BadRequestException(
+        `生成拍摄建议失败：${String((e as Error)?.message || e)}`,
+      );
+    }
+
+    const cleaned = String(raw || '')
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/\*\*/g, '')
+      .replace(/\*/g, '')
+      .replace(/^\s*#+\s*/gm, '')
+      .trim();
+
+    if (!cleaned) {
+      throw new BadRequestException(
+        '模型未返回有效文本，请稍后重试或更换参考图',
+      );
+    }
+
+    return { adviceText: cleaned };
+  }
+
   private sanitizeMakeupAdvisorImage(s?: string): string | undefined {
     if (!s || typeof s !== 'string') return undefined;
     const t = s.trim();

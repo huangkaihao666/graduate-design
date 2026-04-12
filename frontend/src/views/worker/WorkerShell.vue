@@ -148,6 +148,18 @@ const isMakeupWorker = computed(() => {
   }
 });
 
+const isPhotographerWorker = computed(() => {
+  if (String(authStore.user?.workerKind || '').toLowerCase() === 'photographer') return true;
+  try {
+    const key = `worker_profile_local_v1_${authStore.user?.id ?? 'guest'}`;
+    const raw = localStorage.getItem(key);
+    const v = raw ? (JSON.parse(raw) as any) : null;
+    return String(v?.role || '').toLowerCase() === 'photographer';
+  } catch {
+    return false;
+  }
+});
+
 const workerApprovalBanner = computed(() => {
   if (!authStore.user?.workerPhotographerId) return null;
   const st = String(authStore.user.photographerApprovalStatus || '');
@@ -202,6 +214,9 @@ const sideItems = computed(() => [
   { label: '作品相册', to: '/worker/portfolio', icon: '🖼️' },
   { label: '消息中心', to: '/worker/messages', icon: '💬' },
   ...(isMakeupWorker.value ? [{ label: '妆容建议', to: '/worker/makeup-ai', icon: '💄' }] : []),
+  ...(isPhotographerWorker.value
+    ? [{ label: '拍摄建议', to: '/worker/photographer-shoot-advice', icon: '📷' }]
+    : []),
   { label: '智能客服', to: '/worker/help-chat', icon: '🤖' },
   { label: '个人中心', to: '/worker/profile', icon: '👤' },
 ]);
@@ -214,6 +229,9 @@ const topTabs = computed(() => [
   { label: '作品管理', to: '/worker/portfolio' },
   { label: '消息中心', to: '/worker/messages' },
   ...(isMakeupWorker.value ? [{ label: '妆容建议', to: '/worker/makeup-ai' }] : []),
+  ...(isPhotographerWorker.value
+    ? [{ label: '拍摄建议', to: '/worker/photographer-shoot-advice' }]
+    : []),
   { label: '智能客服', to: '/worker/help-chat' },
   { label: '个人中心', to: '/worker/profile' },
 ]);

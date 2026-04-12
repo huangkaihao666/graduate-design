@@ -133,6 +133,20 @@ export const aiApi = {
       timeout: 130000,
     }),
 
+  /** 摄影师端：证件照/正面参考图 → 构图、姿势、机位与镜头、拍摄流程等（方舟视觉） */
+  photographerShootingAdvice: (data: {
+    photo: string;
+    sceneHint?: string;
+    clientType?: string;
+    lensPreference?: string;
+    lightingCondition?: string;
+    shootStyle?: string;
+    notes?: string;
+  }) =>
+    httpClient.post<unknown>('/ai/photographer-advisor/shooting-advice', data, {
+      timeout: 130000,
+    }),
+
   /**
    * 帮助中心智能客服问答
    */

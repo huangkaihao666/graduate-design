@@ -166,7 +166,7 @@
                 <a-button class="pill ghost" :disabled="!adviceText" @click="copyAdvice">
                   复制建议
                 </a-button>
-                <a-button class="pill ghost" @click="clearAdviceRecords">清空记录</a-button>
+                <a-button class="pill ghost" @click="clearAdviceRecords">清空当前方案</a-button>
               </div>
             </a-col>
             <a-col :xs="24" :lg="8" :xl="7" class="photo-col">
@@ -718,8 +718,24 @@ async function generateAdvice() {
   }
 }
 
+function applySnapshotToAdviceForm(form: AdviceHistoryItem['adviceForm'] | undefined) {
+  const f = form ?? ({} as AdviceHistoryItem['adviceForm']);
+  const rawForm = f as Record<string, unknown>;
+  adviceForm.faceShape = f.faceShape || undefined;
+  adviceForm.skinTone = f.skinTone || undefined;
+  adviceForm.features = Array.isArray(f.features) ? f.features : [];
+  adviceForm.skinVisible = Array.isArray(f.skinVisible) ? f.skinVisible : [];
+  adviceForm.faceRatio = Array.isArray(f.faceRatio) ? f.faceRatio : [];
+  adviceForm.makeupStyles = Array.isArray(f.makeupStyles) ? f.makeupStyles : [];
+  adviceForm.shootThemes = migrateShootThemesField(rawForm.shootThemes ?? rawForm.shootTheme);
+  adviceForm.keywords = migrateKeywordsField(rawForm.keywords);
+  adviceForm.notes = migrateNotesField(rawForm.notes);
+}
+
 function persistAdviceState() {
   try {
+    const uid = authStore.user?.id;
+    if (uid === undefined || uid === null || uid === '') return;
     const payload = {
       adviceForm: {
         faceShape: adviceForm.faceShape,
@@ -735,7 +751,8 @@ function persistAdviceState() {
       adviceText: adviceText.value,
       adviceHistory: adviceHistory.value,
     };
-    sessionStorage.setItem(ADVICE_STORAGE_KEY.value, JSON.stringify(payload));
+    // 使用 localStorage：sessionStorage 在关闭标签页/部分重登场景会清空，与「登录后仍保留」预期不符
+    localStorage.setItem(ADVICE_STORAGE_KEY.value, JSON.stringify(payload));
   } catch {
     // ignore
   }
@@ -743,7 +760,21 @@ function persistAdviceState() {
 
 function restoreAdviceState() {
   try {
-    const raw = sessionStorage.getItem(ADVICE_STORAGE_KEY.value);
+    if (authStore.user?.id == null || authStore.user?.id === '') return;
+    const key = ADVICE_STORAGE_KEY.value;
+    let raw = localStorage.getItem(key);
+    if (!raw) {
+      const legacy = sessionStorage.getItem(key);
+      if (legacy) {
+        raw = legacy;
+        try {
+          localStorage.setItem(key, legacy);
+          sessionStorage.removeItem(key);
+        } catch {
+          // ignore
+        }
+      }
+    }
     if (!raw) return;
     const parsed = JSON.parse(raw) as {
       adviceForm?: {
@@ -761,17 +792,7 @@ function restoreAdviceState() {
       adviceText?: string;
       adviceHistory?: AdviceHistoryItem[];
     };
-    const form = parsed.adviceForm || {};
-    const rawForm = form as Record<string, unknown>;
-    adviceForm.faceShape = form.faceShape || undefined;
-    adviceForm.skinTone = form.skinTone || undefined;
-    adviceForm.features = Array.isArray(form.features) ? form.features : [];
-    adviceForm.skinVisible = Array.isArray(form.skinVisible) ? form.skinVisible : [];
-    adviceForm.faceRatio = Array.isArray(form.faceRatio) ? form.faceRatio : [];
-    adviceForm.makeupStyles = Array.isArray(form.makeupStyles) ? form.makeupStyles : [];
-    adviceForm.shootThemes = migrateShootThemesField(rawForm.shootThemes ?? rawForm.shootTheme);
-    adviceForm.keywords = migrateKeywordsField(rawForm.keywords);
-    adviceForm.notes = migrateNotesField(rawForm.notes);
+    applySnapshotToAdviceForm(parsed.adviceForm as AdviceHistoryItem['adviceForm']);
     adviceText.value = parsed.adviceText || '';
     adviceHistory.value = Array.isArray(parsed.adviceHistory)
       ? parsed.adviceHistory.map((h) => {
@@ -798,7 +819,7 @@ function restoreAdviceState() {
   }
 }
 
-function clearAdviceRecords() {
+function resetAdviceDraftOnly() {
   adviceForm.faceShape = undefined;
   adviceForm.skinTone = undefined;
   adviceForm.features = [];
@@ -810,6 +831,10 @@ function clearAdviceRecords() {
   adviceForm.notes = [];
   adviceText.value = '';
   clearPhoto();
+}
+
+function clearAdviceRecords() {
+  resetAdviceDraftOnly();
   // 仅清空当前输入与当前建议，历史记录保留
   persistAdviceState();
   message.success('已清空当前妆容建议');
@@ -842,6 +867,16 @@ onMounted(() => {
 });
 
 watch(
+  () => authStore.user?.id,
+  (id, oldId) => {
+    if ((id == null || id === '') && oldId != null && oldId !== '') {
+      resetAdviceDraftOnly();
+    }
+    if (id != null && id !== '') restoreAdviceState();
+  }
+);
+
+watch(
   () => [
     adviceForm.faceShape,
     adviceForm.skinTone,
@@ -853,6 +888,7 @@ watch(
     adviceForm.keywords,
     adviceForm.notes,
     adviceText.value,
+    adviceHistory.value,
   ],
   () => {
     persistAdviceState();

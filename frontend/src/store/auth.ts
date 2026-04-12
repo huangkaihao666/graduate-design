@@ -1,4 +1,6 @@
 import { authApi, type LoginRequest, type RegisterRequest } from '@/api/auth';
+import { resetMakeupAdviceDraftInStorage } from '@/utils/workerMakeupAdviceStorage';
+import { resetPhotographerShootDraftInStorage } from '@/utils/workerPhotographerShootAdviceStorage';
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 
@@ -170,6 +172,11 @@ export const useAuthStore = defineStore('auth', () => {
 
   // 清除认证信息
   const clearAuth = () => {
+    const uid = user.value?.id;
+    if (uid !== undefined && uid !== null && uid !== '') {
+      resetMakeupAdviceDraftInStorage(uid);
+      resetPhotographerShootDraftInStorage(uid);
+    }
     user.value = null;
     accessToken.value = '';
     refreshToken.value = '';

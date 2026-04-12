@@ -38,6 +38,8 @@ const WorkerMessages = () => import('../views/worker/pages/Messages.vue');
 const WorkerProfile = () => import('../views/worker/pages/Profile.vue');
 const WorkerCustomMarket = () => import('../views/worker/pages/CustomMarket.vue');
 const WorkerMakeupAI = () => import('../views/worker/pages/MakeupAI.vue');
+const WorkerPhotographerShootAdvice = () =>
+  import('../views/worker/pages/PhotographerShootAdvice.vue');
 const WorkerHelpChat = () => import('../views/worker/pages/WorkerHelpChat.vue');
 
 // 预约模块 (延迟加载)
@@ -349,6 +351,24 @@ const routes: RouteRecordRaw[] = [
         name: 'WorkerMakeupAI',
         component: WorkerMakeupAI,
         meta: { title: '智能试妆' },
+      },
+      {
+        path: 'photographer-shoot-advice',
+        name: 'WorkerPhotographerShootAdvice',
+        component: WorkerPhotographerShootAdvice,
+        beforeEnter: (_to, _from, next) => {
+          const authStore = useAuthStore();
+          authStore.initializeAuth();
+          const kind = String(authStore.user?.workerKind || '')
+            .trim()
+            .toLowerCase();
+          if (kind !== 'photographer') {
+            next({ name: 'WorkerDashboard', replace: true });
+            return;
+          }
+          next();
+        },
+        meta: { title: '拍摄建议' },
       },
       {
         path: 'help-chat',
