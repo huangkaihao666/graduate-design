@@ -94,9 +94,11 @@
         </a-form>
       </div>
 
-      <!-- 右侧：行程展示 -->
+      <!-- 右侧：行程展示（生成中勿渲染 result，否则 result 为空会报错，弹窗也无法正常打开） -->
       <div class="right-panel">
-        <div v-if="!result && !loading" class="empty-state">
+        <div v-if="loading" class="right-panel-generating-placeholder" aria-hidden="true" />
+
+        <div v-else-if="!result" class="empty-state">
           <span class="empty-icon">🗺️</span>
           <p>完成左侧配置后，点击按钮生成最优行程</p>
         </div>
@@ -933,6 +935,11 @@ onMounted(async () => {
   flex-direction: column;
   max-height: 80vh;
   overflow-y: auto;
+}
+
+.right-panel-generating-placeholder {
+  min-height: 400px;
+  flex: 1;
 }
 
 .empty-state {

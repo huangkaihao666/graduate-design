@@ -133,6 +133,17 @@ export interface VirtualTryOnRequest {
     dress?: string;
     accessory?: string;
   };
+  /**
+   * 双人合影时：由前端递增（同会话同风格），用于轮换「双人姿态」提示，避免每次生成同一动作。
+   * 未传时后端在池内随机取一条。
+   */
+  poseVariantIndex?: number;
+}
+
+/** 用户端：自定义提示词图生图测试 */
+export interface PromptImageTestRequest {
+  imageUrl: string;
+  prompt: string;
 }
 
 // 火山引擎图像生成 API 请求接口
@@ -596,20 +607,23 @@ export class AiService {
       romantic: {
         style: 'romantic',
         virtualAdvice:
-          '虚拍画幅统一为 3:4 竖版。森系草坪风格强调自然光、草坪与绿植，清新柔美；生成画面背景宜保持清晰层次与可辨细节，避免整片过度虚化，更贴近真实户外旅拍。',
+          '虚拍画幅统一为 3:4 竖版。以上传人物为原型重绘造型与场景：情绪胶片感森系草坪婚照，东亚年轻面孔；户外草坪，背景茂密深绿色松柏乔木，多云阴天漫射自然光；复古富士胶片质感、细腻颗粒、低饱和莫兰迪色调、电影感构图；背景宜保留层次与可辨细节，避免整片奶油虚化。男女造型基准：新郎黑色西装、白衬衫、黑领结；新娘白色抹胸婚纱或大蕾丝鱼尾、大蕾丝花边长款头纱，可配白色马蹄莲手捧花。双人互动以自然纪实为主（挽手、对视、行走、坐姿等），姿态由每次生成的指令轮换，不固定为某一种；真实皮肤与发丝、蕾丝与头纱细节清晰，8K 超写实方向。',
         makeupAdvice:
-          '建议使用柔和的粉色系妆容，强调眼影的层次感，打造温柔的眼神。',
-        hairstyleAdvice: '推荐盘发或半扎造型，配以精致的头饰，展现温婉气质。',
-        dressAdvice: '选择蓬松的婚纱设计，配以精致的蕾丝和珍珠装饰。',
+          '妆容偏胶片婚礼感：清透底妆与真实肤质，眼妆以大地色、杏色、柔和粉为主，唇色豆沙/玫瑰低饱和；腮红自然晕染，整体莫兰迪低饱和，避免厚重舞台妆。',
+        hairstyleAdvice:
+          '新娘：大蕾丝长款头纱与发型一体考虑——披发、半扎、低盘或空气卷均可，头纱需有飘逸动态；新郎：清爽侧分、背梳或自然纹理，配胸花更贴户外婚礼。',
+        dressAdvice:
+          '新娘：白色抹胸婚纱、蕾丝鱼尾长袖配荷叶边超长头纱、草坪轻拖尾等择一；新郎：黑色西装三件套或塔士多，白衬衫与黑领结，与草坪场景统一。',
         shootingTips: [
-          '利用窗边的自然光线创造柔和的光影效果',
-          '选择中性色调的背景，避免分散注意力',
-          '多进行近距离拍摄，突出细节和纹理',
-          '鼓励自然的姿态和真实的情感表达',
-          '使用低饱和度的滤镜后期处理',
+          '阴天漫射光下优先均匀柔光，避免人脸死黑或背景过曝',
+          '中景或全景结合：挽手漫步、对视大笑、并肩坐、整理头纱等自然互动，忌僵硬站桩；不必每次抱起新娘',
+          '草地与草坪从近到远尽量清晰成像：草叶与绿色层次可辨，避免身后草坪被虚成一片色块',
+          '背景松柏与草坪保留枝叶层次，像纪实旅拍而非唯美人像式强虚化',
+          '色彩后期走富士胶片感：略颗粒、低饱和、肤色自然',
+          '头纱与裙摆可有风感，强化浪漫动态',
         ],
         previewDescription:
-          '修改后的图片将呈现森系草坪的清新感，自然光充足，绿意与纱裙呼应，氛围温柔治愈。',
+          '输出接近森系草坪胶片婚照：阴天柔光、深绿松柏、草坪透气层次，莫兰迪色调与细腻颗粒，东亚新人造型与甜蜜互动，蕾丝头纱与服装细节清晰。',
       },
       artistic: {
         style: 'artistic',
@@ -670,22 +684,22 @@ export class AiService {
       adventure: {
         style: 'adventure',
         virtualAdvice:
-          '虚拍画幅统一为 3:4 竖版。旷野自由风格强调公路、山野、雪山垭口与开阔天际，动感与风感，适合川西、公路与雪山雪景旅拍大片。',
+          '虚拍画幅统一为 3:4 竖版。旷野自由（本套参考）：中国云南大理苍山，日出「日照金山」氛围——峰峦笼罩温暖金色晨光，山间云雾缭绕，天空澄澈湛蓝；前景枯黄草坡自然户外地形。人物为 25–30 岁中国年轻情侣，真实幸福神态、眼神轻柔交汇；新娘妆容精致、波浪卷发，无肩带白色蕾丝蓬蓬婚纱配长款刺绣头纱；新郎黑色定制西装、白衬衫、黑色领结，发型可贴近原图；手捧花为约 15 朵浅粉玫瑰配绿叶。摄影向：佳能全画幅感、85mm 人像虚化、日出黄金柔逆光、5500K 暖调、三分法竖构图，人物可置于画面右侧约 1/3；8K 细腻、35mm 胶片颗粒，主体清晰、背景适度虚化散景。用户所选妆容/发型/服装/配饰在以下文案大方向内微调具体场景。',
         makeupAdvice:
-          '可使用活力暖色妆面，或雪山场景下的冰感冷调高光与腮红，注意雪地反射下的曝光与肤质表现。',
+          '新娘：精致上镜妆，暖金日出光下肤质通透、眼妆干净有神，腮红唇色自然不偏浓；新郎：清爽修容与眉形，肤质真实。若选冷调雪山备选妆，注意腮红宜淡。',
         hairstyleAdvice:
-          '推荐蓬松长卷、利落短发或搭配毛绒针织帽/防风造型，雪山风大时便于固定与保暖感呈现。',
+          '新娘首选波浪卷或大卷披肩，可半扎或风吹动感；新郎以自然纹理短发/侧分为主，可强调「贴近原图发型」的质感。',
         dressAdvice:
-          '可选择长拖尾、斗篷、皮衣混搭或耐寒披肩款婚纱，雪山远景时注意层次与与环境冷暖对比。',
+          '新娘：无肩带白色蕾丝蓬蓬婚纱，搭配长款刺绣头纱（或用户所选同风格拖尾/轻纱）；新郎：黑色西装三件套或定制款，白衬衫与黑领结。',
         shootingTips: [
-          '选择开阔户外：公路、草甸、垭口，或雪山与雪景远景，注意天空与积雪的曝光',
-          '捕捉动态瞬间：行走、回眸、风吹纱裙，雪山前宜留白构图突出主峰',
-          '利用侧光或黄金时刻增强立体感，雪地可适当降低曝光补偿避免过曝',
-          '鼓励自信、舒展的姿态，远景人物与雪山比例可参考环境人像',
-          '后期可强化冷暖对比（蓝天白雪与人物暖调）或电影感青橙色调',
+          '日出黄金时段：柔和逆光勾勒轮廓，避免人脸死黑',
+          '互动：可新娘单手撩头纱、新郎持手捧花凝望新娘，或并肩望向苍山，头纱与裙摆可有风感',
+          '三分法竖构图，人物可偏画面右侧 1/3，保留天空与远山层次',
+          '前景草坡可见肌理，远景苍山可虚化但需有金山与云雾的层次，勿整片糊成单色',
+          '整体偏暖调胶片感，与 5500K/柔阴影一致',
         ],
         previewDescription:
-          '修改后的图片将呈现旷野自由的张力：或公路旷野、或雪山垭口雪景，视野开阔、动感十足，像电影感旅拍大片。',
+          '苍山日出、金山与云雾、枯黄草坡前景，年轻情侣婚纱与西装，逆光浪漫，大片人像虚化，电影感旅拍。',
       },
     };
 
@@ -727,6 +741,7 @@ export class AiService {
         request.preferences,
         request.preferenceLabels,
         false,
+        request.poseVariantIndex,
       );
     } catch (imageError) {
       console.error('[AI Service] 生成修改图片时出错:', imageError);
@@ -737,6 +752,64 @@ export class AiService {
       ...mergedAdvice,
       modifiedImageUrl,
     };
+  }
+
+  /**
+   * 双人合影：轮换姿态提示（不写死公主抱；与 poseVariantIndex 组合避免连续重复）
+   */
+  private getCouplePosePromptPool(style: string): string[] {
+    if (style === 'adventure') {
+      return [
+        '苍山日出背景下：新娘单手轻撩刺绣长头纱、笑容灿烂，新郎手持浅粉玫瑰花束温柔凝望新娘，头纱随风飘动。',
+        '枯黄草坡上二人自然依偎，面向日照金山，新娘波浪卷发与蓬蓬蕾丝裙摆有风感。',
+        '新娘侧身提裙回眸，新郎在旁轻扶腰际，远景云雾与金山层次虚化。',
+        '并肩站立望向镜头，手捧花垂于身前，三分法构图人物偏右。',
+        '新郎为新娘整理头纱边缘，二人额头轻近，逆光轮廓光。',
+        '牵手缓行于草坡脊线，回眸对视，电影感抓拍。',
+        '新娘双手捧花贴于胸前，新郎从侧后方注视，背景苍山与蓝天。',
+        '二人坐于草坡高处，望向远方金山，背影与侧脸结合。',
+        '新娘旋转裙摆微扬，新郎注视微笑，动态瞬间。',
+        '低角度仰拍：草坡前景、人物与金山天空层次。',
+        '并肩行走一前一后，头纱与西装线条利落，纪实旅拍。',
+        '新娘轻靠新郎肩侧，共持手捧花，温柔对视。',
+      ];
+    }
+    return [
+      '两人并肩挽手缓步于草坪，自然对视微笑，头纱与裙摆可随风微动。',
+      '新郎轻扶新娘腰际，新娘侧身回眸望向镜头，背景松柏层次清晰。',
+      '两人相向而立额头轻触，双手交握于身前，氛围安静甜蜜。',
+      '新娘双手轻提裙摆前行回眸，新郎在侧后方注视，纵深构图。',
+      '两人并排坐于草坪边缘，肩并肩望向画外远方，松弛自然。',
+      '牵手轻旋，裙摆微扬，捕捉动态瞬间，忌僵硬站桩。',
+      '新郎为新娘整理头纱或捧花，近距离温柔互动，中景构图。',
+      '一前一后行走于林间小径，利用纵深表现电影感。',
+      '背靠背坐于草地，同时回头相视而笑，轻松俏皮。',
+      '新郎从身后轻环新娘肩侧（双脚站立、地面支撑），二人望向同一远方。',
+      '并肩面向镜头，新娘头靠新郎肩侧，手捧花自然垂于身前。',
+      '两人低身逗弄或注视同一束手捧花，低角度纪实抓拍。',
+    ];
+  }
+
+  private buildVirtualTryOnCouplePosePrompt(
+    subjectRole: VirtualTryOnSubjectRole,
+    style: string,
+    poseVariantIndex?: number,
+  ): string {
+    if (subjectRole !== 'couple') return '';
+    const pool = this.getCouplePosePromptPool(style);
+    const n = pool.length;
+    const idx =
+      typeof poseVariantIndex === 'number' &&
+      Number.isFinite(poseVariantIndex) &&
+      poseVariantIndex >= 0
+        ? poseVariantIndex % n
+        : Math.floor(Math.random() * n);
+    const line = pool[idx];
+    return (
+      ` 【双人姿态-本次必须】${line}` +
+      ` 勿默认公主抱、抱起新娘、骑肩或单手托举离地；除非本句明确写出离地托举，否则人物须双脚有着地支撑。` +
+      ` English: execute this couple pose; do NOT default to bridal carry / princess carry / lift-off-ground unless explicitly required here.`
+    );
   }
 
   /**
@@ -764,19 +837,57 @@ export class AiService {
   }
 
   /**
+   * 全身/大半身入镜：优化身材比例观感（显腿长、显挺拔），避免俯拍压矮
+   */
+  private buildVirtualTryOnBodyProportionPrompt(
+    subjectRole: VirtualTryOnSubjectRole,
+  ): string {
+    const core =
+      ` 【全身比例与显高】凡全身或膝盖以上大半身入镜，人物须修长协调：视觉腿长略拉长、腰线清晰，忌五五分、忌头大身短、忌敦实矮胖比例；` +
+      `肩颈打开、站姿挺拔，可微侧身或微错步形成纵向线条；机位宜略偏低仰角（轻微即可，勿夸张拉腿变形），忌高机位俯拍把人物拍矮。` +
+      ` English: full-body or 3/4: tall flattering proportions, longer legs visually, defined waist, avoid stubby or squat silhouettes; subtle low angle for height, no extreme distortion, avoid top-down shots that shorten legs.`;
+    if (subjectRole === 'couple') {
+      return (
+        core +
+        ` 双人合影时新郎新娘身形均挺拔协调，腿长比例一致、不显一方矮胖，整体像专业婚照拉长身形。`
+      );
+    }
+    return core;
+  }
+
+  /**
    * 户外/环境类风格：抑制「唯美人像」式强虚化，背景保持可辨细节，贴近真实旅拍快照
    */
   private buildVirtualTryOnSharpBackgroundPrompt(style: string): string {
-    const outdoor = ['romantic', 'bohemian', 'adventure', 'artistic'];
+    if (style === 'adventure') {
+      return (
+        ` 【旷野自由·场景与景深】中国云南大理苍山，日出「日照金山」：峰峦被金色晨光笼罩，山间云雾缭绕，天空澄澈湛蓝；前景为枯黄草坡自然地形。` +
+        ` 【人像与虚化】情侣主体对焦清晰锐利；背景远山与天空可呈现柔和散景虚化（类似 85mm f/1.8 人像），柔和逆光轮廓光勾勒身形，5500K 暖调、阴影柔和；远山与云雾仍须有层次与色彩渐变，禁止整片背景糊成无层次单色块。` +
+        ` 【画幅】竖版 3:4，三分法构图，人物可置于画面右侧约 1/3；8K 细腻、带 35mm 胶片颗粒质感。` +
+        ` English: Dali Cangshan sunrise golden peaks mist blue sky yellow grass foreground; subjects sharp; pleasant background bokeh; warm rim light; rule of thirds composition.`
+      );
+    }
+
+    const outdoor = ['romantic', 'bohemian', 'artistic'];
     if (!outdoor.includes(style)) {
       return '';
     }
-    return (
+    const base =
       ` 【背景清晰度与景深】户外或大环境场景禁止整片背景糊成奶油色块或过度散景；` +
       `采用较深景深、小光圈旅拍感，远景草坪层次、树木枝叶、海浪沙滩、建筑轮廓与天际线等须保留可辨认纹理与层次，整体锐利自然、像婚礼跟拍纪实而非棚拍虚化样片。` +
       `人物略突出即可，勿 f/1.2 级强虚化。` +
-      ` English: deep depth of field, sharp detailed background (grass, trees, sea, architecture, sky), avoid heavy bokeh blur, realistic travel-wedding documentary look.`
-    );
+      ` English: deep depth of field, sharp detailed background (grass, trees, sea, architecture, sky), avoid heavy bokeh blur, realistic travel-wedding documentary look.`;
+
+    if (style === 'romantic') {
+      return (
+        base +
+        ` 【草坪草地-必须清晰】前景、中景、远景的草地与草坪均须清晰可辨：可见草叶肌理、丛生走向与绿色深浅层次，地面草皮与裸露土壤交界亦可辨；严禁将草坪处理成单色模糊色块、灰绿/亮绿糊斑或 Gaussian 式柔焦一整片；背景松柏与草坪同时保持细节，不得「只有人物清晰、身后草地全糊」。` +
+        `景深观感宜接近 f/8–f/11 环境人像，禁止浅景深把整片草坪虚掉。` +
+        ` English: lawn and grass in foreground, midground and background must remain sharp with visible blade texture and color variation; no mushy blurred turf; no portrait-mode bokeh that wipes out all grass detail behind subjects.`
+      );
+    }
+
+    return base;
   }
 
   /**
@@ -789,6 +900,15 @@ export class AiService {
       ` 【表情与姿态】人物表情必须自然、松弛、有亲和力：男女均可面向镜头微笑，眼神柔和，嘴角自然上扬；禁止僵硬面瘫、目光呆滞、过度拘谨的站姿。` +
       `可并肩轻靠、自然挽手或微侧身，肩背放松，像真实喜拍而非证件照。` +
       ` English: 3:4 vertical, indoor solid crimson red backdrop, warm red and brown palette, soft even lighting, natural genuine smiles facing camera, relaxed posture, not stiff portrait.`
+    );
+  }
+
+  /** 用户选择含「腮红」时：约束模型勿画成高浓度舞台腮红 */
+  private buildBlushLightnessHint(makeupLabel?: string): string {
+    if (!makeupLabel?.includes('腮红')) return '';
+    return (
+      ` 【腮红浓度】若妆容含腮红，须淡雅轻透、低饱和晕染（像天然好气色），忌色块过重、忌高显色舞台感腮红。` +
+      ` English: blush must be soft sheer natural flush, low saturation; avoid heavy pigmented blush.`
     );
   }
 
@@ -810,8 +930,8 @@ export class AiService {
       minimalist: '轻薄头纱',
       classical: '中式发簪或步摇',
       bohemian: '花环或贝壳耳饰',
-      romantic: '珍珠头饰或头纱',
-      adventure: '礼帽或披肩',
+      romantic: '白色马蹄莲手捧花或珍珠耳饰',
+      adventure: '浅粉玫瑰手捧花或胸花',
       oldtown: '古镇纪实发簪或复古耳饰',
       artistic: '复古发饰或胸花',
     };
@@ -834,6 +954,8 @@ export class AiService {
     const enDr = dr || 'unchanged outfit';
     const enAcc = acc || 'style-matched accessory';
 
+    const blushHint = this.buildBlushLightnessHint(mk);
+
     if (subjectRole === 'male') {
       return (
         ` 【图生图硬性要求-新郎/男生单人】` +
@@ -842,6 +964,7 @@ export class AiService {
         `严格按用户选择落实：${zhList}。` +
         `配饰必须在画面中清晰可见且与风格匹配，不可省略。` +
         `严禁沿用参考图中的发型、帽子与衣物款式；若原图为长发而用户选择短发/背头/戴帽，输出须体现该造型。` +
+        blushHint +
         ` Image edit for solo groom: preserve facial identity only; completely redraw hair (including hats) and full outfit to match: makeup "${enMk}", hairstyle "${enHs}", clothing "${enDr}", accessory "${enAcc}". ` +
         `Do NOT keep the reference photo's original hairstyle, hat, or garments.`
       );
@@ -851,6 +974,7 @@ export class AiService {
       return (
         ` 【图生图硬性要求-双人合影】参考图用于人物身份；须按用户选择调整妆容、发型与服装（男女造型均需落实），` +
         `用户选择：${zhList}。配饰必须可见并符合风格语义。勿完整沿用原图婚纱/西装与发型。` +
+        blushHint +
         ` Couple edit: apply styling per user (${enMk} / ${enHs} / ${enDr} / ${enAcc}); replace outfits and hairstyles; keep accessories visible and style-consistent.`
       );
     }
@@ -859,6 +983,7 @@ export class AiService {
       ` 【图生图硬性要求-新娘/女生】参考图仅保留面部身份；须按用户选择更换妆容、发型与婚纱/礼服：${zhList}。` +
       `配饰（如头纱/发簪等）需与风格一致并清晰可见。` +
       `勿沿用原图发型与裙装款式。` +
+      blushHint +
       ` Bridal edit: keep face identity; replace makeup, hair, dress per user (${enMk} / ${enHs} / ${enDr} / ${enAcc}); include visible style-matched accessory.`
     );
   }
@@ -873,6 +998,7 @@ export class AiService {
     preferences?: VirtualTryOnRequest['preferences'],
     preferenceLabels?: VirtualTryOnRequest['preferenceLabels'],
     makeupOnly: boolean = false,
+    poseVariantIndex?: number,
   ): Promise<string> {
     try {
       // 如果是 Base64 格式，直接使用（火山引擎支持 Base64）
@@ -902,7 +1028,7 @@ export class AiService {
       // 根据风格生成相应的提示词（女生/双人偏婚纱叙事）
       const stylePrompts: Record<string, string> = {
         romantic:
-          '3:4竖版，森系草坪风格高级婚纱摄影，自然光、草坪与绿植层次分明且背景清晰可辨，景深偏深勿整片虚化，清新柔美、真实户外旅拍质感，高保真，森系婚礼感',
+          '3:4竖版，东亚新娘森系草坪胶片婚纱照，户外草坪，背景茂密深绿色松柏乔木，多云阴天漫射自然光，复古富士胶片质感、细腻颗粒、低饱和莫兰迪色调、电影感构图，中景或环境人像；白色抹胸婚纱或蕾丝鱼尾婚纱、大蕾丝花边长款头纱飘逸，可持白色马蹄莲手捧花；真实皮肤质感、发丝清晰、婚纱蕾丝与头纱细节精致；脚下及身后草地草坪从近到远均清晰可见、草叶纹理可辨，勿虚化背景草坪，纪实浪漫氛围，清新柔美，高保真',
         artistic:
           '3:4竖版，生成纪实故事风格的高级婚纱摄影照片，古镇街巷与人文旅拍，背景建筑与环境细节保持清晰少虚化，情绪与构图，高保真，电影叙事感',
         bohemian:
@@ -911,13 +1037,13 @@ export class AiService {
         classical:
           '新中式国风新娘单人婚纱照，3:4竖版，室内纯色正红背景无室外，色彩正红与暖棕为基底，秀禾龙凤褂或改良旗袍金饰刺绣，柔光均匀。表情自然亲切可面向镜头微笑，眼神温柔，避免僵硬。高保真',
         adventure:
-          '3:4竖版，旷野自由风格高级婚纱摄影，公路山野或雪山垭口远景层次清晰、背景勿过度虚化，开阔天际与地貌纹理可辨，高原旅拍大片真实景深，高保真',
+          '3:4竖版，中国云南大理苍山日出婚纱照，25-30岁东亚年轻新娘，精致妆容与波浪卷发；无肩带白色蕾丝蓬蓬婚纱、长款刺绣头纱，可持浅粉玫瑰绿叶手捧花；前景枯黄草坡，背景苍山日照金山、云雾缭绕、蓝天澄澈；日出黄金柔逆光、轮廓光、5500K暖调；三分法竖构图人物可偏右侧约1/3；85mm人像镜头感、主体清晰、远山天空柔虚化散景，8K超清、35mm胶片颗粒，高保真',
       };
 
       /** 男生单人：避免「婚纱/纱裙」等新娘向词汇，强调西装/男装与环境，利于与偏好一致 */
       const stylePromptsMale: Record<string, string> = {
         romantic:
-          '3:4竖版，森系草坪风格新郎婚礼人像，自然光、草坪绿植层次清晰背景勿强虚化，男士西装或礼服造型，清新利落，真实外景质感，高保真',
+          '3:4竖版，东亚新郎森系草坪胶片婚礼人像，户外草坪与深绿松柏乔木背景，多云阴天漫射光，富士胶片颗粒、低饱和莫兰迪色调；黑色西装、白衬衫、黑色领结塔士多造型，清爽发型与真实肤质；草地草坪全景深清晰、草叶与地面细节可见，勿虚化身后草坪，清新利落，高保真',
         artistic:
           '3:4竖版，生成纪实故事风格的新郎婚礼人像照片，古镇街巷与人文旅拍，环境细节清晰少虚化，男士西装或大衣，情绪与构图，高保真，电影叙事感',
         bohemian:
@@ -927,7 +1053,7 @@ export class AiService {
         classical:
           '新中式国风新郎单人，3:4竖版，室内纯色正红背景，正红暖棕色调，中山装长衫或新中式男装。表情自然微笑可面向镜头，神态放松，避免僵硬。高保真',
         adventure:
-          '3:4竖版，旷野自由风格新郎婚礼人像，公路山野或雪山远景清晰少强散景，男士大衣/皮衣/西装叠穿，高原旅拍真实景深，高保真',
+          '3:4竖版，中国云南大理苍山日出新郎人像，25-30岁东亚男性，黑色定制西装、白衬衫、黑色领结，发型可自然纹理贴近参考图；前景草坡、背景苍山金山与云雾；日出逆光、暖调肤质；主体清晰背景虚化，高保真',
       };
 
       const subjectTail: Record<VirtualTryOnSubjectRole, string> = {
@@ -935,7 +1061,7 @@ export class AiService {
           '。画面主体为新娘/女性单人，婚礼婚纱或礼服造型，人物与场景共同入镜',
         male: '。画面主体为新郎/男性单人，婚礼西装、礼服或中式男装，人物与场景共同入镜',
         couple:
-          '。画面为新郎与新娘双人合影，男女同框出镜，婚纱与西装或礼服搭配，亲密放松的互动与走位，避免呆板并排立正',
+          '。画面为新郎与新娘双人合影，男女同框出镜，婚纱与西装或礼服搭配；互动与姿态以本次「双人姿态」指令为准，自然放松、避免呆板并排立正，勿固定为抱起新娘',
       };
 
       /** 双人合影：韩式简约使用用户提供的完整画报向描述（含新郎新娘造型） */
@@ -943,6 +1069,10 @@ export class AiService {
         minimalist: minimalistCoupleVolces,
         classical:
           '新中式国风男女双人婚纱照，3:4竖版，室内纯色正红背景，正红与暖棕为色彩基底，新娘秀禾龙凤褂或红裙旗袍，新郎中山装或新中式男装金饰细节。两人表情自然，可面向镜头微笑，并肩或轻靠，亲密放松，避免僵硬摆拍。高保真',
+        romantic:
+          '3:4竖版，东亚年轻情侣森系草坪胶片婚纱照，户外草坪，背景茂密深绿色松柏乔木，多云阴天漫射自然光或傍晚侧逆光偏暖清新；复古富士胶片质感、细腻颗粒、低饱和莫兰迪色调、电影感构图；新郎黑色西装白衬衫黑领结，新娘白色抹胸婚纱或大蕾丝鱼尾长袖配超大荷叶边头纱，可持白色马蹄莲手捧花、珍珠耳饰；双人自然纪实互动（具体姿态见下文「双人姿态」块，勿默认抱起新娘）；真实皮肤质感、发丝与蕾丝细节清晰；人物周围及远景草地草坪均需清晰呈现、草叶层次可辨，禁止背景草坪整体虚化或糊成色块，纪实浪漫氛围，8K超写实，高保真',
+        adventure:
+          '3:4竖版，中国云南大理苍山日出情侣婚纱照，25-30岁东亚年轻情侣；新娘精致妆容、波浪卷发、无肩带白色蕾丝蓬蓬婚纱与长款刺绣头纱，新郎黑色定制西装白衬衫黑领结，手捧花15朵浅粉玫瑰配绿叶；前景枯黄草坡、背景苍山日照金山与云雾蓝天；日出黄金柔逆光、5500K暖调、眼神轻柔交汇；三分法竖版人物可偏右侧1/3；具体互动见下文「双人姿态」；85mm人像虚化、主体清晰远山柔焦，8K、35mm胶片颗粒，高保真',
       };
 
       const prompt = makeupOnly
@@ -952,11 +1082,13 @@ export class AiService {
               preferences?.makeup?.trim() ||
               style ||
               '自然清透';
+            const blushHint = this.buildBlushLightnessHint(mk);
             return (
               ` Face-only makeup retouch, preserve identity. ` +
               `STRICT: keep original clothes, hairstyle structure, pose, framing and background unchanged; do not replace outfit; do not change scene. ` +
               `Only enhance facial makeup details (foundation, eyebrow, eyeshadow, eyeliner, blush, lip color) with style "${mk}". ` +
               `Natural skin texture, realistic look, avoid plastic skin. ` +
+              blushHint +
               `中文要求：仅修改面部妆容，不换装，不换背景，不改构图与姿态。`
             );
           })()
@@ -976,10 +1108,17 @@ export class AiService {
                   ? stylePromptsMale[style] || maleFallback
                   : stylePrompts[style] || femaleFallback;
             const aspectRatioBlock = this.buildVirtualTryOnAspectRatioPrompt();
+            const couplePoseBlock = this.buildVirtualTryOnCouplePosePrompt(
+              subjectRole,
+              style,
+              poseVariantIndex,
+            );
             const compositionBlock =
               style === 'classical'
                 ? this.buildClassicalNeoChineseCompositionPrompt()
                 : this.buildVirtualTryOnCompositionPrompt();
+            const bodyProportionBlock =
+              this.buildVirtualTryOnBodyProportionPrompt(subjectRole);
             const sharpBgBlock =
               this.buildVirtualTryOnSharpBackgroundPrompt(style);
             const editBlock = this.buildVirtualTryOnImageEditPrompt(
@@ -988,7 +1127,7 @@ export class AiService {
               preferences,
               preferenceLabels,
             );
-            return `${aspectRatioBlock}${basePrompt}${subjectTail[subjectRole]}${compositionBlock}${sharpBgBlock}${editBlock}`;
+            return `${aspectRatioBlock}${basePrompt}${subjectTail[subjectRole]}${couplePoseBlock}${compositionBlock}${bodyProportionBlock}${sharpBgBlock}${editBlock}`;
           })();
 
       const volcesRequest: VolcesImageRequest = {
@@ -1125,6 +1264,108 @@ export class AiService {
 
       // 如果 API 调用失败，返回一个带风格信息的占位符 SVG
       return this.generateStyledPlaceholder(style);
+    }
+  }
+
+  /**
+   * 用户端测试：按用户输入的提示词 + 参考图调用火山图生图（失败时抛错，不返回占位图）
+   */
+  async generateImageFromUserPrompt(
+    request: PromptImageTestRequest,
+  ): Promise<{ imageUrl: string }> {
+    const prompt = request.prompt?.trim() ?? '';
+    if (prompt.length < 2) {
+      throw new BadRequestException('请输入至少 2 个字符的提示词');
+    }
+    if (prompt.length > 4000) {
+      throw new BadRequestException('提示词长度不应超过 4000 字符');
+    }
+    const imageUrl = request.imageUrl?.trim() ?? '';
+    if (!imageUrl) {
+      throw new BadRequestException('请上传参考图片');
+    }
+    if (!this.volcesApiKey) {
+      throw new BadRequestException(
+        '服务端未配置火山引擎图生图密钥（VOLCES_API_KEY / ARK_API_KEY）',
+      );
+    }
+
+    const volcesRequest: VolcesImageRequest = {
+      model: this.volcesModel,
+      prompt,
+      image: imageUrl,
+      sequential_image_generation: 'disabled',
+      response_format: 'url',
+      size: '2K',
+      stream: false,
+      watermark: true,
+    };
+
+    try {
+      const response = await axios.post(this.volcesApiUrl, volcesRequest, {
+        headers: {
+          Authorization: `Bearer ${this.volcesApiKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (Array.isArray(response.data?.data) && response.data.data.length > 0) {
+        const first = response.data.data[0];
+        const generatedUrl = first?.url;
+        const b64 = first?.b64_json;
+
+        if (typeof b64 === 'string' && b64.length > 0) {
+          return {
+            imageUrl: `data:image/png;base64,${b64}`,
+          };
+        }
+
+        if (typeof generatedUrl === 'string' && generatedUrl.length > 0) {
+          const inlined = await this.convertImageUrlToBase64(generatedUrl);
+          if (inlined) {
+            return { imageUrl: inlined };
+          }
+          return { imageUrl: generatedUrl };
+        }
+      }
+
+      if (response.data?.data?.image_url) {
+        const u = response.data.data.image_url;
+        const inlined = await this.convertImageUrlToBase64(u);
+        return { imageUrl: inlined || u };
+      }
+
+      throw new BadRequestException('火山引擎返回数据格式异常，请稍后重试');
+    } catch (error: unknown) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      const err = error as {
+        response?: { status?: number; data?: Record<string, unknown> };
+        message?: string;
+      };
+      const errorData = err.response?.data;
+      const nested =
+        errorData &&
+        typeof errorData === 'object' &&
+        'error' in errorData &&
+        errorData.error &&
+        typeof (errorData.error as { message?: string }).message === 'string'
+          ? (errorData.error as { message: string }).message
+          : null;
+      const flat =
+        errorData &&
+        typeof errorData === 'object' &&
+        typeof (errorData as { message?: string }).message === 'string'
+          ? (errorData as { message: string }).message
+          : null;
+      const msg = nested || flat || err.message || '图生图请求失败';
+      console.error(
+        '[AI Service] prompt-image-test 火山失败',
+        err.response?.status,
+        errorData,
+      );
+      throw new BadRequestException(msg);
     }
   }
 
@@ -2681,8 +2922,10 @@ ${featuresHint ? `套餐亮点参考（可提炼，非必须逐条照抄）：${
       classical:
         '新中式：室内纯色正红背景，3:4竖版，正红与暖棕为基底；自然微笑，避免僵硬',
       bohemian: '阳光沙滩、轻盈纱裙，偏海岛度假与松弛氛围',
-      romantic: '自然光、草坪与绿植，清新柔美、森系婚礼感',
-      adventure: '公路、山野、雪山雪景与开阔天际，动感与旅拍大片感',
+      romantic:
+        '森系草坪胶片：阴天漫射光、深绿松柏、富士颗粒与莫兰迪色调；新郎黑西装领结、新娘抹胸/鱼尾蕾丝与大头纱，马蹄莲手捧，东亚情侣纪实互动',
+      adventure:
+        '大理苍山日出日照金山、云雾与枯黄草坡；蕾丝蓬蓬婚纱+刺绣头纱、黑西装领结、浅粉玫瑰手捧；逆光人像、背景虚化',
       artistic: '古镇街巷与人文旅拍，强调情绪、构图与故事感',
     };
     const DEFAULT_ICON: Record<string, string> = {

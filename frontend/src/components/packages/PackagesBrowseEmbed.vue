@@ -88,7 +88,14 @@
         </section>
 
         <div v-if="!hasAnyContent && !loading" class="embed-fallback">
-          <p>暂无推荐内容，请稍后再试或前往套餐页浏览。</p>
+          <p class="embed-fallback-title">推荐位暂无套餐与景点数据</p>
+          <p class="embed-fallback-desc">
+            多为后台尚未配置或接口暂不可用，<strong>与当前 AI 生成是否成功无关</strong
+            >。生成完成后本窗口会自动关闭，您也可先浏览套餐。
+          </p>
+          <a-button type="primary" ghost @click="router.push('/booking/packages')"
+            >前往套餐页</a-button
+          >
         </div>
       </template>
     </a-spin>
@@ -141,6 +148,19 @@
 
 <script setup lang="ts">
 import { packagesApi, type HotDestinationItem, type Package } from '@/api/packages';
+
+function embedFallbackDestImage(label: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="480" height="320"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fce7f3"/><stop offset="100%" stop-color="#e9d5ff"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#64748b" font-family="system-ui,sans-serif" font-size="26">${label}</text></svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+/** 接口无数据时的兜底目的地，避免等待弹窗内出现「暂无推荐」误导为生成失败 */
+const EMBED_FALLBACK_DESTINATIONS: HotDestinationItem[] = [
+  { name: '大理', tag: '苍山洱海', image: embedFallbackDestImage('大理') },
+  { name: '丽江', tag: '古城雪山', image: embedFallbackDestImage('丽江') },
+  { name: '三亚', tag: '海岛阳光', image: embedFallbackDestImage('三亚') },
+  { name: '厦门', tag: '滨海文艺', image: embedFallbackDestImage('厦门') },
+];
 import { spotsApi, type Spot } from '@/api/spots';
 import { TRAVEL_STYLE_LABELS } from '@/constants/travel-style-labels';
 import { useAuthStore } from '@/store/auth';
@@ -408,7 +428,11 @@ async function load() {
       packagesApi.getPackages().catch(() => ({ items: [] as Package[] })),
       spotsApi.getPublic().catch(() => [] as Spot[]),
     ]);
-    hotDestinations.value = Array.isArray(destRes.items) ? destRes.items.slice(0, 12) : [];
+    let destItems = Array.isArray(destRes.items) ? destRes.items.slice(0, 12) : [];
+    if (!destItems.length) {
+      destItems = [...EMBED_FALLBACK_DESTINATIONS];
+    }
+    hotDestinations.value = destItems;
     const pkgs = pkgRes.items ?? [];
     hotPackages.value = pickHotPackages(pkgs);
     hotSpots.value = pickHotSpots(Array.isArray(spotRes) ? spotRes : []);
@@ -459,6 +483,27 @@ onMounted(() => {
   text-align: center;
   padding: 24px;
   color: var(--embed-muted);
+}
+
+.embed-fallback-title {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--embed-slate);
+}
+
+.embed-fallback-desc {
+  margin: 0 0 16px;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  max-width: 420px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.embed-fallback-desc strong {
+  color: #c2410c;
+  font-weight: 600;
 }
 
 .block {

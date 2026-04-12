@@ -94,31 +94,6 @@
             </a-button>
           </a-form-item>
         </a-form>
-
-        <!-- 推荐卡片展示 -->
-        <div v-if="result" class="recommendation-cards">
-          <div
-            v-for="(style, index) in result.recommendedStyles"
-            :key="index"
-            class="recommendation-card"
-            :class="{ active: selectedRecommendation === index }"
-            @click="
-              () => {
-                selectedRecommendation = index;
-                saveStateToStorage();
-              }
-            "
-          >
-            <div class="card-header">
-              <h3>{{ style.name }}</h3>
-              <span class="budget-tag">{{ style.budget }}</span>
-            </div>
-            <p class="card-desc">{{ style.description }}</p>
-            <div class="card-meta">
-              <span class="season-tag">🌍 {{ style.season }}</span>
-            </div>
-          </div>
-        </div>
       </div>
 
       <!-- 右侧：详细推荐 -->
@@ -129,23 +104,44 @@
         </div>
 
         <div v-else class="recommendation-detail">
-          <!-- 选中的推荐详情 -->
-          <div v-if="selectedRecommendation !== null" class="detail-card">
-            <div class="detail-header">
-              <h2>{{ result.recommendedStyles[selectedRecommendation].name }}</h2>
-              <div class="detail-meta">
-                <span class="meta-item"
-                  >🌍 推荐季节：{{ result.recommendedStyles[selectedRecommendation].season }}</span
-                >
-                <span class="meta-item"
-                  >💰 预算参考：{{ result.recommendedStyles[selectedRecommendation].budget }}</span
-                >
+          <!-- 推荐卡片：生成结果后展示在右侧顶部，点击切换下方详情 -->
+          <div v-if="result" class="recommendation-cards">
+            <div
+              v-for="(style, index) in result.recommendedStyles"
+              :key="index"
+              class="recommendation-card"
+              :class="{ active: selectedRecommendation === index }"
+              @click="
+                () => {
+                  selectedRecommendation = index;
+                  saveStateToStorage();
+                }
+              "
+            >
+              <div class="card-header">
+                <h3>{{ style.name }}</h3>
+              </div>
+              <div class="card-meta">
+                <span class="season-tag">🌍 {{ seasonCardLabel(style.season) }}</span>
               </div>
             </div>
+          </div>
 
-            <div class="detail-section">
-              <h3>风格特点</h3>
-              <p>{{ result.recommendedStyles[selectedRecommendation].description }}</p>
+          <!-- 选中的推荐详情 -->
+          <div v-if="selectedRecommendation !== null && result" class="detail-card">
+            <div class="detail-title-only">
+              <h2>{{ result.recommendedStyles[selectedRecommendation].name }}</h2>
+            </div>
+
+            <div class="detail-section detail-muted-panel">
+              <div>
+                <h3><span class="detail-section-ico" aria-hidden="true">🌍</span>推荐季节</h3>
+                <p>{{ result.recommendedStyles[selectedRecommendation].season }}</p>
+              </div>
+              <div class="detail-muted-panel-split">
+                <h3><span class="detail-section-ico" aria-hidden="true">🎨</span>风格特点</h3>
+                <p>{{ result.recommendedStyles[selectedRecommendation].description }}</p>
+              </div>
             </div>
 
             <div class="detail-section">
@@ -163,8 +159,8 @@
               </div>
             </div>
 
-            <div class="detail-section">
-              <h3>个性化建议</h3>
+            <div class="detail-section detail-muted-panel">
+              <h3><span class="detail-section-ico" aria-hidden="true">💡</span>个性化建议</h3>
               <p>{{ result.personalizedAdvice }}</p>
             </div>
 
@@ -329,6 +325,14 @@ const appendKeyword = (keyword: string) => {
   saveStateToStorage();
 };
 
+/** 卡片上只展示季节时间段：去掉「，」后的补充说明 */
+const seasonCardLabel = (season: string | undefined) => {
+  if (!season || typeof season !== 'string') return '';
+  const s = season.trim();
+  const cut = s.indexOf('，');
+  return cut === -1 ? s : s.slice(0, cut).trim();
+};
+
 // 状态持久化的 key
 const STORAGE_KEY = 'style-recommendation-state';
 
@@ -468,21 +472,85 @@ const closeSpotDetail = () => {
   selectedSpot.value = null;
 };
 
-// 获取景点描述（根据景点名称生成）
+/** 景点介绍：按具体景点撰写，每条约 80～100 字（便于弹窗阅读） */
+const SPOT_DESCRIPTIONS: Record<string, string> = {
+  巴厘岛:
+    '巴厘岛位于印度尼西亚爪哇岛以东，兼具火山、梯田园、黑沙滩与印度教庙宇，乌布、金巴兰与库塔一带海景层次丰富。清晨薄雾与傍晚金色海岸线最适合轻婚纱与度假风旅拍，注意雨季云量与涨潮安全。',
+  马尔代夫:
+    '马尔代夫由上千珊瑚岛组成，海水通透、白沙细腻，水屋栈道与潟湖层次极佳，是海岛仪式与蜜月旅拍的热门地。建议把握日出日落短窗，注意防晒与海风对发型的影响，并预留水上交通接驳时间。',
+  三亚: '三亚地处海南岛最南端，亚龙湾、海棠湾与椰梦长廊串联起热带海岸风光，椰林、礁石与游艇码头可形成多样机位。冬春晴多雨少、光线稳定，适合海边轻婚纱；夏秋需关注台风与阵雨对行程的影响。',
+  大理: '大理苍山洱海同框，古城、喜洲与双廊一线白族民居与扎染作坊错落，湖光与云层变化丰富。四季皆可旅拍，春秋更清爽；洱东环海路风大，宜备防风外套并合理安排转场，兼顾人文与自然环境人像。',
+  丽江: '丽江古城与束河古镇以石板巷、水系与木结构院落著称，玉龙雪山可作远景。高原紫外线强、昼夜温差大，建议清晨柔光拍古城街巷，午后转场雪山方向时注意保暖与高反，服装以可叠穿层次为宜。',
+  北京故宫:
+    '故宫中轴线殿宇庄严、红墙金瓦与汉白玉台基对比强烈，御花园与角楼区域则更适合叙事性构图。需实名预约、禁商业灯架与部分区域限流，宜选开馆后或闭馆前人流略低时段，镜头以中长焦压缩空间层次。',
+  故宫: '故宫中轴线殿宇庄严、红墙金瓦与汉白玉台基对比强烈，御花园与角楼区域则更适合叙事性构图。需实名预约、禁商业灯架与部分区域限流，宜选开馆后或闭馆前人流略低时段，镜头以中长焦压缩空间层次。',
+  颐和园:
+    '颐和园昆明湖与万寿山借景成园，长廊彩绘、十七孔桥与石舫各具符号感，皇家园林尺度宏大。春秋湖面反光柔和，冬季雪景清冷；园区面积大，旅拍宜提前规划步行动线与游船衔接，避免赶场影响状态。',
+  上海外滩:
+    '外滩万国建筑群临江而立，浦江对岸陆家嘴天际线形成经典夜景对望，适合都市仪式感与电影感婚照。夜间人流与车流密集，需注意安全距离与补光色温；清晨江雾或雨后路面反光可带来不同质感。',
+  外滩: '外滩万国建筑群临江而立，浦江对岸陆家嘴天际线形成经典夜景对望，适合都市仪式感与电影感婚照。夜间人流与车流密集，需注意安全距离与补光色温；清晨江雾或雨后路面反光可带来不同质感。',
+  杭州西湖:
+    '西湖苏堤、白堤与杨公堤串联湖光山色，雷峰塔、断桥与茅家埠在不同季节呈现水墨或浓彩气质。春夏绿荫与荷花、秋日桂花与薄雾皆可入画；节假日断桥一带拥挤，可改走西里湖或乌龟潭换取更安静取景。',
+  西湖: '西湖苏堤、白堤与杨公堤串联湖光山色，雷峰塔、断桥与茅家埠在不同季节呈现水墨或浓彩气质。春夏绿荫与荷花、秋日桂花与薄雾皆可入画；节假日断桥一带拥挤，可改走西里湖或乌龟潭换取更安静取景。',
+  厦门鼓浪屿:
+    '鼓浪屿步行岛街巷起伏，红砖洋楼、钢琴码头与菽庄花园海景错落，南洋与殖民地建筑细节丰富。渡轮需预约、岛上禁机动车，旅拍宜轻装并预留上下坡时间；午后海风与树影斑驳，适合清新文艺路线。',
+  鼓浪屿:
+    '鼓浪屿步行岛街巷起伏，红砖洋楼、钢琴码头与菽庄花园海景错落，南洋与殖民地建筑细节丰富。渡轮需预约、岛上禁机动车，旅拍宜轻装并预留上下坡时间；午后海风与树影斑驳，适合清新文艺路线。',
+  成都宽窄巷子:
+    '宽窄巷子由宽、窄、井三条平行街巷组成，川西院落门头、青砖墙与竹椅茶座构成市井烟火背景。昼夜氛围差异大，夜景灯笼暖色突出；商业人流多，建议工作日清晨拍摄并尊重居民与店铺经营边界。',
+  重庆洪崖洞:
+    '洪崖洞依山就势、吊脚楼层层叠叠，与千厮门大桥、江面游船共同构成山城夜景名片。夜景灯光饱和度高，注意曝光与肤色还原；坡道与台阶多，建议舒适鞋履并规划从滨江路到平台的多层机位动线。',
+  西安大唐不夜城:
+    '大唐不夜城以唐风雕塑、灯光秀与仿唐街区串联，夜间氛围浓郁、色彩饱和。适合汉服与轻戏剧感构图，但人流极大，需提前占位并注意灯具与表演时段；可与大雁塔北广场喷泉联动取景，留意安全管理。',
+  大唐不夜城:
+    '大唐不夜城以唐风雕塑、灯光秀与仿唐街区串联，夜间氛围浓郁、色彩饱和。适合汉服与轻戏剧感构图，但人流极大，需提前占位并注意灯具与表演时段；可与大雁塔北广场喷泉联动取景，留意安全管理。',
+  布达拉宫:
+    '布达拉宫雄踞拉萨红山之巅，宫墙、金顶与转经道层次鲜明，具有强烈地标性与宗教氛围。高原日照强、温差大，拍摄需尊重宗教礼仪与禁拍区域；宜选清晨斜光与广场远景长焦压缩，避免剧烈运动引发不适。',
+  广州沙面:
+    '沙面岛保留租界时期欧陆建筑群，林荫道、拱廊与彩色百叶窗细节统一，街道尺度适合步行旅拍。四季绿植丰茂，梅雨季节注意地面湿滑与雾气；岛内车流受限，可结合珠江夜景做半日城市轻婚纱路线。',
+  青岛八大关:
+    '八大关汇聚多国花园洋房与林荫路，「一关一树」季相变化明显，花石楼与第二海水浴场衔接山海。春秋梧桐与雪松层次佳，夏季海滨游客多；礁石区拍摄需关注潮汐与防滑，风大时备定型与防风外套。',
+  八大关:
+    '八大关汇聚多国花园洋房与林荫路，「一关一树」季相变化明显，花石楼与第二海水浴场衔接山海。春秋梧桐与雪松层次佳，夏季海滨游客多；礁石区拍摄需关注潮汐与防滑，风大时备定型与防风外套。',
+  苏州平江路:
+    '平江路沿古城水道展开，石桥、摇橹船与白墙黛瓦构成典型江南水乡肌理，支巷里藏小园与手作店铺。清晨薄雾与雨后石板反光最出片；河道狭窄、游客密集，宜错峰并注意相机防潮与行人礼让。',
+  南京夫子庙:
+    '夫子庙秦淮河畔灯影桨声、画舫与牌坊街巷密集，夜景暖色与水波反射适合轻复古与民国风。节假日人流极高，建议预约画舫时段并提前踩点机位；注意河岸安全与灯具色温，白天可转老门东延续叙事。',
+  哈尔滨中央大街:
+    '中央大街面包石路面与巴洛克、新艺术运动立面并存，冬季冰雪雕与暖色橱窗形成强烈对比。严寒需防冻伤与电池续航管理，哈气与雪花可为画面加分；街拍注意车辆与防滑鞋，室内转场可快速回暖补妆。',
+  长沙橘子洲:
+    '橘子洲湘江心岛视野开阔，青年毛泽东雕像与沿江林荫道为地标，春有江风夏有绿荫。大型活动与烟花日人流管控严格，需提前查询公告；江面反光强，建议偏振镜与早晚柔光，兼顾城市天际线层次。',
+  天津五大道意式风情区:
+    '天津五大道意式风情区位于和平区，汇集意式、英式、法式等近代建筑遗存，街巷平缓、梧桐掩映，被誉为「万国建筑博览」街巷。春秋晨昏光线柔和，可拍欧式仪式感，也可借咖啡馆与里弄生活营造电影感旅拍。',
+  天津意式风情区:
+    '天津五大道意式风情区位于和平区，汇集意式、英式、法式等近代建筑遗存，街巷平缓、梧桐掩映，被誉为「万国建筑博览」街巷。春秋晨昏光线柔和，可拍欧式仪式感，也可借咖啡馆与里弄生活营造电影感旅拍。',
+  五大道:
+    '天津五大道意式风情区位于和平区，汇集意式、英式、法式等近代建筑遗存，街巷平缓、梧桐掩映，被誉为「万国建筑博览」街巷。春秋晨昏光线柔和，可拍欧式仪式感，也可借咖啡馆与里弄生活营造电影感旅拍。',
+  意式风情区:
+    '天津五大道意式风情区位于和平区，汇集意式、英式、法式等近代建筑遗存，街巷平缓、梧桐掩映，被誉为「万国建筑博览」街巷。春秋晨昏光线柔和，可拍欧式仪式感，也可借咖啡馆与里弄生活营造电影感旅拍。',
+};
+
+const normalizeSpotLookup = (s: string) => s.trim().replace(/[\s·．.]/g, '');
+
+/** 未命中词库时：仍给出可操作的旅拍说明，总字数约 80～100（随景点名长度略浮动） */
+const fallbackSpotIntroduction = (spotName: string) =>
+  `「${spotName}」适合作为旅拍外景地：建议事先核对开放与交通管制，优选清晨或日落前后柔光，结合街区步行动线规划转场顺序，配轻便婚纱与极简补光，便于在半天内兼顾仪式感与环境人像。`;
+
 const getSpotDescription = (spotName: string): string => {
-  const descriptions: Record<string, string> = {
-    巴厘岛:
-      '巴厘岛是印度尼西亚著名的旅游胜地，拥有美丽的海滩、古老的寺庙和丰富的文化。这里风景如画，是拍摄浪漫婚纱照的理想之地。',
-    马尔代夫:
-      '马尔代夫以其清澈的海水、白色沙滩和豪华度假村而闻名。这里是蜜月旅行的天堂，也是拍摄唯美婚纱照的绝佳选择。',
-    三亚: '三亚拥有中国最美的海滩和热带风光，椰林婆娑，海天一色。这里气候宜人，是拍摄浪漫海边婚纱照的热门目的地。',
-    大理: '大理古城依山傍水，苍山洱海相映成趣。这里有着浓厚的民族文化和自然风光，是拍摄文艺风格婚纱照的理想之地。',
-    丽江: '丽江古城保存完好的纳西族建筑和独特的文化氛围，加上玉龙雪山的壮丽景色，是拍摄古典优雅风格婚纱照的绝佳选择。',
-  };
-  return (
-    descriptions[spotName] ||
-    `${spotName}是一个风景优美、文化底蕴深厚的旅游胜地，拥有独特的自然风光和人文景观，非常适合拍摄婚纱照。`
-  );
+  const raw = spotName.trim();
+  if (!raw) return fallbackSpotIntroduction('该景点');
+  const norm = normalizeSpotLookup(raw);
+  const direct = SPOT_DESCRIPTIONS[raw] || SPOT_DESCRIPTIONS[norm];
+  if (direct) return direct;
+
+  const keys = Object.keys(SPOT_DESCRIPTIONS).sort((a, b) => b.length - a.length);
+  for (const key of keys) {
+    const nk = normalizeSpotLookup(key);
+    if (norm.includes(nk) || raw.includes(key)) {
+      return SPOT_DESCRIPTIONS[key];
+    }
+  }
+  return fallbackSpotIntroduction(raw);
 };
 
 // 获取景点拍摄建议
@@ -555,6 +623,9 @@ onMounted(() => {
 <style scoped lang="less">
 .style-recommendation-container {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
   background: linear-gradient(180deg, #fff5f7 0%, #ffffff 32%);
   padding: 0 80px 40px;
 
@@ -564,6 +635,7 @@ onMounted(() => {
 }
 
 .page-header {
+  flex-shrink: 0;
   text-align: center;
   padding-top: 28px;
   margin-bottom: 28px;
@@ -583,13 +655,21 @@ onMounted(() => {
 }
 
 .content-grid {
+  // flex: 1 1 0 + min-height:0 让双栏在视口内占满剩余高度，子面板才能独立 overflow 滚动
+  flex: 1 1 0;
+  min-height: 0;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 30px;
   max-width: 1400px;
   margin: 0 auto;
+  width: 100%;
+  align-items: stretch;
 
   @media (max-width: 1024px) {
+    flex: none;
+    min-height: auto;
+    max-height: none;
     grid-template-columns: 1fr;
   }
 }
@@ -599,7 +679,14 @@ onMounted(() => {
   background: white;
   border-radius: 16px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
+
+  @media (min-width: 1025px) {
+    min-height: 0;
+    max-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 .left-panel {
@@ -684,13 +771,19 @@ onMounted(() => {
 }
 
 .recommendation-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
 }
 
 .recommendation-card {
-  padding: 16px;
+  min-width: 0;
+  padding: 12px 10px;
   border: 2px solid #e0e0e0;
   border-radius: 12px;
   cursor: pointer;
@@ -700,17 +793,13 @@ onMounted(() => {
   &:hover {
     border-color: #ff758c;
     background: #fff5f7;
-    transform: translateX(5px);
+    transform: translateY(-2px);
   }
 
   &.active {
     border-color: #ff758c;
     background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%);
     color: white;
-
-    .card-desc {
-      color: rgba(255, 255, 255, 0.9);
-    }
 
     .card-meta .season-tag {
       background: rgba(255, 255, 255, 0.3);
@@ -719,43 +808,29 @@ onMounted(() => {
   }
 
   .card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
     margin-bottom: 8px;
 
     h3 {
       margin: 0;
-      font-size: 1.1rem;
+      font-size: 0.95rem;
       font-weight: 600;
+      line-height: 1.35;
+      word-break: break-word;
     }
-
-    .budget-tag {
-      font-size: 0.8rem;
-      background: #f0f0f0;
-      padding: 4px 8px;
-      border-radius: 4px;
-      white-space: nowrap;
-    }
-  }
-
-  .card-desc {
-    font-size: 0.9rem;
-    color: #666;
-    margin-bottom: 8px;
-    line-height: 1.4;
   }
 
   .card-meta {
     display: flex;
-    gap: 8px;
+    gap: 6px;
 
     .season-tag {
-      font-size: 0.8rem;
+      font-size: 0.72rem;
       background: #f0f0f0;
       padding: 4px 8px;
       border-radius: 4px;
-      white-space: nowrap;
+      line-height: 1.4;
+      white-space: normal;
+      word-break: break-word;
     }
   }
 }
@@ -797,35 +872,40 @@ onMounted(() => {
   gap: 20px;
 }
 
-.detail-header {
-  padding: 20px;
-  background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%);
-  border-radius: 12px;
-  color: white;
+.detail-title-only {
+  text-align: center;
+  padding: 0;
 
   h2 {
-    margin: 0 0 12px 0;
-    font-size: 1.5rem;
+    margin: 0;
+    font-size: 1.6rem;
+    color: #111;
   }
+}
 
-  .detail-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+.detail-card > .detail-section:first-of-type {
+  margin-top: -18px;
 
-    .meta-item {
-      font-size: 0.95rem;
-      opacity: 0.95;
-    }
+  > div:first-child h3 {
+    margin-bottom: 8px;
   }
 }
 
 .detail-section {
   h3 {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.35em;
     font-size: 1.1rem;
     font-weight: 600;
     margin-bottom: 12px;
     color: #333;
+  }
+
+  .detail-section-ico {
+    flex-shrink: 0;
+    font-size: 1.05em;
+    line-height: 1.35;
   }
 
   p {
@@ -833,6 +913,22 @@ onMounted(() => {
     line-height: 1.6;
     margin: 0;
   }
+}
+
+.detail-muted-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+}
+
+.detail-muted-panel-split {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #e5e7eb;
 }
 
 .spots-grid {

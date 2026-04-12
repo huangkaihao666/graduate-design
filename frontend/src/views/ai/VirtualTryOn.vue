@@ -218,28 +218,25 @@
           <div class="image-comparison">
             <div class="comparison-item">
               <div class="label">原始照片</div>
-              <a-image
-                v-if="uploadedImage"
-                :src="uploadedImage"
-                :alt="uploadedFileName"
-                :preview="true"
-                class="comparison-image original-image"
-                :width="450"
-                :fallback="uploadedImage"
-              />
+              <div class="comparison-stage original-image">
+                <a-image
+                  v-if="uploadedImage"
+                  :src="uploadedImage"
+                  :alt="uploadedFileName"
+                  :preview="true"
+                  :fallback="uploadedImage"
+                />
+              </div>
             </div>
             <div class="arrow">→</div>
             <div class="comparison-item">
               <div class="label">试衣效果</div>
-              <div class="image-wrapper">
+              <div class="image-wrapper comparison-stage modified-preview">
                 <a-image
                   v-if="getResultImageUrl()"
                   :src="getResultImageUrl()!"
                   alt="修改后的图片"
                   :preview="true"
-                  class="comparison-image modified-preview"
-                  :width="450"
-                  :height="600"
                   @error="handleResultImageError"
                 />
                 <div v-else class="no-image-placeholder">
@@ -303,7 +300,6 @@
 </template>
 
 <script setup lang="ts">
-import AiGeneratingWaitModal from '@/components/ai/AiGeneratingWaitModal.vue';
 import { aiApi, VirtualTryOnRequest } from '@/api/ai';
 import xpsy1 from '@/assets/images/hero/xpsy1.jpg';
 import xpsy2 from '@/assets/images/hero/xpsy2.jpg';
@@ -311,6 +307,7 @@ import xpsy3 from '@/assets/images/hero/xpsy3.jpg';
 import xpsy4 from '@/assets/images/hero/xpsy4.jpg';
 import xpsy5 from '@/assets/images/hero/xpsy5.jpg';
 import xpsy6 from '@/assets/images/hero/xpsy6.jpg';
+import AiGeneratingWaitModal from '@/components/ai/AiGeneratingWaitModal.vue';
 import {
   TRAVEL_STYLE_CARD_DESCRIPTIONS,
   TRAVEL_STYLE_DETAIL_MINIMALIST_COUPLE,
@@ -382,8 +379,15 @@ const accessoryOptionsByStyle: Record<string, string[]> = {
   minimalist: ['轻薄头纱', '珍珠耳饰', '简约项链', '胸花'],
   classical: ['发簪', '步摇', '金钗', '流苏耳饰'],
   bohemian: ['花环', '贝壳耳饰', '编绳手链', '羽毛耳坠'],
-  romantic: ['头纱', '珍珠项链', '花环', '蕾丝手套'],
-  adventure: ['礼帽', '披肩', '皮质手套', '胸针'],
+  romantic: [
+    '大蕾丝花边头纱',
+    '白色马蹄莲手捧花',
+    '珍珠耳饰',
+    '黑色猫眼墨镜（趣味互动）',
+    '新郎胸花',
+    '简约项链',
+  ],
+  adventure: ['浅粉玫瑰手捧花', '刺绣长头纱', '新郎胸花', '珍珠耳饰', '极简项链', '皮质手套'],
   oldtown: ['发簪', '复古耳饰', '手捧花', '披肩'],
 };
 const accessoryOptions = computed(() => {
@@ -424,13 +428,13 @@ function getStyleAdaptationClause(style: string): string {
     return '适配韩式简约：保留清透底妆与无辜眼神，弱化重修容，唇色以奶茶/豆沙低饱和为主。';
   }
   if (style === 'romantic') {
-    return '适配森系草坪：保留原有底妆与睫毛纹理，增强柔和腮红与自然光泽，呈现轻盈清新氛围。';
+    return '适配森系草坪胶片：在清透底妆与真实肤质基础上，压低饱和度、略增强颗粒与莫兰迪色调，腮红与唇色柔和淡雅（腮红宜轻扫、忌过重），与户外阴天漫射光、松柏草坪场景协调。';
   }
   if (style === 'bohemian') {
     return '适配海岛松弛：保留底妆与眼神特征，加入轻古铜修容与暖调唇色，突出度假感。';
   }
   if (style === 'adventure') {
-    return '适配旷野自由：保留核心妆感，适度提升轮廓立体度与眼部对比，强调上镜张力。';
+    return '适配旷野自由（大理苍山日出向）：新娘妆精致通透、暖金逆光友好，新郎清爽修容；腮红宜淡，整体与日照金山、枯黄草坡、柔虚化背景协调。';
   }
   if (style === 'artistic') {
     return '适配纪实故事：保留核心妆感，增强层次与电影感对比，唇妆更克制有质感。';
@@ -449,7 +453,10 @@ function buildAdaptiveMakeupPrompt(
   const corePrompt = syncedCoreMakeupPrompt.value || '';
   const localLabel = selectedMakeupLabel || '当前偏好妆容';
   const styleAdaptation = getStyleAdaptationClause(currentStyle);
-  return `智能适配妆容：保留「${coreStyle}」的核心妆感（底色/肤色与睫毛质感、眼神气质），并与当前拍摄风格融合。当前偏好：${localLabel}。${styleAdaptation} 参考核心妆容特征：${corePrompt}`;
+  const blushNote = localLabel.includes('腮红')
+    ? ' 若偏好中含腮红，腮红须淡雅轻扫、低饱和，忌色块过重。'
+    : '';
+  return `智能适配妆容：保留「${coreStyle}」的核心妆感（底色/肤色与睫毛质感、眼神气质），并与当前拍摄风格融合。当前偏好：${localLabel}。${styleAdaptation}${blushNote} 参考核心妆容特征：${corePrompt}`;
 }
 
 /** 若当前偏好不在当前风格+出镜方式对应的列表中则清空（恢复 session 后也会调用） */
@@ -478,9 +485,9 @@ function pickAdaptiveMakeupValueForStyle(
     const map: Record<string, string> = {
       minimalist: 'ks_bare',
       classical: 'gf_red_brow',
-      romantic: 'sx_fresh',
+      romantic: 'sx_morandi',
       bohemian: 'hd_nude',
-      adventure: 'ky_contour',
+      adventure: 'ky_golden',
       artistic: 'js_soft',
     };
     return map[targetStyle] || makeupOptions.value[0]?.value;
@@ -500,7 +507,7 @@ function pickAdaptiveMakeupValueForStyle(
     const map: Record<string, string> = {
       minimalist: 'ks_mono',
       classical: 'gf_soft',
-      romantic: 'sx_soft',
+      romantic: 'sx_morandi',
       bohemian: 'hd_nude',
       adventure: 'ky_nude',
       artistic: 'js_story',
@@ -511,7 +518,7 @@ function pickAdaptiveMakeupValueForStyle(
     const map: Record<string, string> = {
       minimalist: 'ks_water',
       classical: 'gf_fresh',
-      romantic: 'sx_fresh',
+      romantic: 'sx_morandi',
       bohemian: 'hd_sun',
       adventure: 'ky_nude',
       artistic: 'js_soft',
@@ -535,7 +542,7 @@ function pickAdaptiveMakeupValueForStyle(
       classical: 'gf_eye',
       romantic: 'sx_glitter',
       bohemian: 'hd_wet',
-      adventure: 'ky_contour',
+      adventure: 'ky_warm',
       artistic: 'js_mono',
     };
     return map[targetStyle] || makeupOptions.value[0]?.value;
@@ -771,6 +778,13 @@ const handleGenerate = async () => {
     try {
       // 使用用户实际上传的图片（Base64 格式）
       // uploadedImage.value 已经是 Base64 格式：data:image/jpeg;base64,...
+      const poseStorageKey = `vto_pose_variant_v1_${selectedStyle.value}`;
+      let poseVariantIndex: number | undefined = undefined;
+      if (subjectRole.value === 'couple') {
+        const prev = parseInt(sessionStorage.getItem(poseStorageKey) || '-1', 10);
+        poseVariantIndex = Number.isFinite(prev) ? prev + 1 : 0;
+      }
+
       const request: VirtualTryOnRequest = {
         imageUrl: uploadedImage.value, // 使用用户上传的图片，而不是固定的 URL
         style: selectedStyle.value,
@@ -790,12 +804,17 @@ const handleGenerate = async () => {
           dress: resolveVtoPrefLabel(dressOptions.value, preferences.dress),
           accessory: preferences.accessory,
         },
+        poseVariantIndex,
       };
       lastRequest.value = request;
 
       const response = await aiApi.virtualTryOn(request);
       // 处理嵌套的响应结构，取最内层的 data
       result.value = response.data?.data || response.data;
+
+      if (subjectRole.value === 'couple' && poseVariantIndex !== undefined) {
+        sessionStorage.setItem(poseStorageKey, String(poseVariantIndex));
+      }
 
       // 生成成功后持久化（保存生成结果与最后一次请求）
       saveStateToStorage();
@@ -1017,7 +1036,7 @@ const showResultImagePlaceholder = (target: any) => {
 
   setTimeout(() => {
     // 隐藏所有图片和a-image组件
-    const images = container.querySelectorAll('img, .ant-image, .ant-image-img, .comparison-image');
+    const images = container.querySelectorAll('img, .ant-image, .ant-image-img, .comparison-stage');
     images.forEach((img: any) => {
       if (img) {
         if (img.style) {
@@ -1580,26 +1599,39 @@ const showResultImagePlaceholder = (target: any) => {
   }
 }
 
-.comparison-image {
+// 固定最大展示区域 450×600，图片按原图比例 object-fit: contain
+.comparison-stage {
   width: 450px;
   height: 600px;
+  max-width: 100%;
+  box-sizing: border-box;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
   border-radius: 6px;
   border: 1px solid #e0e0e0;
+  overflow: hidden;
   transition: all 0.3s;
   cursor: pointer;
-  display: block;
+  flex-shrink: 0;
 
   :deep(.ant-image) {
-    width: 450px;
-    height: 600px;
-    display: block;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    max-width: 100%;
+    max-height: 100%;
   }
 
   :deep(.ant-image-img) {
-    width: 450px;
-    height: 600px;
+    max-width: 100% !important;
+    max-height: 600px !important;
+    width: auto !important;
+    height: auto !important;
     border-radius: 6px;
-    object-fit: cover;
+    object-fit: contain;
   }
 
   &:hover {
@@ -1614,31 +1646,19 @@ const showResultImagePlaceholder = (target: any) => {
   }
 }
 
-.original-image {
-  :deep(.ant-image-img) {
-    object-fit: contain;
-    background: #f5f5f5;
-  }
-}
-
 .image-wrapper {
   position: relative;
-  width: 450px;
-  min-height: 600px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .no-image-placeholder {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 600px;
   background: #f0f0f0;
   border: 1px dashed #d9d9d9;
   border-radius: 8px;
-  width: 450px;
 
   .placeholder-text {
     font-size: 0.875rem;

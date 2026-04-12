@@ -107,26 +107,17 @@
           <div class="image-comparison">
             <div class="comparison-item">
               <div class="label">原始照片</div>
-              <a-image
-                :src="uploadedImage"
-                :preview="true"
-                class="comparison-image"
-                :width="450"
-                :height="600"
-              />
+              <div class="comparison-stage">
+                <a-image :src="uploadedImage" :preview="true" />
+              </div>
             </div>
             <div class="arrow">→</div>
             <div class="comparison-item">
               <div class="label">试妆结果</div>
-              <a-image
-                v-if="resultImage"
-                :src="resultImage"
-                :preview="true"
-                class="comparison-image"
-                :width="450"
-                :height="600"
-              />
-              <div v-else class="mock-preview">
+              <div v-if="resultImage" class="comparison-stage">
+                <a-image :src="resultImage" :preview="true" />
+              </div>
+              <div v-else class="mock-preview comparison-stage">
                 <img :src="uploadedImage" alt="快速预览" :style="mockFilterStyle" />
                 <div class="mock-badge">快速预览</div>
               </div>
@@ -152,12 +143,12 @@
 </template>
 
 <script setup lang="ts">
-import AiGeneratingWaitModal from '@/components/ai/AiGeneratingWaitModal.vue';
 import { aiApi } from '@/api/ai';
+import AiGeneratingWaitModal from '@/components/ai/AiGeneratingWaitModal.vue';
 import { useAuthStore } from '@/store/auth';
 import { runAiFlight, useAiFlightPending } from '@/utils/ai-generation-flight';
 import { message } from 'ant-design-vue';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 type MakeupStyleId =
@@ -256,7 +247,7 @@ const makeupToVtoSyncMap: Record<MakeupStyleId, { vtoStyle: string; makeupValue:
   'new-chinese': { vtoStyle: 'classical', makeupValue: 'gf_red_brow' },
   forest: { vtoStyle: 'romantic', makeupValue: 'sx_fresh' },
   'french-retro': { vtoStyle: 'artistic', makeupValue: 'js_wine' },
-  'light-thai': { vtoStyle: 'adventure', makeupValue: 'ky_contour' },
+  'light-thai': { vtoStyle: 'adventure', makeupValue: 'ky_warm' },
 };
 const mockFilterStyle = computed(() => ({
   filter: makeupStyles.find((x) => x.id === selectedStyle.value)?.filter || '',
@@ -353,6 +344,27 @@ const handleReset = () => {
   message.info('已清空，可以重新开始生成');
 };
 
+/** 与 VirtualTryOn 一致：全局 TransformInterceptor 会包一层，modifiedImageUrl 在 data.data */
+function extractMakeupResultPayload(resp: unknown): {
+  modifiedImageUrl?: string;
+  [key: string]: unknown;
+} | null {
+  if (!resp || typeof resp !== 'object') return null;
+  const r = resp as Record<string, unknown>;
+  const inner = r.data as Record<string, unknown> | undefined;
+  const payload =
+    inner && typeof inner === 'object' && inner.data && typeof inner.data === 'object'
+      ? (inner.data as Record<string, unknown>)
+      : inner;
+  if (!payload || typeof payload !== 'object') return null;
+  if ('modifiedImageUrl' in payload) return payload as { modifiedImageUrl?: string };
+  const d = payload.data as Record<string, unknown> | undefined;
+  if (d && typeof d === 'object' && 'modifiedImageUrl' in d) {
+    return d as { modifiedImageUrl?: string };
+  }
+  return null;
+}
+
 const syncToVirtualTryOn = () => {
   if (!hasGenerated.value) {
     message.warning('请先生成并确认喜欢的试妆效果');
@@ -378,7 +390,7 @@ const generateTryOn = async () => {
   }
   await runAiFlight('makeup-try-on', async () => {
     try {
-      const resp: any = await aiApi.virtualTryOn({
+      const resp: unknown = await aiApi.virtualTryOn({
         imageUrl: uploadedImage.value,
         style: `makeup-${selectedStyle.value}`,
         makeupOnly: true,
@@ -388,14 +400,24 @@ const generateTryOn = async () => {
           makeup: `${styleName(selectedStyle.value)}。请严格按以下妆容特征生成：${styleFeaturePrompt[selectedStyle.value]}`,
         },
       });
-      const data = resp?.data?.data || resp?.data || resp;
+      const data =
+        extractMakeupResultPayload(resp) ||
+        ((resp as { data?: { data?: unknown } })?.data?.data as
+          | Record<string, unknown>
+          | undefined) ||
+        ((resp as { data?: unknown })?.data as Record<string, unknown> | undefined) ||
+        (resp as Record<string, unknown>);
       const url = String(data?.modifiedImageUrl || '').trim();
-      if (url && (url.startsWith('data:') || url.startsWith('http'))) {
+      const urlOk =
+        url && (url.startsWith('data:') || url.startsWith('http') || url.startsWith('blob:'));
+      if (urlOk) {
         resultImage.value = url;
       } else {
         resultImage.value = '';
       }
       hasGenerated.value = true;
+      await nextTick();
+      saveStateToStorage();
 
       if (authStore.isAuthenticated) {
         try {
@@ -418,7 +440,7 @@ const generateTryOn = async () => {
           console.error('[MakeupTryOn] 自动保存历史失败:', saveErr);
           message.warning('试妆效果已生成，但自动保存历史失败');
         }
-      } else if (url && (url.startsWith('data:') || url.startsWith('http'))) {
+      } else if (urlOk) {
         message.success('试妆效果已生成');
       } else {
         message.success('已生成，当前展示快速预览');
@@ -432,12 +454,6 @@ const generateTryOn = async () => {
 
 watch([uploadedImage, selectedStyle, resultImage, hasGenerated], () => {
   saveStateToStorage();
-});
-
-watch(generating, (now, prev) => {
-  if (prev && !now) {
-    restoreStateFromStorage();
-  }
 });
 
 onMounted(() => {
@@ -759,22 +775,34 @@ onMounted(() => {
     text-align: center;
   }
 }
-.comparison-image {
-  width: 450px;
-  height: 600px;
+.comparison-stage {
+  width: 360px;
+  height: 480px;
+  max-width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
   border-radius: 6px;
   border: 1px solid #e0e0e0;
+  overflow: hidden;
+  flex-shrink: 0;
 
   :deep(.ant-image) {
-    width: 450px;
-    height: 600px;
-    display: block;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    max-width: 100%;
+    max-height: 100%;
   }
 
   :deep(.ant-image-img) {
-    width: 450px;
-    height: 600px;
-    object-fit: cover;
+    max-width: 100% !important;
+    max-height: 480px !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain;
   }
 }
 .arrow {
@@ -784,16 +812,15 @@ onMounted(() => {
   text-align: center;
 }
 .mock-preview {
-  width: 450px;
   position: relative;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid #e0e0e0;
   img {
-    width: 100%;
-    height: 600px;
-    object-fit: cover;
+    max-width: 100%;
+    max-height: 480px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
     display: block;
+    margin: 0 auto;
   }
 }
 .mock-badge {

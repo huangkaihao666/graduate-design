@@ -21,6 +21,7 @@ import type {
   CustomerSupportRequest,
   ItineraryPlanningRequest,
   PackageDescriptionDraftRequest,
+  PromptImageTestRequest,
   SpotDraftRequest,
   StyleRecommendationRequest,
   VirtualTryOnRequest,
@@ -73,6 +74,31 @@ export class AiController {
         {
           statusCode: 400,
           message: error.message || '生成虚拍建议失败',
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
+   * 图生图测试：上传参考图 + 自定义提示词（与虚拍共用火山图生图能力）
+   */
+  @Post('prompt-image-test')
+  async promptImageTest(@Body() body: PromptImageTestRequest) {
+    try {
+      const data = await this.aiService.generateImageFromUserPrompt(body);
+      return {
+        statusCode: 200,
+        message: '生成成功',
+        data,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error: any) {
+      console.error('[AI Controller] 图生图测试失败:', error);
+      throw new HttpException(
+        {
+          statusCode: 400,
+          message: error.message || '生成失败',
         },
         HttpStatus.BAD_REQUEST,
       );

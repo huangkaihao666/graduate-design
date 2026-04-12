@@ -23,6 +23,8 @@ export interface VirtualTryOnRequest {
     dress?: string;
     accessory?: string;
   };
+  /** 双人合影：同会话同风格下递增，用于后端轮换双人姿态，避免连续生成同一动作 */
+  poseVariantIndex?: number;
 }
 
 export interface StyleRecommendationRequest {
