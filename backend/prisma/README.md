@@ -2,6 +2,8 @@
 
 本项目使用 **Prisma ORM + MySQL**，所有数据库结构定义在 `schema.prisma`，下面记录常用操作。
 
+根目录另有 **`prisma.config.ts`**：供 Prisma CLI 7 风格配置（`schema` 路径、`migrations` 路径、`datasource.url`）。执行 `migrate` / `generate` 时会读取；若提示未加载环境变量，请确保在 **`backend` 目录**下执行命令，且已配置 `backend/.env` 中的 `DATABASE_URL`。
+
 ---
 
 ## 目录结构
@@ -11,10 +13,29 @@ prisma/
 ├── schema.prisma        # 数据模型定义（核心文件）
 ├── seed.ts              # 初始化种子数据
 ├── migrations/          # 自动生成的迁移 SQL 历史
-│   ├── 20260309105820_init/
-│   └── 20260309110240_update_user/
+│   ├── 20260309105820_init/                                    # 首版：users / rooms / messages / votes / agents
+│   ├── 20260309110240_update_user/                             # users：username → name
+│   └── 20260414162946_add_notifications_message_likes_message_threading/  # 通知、评论点赞、消息楼中楼等
 └── README.md            # 本文件
 ```
+
+### 各迁移大致内容（便于对照）
+
+| 迁移目录                                                           | 主要内容                                                                                                                                                                |
+| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `20260309105820_init`                                              | 基础表与外键                                                                                                                                                            |
+| `20260309110240_update_user`                                       | `users` 字段调整（`name`）                                                                                                                                              |
+| `20260414162946_add_notifications_message_likes_message_threading` | 创建 **`notifications`**、**`message_likes`**；`messages` 增加 `parentId` / `reasoning` / `roundNumber` 及自引用外键；`rooms.image` / `users.avatar` 与 LongText 对齐等 |
+
+---
+
+## 重要：只改 `schema.prisma` 不等于数据库已更新
+
+若 **只编辑了 `schema.prisma` 却没有执行 `migrate dev`（或生产环境未执行 `migrate deploy`）**，真实 MySQL 里会缺少对应表或字段。此时 Prisma 查询会抛错，后端若未单独捕获这类异常，接口会表现为 **HTTP 500**。
+
+**典型情况（已踩坑）**：`Notification` 等模型已在 `schema.prisma` 中定义，但早期迁移未建 `notifications` 表时，访问「未读通知数」等接口会一直 **500**，直到补上迁移并应用到数据库。
+
+**正确做法**：每次改完 `schema.prisma` 后，在本地执行 `migrate dev` 生成并应用迁移；其它环境执行 `migrate deploy`。
 
 ---
 
@@ -87,6 +108,8 @@ npx prisma generate
 
 ## 创建全新的表
 
+下面以 `MessageLike` 为例（**项目中该表已由迁移 `20260414162946_add_notifications_message_likes_message_threading` 创建**；此处仅作「新增 model 时怎么写」的模板）。
+
 ### schema.prisma 中添加新 model
 
 ```prisma
@@ -120,6 +143,13 @@ npx prisma migrate dev --name create_message_likes
 | `npx prisma migrate reset`   | ⚠️ 重置数据库（删除所有数据）并重新执行所有迁移，仅开发环境用 |
 | `npx prisma generate`        | 重新生成 TypeScript 类型，不改数据库                          |
 | `npx ts-node prisma/seed.ts` | 执行种子数据脚本                                              |
+
+---
+
+## 常见问题
+
+- **`npx prisma generate` 报 EPERM（无法重命名 `query_engine-*.dll.node`）**  
+  常见于 Windows：杀毒软件锁定、或其它终端/进程仍占用 Prisma 引擎。可先关闭正在跑的后端、IDE 外多余终端，再执行；仍失败可重启后再 `generate`。
 
 ---
 
