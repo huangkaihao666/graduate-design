@@ -17,6 +17,7 @@ export const getRooms = (params: {
   status?: string
   search?: string
   sort?: string
+  tagId?: number
 }) => {
   return httpClient.get('/rooms', { params })
 }

@@ -7,6 +7,7 @@ import {
   ArrayMaxSize,
   MinLength,
   MaxLength,
+  IsInt,
 } from 'class-validator';
 
 export class CreateRoomDto {
@@ -30,4 +31,10 @@ export class CreateRoomDto {
   @ArrayMinSize(3, { message: '必须选择 3 个 Agent' })
   @ArrayMaxSize(3, { message: '必须选择 3 个 Agent' })
   agents: string[];
+
+  @IsOptional()
+  @IsArray({ message: '标签必须是数组' })
+  @ArrayMaxSize(3, { message: '最多选择 3 个标签' })
+  @IsInt({ each: true, message: '标签 ID 必须是整数' })
+  tagIds?: number[];
 }

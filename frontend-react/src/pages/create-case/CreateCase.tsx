@@ -1,11 +1,12 @@
 import React, { useState } from 'react'
-import { Card, Form, Input, Button, message, Upload, Progress, Modal } from 'antd'
-import { ArrowLeftOutlined, InboxOutlined, CheckCircleOutlined } from '@ant-design/icons'
+import { Card, Form, Input, Button, message, Upload, Progress, Modal, Tag } from 'antd'
+import { ArrowLeftOutlined, InboxOutlined, CheckCircleOutlined, TagOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { UploadFile, RcFile } from 'antd/es/upload/interface'
 import { AgentSelector } from '@/components/AgentSelector'
 import * as roomApi from '@/api/rooms'
+import * as tagsApi from '@/api/tags'
 import './CreateCase.less'
 
 const { TextArea } = Input
@@ -16,6 +17,7 @@ const CreateCase: React.FC = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [selectedAgents, setSelectedAgents] = useState<string[]>([])
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([])
   const [imageFile, setImageFile] = useState<UploadFile | null>(null)
   const [previewImage, setPreviewImage] = useState<string>('')
   const [uploadProgress, setUploadProgress] = useState(0)
@@ -31,6 +33,14 @@ const CreateCase: React.FC = () => {
     staleTime: Infinity,
   })
 
+  // 获取标签列表
+  const { data: tagsData } = useQuery({
+    queryKey: ['tags'],
+    queryFn: tagsApi.getTags,
+    staleTime: 5 * 60 * 1000,
+  })
+  const tagList = tagsData || []
+
   const agentList = (agentsData as unknown as any[] | undefined) || []
 
   // 创建案件 Mutation
@@ -41,6 +51,7 @@ const CreateCase: React.FC = () => {
       setShowSuccessModal(true)
       form.resetFields()
       setSelectedAgents([])
+      setSelectedTagIds([])
       setImageFile(null)
       setPreviewImage('')
       
@@ -69,8 +80,9 @@ const CreateCase: React.FC = () => {
       await createRoomMutation.mutateAsync({
         title: values.title,
         content: values.content,
-        image: previewImage || undefined, // Base64 图片数据
+        image: previewImage || undefined,
         agents: selectedAgents,
+        tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined,
       })
       setUploadProgress(100)
     } catch (error) {
@@ -206,6 +218,42 @@ const CreateCase: React.FC = () => {
             maxSelect={3}
             minSelect={3}
           />
+
+          {/* 话题标签 */}
+          {tagList.length > 0 && (
+            <Form.Item
+              label={
+                <div className="form-label-with-count">
+                  <span className="label-text"><TagOutlined /> 话题标签（可选，最多 3 个）</span>
+                  <span className="char-count">{selectedTagIds.length} / 3</span>
+                </div>
+              }
+            >
+              <div className="tag-selector">
+                {tagList.map((tag) => {
+                  const selected = selectedTagIds.includes(tag.id)
+                  return (
+                    <Tag
+                      key={tag.id}
+                      color={selected ? tag.color : undefined}
+                      className={`tag-option ${selected ? 'tag-selected' : ''}`}
+                      onClick={() => {
+                        if (selected) {
+                          setSelectedTagIds(selectedTagIds.filter((id) => id !== tag.id))
+                        } else if (selectedTagIds.length < 3) {
+                          setSelectedTagIds([...selectedTagIds, tag.id])
+                        } else {
+                          message.warning('最多选择 3 个标签')
+                        }
+                      }}
+                    >
+                      {tag.name}
+                    </Tag>
+                  )
+                })}
+              </div>
+            </Form.Item>
+          )}
 
           {/* 图片上传 */}
           <Form.Item

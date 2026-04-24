@@ -34,22 +34,26 @@ export class RoomsService {
           agents: JSON.stringify(data.agents),
           ownerId: userId,
           status: 'WAITING',
+          ...(data.tagIds?.length
+            ? {
+                tags: {
+                  create: data.tagIds.map((tagId) => ({ tagId })),
+                },
+              }
+            : {}),
         },
         include: {
           owner: {
-            select: {
-              id: true,
-              email: true,
-              name: true,
-              avatar: true,
-            },
+            select: { id: true, email: true, name: true, avatar: true },
           },
+          tags: { include: { tag: true } },
         },
       });
 
       return {
         ...room,
         agents: JSON.parse(room.agents),
+        tags: room.tags.map((rt) => rt.tag),
       };
     } catch (error) {
       console.error('创建案件错误:', error);
@@ -66,11 +70,10 @@ export class RoomsService {
    * 获取案件列表
    */
   async getRooms(query: QueryRoomDto, userId?: number) {
-    const { page = 1, pageSize = 10, status, search, sort } = query;
+    const { page = 1, pageSize = 10, status, search, sort, tagId } = query;
 
     const skip = (page - 1) * pageSize;
 
-    // 构建查询条件
     const where: any = {};
 
     if (status) {
@@ -84,12 +87,14 @@ export class RoomsService {
       ];
     }
 
-    // 构建排序
+    if (tagId) {
+      where.tags = { some: { tagId } };
+    }
+
     let orderBy: any = { createdAt: 'desc' };
     if (sort === 'hot') {
       orderBy = { viewCount: 'desc' };
     } else if (sort === 'mine') {
-      // 必须提供 userId，否则返回空列表（兜底保护）
       if (!userId) {
         return {
           data: [],
@@ -99,10 +104,8 @@ export class RoomsService {
       where.ownerId = userId;
     }
 
-    // 查询总数
     const total = await this.prisma.room.count({ where });
 
-    // 查询数据
     const rooms = await this.prisma.room.findMany({
       where,
       skip,
@@ -110,19 +113,16 @@ export class RoomsService {
       orderBy,
       include: {
         owner: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            avatar: true,
-          },
+          select: { id: true, email: true, name: true, avatar: true },
         },
+        tags: { include: { tag: true } },
       },
     });
 
     const formattedRooms = rooms.map((room) => ({
       ...room,
       agents: JSON.parse(room.agents),
+      tags: room.tags.map((rt) => rt.tag),
     }));
 
     return {
@@ -144,19 +144,12 @@ export class RoomsService {
       where: { id: roomId },
       include: {
         owner: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            avatar: true,
-          },
+          select: { id: true, email: true, name: true, avatar: true },
         },
         votes: {
-          select: {
-            agentId: true,
-            id: true,
-          },
+          select: { agentId: true, id: true },
         },
+        tags: { include: { tag: true } },
       },
     });
 
@@ -193,6 +186,7 @@ export class RoomsService {
       viewCount: updatedRoom.viewCount,
       commentCount: updatedRoom.commentCount,
       agents: JSON.parse(room.agents),
+      tags: room.tags.map((rt) => rt.tag),
       votes,
     };
   }

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Avatar } from 'antd'
+import { Avatar, Tag } from 'antd'
 import { EyeOutlined, MessageOutlined, FireOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import type { Room } from '@/types/common'
@@ -92,6 +92,21 @@ export const CaseCard: React.FC<CaseCardProps> = ({ room, agents }) => {
       <div className="card-body">
         {/* 标题 */}
         <h3 className="card-title">{room.title}</h3>
+
+        {/* 话题标签 */}
+        {(room as any).tags?.length > 0 && (
+          <div className="card-tags">
+            {((room as any).tags as any[]).slice(0, 3).map((tag: any) => (
+              <Tag
+                key={tag.id}
+                color={tag.color}
+                className="card-tag"
+              >
+                {tag.name}
+              </Tag>
+            ))}
+          </div>
+        )}
 
         {/* 简介 */}
         <p className="card-desc">

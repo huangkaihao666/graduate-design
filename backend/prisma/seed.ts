@@ -162,6 +162,62 @@ async function main() {
 
   console.log('✅ 投票数据创建成功:', votes.length, '条投票');
 
+  // 创建初始话题标签
+  const tags = await Promise.all([
+    prisma.tag.upsert({
+      where: { name: '学业压力' },
+      update: {},
+      create: { name: '学业压力', color: '#6366F1', weight: 10 },
+    }),
+    prisma.tag.upsert({
+      where: { name: '感情困惑' },
+      update: {},
+      create: { name: '感情困惑', color: '#EC4899', weight: 10 },
+    }),
+    prisma.tag.upsert({
+      where: { name: '职业规划' },
+      update: {},
+      create: { name: '职业规划', color: '#F97316', weight: 9 },
+    }),
+    prisma.tag.upsert({
+      where: { name: '家庭矛盾' },
+      update: {},
+      create: { name: '家庭矛盾', color: '#8B5CF6', weight: 8 },
+    }),
+    prisma.tag.upsert({
+      where: { name: '人际关系' },
+      update: {},
+      create: { name: '人际关系', color: '#10B981', weight: 8 },
+    }),
+    prisma.tag.upsert({
+      where: { name: '消费决策' },
+      update: {},
+      create: { name: '消费决策', color: '#EAB308', weight: 7 },
+    }),
+    prisma.tag.upsert({
+      where: { name: '法律权益' },
+      update: {},
+      create: { name: '法律权益', color: '#3B82F6', weight: 7 },
+    }),
+    prisma.tag.upsert({
+      where: { name: '心理健康' },
+      update: {},
+      create: { name: '心理健康', color: '#14B8A6', weight: 9 },
+    }),
+    prisma.tag.upsert({
+      where: { name: '就业求职' },
+      update: {},
+      create: { name: '就业求职', color: '#F43F5E', weight: 8 },
+    }),
+    prisma.tag.upsert({
+      where: { name: '留学出国' },
+      update: {},
+      create: { name: '留学出国', color: '#0EA5E9', weight: 6 },
+    }),
+  ]);
+
+  console.log('✅ 话题标签创建成功:', tags.map((t) => t.name).join(' / '));
+
   console.log('\n✨ 数据初始化完成！');
 }
 

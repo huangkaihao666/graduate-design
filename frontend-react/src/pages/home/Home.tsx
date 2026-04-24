@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { CaseCard } from '@/components/CaseCard'
 import * as roomApi from '@/api/rooms'
+import * as tagsApi from '@/api/tags'
 import './Home.less'
 
 interface Agent {
@@ -33,6 +34,14 @@ export const Home: React.FC = () => {
   const [status, setStatus] = useState('all')
   const [sortBy, setSortBy] = useState('newest')
   const [search, setSearch] = useState('')
+  const [activeTagId, setActiveTagId] = useState<number | null>(null)
+
+  const { data: tagsData } = useQuery({
+    queryKey: ['tags'],
+    queryFn: tagsApi.getTags,
+    staleTime: 5 * 60 * 1000,
+  })
+  const tagList = tagsData || []
 
   const {
     data: roomsData,
@@ -40,7 +49,7 @@ export const Home: React.FC = () => {
     refetch: refetchRooms,
     isFetching,
   } = useQuery({
-    queryKey: ['rooms', page, pageSize, status, sortBy, search],
+    queryKey: ['rooms', page, pageSize, status, sortBy, search, activeTagId],
     queryFn: () =>
       roomApi.getRooms({
         page,
@@ -48,6 +57,7 @@ export const Home: React.FC = () => {
         status: status === 'all' ? undefined : status,
         sort: sortBy,
         search: search || undefined,
+        tagId: activeTagId ?? undefined,
       }),
     staleTime: 0,
   })
@@ -197,17 +207,27 @@ export const Home: React.FC = () => {
           </div>
         </div>
 
-        {/* 分类 Tag 行（附加标签） */}
-        <div className="topic-tags">
-          {['全部', '感情困惑', '职场抉择', '家庭关系', '财务规划', '人际关系', '个人成长'].map((tag, i) => (
+        {/* 话题标签筛选栏 */}
+        {tagList.length > 0 && (
+          <div className="topic-tags">
             <Tag
-              key={tag}
-              className={`topic-tag ${i === 0 ? 'active' : ''}`}
+              className={`topic-tag ${activeTagId === null ? 'active' : ''}`}
+              onClick={() => { setActiveTagId(null); setPage(1) }}
             >
-              {tag}
+              全部
             </Tag>
-          ))}
-        </div>
+            {tagList.map((tag) => (
+              <Tag
+                key={tag.id}
+                className={`topic-tag ${activeTagId === tag.id ? 'active' : ''}`}
+                color={activeTagId === tag.id ? tag.color : undefined}
+                onClick={() => { setActiveTagId(tag.id); setPage(1) }}
+              >
+                {tag.name}
+              </Tag>
+            ))}
+          </div>
+        )}
 
         {/* 卡片网格 */}
         {roomsLoading ? (

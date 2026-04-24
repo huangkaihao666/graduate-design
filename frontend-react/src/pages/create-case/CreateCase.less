@@ -408,3 +408,33 @@
     }
   }
 }
+
+// ── 标签选择器 ────────────────────────────────────────────────
+.tag-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 4px 0;
+
+  .tag-option {
+    cursor: pointer;
+    font-size: 13px;
+    padding: 4px 14px;
+    border-radius: 20px;
+    border: 1.5px solid #E2E8F0;
+    background: transparent;
+    color: #64748B;
+    transition: all 0.2s;
+    user-select: none;
+
+    &:hover {
+      border-color: #6366F1;
+      color: #6366F1;
+    }
+
+    &.tag-selected {
+      font-weight: 500;
+      opacity: 1;
+    }
+  }
+}

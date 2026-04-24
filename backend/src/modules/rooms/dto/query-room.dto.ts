@@ -26,4 +26,9 @@ export class QueryRoomDto {
   @IsOptional()
   @IsIn(['newest', 'hot', 'mine'], { message: '排序方式不正确' })
   sort?: string = 'newest'; // newest, hot, mine
+
+  @IsOptional()
+  @Transform(({ value }) => parseInt(value, 10))
+  @IsInt()
+  tagId?: number; // 按标签筛选
 }
