@@ -246,7 +246,7 @@ npx prisma migrate dev --name <migration_name>
 | Phase 0：数据库迁移       | ✅ 已完成 |
 | Phase 1-A：话题标签       | ✅ 已完成 |
 | Phase 1-B：点赞收藏       | ✅ 已完成 |
-| Phase 1-C：辩论室用户观点 | ⬜ 待开始 |
+| Phase 1-C：辩论室用户观点 | ✅ 已完成 |
 | Phase 1-D：情感分析       | ⬜ 待开始 |
 | Phase 2-A：AI 共情师      | ⬜ 待开始 |
 | Phase 2-B：创建智能体     | ⬜ 待开始 |

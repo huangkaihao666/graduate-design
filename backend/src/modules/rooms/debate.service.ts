@@ -7,6 +7,7 @@ interface DebateContext {
   roomId: number;
   currentRound: number;
   status: 'WAITING' | 'RUNNING' | 'PAUSED' | 'FINISHED';
+  collectingOpinions: boolean; // Round1 后的 60 秒征集窗口
   messages: Array<{
     roundNumber: number;
     agentId: string;
@@ -52,6 +53,7 @@ export class DebateService {
       roomId,
       currentRound: 1,
       status: 'RUNNING',
+      collectingOpinions: false,
       messages: [],
     };
     this.debateContexts.set(roomId, context);
@@ -87,7 +89,7 @@ export class DebateService {
       content: room.content,
     };
 
-    // 方案一：严格交替发言（A → B）
+    // 严格交替发言（A → B）
     this.roomsGateway.broadcastToRoom(roomId, 'roundChanged', {
       roomId,
       round: 1,
@@ -95,15 +97,52 @@ export class DebateService {
     await this.streamAgentResponse(roomId, botA, caseInfo, [], 1, 'statement');
     await this.streamAgentResponse(roomId, botB, caseInfo, [], 1, 'statement');
 
-    // Round 1 完成后，等待 2 秒，然后执行 Round 2
+    // ── 用户观点征集窗口（60 秒）──
+    const COLLECT_DURATION = 60; // 秒
+    const context = this.debateContexts.get(roomId);
+    if (context) context.collectingOpinions = true;
+
+    this.roomsGateway.broadcastToRoom(roomId, 'opinionCollectStart', {
+      roomId,
+      duration: COLLECT_DURATION,
+    });
+
+    await this.delay(COLLECT_DURATION * 1000);
+
+    if (context) context.collectingOpinions = false;
+
+    // 统计有效观点数量
+    const opinions = await (this.prisma as any).userOpinion.findMany({
+      where: { roomId, isRelevant: true },
+      orderBy: { likeCount: 'desc' },
+      take: 20,
+    });
+
+    const opinionsByStance = {
+      forA: opinions.filter((o: any) => o.stance === 'SUPPORT_A').slice(0, 3),
+      forB: opinions.filter((o: any) => o.stance === 'SUPPORT_B').slice(0, 3),
+      neutral: opinions.filter((o: any) => o.stance === 'NEUTRAL').slice(0, 3),
+    };
+
+    this.roomsGateway.broadcastToRoom(roomId, 'opinionCollectEnd', {
+      roomId,
+      validCount: opinions.length,
+      validForA: opinionsByStance.forA.length,
+      validForB: opinionsByStance.forB.length,
+    });
+
     await this.delay(2000);
-    await this.executeRound2(roomId, room);
+    await this.executeRound2(roomId, room, opinionsByStance);
   }
 
   /**
-   * Round 2: Bot A 和 Bot B 交叉反驳
+   * Round 2: Bot A 和 Bot B 交叉反驳（注入用户观点）
    */
-  private async executeRound2(roomId: number, room: any): Promise<void> {
+  private async executeRound2(
+    roomId: number,
+    room: any,
+    opinionsByStance?: { forA: any[]; forB: any[]; neutral: any[] },
+  ): Promise<void> {
     this.logger.log(`🟩 Executing Round 2 for room ${roomId}`);
 
     const context = this.debateContexts.get(roomId);
@@ -120,20 +159,31 @@ export class DebateService {
       content: room.content,
     };
 
-    // 获取 Round 1 的消息
     const round1Messages = context.messages.filter((m) => m.roundNumber === 1);
 
-    // Bot A 看到 Bot B 的观点，Bot B 看到 Bot A 的观点
-    const botAContext = round1Messages.filter((m) => m.agentId === botB);
-    const botBContext = round1Messages.filter((m) => m.agentId === botA);
+    // 构建注入用户观点的 context
+    const buildOpinionHint = (supportingOpinions: any[]) => {
+      if (!supportingOpinions?.length) return [];
+      const hint = `【观众支持你的观点有：${supportingOpinions.map((o: any) => `"${o.content}"`).join('；')}，请在反驳时引用这些民意支撑你的立场】`;
+      return [{ agentId: 'audience', content: hint }];
+    };
 
-    // 广播 Round 2 开始
+    // B 反驳 A：B 收到"支持B的观众观点"
+    const botBContext = [
+      ...round1Messages.filter((m) => m.agentId === botA),
+      ...buildOpinionHint(opinionsByStance?.forB || []),
+    ];
+    // A 反驳 B：A 收到"支持A的观众观点"
+    const botAContext = [
+      ...round1Messages.filter((m) => m.agentId === botB),
+      ...buildOpinionHint(opinionsByStance?.forA || []),
+    ];
+
     this.roomsGateway.broadcastToRoom(roomId, 'roundChanged', {
       roomId,
       round: 2,
     });
 
-    // 方案一：交叉反驳（严格交替：B 反驳 A → A 反驳 B）
     await this.streamAgentResponse(
       roomId,
       botB,
@@ -151,15 +201,18 @@ export class DebateService {
       'rebuttal',
     );
 
-    // Round 2 完成后，执行 Round 3
     await this.delay(2000);
-    await this.executeRound3(roomId, room);
+    await this.executeRound3(roomId, room, opinionsByStance);
   }
 
   /**
-   * Round 3: Bot C 总结
+   * Round 3: Bot C 综合裁决（引用用户观点分布）
    */
-  private async executeRound3(roomId: number, room: any): Promise<void> {
+  private async executeRound3(
+    roomId: number,
+    room: any,
+    opinionsByStance?: { forA: any[]; forB: any[]; neutral: any[] },
+  ): Promise<void> {
     this.logger.log(`🟥 Executing Round 3 for room ${roomId}`);
 
     const context = this.debateContexts.get(roomId);
@@ -175,8 +228,31 @@ export class DebateService {
       content: room.content,
     };
 
-    // Bot C 看到所有之前的消息
-    const allMessages = context.messages;
+    // Bot C 看到所有之前的消息 + 观众观点分布摘要
+    const opinionSummary = opinionsByStance
+      ? `【观众观点统计：支持A方 ${opinionsByStance.forA.length} 条，支持B方 ${opinionsByStance.forB.length} 条，中立 ${opinionsByStance.neutral.length} 条。` +
+        (opinionsByStance.forA.length
+          ? `支持A代表观点："${opinionsByStance.forA[0]?.content}"。`
+          : '') +
+        (opinionsByStance.forB.length
+          ? `支持B代表观点："${opinionsByStance.forB[0]?.content}"。`
+          : '') +
+        `请在裁决中引用这些民意数据】`
+      : '';
+
+    const allMessages = [
+      ...context.messages,
+      ...(opinionSummary
+        ? [
+            {
+              agentId: 'audience',
+              content: opinionSummary,
+              roundNumber: 2,
+              createdAt: new Date(),
+            },
+          ]
+        : []),
+    ];
 
     // 广播 Round 3 开始
     this.roomsGateway.broadcastToRoom(roomId, 'roundChanged', {
@@ -487,6 +563,13 @@ export class DebateService {
    */
   getDebateContext(roomId: number): DebateContext | undefined {
     return this.debateContexts.get(roomId);
+  }
+
+  /**
+   * 当前房间是否处于观点征集窗口
+   */
+  isCollectingOpinions(roomId: number): boolean {
+    return this.debateContexts.get(roomId)?.collectingOpinions ?? false;
   }
 
   private delay(ms: number): Promise<void> {

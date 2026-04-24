@@ -9,9 +9,10 @@ import {
   MessageBody,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger } from '@nestjs/common';
+import { Logger, forwardRef, Inject } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '@/prisma/prisma.service';
+import { DebateService } from './debate.service';
 
 @WebSocketGateway({
   cors: {
@@ -53,6 +54,8 @@ export class RoomsGateway
   constructor(
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => DebateService))
+    private readonly debateService: DebateService,
   ) {
     this.logger.log('🚀 RoomsGateway constructor called');
   }
@@ -339,6 +342,23 @@ export class RoomsGateway
     const prev = this.roomMessages.get(roomKey) || [];
     const next = [...prev, messagePayload].slice(-100);
     this.roomMessages.set(roomKey, next);
+
+    // 若处于观点征集窗口，异步写入 UserOpinion 表
+    if (this.debateService.isCollectingOpinions(data.roomId)) {
+      (this.prisma as any).userOpinion
+        .create({
+          data: {
+            roomId: data.roomId,
+            userId,
+            content: data.content.slice(0, 200),
+            stance: 'NEUTRAL',
+            isRelevant: true,
+          },
+        })
+        .catch((e: any) =>
+          this.logger.warn(`UserOpinion write failed: ${e?.message}`),
+        );
+    }
 
     this.logger.log(`User ${userId} sent message in room ${data.roomId}`);
     return { success: true };

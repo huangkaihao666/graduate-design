@@ -54,6 +54,12 @@ export const DebateRoom: React.FC = () => {
   const voteCountdownRef = useRef<number | null>(null)
   const loadedDebateHistoryRef = useRef(false)
 
+  // 观点征集窗口状态
+  const [opinionCollecting, setOpinionCollecting] = useState(false)
+  const [opinionCountdown, setOpinionCountdown] = useState(0)
+  const [opinionResult, setOpinionResult] = useState<{ validCount: number; validForA: number; validForB: number } | null>(null)
+  const opinionCountdownRef = useRef<number | null>(null)
+
   // 缓冲流式 chunk（区分 reasoning/answer），避免频繁 setState 导致舞台滚动卡死
   const pendingChunksRef = useRef<Map<string, { reasoning: string[]; answer: string[] }>>(new Map())
   const flushTimerRef = useRef<number | null>(null)
@@ -296,6 +302,41 @@ export const DebateRoom: React.FC = () => {
       setRoomStatus('CLOSED')
     })
 
+    // 观点征集开始
+    socketInstance.on('opinionCollectStart', (data: any) => {
+      const duration = data?.duration ?? 60
+      setOpinionCollecting(true)
+      setOpinionCountdown(duration)
+      setOpinionResult(null)
+      if (opinionCountdownRef.current) window.clearInterval(opinionCountdownRef.current)
+      opinionCountdownRef.current = window.setInterval(() => {
+        setOpinionCountdown((prev) => {
+          if (prev <= 1) {
+            window.clearInterval(opinionCountdownRef.current!)
+            opinionCountdownRef.current = null
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    })
+
+    // 观点征集结束
+    socketInstance.on('opinionCollectEnd', (data: any) => {
+      setOpinionCollecting(false)
+      if (opinionCountdownRef.current) {
+        window.clearInterval(opinionCountdownRef.current)
+        opinionCountdownRef.current = null
+      }
+      setOpinionResult({
+        validCount: data?.validCount ?? 0,
+        validForA: data?.validForA ?? 0,
+        validForB: data?.validForB ?? 0,
+      })
+      // 3 秒后清除结果提示
+      setTimeout(() => setOpinionResult(null), 4000)
+    })
+
     // 投票更新
     socketInstance.on('voteUpdate', (data: any) => {
       console.log('Vote update:', data)
@@ -430,6 +471,10 @@ export const DebateRoom: React.FC = () => {
       if (voteCountdownRef.current) {
         window.clearInterval(voteCountdownRef.current)
         voteCountdownRef.current = null
+      }
+      if (opinionCountdownRef.current) {
+        window.clearInterval(opinionCountdownRef.current)
+        opinionCountdownRef.current = null
       }
     }
   }, [id, accessToken, refreshToken, room])
@@ -597,6 +642,9 @@ export const DebateRoom: React.FC = () => {
           messages={chatMessages}
           onlineCount={onlineCount}
           onSendMessage={handleSendMessage}
+          opinionCollecting={opinionCollecting}
+          opinionCountdown={opinionCountdown}
+          opinionResult={opinionResult}
         />
       ),
     },
@@ -638,6 +686,9 @@ export const DebateRoom: React.FC = () => {
             messages={chatMessages}
             onlineCount={onlineCount}
             onSendMessage={handleSendMessage}
+            opinionCollecting={opinionCollecting}
+            opinionCountdown={opinionCountdown}
+            opinionResult={opinionResult}
           />
         </div>
       </div>
