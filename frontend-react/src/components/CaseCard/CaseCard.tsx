@@ -1,7 +1,9 @@
-import React from 'react'
-import { Avatar, Tag } from 'antd'
-import { EyeOutlined, MessageOutlined, FireOutlined } from '@ant-design/icons'
+import React, { useState, useEffect, useRef } from 'react'
+import { Avatar, Tag, message } from 'antd'
+import { EyeOutlined, MessageOutlined, FireOutlined, LikeOutlined, LikeFilled, StarOutlined, StarFilled } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import * as roomApi from '@/api/rooms'
 import type { Room } from '@/types/common'
 import './CaseCard.less'
 
@@ -36,6 +38,85 @@ const PLACEHOLDER_ICONS = ['⚖️', '💬', '🤔', '💡', '🎯']
 
 export const CaseCard: React.FC<CaseCardProps> = ({ room, agents }) => {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  // 用 ref 记录"本地覆盖值"，null 表示尚未交互，以 prop 为准
+  const localLiked = useRef<boolean | null>(null)
+  const localFavorited = useRef<boolean | null>(null)
+
+  // room.id 变化（切换到不同 room 的卡片）时清除本地覆盖
+  const prevRoomId = useRef(room.id)
+  if (prevRoomId.current !== room.id) {
+    prevRoomId.current = room.id
+    localLiked.current = null
+    localFavorited.current = null
+  }
+
+  const liked = localLiked.current !== null ? localLiked.current : (room.liked ?? false)
+  const favorited = localFavorited.current !== null ? localFavorited.current : (room.favorited ?? false)
+
+  const [likeCount, setLikeCount] = useState(room.likeCount ?? 0)
+  const [favoriteCount, setFavoriteCount] = useState(room.favoriteCount ?? 0)
+  const [, forceUpdate] = useState(0)
+
+  useEffect(() => {
+    setLikeCount(room.likeCount ?? 0)
+    setFavoriteCount(room.favoriteCount ?? 0)
+  }, [room.id, room.likeCount, room.favoriteCount])
+
+  // wasLiked = 点击时的状态快照（点击前的值），用于 mutationFn 判断发 POST 还是 DELETE
+  const likeMutation = useMutation({
+    mutationFn: (wasLiked: boolean) =>
+      wasLiked ? roomApi.unlikeRoom(room.id) : roomApi.likeRoom(room.id),
+    onSuccess: (data: any) => {
+      localLiked.current = data.liked
+      setLikeCount(data.likeCount)
+      forceUpdate((n) => n + 1)
+      queryClient.invalidateQueries({ queryKey: ['my-likes'] })
+    },
+    onError: (_err, wasLiked: boolean) => {
+      // 回滚：恢复点击前的状态
+      localLiked.current = wasLiked
+      setLikeCount((c) => wasLiked ? c + 1 : c - 1)
+      forceUpdate((n) => n + 1)
+      message.error('操作失败，请重试')
+    },
+  })
+
+  const favoriteMutation = useMutation({
+    mutationFn: (wasFavorited: boolean) =>
+      wasFavorited ? roomApi.unfavoriteRoom(room.id) : roomApi.favoriteRoom(room.id),
+    onSuccess: (data: any) => {
+      localFavorited.current = data.favorited
+      setFavoriteCount(data.favoriteCount)
+      forceUpdate((n) => n + 1)
+      queryClient.invalidateQueries({ queryKey: ['my-favorites'] })
+    },
+    onError: (_err, wasFavorited: boolean) => {
+      localFavorited.current = wasFavorited
+      setFavoriteCount((c) => wasFavorited ? c + 1 : c - 1)
+      forceUpdate((n) => n + 1)
+      message.error('操作失败，请重试')
+    },
+  })
+
+  const handleLike = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const currentLiked = localLiked.current !== null ? localLiked.current : (room.liked ?? false)
+    // 把当前状态快照作为 variable 传给 mutationFn，onMutate 之后修改 ref 不影响它
+    localLiked.current = !currentLiked
+    setLikeCount((c) => currentLiked ? c - 1 : c + 1)
+    forceUpdate((n) => n + 1)
+    likeMutation.mutate(currentLiked)
+  }
+
+  const handleFavorite = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const currentFavorited = localFavorited.current !== null ? localFavorited.current : (room.favorited ?? false)
+    localFavorited.current = !currentFavorited
+    setFavoriteCount((c) => currentFavorited ? c - 1 : c + 1)
+    forceUpdate((n) => n + 1)
+    favoriteMutation.mutate(currentFavorited)
+  }
 
   const agentIds: string[] = room.agents || []
   const voteStats: Record<string, number> = room.votes || {}
@@ -173,6 +254,20 @@ export const CaseCard: React.FC<CaseCardProps> = ({ room, agents }) => {
           <span className="meta-item">
             <MessageOutlined />
             {room.commentCount || 0}
+          </span>
+          <span
+            className={`meta-item meta-like ${liked ? 'meta-like--active' : ''}`}
+            onClick={handleLike}
+          >
+            {liked ? <LikeFilled /> : <LikeOutlined />}
+            {likeCount}
+          </span>
+          <span
+            className={`meta-item meta-favorite ${favorited ? 'meta-favorite--active' : ''}`}
+            onClick={handleFavorite}
+          >
+            {favorited ? <StarFilled /> : <StarOutlined />}
+            {favoriteCount}
           </span>
         </div>
       </div>

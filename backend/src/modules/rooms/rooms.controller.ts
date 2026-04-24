@@ -58,6 +58,44 @@ export class RoomsController {
   }
 
   /**
+   * 获取我点赞的案件列表（需要 JWT）
+   * 注意：必须在 :id 路由之前
+   */
+  @Get('my/likes')
+  @UseGuards(JwtGuard)
+  @ApiOkResponse({ description: '获取点赞列表成功' })
+  async getMyLikes(
+    @Query('page') page: string,
+    @Query('pageSize') pageSize: string,
+    @Request() req: any,
+  ) {
+    return await this.roomsService.getMyLikes(
+      req.user.id,
+      page ? parseInt(page, 10) : 1,
+      pageSize ? parseInt(pageSize, 10) : 12,
+    );
+  }
+
+  /**
+   * 获取我的收藏列表（需要 JWT）
+   * 注意：必须在 :id 路由之前，否则 NestJS 会把 "my" 当成 id 匹配
+   */
+  @Get('my/favorites')
+  @UseGuards(JwtGuard)
+  @ApiOkResponse({ description: '获取收藏列表成功' })
+  async getMyFavorites(
+    @Query('page') page: string,
+    @Query('pageSize') pageSize: string,
+    @Request() req: any,
+  ) {
+    return await this.roomsService.getMyFavorites(
+      req.user.id,
+      page ? parseInt(page, 10) : 1,
+      pageSize ? parseInt(pageSize, 10) : 12,
+    );
+  }
+
+  /**
    * 获取案件详情
    */
   @Get(':id')
@@ -100,7 +138,7 @@ export class RoomsController {
   @Post(':id/start')
   @UseGuards(JwtGuard)
   @ApiOkResponse({ description: '辩论开始成功' })
-  async startDebate(@Param('id') id: string, @Request() req: any) {
+  async startDebate(@Param('id') id: string) {
     const roomId = parseInt(id, 10);
     // TODO: 验证是否为 owner
     await this.debateService.startDebate(roomId);
@@ -188,6 +226,62 @@ export class RoomsController {
   async unlikeComment(@Param('cid') cid: string, @Request() req: any) {
     return await this.roomsService.unlikeComment(
       parseInt(cid, 10),
+      req.user.id,
+    );
+  }
+
+  /**
+   * 获取案件点赞/收藏状态（需要 JWT）
+   */
+  @Get(':id/interaction')
+  @UseGuards(JwtGuard)
+  @ApiOkResponse({ description: '获取互动状态成功' })
+  async getRoomInteractionStatus(@Param('id') id: string, @Request() req: any) {
+    return await this.roomsService.getRoomInteractionStatus(
+      parseInt(id, 10),
+      req.user.id,
+    );
+  }
+
+  /**
+   * 点赞案件
+   */
+  @Post(':id/like')
+  @UseGuards(JwtGuard)
+  @ApiCreatedResponse({ description: '点赞成功' })
+  async likeRoom(@Param('id') id: string, @Request() req: any) {
+    return await this.roomsService.likeRoom(parseInt(id, 10), req.user.id);
+  }
+
+  /**
+   * 取消点赞案件
+   */
+  @Delete(':id/like')
+  @UseGuards(JwtGuard)
+  @ApiOkResponse({ description: '取消点赞成功' })
+  async unlikeRoom(@Param('id') id: string, @Request() req: any) {
+    return await this.roomsService.unlikeRoom(parseInt(id, 10), req.user.id);
+  }
+
+  /**
+   * 收藏案件
+   */
+  @Post(':id/favorite')
+  @UseGuards(JwtGuard)
+  @ApiCreatedResponse({ description: '收藏成功' })
+  async favoriteRoom(@Param('id') id: string, @Request() req: any) {
+    return await this.roomsService.favoriteRoom(parseInt(id, 10), req.user.id);
+  }
+
+  /**
+   * 取消收藏案件
+   */
+  @Delete(':id/favorite')
+  @UseGuards(JwtGuard)
+  @ApiOkResponse({ description: '取消收藏成功' })
+  async unfavoriteRoom(@Param('id') id: string, @Request() req: any) {
+    return await this.roomsService.unfavoriteRoom(
+      parseInt(id, 10),
       req.user.id,
     );
   }

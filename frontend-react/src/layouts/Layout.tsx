@@ -38,10 +38,10 @@ const NAV_ITEMS = [
   },
   {
     key: 'my-cases',
-    label: '我的案件',
+    label: '我的足迹',
     icon: <FileTextOutlined />,
     path: '/my-cases',
-    desc: '管理发布的案件',
+    desc: '案件、点赞与收藏',
   },
   {
     key: 'agents',

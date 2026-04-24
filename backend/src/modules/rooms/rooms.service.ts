@@ -119,10 +119,31 @@ export class RoomsService {
       },
     });
 
+    // 批量查询当前用户的点赞/收藏状态
+    let likedSet = new Set<number>();
+    let favoritedSet = new Set<number>();
+    if (userId && rooms.length > 0) {
+      const roomIds = rooms.map((r) => r.id);
+      const relations = await (this.prisma as any).userRelation.findMany({
+        where: {
+          userId,
+          targetId: { in: roomIds },
+          type: { in: ['LIKE_ROOM', 'FAVORITE_ROOM'] },
+        },
+        select: { targetId: true, type: true },
+      });
+      for (const rel of relations) {
+        if (rel.type === 'LIKE_ROOM') likedSet.add(rel.targetId);
+        if (rel.type === 'FAVORITE_ROOM') favoritedSet.add(rel.targetId);
+      }
+    }
+
     const formattedRooms = rooms.map((room) => ({
       ...room,
       agents: JSON.parse(room.agents),
       tags: room.tags.map((rt) => rt.tag),
+      liked: likedSet.has(room.id),
+      favorited: favoritedSet.has(room.id),
     }));
 
     return {
@@ -494,6 +515,270 @@ export class RoomsService {
       where: { messageId },
     });
     return { liked: false, likeCount: count };
+  }
+
+  /**
+   * 点赞案件（幂等）
+   */
+  async likeRoom(roomId: number, userId: number) {
+    await this.prisma.room.findUniqueOrThrow({ where: { id: roomId } });
+    const existing = await (this.prisma as any).userRelation.findUnique({
+      where: {
+        userId_targetId_type: { userId, targetId: roomId, type: 'LIKE_ROOM' },
+      },
+    });
+    if (existing)
+      return { liked: true, likeCount: await this.getRoomLikeCount(roomId) };
+
+    await (this.prisma as any).userRelation.create({
+      data: { userId, targetId: roomId, type: 'LIKE_ROOM' },
+    });
+    const updated = await this.prisma.room.update({
+      where: { id: roomId },
+      data: { likeCount: { increment: 1 } },
+      select: { likeCount: true },
+    });
+    return { liked: true, likeCount: updated.likeCount };
+  }
+
+  /**
+   * 取消点赞案件
+   */
+  async unlikeRoom(roomId: number, userId: number) {
+    const deleted = await (this.prisma as any).userRelation
+      .delete({
+        where: {
+          userId_targetId_type: { userId, targetId: roomId, type: 'LIKE_ROOM' },
+        },
+      })
+      .catch(() => null);
+    if (deleted) {
+      await this.prisma.room.update({
+        where: { id: roomId },
+        data: { likeCount: { decrement: 1 } },
+      });
+    }
+    return { liked: false, likeCount: await this.getRoomLikeCount(roomId) };
+  }
+
+  /**
+   * 收藏案件（幂等）
+   */
+  async favoriteRoom(roomId: number, userId: number) {
+    await this.prisma.room.findUniqueOrThrow({ where: { id: roomId } });
+    const existing = await (this.prisma as any).userRelation.findUnique({
+      where: {
+        userId_targetId_type: {
+          userId,
+          targetId: roomId,
+          type: 'FAVORITE_ROOM',
+        },
+      },
+    });
+    if (existing)
+      return {
+        favorited: true,
+        favoriteCount: await this.getRoomFavoriteCount(roomId),
+      };
+
+    await (this.prisma as any).userRelation.create({
+      data: { userId, targetId: roomId, type: 'FAVORITE_ROOM' },
+    });
+    const updated = await this.prisma.room.update({
+      where: { id: roomId },
+      data: { favoriteCount: { increment: 1 } },
+      select: { favoriteCount: true },
+    });
+    return { favorited: true, favoriteCount: updated.favoriteCount };
+  }
+
+  /**
+   * 取消收藏案件
+   */
+  async unfavoriteRoom(roomId: number, userId: number) {
+    const deleted = await (this.prisma as any).userRelation
+      .delete({
+        where: {
+          userId_targetId_type: {
+            userId,
+            targetId: roomId,
+            type: 'FAVORITE_ROOM',
+          },
+        },
+      })
+      .catch(() => null);
+    if (deleted) {
+      await this.prisma.room.update({
+        where: { id: roomId },
+        data: { favoriteCount: { decrement: 1 } },
+      });
+    }
+    return {
+      favorited: false,
+      favoriteCount: await this.getRoomFavoriteCount(roomId),
+    };
+  }
+
+  /**
+   * 获取当前用户对某案件的点赞/收藏状态
+   */
+  async getRoomInteractionStatus(roomId: number, userId: number) {
+    const room = await this.prisma.room.findUnique({
+      where: { id: roomId },
+      select: { likeCount: true, favoriteCount: true },
+    });
+    if (!room) throw new NotFoundException('案件不存在');
+
+    const [likeRel, favoriteRel] = await Promise.all([
+      (this.prisma as any).userRelation.findUnique({
+        where: {
+          userId_targetId_type: { userId, targetId: roomId, type: 'LIKE_ROOM' },
+        },
+      }),
+      (this.prisma as any).userRelation.findUnique({
+        where: {
+          userId_targetId_type: {
+            userId,
+            targetId: roomId,
+            type: 'FAVORITE_ROOM',
+          },
+        },
+      }),
+    ]);
+
+    return {
+      liked: !!likeRel,
+      favorited: !!favoriteRel,
+      likeCount: room.likeCount,
+      favoriteCount: room.favoriteCount,
+    };
+  }
+
+  /**
+   * 获取我的收藏列表
+   */
+  async getMyFavorites(
+    userId: number,
+    page: number = 1,
+    pageSize: number = 12,
+  ) {
+    const skip = (page - 1) * pageSize;
+    const [relations, total] = await Promise.all([
+      (this.prisma as any).userRelation.findMany({
+        where: { userId, type: 'FAVORITE_ROOM' },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize,
+        select: { targetId: true },
+      }),
+      (this.prisma as any).userRelation.count({
+        where: { userId, type: 'FAVORITE_ROOM' },
+      }),
+    ]);
+
+    const roomIds = relations.map((r: any) => r.targetId);
+    if (roomIds.length === 0) {
+      return {
+        data: [],
+        pagination: { page, pageSize, total: 0, totalPages: 0 },
+      };
+    }
+
+    const rooms = await this.prisma.room.findMany({
+      where: { id: { in: roomIds } },
+      include: {
+        owner: { select: { id: true, email: true, name: true, avatar: true } },
+        tags: { include: { tag: true } },
+      },
+    });
+
+    // 保持收藏时间倒序
+    const roomMap = new Map(rooms.map((r) => [r.id, r]));
+    const sorted = roomIds.map((id: number) => roomMap.get(id)).filter(Boolean);
+
+    return {
+      data: sorted.map((room: any) => ({
+        ...room,
+        agents: JSON.parse(room.agents),
+        tags: room.tags.map((rt: any) => rt.tag),
+        favorited: true,
+      })),
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    };
+  }
+
+  /**
+   * 获取我点赞的案件列表
+   */
+  async getMyLikes(userId: number, page: number = 1, pageSize: number = 12) {
+    const skip = (page - 1) * pageSize;
+    const [relations, total] = await Promise.all([
+      (this.prisma as any).userRelation.findMany({
+        where: { userId, type: 'LIKE_ROOM' },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize,
+        select: { targetId: true },
+      }),
+      (this.prisma as any).userRelation.count({
+        where: { userId, type: 'LIKE_ROOM' },
+      }),
+    ]);
+
+    const roomIds = relations.map((r: any) => r.targetId);
+    if (roomIds.length === 0) {
+      return {
+        data: [],
+        pagination: { page, pageSize, total: 0, totalPages: 0 },
+      };
+    }
+
+    const rooms = await this.prisma.room.findMany({
+      where: { id: { in: roomIds } },
+      include: {
+        owner: { select: { id: true, email: true, name: true, avatar: true } },
+        tags: { include: { tag: true } },
+      },
+    });
+
+    const roomMap = new Map(rooms.map((r) => [r.id, r]));
+    const sorted = roomIds.map((id: number) => roomMap.get(id)).filter(Boolean);
+
+    return {
+      data: sorted.map((room: any) => ({
+        ...room,
+        agents: JSON.parse(room.agents),
+        tags: room.tags.map((rt: any) => rt.tag),
+        liked: true,
+      })),
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    };
+  }
+
+  private async getRoomLikeCount(roomId: number) {
+    const room = await this.prisma.room.findUnique({
+      where: { id: roomId },
+      select: { likeCount: true },
+    });
+    return room?.likeCount ?? 0;
+  }
+
+  private async getRoomFavoriteCount(roomId: number) {
+    const room = await this.prisma.room.findUnique({
+      where: { id: roomId },
+      select: { favoriteCount: true },
+    });
+    return room?.favoriteCount ?? 0;
   }
 
   /**

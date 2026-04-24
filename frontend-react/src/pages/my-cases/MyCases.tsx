@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Row, Col, Tabs, Skeleton, Empty, Button } from 'antd'
-import { PlusOutlined } from '@ant-design/icons'
+import { PlusOutlined, StarOutlined, LikeOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { CaseCard } from '@/components/CaseCard'
@@ -29,6 +29,30 @@ const MyCases: React.FC = () => {
       }),
     staleTime: 5 * 60 * 1000,
   })
+
+  // 获取我的收藏列表
+  const {
+    data: favoritesData,
+    isLoading: favoritesLoading,
+  } = useQuery({
+    queryKey: ['my-favorites'],
+    queryFn: () => roomApi.getMyFavorites(1, 100),
+    staleTime: 5 * 60 * 1000,
+    enabled: activeTab === 'favorites',
+  })
+  const favoritesList = (favoritesData as any)?.data || []
+
+  // 获取我点赞的案件列表
+  const {
+    data: likesData,
+    isLoading: likesLoading,
+  } = useQuery({
+    queryKey: ['my-likes'],
+    queryFn: () => roomApi.getMyLikes(1, 100),
+    staleTime: 5 * 60 * 1000,
+    enabled: activeTab === 'likes',
+  })
+  const likesList = (likesData as any)?.data || []
 
   // 获取所有 Agents
   const { data: agentsData } = useQuery({
@@ -143,13 +167,91 @@ const MyCases: React.FC = () => {
         </div>
       ),
     },
+    {
+      key: 'likes',
+      label: (
+        <span>
+          <LikeOutlined />
+          {' '}我点赞的 {activeTab === 'likes' && !likesLoading ? `(${likesList.length})` : ''}
+        </span>
+      ),
+      children: (
+        <div className="cases-grid">
+          {likesLoading ? (
+            <Row gutter={[16, 16]}>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Col key={i} xs={24} sm={12} md={8} lg={6}>
+                  <Skeleton active avatar={{ size: 'large', shape: 'square' }} paragraph={{ rows: 3 }} />
+                </Col>
+              ))}
+            </Row>
+          ) : likesList.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+              <Empty description="还没有点赞过的案件" />
+              <Button type="link" onClick={() => navigate('/cases')} style={{ marginTop: 8 }}>
+                去广场看看
+              </Button>
+            </div>
+          ) : (
+            <Row gutter={[16, 16]}>
+              {likesList.map((room: any) => (
+                <Col key={room.id} xs={24} sm={12} md={8} lg={6}>
+                  <CaseCard room={room} agents={agents} />
+                </Col>
+              ))}
+            </Row>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'favorites',
+      label: (
+        <span>
+          <StarOutlined />
+          {' '}我的收藏 {activeTab === 'favorites' && !favoritesLoading ? `(${favoritesList.length})` : ''}
+        </span>
+      ),
+      children: (
+        <div className="cases-grid">
+          {favoritesLoading ? (
+            <Row gutter={[16, 16]}>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Col key={i} xs={24} sm={12} md={8} lg={6}>
+                  <Skeleton active avatar={{ size: 'large', shape: 'square' }} paragraph={{ rows: 3 }} />
+                </Col>
+              ))}
+            </Row>
+          ) : favoritesList.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+              <Empty description="暂无收藏的案件" />
+              <Button
+                type="link"
+                onClick={() => navigate('/cases')}
+                style={{ marginTop: 8 }}
+              >
+                去广场发现感兴趣的案件
+              </Button>
+            </div>
+          ) : (
+            <Row gutter={[16, 16]}>
+              {favoritesList.map((room: any) => (
+                <Col key={room.id} xs={24} sm={12} md={8} lg={6}>
+                  <CaseCard room={room} agents={agents} />
+                </Col>
+              ))}
+            </Row>
+          )}
+        </div>
+      ),
+    },
   ]
 
   return (
     <div className="my-cases-page">
       <div className="my-cases-header">
-        <h1>📝 我的案件</h1>
-        <p>管理您创建的所有案件</p>
+        <h1>👣 我的足迹</h1>
+        <p>记录您的案件、点赞与收藏</p>
         <Button
           type="primary"
           size="large"

@@ -792,6 +792,48 @@
   }
 }
 
+.rr-interact-area {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rr-interact-btn {
+  border-radius: 10px !important;
+  height: 38px !important;
+  font-weight: 600 !important;
+  transition: all 0.2s ease !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+
+  &--like-active {
+    color: #F43F5E !important;
+    border-color: #F43F5E !important;
+    background: rgba(244, 63, 94, 0.08) !important;
+    &:hover { background: rgba(244, 63, 94, 0.14) !important; }
+  }
+
+  &--fav-active {
+    color: #F59E0B !important;
+    border-color: #F59E0B !important;
+    background: rgba(245, 158, 11, 0.08) !important;
+    &:hover { background: rgba(245, 158, 11, 0.14) !important; }
+  }
+
+  &:not(.rr-interact-btn--like-active):not(.rr-interact-btn--fav-active):hover {
+    color: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+  }
+}
+
+.rr-interact-count {
+  font-size: 12px;
+  opacity: 0.8;
+  margin-left: 2px;
+}
+
 // 跳转辩论室
 .rr-widget-goto {
   border: 1px dashed var(--border-color) !important;

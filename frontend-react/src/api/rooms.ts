@@ -91,3 +91,52 @@ export const likeComment = (roomId: number, commentId: number) => {
 export const unlikeComment = (roomId: number, commentId: number) => {
   return httpClient.delete(`/rooms/${roomId}/comments/${commentId}/like`)
 }
+
+/**
+ * 获取案件点赞/收藏状态
+ */
+export const getRoomInteractionStatus = (roomId: number) => {
+  return httpClient.get(`/rooms/${roomId}/interaction`)
+}
+
+/**
+ * 点赞案件
+ */
+export const likeRoom = (roomId: number) => {
+  return httpClient.post(`/rooms/${roomId}/like`)
+}
+
+/**
+ * 取消点赞案件
+ */
+export const unlikeRoom = (roomId: number) => {
+  return httpClient.delete(`/rooms/${roomId}/like`)
+}
+
+/**
+ * 收藏案件
+ */
+export const favoriteRoom = (roomId: number) => {
+  return httpClient.post(`/rooms/${roomId}/favorite`)
+}
+
+/**
+ * 取消收藏案件
+ */
+export const unfavoriteRoom = (roomId: number) => {
+  return httpClient.delete(`/rooms/${roomId}/favorite`)
+}
+
+/**
+ * 获取我的收藏列表
+ */
+export const getMyFavorites = (page = 1, pageSize = 12) => {
+  return httpClient.get('/rooms/my/favorites', { params: { page, pageSize } })
+}
+
+/**
+ * 获取我点赞的案件列表
+ */
+export const getMyLikes = (page = 1, pageSize = 12) => {
+  return httpClient.get('/rooms/my/likes', { params: { page, pageSize } })
+}

@@ -195,7 +195,7 @@ export const Home: React.FC = () => {
               options={[
                 { label: '最新发布', value: 'newest' },
                 { label: '最热排序', value: 'hot' },
-                { label: '我的案件', value: 'mine' },
+                { label: '我发布的', value: 'mine' },
               ]}
             />
 

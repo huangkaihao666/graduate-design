@@ -362,3 +362,33 @@
     font-size: 12px;
   }
 }
+
+.meta-like {
+  cursor: pointer;
+  transition: color 0.2s ease, transform 0.15s ease;
+  user-select: none;
+
+  &:hover {
+    color: #F43F5E;
+    transform: scale(1.15);
+  }
+
+  &--active {
+    color: #F43F5E;
+  }
+}
+
+.meta-favorite {
+  cursor: pointer;
+  transition: color 0.2s ease, transform 0.15s ease;
+  user-select: none;
+
+  &:hover {
+    color: #F59E0B;
+    transform: scale(1.15);
+  }
+
+  &--active {
+    color: #F59E0B;
+  }
+}

@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Avatar,
   Button,
@@ -17,8 +17,11 @@ import {
   UserOutlined,
   CalendarOutlined,
   LikeOutlined,
+  LikeFilled,
   RightOutlined,
   MessageOutlined,
+  StarOutlined,
+  StarFilled,
 } from '@ant-design/icons'
 import * as roomApi from '@/api/rooms'
 import { generateReportPdf } from '@/utils'
@@ -46,6 +49,7 @@ const getAgentTheme = (idx: number) => AGENT_COLORS[idx % AGENT_COLORS.length]
 export const RoomReport: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const pageRef = useRef<HTMLDivElement>(null)
   const [downloading, setDownloading] = useState(false)
   // 受控的展开状态：null = 用户自由控制，string[] = 下载时强制全展开
@@ -60,6 +64,65 @@ export const RoomReport: React.FC = () => {
     queryFn: () => roomApi.getRoomReport(roomId),
     enabled: !!roomId,
   })
+
+  const { data: interactionData } = useQuery({
+    queryKey: ['room-interaction', roomId],
+    queryFn: () => roomApi.getRoomInteractionStatus(roomId),
+    enabled: !!roomId,
+  })
+  const interaction = (interactionData as any) || {}
+  const [liked, setLiked] = useState<boolean | null>(null)
+  const [likeCount, setLikeCount] = useState<number | null>(null)
+  const [favorited, setFavorited] = useState<boolean | null>(null)
+  const [favoriteCount, setFavoriteCount] = useState<number | null>(null)
+
+  const displayLiked = liked !== null ? liked : (interaction.liked ?? false)
+  const displayLikeCount = likeCount !== null ? likeCount : (interaction.likeCount ?? 0)
+  const displayFavorited = favorited !== null ? favorited : (interaction.favorited ?? false)
+  const displayFavoriteCount = favoriteCount !== null ? favoriteCount : (interaction.favoriteCount ?? 0)
+
+  const likeMutation = useMutation({
+    mutationFn: (wasLiked: boolean) =>
+      wasLiked ? roomApi.unlikeRoom(roomId) : roomApi.likeRoom(roomId),
+    onSuccess: (data: any) => {
+      setLiked(data.liked)
+      setLikeCount(data.likeCount)
+    },
+    onError: (_err, wasLiked: boolean) => {
+      setLiked(wasLiked)
+      setLikeCount((c) => c !== null ? (wasLiked ? c + 1 : c - 1) : null)
+      message.error('操作失败，请重试')
+    },
+  })
+
+  const favoriteMutation = useMutation({
+    mutationFn: (wasFavorited: boolean) =>
+      wasFavorited ? roomApi.unfavoriteRoom(roomId) : roomApi.favoriteRoom(roomId),
+    onSuccess: (data: any) => {
+      setFavorited(data.favorited)
+      setFavoriteCount(data.favoriteCount)
+      queryClient.invalidateQueries({ queryKey: ['my-favorites'] })
+    },
+    onError: (_err, wasFavorited: boolean) => {
+      setFavorited(wasFavorited)
+      setFavoriteCount((c) => c !== null ? (wasFavorited ? c + 1 : c - 1) : null)
+      message.error('操作失败，请重试')
+    },
+  })
+
+  const handleLike = () => {
+    const snapshot = displayLiked
+    setLiked(!snapshot)
+    setLikeCount((c) => (c !== null ? c : interaction.likeCount ?? 0) + (snapshot ? -1 : 1))
+    likeMutation.mutate(snapshot)
+  }
+
+  const handleFavorite = () => {
+    const snapshot = displayFavorited
+    setFavorited(!snapshot)
+    setFavoriteCount((c) => (c !== null ? c : interaction.favoriteCount ?? 0) + (snapshot ? -1 : 1))
+    favoriteMutation.mutate(snapshot)
+  }
 
   const report = (data as any) || null
   const room = report?.room
@@ -540,6 +603,36 @@ export const RoomReport: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* 点赞 & 收藏 */}
+          <div className="rr-widget">
+            <div className="rr-widget-header">
+              <span className="rr-widget-emoji">👍</span>
+              <span>互动</span>
+            </div>
+            <div className="rr-interact-area">
+              <Button
+                block
+                icon={displayLiked ? <LikeFilled style={{ color: '#F43F5E' }} /> : <LikeOutlined />}
+                onClick={handleLike}
+                loading={likeMutation.isPending}
+                className={`rr-interact-btn ${displayLiked ? 'rr-interact-btn--like-active' : ''}`}
+              >
+                {displayLiked ? '已点赞' : '点赞'}
+                {displayLikeCount > 0 && <span className="rr-interact-count">{displayLikeCount}</span>}
+              </Button>
+              <Button
+                block
+                icon={displayFavorited ? <StarFilled style={{ color: '#F59E0B' }} /> : <StarOutlined />}
+                onClick={handleFavorite}
+                loading={favoriteMutation.isPending}
+                className={`rr-interact-btn ${displayFavorited ? 'rr-interact-btn--fav-active' : ''}`}
+              >
+                {displayFavorited ? '已收藏' : '收藏'}
+                {displayFavoriteCount > 0 && <span className="rr-interact-count">{displayFavoriteCount}</span>}
+              </Button>
+            </div>
+          </div>
 
           {/* 分享 */}
           <div className="rr-widget">

@@ -51,6 +51,10 @@ export interface Room {
   agents: string[]
   viewCount: number
   commentCount: number
+  likeCount: number
+  favoriteCount: number
+  liked?: boolean
+  favorited?: boolean
   votes?: Record<string, number>
   createdAt: string
   updatedAt: string
