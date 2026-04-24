@@ -150,6 +150,99 @@ export class CozeService {
   }
 
   /**
+   * 共情师多轮对话流式接口
+   * 支持携带历史消息，每个 chunk 通过 onChunk 回调返回
+   */
+  async streamCounselorChat(
+    botId: string,
+    history: Array<{ role: 'user' | 'assistant'; content: string }>,
+    systemPromptExtra: string,
+    onChunk: (chunk: { kind: 'thinking' | 'answer'; text: string }) => void,
+  ): Promise<void> {
+    this.logger.log(
+      `💚 Counselor chat: bot=${botId}, history=${history.length} msgs`,
+    );
+
+    // 把系统级补充 prompt 拼到第一条 user 消息前（Coze 不支持 system role，用 user 消息模拟）
+    const messages = history.map((m) => ({
+      role: m.role,
+      content:
+        m.role === 'user' && history.indexOf(m) === 0 && systemPromptExtra
+          ? `${systemPromptExtra}\n\n${m.content}`
+          : m.content,
+      content_type: 'text',
+    }));
+
+    try {
+      const response = await this.client.post(
+        '/chat',
+        {
+          bot_id: botId,
+          user_id: 'counselor_user',
+          stream: true,
+          auto_save_history: false,
+          additional_messages: messages,
+        },
+        { responseType: 'stream' },
+      );
+
+      const stream = response.data as NodeJS.ReadableStream;
+      let buffer = '';
+      const hasAnswerDeltaByMsgId = new Map<string, boolean>();
+
+      await new Promise<void>((resolve, reject) => {
+        stream.on('data', (chunk: Buffer) => {
+          buffer += chunk.toString('utf8');
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || !trimmed.startsWith('data:')) continue;
+            const jsonStr = trimmed.slice(5).trim();
+            try {
+              const payload = JSON.parse(jsonStr);
+              const msgType = String(payload?.type || '');
+              if (msgType && msgType !== 'answer') continue;
+
+              const msgId = String(payload?.id || '');
+              // 思考过程（reasoning_content）
+              if (
+                typeof payload?.reasoning_content === 'string' &&
+                payload.reasoning_content
+              ) {
+                onChunk({ kind: 'thinking', text: payload.reasoning_content });
+              }
+
+              // 正式回答（content）
+              if (typeof payload?.content === 'string' && payload.content) {
+                const isCompleted =
+                  !!payload?.created_at || !!payload?.time_cost;
+                const hasDelta = msgId
+                  ? (hasAnswerDeltaByMsgId.get(msgId) ?? false)
+                  : false;
+                if (!isCompleted) {
+                  onChunk({ kind: 'answer', text: payload.content });
+                  if (msgId) hasAnswerDeltaByMsgId.set(msgId, true);
+                } else if (!hasDelta) {
+                  onChunk({ kind: 'answer', text: payload.content });
+                }
+              }
+            } catch {
+              /* ignore */
+            }
+          }
+        });
+        stream.on('end', () => resolve());
+        stream.on('error', reject);
+      });
+    } catch (error: any) {
+      this.logger.error(`Counselor stream error: ${error?.message}`);
+      throw error;
+    }
+  }
+
+  /**
    * 构建 Prompt（根据上下文）
    */
   buildPrompt(

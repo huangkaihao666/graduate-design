@@ -11,6 +11,7 @@ import {
   AppstoreOutlined,
   SunOutlined,
   MoonOutlined,
+  HeartOutlined,
 } from '@ant-design/icons'
 import NotificationDropdown from '@/components/NotificationDropdown/NotificationDropdown'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
@@ -42,6 +43,13 @@ const NAV_ITEMS = [
     icon: <FileTextOutlined />,
     path: '/my-cases',
     desc: '案件、点赞与收藏',
+  },
+  {
+    key: 'counseling',
+    label: 'AI 共情师',
+    icon: <HeartOutlined />,
+    path: '/counseling',
+    desc: '倾诉与情绪辅导',
   },
   {
     key: 'agents',
@@ -116,6 +124,7 @@ const Layout = () => {
     if (location.pathname.includes('/cases')) return 'cases'
     if (location.pathname.includes('/create')) return 'create'
     if (location.pathname.includes('/my-cases')) return 'my-cases'
+    if (location.pathname.includes('/counseling')) return 'counseling'
     if (location.pathname.includes('/agents')) return 'agents'
     if (location.pathname.includes('/me') || location.pathname.includes('/profile')) return 'profile'
     return 'cases'
