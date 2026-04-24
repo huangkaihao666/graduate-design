@@ -22,6 +22,7 @@ import {
   MessagesAdmin,
   StatsAdmin,
   Counseling,
+  CreateAgent,
 } from '@/pages'
 import ProtectedRoute from './ProtectedRoute'
 import AdminRoute from './AdminRoute'
@@ -196,6 +197,20 @@ export const router = createBrowserRouter([
       {
         index: true,
         element: <Counseling />,
+      },
+    ],
+  },
+  {
+    path: '/create-agent',
+    element: (
+      <ProtectedRoute>
+        <Layout />
+      </ProtectedRoute>
+    ),
+    children: [
+      {
+        index: true,
+        element: <CreateAgent />,
       },
     ],
   },

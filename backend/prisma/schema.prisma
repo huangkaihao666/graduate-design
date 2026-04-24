@@ -183,8 +183,9 @@ model Agent {
   isSystem        Boolean @default(true)
   isPublic        Boolean @default(true)
   prompt          String? @db.Text
-  status          String  @default("APPROVED") @db.VarChar(50) // PENDING/APPROVED/REJECTED
+  status          String  @default("APPROVED") @db.VarChar(50) // PENDING/APPROVED/REJECTED/PRIVATE
   knowledgeBaseId Int?
+  domains         String? @db.VarChar(255) // 擅长领域，逗号分隔
 
   creator         User?   @relation("AgentCreator", fields: [creatorId], references: [id])
 

@@ -241,20 +241,20 @@ npx prisma migrate dev --name <migration_name>
 
 ## 进度追踪
 
-| 模块                                | 状态        | 备注                                       |
-| ----------------------------------- | ----------- | ------------------------------------------ |
-| Phase 0：数据库迁移                 | ✅ 已完成   |                                            |
-| Phase 1-A：话题标签                 | ✅ 已完成   |                                            |
-| Phase 1-B：点赞收藏                 | ✅ 已完成   |                                            |
-| Phase 1-C：辩论室用户观点           | ✅ 已完成   |                                            |
-| Phase 2-A：AI 共情师                | 🔶 部分完成 | 核心对话功能已上线，本地 RAG 记忆层待实现  |
-| Phase 1-D：情感分析（情绪洞察中心） | ⬜ 待开始   | 调整后整合案件 + 共情师 + 手动测评三路数据 |
-| Phase 2-B：创建智能体               | ⬜ 待开始   |                                            |
-| Phase 3-A：关注动态                 | ⬜ 待开始   |                                            |
-| Phase 3-B：成就中心                 | ⬜ 待开始   |                                            |
-| Phase 3-C：通知独立页               | ⬜ 待开始   |                                            |
-| Phase 4：管理端扩展                 | ⬜ 待开始   |                                            |
-| Phase 5：本地 RAG 服务              | ⬜ 待开始   |                                            |
+| 模块                                | 状态        | 备注                                                                        |
+| ----------------------------------- | ----------- | --------------------------------------------------------------------------- |
+| Phase 0：数据库迁移                 | ✅ 已完成   |                                                                             |
+| Phase 1-A：话题标签                 | ✅ 已完成   |                                                                             |
+| Phase 1-B：点赞收藏                 | ✅ 已完成   |                                                                             |
+| Phase 1-C：辩论室用户观点           | ✅ 已完成   |                                                                             |
+| Phase 2-A：AI 共情师                | 🔶 部分完成 | 核心对话功能已上线，本地 RAG 记忆层待实现                                   |
+| Phase 1-D：情感分析（情绪洞察中心） | ⬜ 待开始   | 调整后整合案件 + 共情师 + 手动测评三路数据                                  |
+| Phase 2-B：创建智能体               | ✅ 已完成   | 后端 custom-agents 模块 + 前端 create-agent 页面 + AI 图鉴扩展"用户创建"Tab |
+| Phase 3-A：关注动态                 | ⬜ 待开始   |                                                                             |
+| Phase 3-B：成就中心                 | ⬜ 待开始   |                                                                             |
+| Phase 3-C：通知独立页               | ⬜ 待开始   |                                                                             |
+| Phase 4：管理端扩展                 | ⬜ 待开始   |                                                                             |
+| Phase 5：本地 RAG 服务              | ⬜ 待开始   |                                                                             |
 
 ---
 
@@ -332,3 +332,400 @@ npx prisma migrate dev --name <migration_name>
 | AI 共情师会话  | `CounselingSession.summary` + 情绪标签 | 深层情绪模式   | Phase 2-A RAG 层完成后自动接入 |
 
 页面预留共情师数据位置，RAG 层完成后无需改页面，趋势图自动变丰富。
+
+```js
+创建智能体：
+curl --location --request POST 'https://api.coze.cn/v1/bot/create' \
+--header 'Authorization: Bearer $AccessToken' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "space_id": "736142423532160****",
+    "name": "每日学一菜",
+    "description": "每天教你一道菜的做法，暑假之后你将成为中餐大厨～",
+    "icon_file_id": "73694959811****",
+    "prompt_info": {
+        "prompt": "你是一位经验丰富的中餐大厨，能够熟练传授各类中餐的烹饪技巧，每日为大学生厨师小白教学一道经典中餐的制作方法。"
+    },
+    "plugin_id_list": {
+        "id_list": [
+            {
+                "plugin_id": "731198934927553****",
+                "api_id": "735057536617362****"
+            }
+        ]
+    },
+    "onboarding_info": {
+        "prologue": "欢迎你，学徒，今天想学一道什么样的菜？",
+        "suggested_questions": [
+            "川菜，我想吃辣的",
+            "广东菜，来点鲜的",
+            "随机教我一道菜"
+        ]
+    },
+    "workflow_id_list": {
+        "ids": [
+            {
+                "id": "746049108611037****"
+            }
+        ]
+    },
+    "model_info_config": {
+        "model_id": "1706077826"
+    }
+}'
+返回示例：
+{
+  "code": 0,
+  "msg": "",
+  "data": {
+    "bot_id": "73428668*****"
+  },
+  "detail": {
+    "logid": "20241210152726467C48D89D6DB2****"
+  }
+}
+```
+
+```js
+更新智能体：
+curl --location --request POST 'https://api.coze.cn/v1/bot/update' \
+--header 'Authorization: Bearer pat_OYDacMzM3WyOWV3Dtj2bHRMymzxP****' \
+--header 'Content-Type: application/json' \
+{
+    "bot_id": "73428668*****",
+    "name": "每日学一菜",
+    "description": "每天教你一道菜的做法，暑假之后你将成为中餐大厨～",
+    "icon_file_id": "73694959811****",
+    "prompt_info": {
+        "prompt": "你是一位经验丰富的中餐大厨，能够熟练传授各类中餐的烹饪技巧，每日为大学生厨师小白教学一道经典中餐的制作方法。"
+    },
+    "plugin_id_list": {
+        "id_list": [
+            {
+                "plugin_id": "731198934927553****",
+                "api_id": "735057536617362****"
+            }
+        ]
+    },
+    "onboarding_info": {
+        "prologue": "欢迎你，学徒，今天想学一道什么样的菜？",
+        "suggested_questions": [
+            "川菜，我想吃辣的",
+            "广东菜，来点鲜的",
+            "随机教我一道菜"
+        ]
+    },
+    "knowledge": {
+        "dataset_ids": [
+            "738509371792341****"
+        ],
+        "auto_call": true,
+        "search_strategy": 1
+    },
+    "model_info_config": {
+        "model_id": "1706077826"
+    },
+    "workflow_id_list": {
+        "ids": [
+            {
+                "id": "746049108611037****"
+            }
+        ]
+    }
+}
+返回示例：
+{
+  "code": 0,
+  "msg": "",
+  "detail": {
+    "logid": "20241210152726467C48D89D6DB2****"
+  }
+}
+```
+
+```js
+发布智能体：
+curl --location --request POST 'https://api.coze.cn/v1/bot/publish' \
+--header 'Authorization: Bearer pat_x*******' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "bot_id": "73428668*****",
+    "connector_ids": [
+        "1024"
+    ]
+}'
+返回示例：
+{
+  "code": 0,
+  "msg": "",
+  "data": {
+    "bot_id": "743961547827****",
+    "version": "1732190531***"
+  }
+}
+```
+
+```js
+查看智能体列表：
+curl --location --request GET 'https://api.coze.cn/v1/bots?workspace_id=5123945629***&publish_status=&connector_id=1024&page_num=1&page_size=20' \
+--header 'Authorization : Bearer pat_Osa******' \
+--header 'Content-Type : application/json' \
+返回示例：
+{
+  "data": {
+    "items": [
+      {
+        "id": "7493066380997****",
+        "name": "语音伴侣",
+        "icon_url": "https://example.com/agent1***.png",
+        "folder_id": "75231612553354***",
+        "updated_at": 1718289297,
+        "description": "语音伴侣",
+        "is_published": false,
+        "published_at": 1718289297,
+        "owner_user_id": "23423423****"
+      }
+    ],
+    "total": 1
+  },
+  "code": 0,
+  "msg": "",
+  "detail": {
+    "logid": "20241210152726467C48D89D6DB2****"
+  }
+}
+```
+
+```js
+创建工作空间：
+curl --location --request POST 'https://api.coze.cn/v1/workspaces' \
+--header 'Authorization : Bearer pat_O******' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "name": "文档组的工作空间",
+    "description": "文档组内部使用的工作空间。",
+    "icon_file_id": "73694959811****",
+    "coze_account_id": "749088814445***",
+}'
+返回示例：
+{
+  "data": {
+    "id": "753232939603****"
+  },
+  "code": 0,
+  "msg": "",
+  "detail": {
+    "logid": "20241210152726467C48D89D6DB2****"
+  }
+}
+```
+
+```js
+查看工作空间：
+GET 'https://api.coze.cn/v1/workspaces?&page_num=1&page_size=20' \
+--header 'Authorization: Bearer pat_OYDacMzM3WyOWV3Dtj2bHRMymzxP****' \
+--header 'Content-Type: application/json' \
+返回示例：
+{
+    "data": {
+        "workspaces": [
+            {
+                "id": "74876004423701****",
+                "name": "test",
+                "icon_url": "https://***/obj/ocean-cloud-tos/FileBizType.BIZ_BOT_SPACE/team.png",
+                "role_type": "member",
+                "enterprise_id": "volcano_2105850***",
+                "workspace_type": "team"
+            }
+            {
+                "id": "74879061161065***",
+                "name": "个人空间",
+                "icon_url": "https://***/obj/ocean-cloud-tos/FileBizType.BIZ_BOT_SPACE/team.png",
+                "role_type": "owner",
+                "enterprise_id": "",
+                "workspace_type": "personal"
+            }
+        ],
+        "total_count": 2
+    },
+    "code": 0,
+    "msg": "",
+    "detail": {
+        "logid": "1234567890abcdef****"
+    }
+}
+```
+
+```js
+创建知识库：
+curl --location --request POST 'https://api.coze.cn/v1/datasets' \
+--header 'Authorization: Bearer pat_xitq9LWlowpX3qGCih1lwpAdzvXN****' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "name": "产品文档",
+    "description": "产品文档",
+    "space_id": "731121948439879****",
+    "format_type": 2,
+    "file_id": "744667846938145****"
+}'
+返回示例：
+{
+  "code": 0,
+  "data": {
+    "dataset_id": "744668935865830****"
+  },
+  "msg": "",
+  "detail": {
+    "logid": "20241210160547B25AEC1917B0***"
+  }
+}
+```
+
+```js
+查看知识库：
+curl --location --request GET 'https://api.coze.cn/v1/datasets?space_id=731121948439879****&name=知识库&format_type=&page_num=1&page_size=5' \
+--header 'Authorization : Bearer pat_O******' \
+--header 'Content-Type: application/json'
+返回示例：
+{
+  "code": 0,
+  "data": {
+    "total_count": 1,
+    "dataset_list": [
+      {
+        "hit_count": 0,
+        "doc_count": 0,
+        "status": 1,
+        "icon_url": "https://lf3-appstore-sign.oceancloudapi.com/ocean-cloud-tos/FileBizType.BIZ_DATASET_ICON/217526895615****.jpg?lk3s=5ec9c6e9&x-expires=1733821937&x-signature=U6X%2BhLXnRk8%2FHr1xP7wiMJ3IE****",
+        "creator_name": "xxx",
+        "avatar_url": "https://p6-passport.byteacctimg.com/img/user-avatar/assets/e7b19241fb224cea967****.png~300x300.image",
+        "can_edit": true,
+        "space_id": "731121948439879****",
+        "failed_file_list": [],
+        "processing_file_id_list": [],
+        "description": "openapi",
+        "chunk_strategy": {},
+        "create_time": 1733817948,
+        "slice_count": 0,
+        "name": "openapi_img3",
+        "format_type": 2,
+        "project_id": "",
+        "all_file_size": "0",
+        "update_time": 1733817948,
+        "creator_id": "217526895615****",
+        "file_list": [],
+        "processing_file_list": [],
+        "icon_uri": "FileBizType.BIZ_DATASET_ICON/217526895615****.jpg",
+        "dataset_id": "744668935865830****",
+        "bot_used_count": 0
+      }
+    ]
+  },
+  "msg": "",
+  "detail": {
+    "logid": "20241210161217C90C9ABB86428***"
+  }
+}
+```
+
+```js
+创建知识库文件：
+curl --location --request POST 'https://api.coze.cn/open_api/knowledge/document/create' \
+--data-raw '{
+    "dataset_id": "736356924530694****",
+    "document_bases": [
+        {
+            "name": "Coze.pdf",
+            "source_info": {
+                "file_base64": "5rWL6K+V5LiA5LiL5ZOm",
+                "file_type": "pdf"
+            }
+        }
+    ],
+    "chunk_strategy": {
+        "separator": "\n\n",
+        "max_tokens": 800,
+        "remove_extra_spaces": false,
+        "remove_urls_emails": false,
+        "chunk_type": 1
+    }
+}'
+返回示例：
+{
+    "document_infos": [
+        {
+            "name": "Coze.pdf",
+            "size": 14164,
+            "type": "pdf",
+            "status": 1,
+            "tos_uri": "FileBizType.BIZ_BOT_DATASET/847077809337655_1727579972975689529_0ytrdq****.docx",
+            "hit_count": 0,
+            "char_count": 4,
+            "create_time": 1719907964,
+            "document_id": "738694205603010****",
+            "format_type": 2,
+            "slice_count": 1,
+            "source_type": null,
+            "update_time": 1719907969,
+            "update_type": null,
+            "chunk_strategy": {
+                "chunk_type": 1,
+                "max_tokens": 800,
+                "remove_extra_spaces": false,
+                "remove_urls_emails": false,
+                "separator": "\n\n"
+            },
+            "update_interval": 0
+        }
+    ],
+    "code": 0,
+    "msg": "",
+    "detail": {
+        "logid": "20250106172024B5F607030EFFA***"
+    }
+}
+```
+
+```js
+查看知识库文件列表：
+curl --location --request POST 'https://api.coze.cn/open_api/knowledge/document/list' \
+--header 'Authorization: Bearer pat_OYDacMzM3WyOWV3Dtj2bHRMymzxP****' \
+--header 'Content-Type: application/json' \
+--header 'Agw-Js-Conv: str' \
+--data-raw '{
+    "dataset_id": "736356924530694****",
+    "page": 0,
+    "size": 10
+}'
+返回示例：
+{
+  "code": 0,
+  "document_infos": [
+    {
+      "char_count": 4,
+      "chunk_strategy": {
+        "chunk_type": 0,
+        "max_tokens": 0,
+        "remove_extra_spaces": false,
+        "remove_urls_emails": false,
+        "separator": ""
+      },
+      "create_time": 1719476392,
+      "document_id": "738508308097900****",
+      "format_type": 0,
+      "hit_count": 0,
+      "name": "小猫的阳光午睡.pdf.pdf",
+      "size": 30142,
+      "slice_count": 1,
+      "source_type": 0,
+      "status": 1,
+      "type": "pdf",
+      "update_interval": 0,
+      "update_time": 1719476430,
+      "update_type": 0
+    }
+  ],
+  "msg": "",
+  "total": 1
+}
+```

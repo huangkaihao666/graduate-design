@@ -242,6 +242,223 @@ export class CozeService {
     }
   }
 
+  // ─── Coze v1 管理 API ────────────────────────────────────────
+
+  /** 构建 v1 axios 客户端（每次按需创建，避免 getter 开销） */
+  private makeV1Client(): AxiosInstance {
+    return axios.create({
+      baseURL: 'https://api.coze.cn/v1',
+      timeout: 60000,
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+  }
+
+  /** 构建 open_api axios 客户端（知识库文档旧版接口，需要 Agw-Js-Conv: str） */
+  private makeOpenApiClient(): AxiosInstance {
+    return axios.create({
+      baseURL: 'https://api.coze.cn',
+      timeout: 120000,
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json',
+        'Agw-Js-Conv': 'str',
+      },
+    });
+  }
+
+  /**
+   * 查询当前 API Key 可访问的工作空间列表
+   * 返回 [{id, name, role_type, workspace_type}]
+   */
+  async getWorkspaces(): Promise<
+    Array<{
+      id: string;
+      name: string;
+      role_type: string;
+      workspace_type: string;
+      icon_url?: string;
+    }>
+  > {
+    const res = await this.makeV1Client().get('/workspaces', {
+      params: { page_num: 1, page_size: 50 },
+    });
+    return res.data?.data?.workspaces || res.data?.workspaces || [];
+  }
+
+  /**
+   * 在 Coze 平台创建 Bot（草稿态，需调用 publishBot 才可通过 API 调用）
+   */
+  async createBot(params: {
+    spaceId: string;
+    name: string;
+    description?: string;
+    prompt: string;
+    onboardingPrologue?: string;
+    knowledgeDatasetIds?: string[];
+  }): Promise<string> {
+    const body: any = {
+      space_id: params.spaceId,
+      name: params.name,
+      description: params.description || '',
+      prompt_info: { prompt: params.prompt },
+    };
+    if (params.onboardingPrologue) {
+      body.onboarding_info = { prologue: params.onboardingPrologue };
+    }
+    if (params.knowledgeDatasetIds?.length) {
+      body.knowledge = {
+        dataset_ids: params.knowledgeDatasetIds,
+        auto_call: true,
+        search_strategy: 1,
+      };
+    }
+    const res = await this.makeV1Client().post('/bot/create', body);
+    const botId = res.data?.data?.bot_id || res.data?.bot_id;
+    if (!botId) throw new Error('Coze createBot: no bot_id returned');
+    return String(botId);
+  }
+
+  /**
+   * 发布 Bot 到 API 渠道（connector_id=1024），发布后才能通过 /v3/chat 调用
+   */
+  async publishBot(botId: string): Promise<string> {
+    const res = await this.makeV1Client().post('/bot/publish', {
+      bot_id: botId,
+      connector_ids: ['1024'],
+    });
+    const publishedBotId = res.data?.data?.bot_id || botId;
+    this.logger.log(`✅ Bot ${botId} published to API channel`);
+    return String(publishedBotId);
+  }
+
+  /**
+   * 更新 Bot（修改 prompt / 名称 / 绑定知识库）
+   * 更新后需重新 publish 才生效
+   */
+  async updateBot(params: {
+    botId: string;
+    name?: string;
+    description?: string;
+    prompt?: string;
+    knowledgeDatasetIds?: string[];
+  }): Promise<void> {
+    const body: any = { bot_id: params.botId };
+    if (params.name) body.name = params.name;
+    if (params.description !== undefined) body.description = params.description;
+    if (params.prompt) body.prompt_info = { prompt: params.prompt };
+    if (params.knowledgeDatasetIds !== undefined) {
+      body.knowledge = params.knowledgeDatasetIds.length
+        ? {
+            dataset_ids: params.knowledgeDatasetIds,
+            auto_call: true,
+            search_strategy: 1,
+          }
+        : { dataset_ids: [] };
+    }
+    await this.makeV1Client().post('/bot/update', body);
+  }
+
+  /**
+   * 创建知识库（Dataset）
+   * format_type: 0=文本, 1=表格, 2=图片
+   */
+  async createKnowledgeBase(params: {
+    spaceId: string;
+    name: string;
+    description?: string;
+  }): Promise<string> {
+    const res = await this.makeV1Client().post('/datasets', {
+      space_id: params.spaceId,
+      name: params.name,
+      description: params.description || '',
+      format_type: 0,
+    });
+    const datasetId = res.data?.data?.dataset_id || res.data?.dataset_id;
+    if (!datasetId)
+      throw new Error('Coze createKnowledgeBase: no dataset_id returned');
+    return String(datasetId);
+  }
+
+  /**
+   * 上传文档到知识库（Base64 方式，使用旧版 open_api）
+   * 支持 PDF / TXT / DOCX 等文本文档
+   */
+  async uploadDocument(params: {
+    datasetId: string;
+    filename: string;
+    buffer: Buffer;
+    mimeType: string;
+  }): Promise<string> {
+    const ext = params.filename.split('.').pop()?.toLowerCase() || 'txt';
+    const fileBase64 = params.buffer.toString('base64');
+
+    const res = await this.makeOpenApiClient().post(
+      '/open_api/knowledge/document/create',
+      {
+        dataset_id: params.datasetId,
+        document_bases: [
+          {
+            name: params.filename,
+            source_info: {
+              file_base64: fileBase64,
+              file_type: ext,
+            },
+          },
+        ],
+        chunk_strategy: {
+          separator: '\n\n',
+          max_tokens: 800,
+          remove_extra_spaces: false,
+          remove_urls_emails: false,
+          chunk_type: 1,
+        },
+      },
+    );
+
+    const docId =
+      res.data?.document_infos?.[0]?.document_id ||
+      res.data?.data?.document_infos?.[0]?.document_id;
+    if (!docId) throw new Error('Coze uploadDocument: no document_id returned');
+    return String(docId);
+  }
+
+  /**
+   * 查看知识库文档列表（从 Coze 平台同步）
+   */
+  async listDocuments(
+    datasetId: string,
+    page = 0,
+    size = 20,
+  ): Promise<
+    Array<{
+      document_id: string;
+      name: string;
+      size: number;
+      status: number;
+      type: string;
+      create_time: number;
+    }>
+  > {
+    const res = await this.makeOpenApiClient().post(
+      '/open_api/knowledge/document/list',
+      { dataset_id: datasetId, page, size },
+    );
+    return res.data?.document_infos || res.data?.data?.document_infos || [];
+  }
+
+  /**
+   * 删除知识库文档（旧版 open_api）
+   */
+  async deleteDocument(datasetId: string, documentId: string): Promise<void> {
+    await this.makeOpenApiClient().post('/open_api/knowledge/document/delete', {
+      dataset_id: datasetId,
+      document_ids: [documentId],
+    });
+  }
+
   /**
    * 构建 Prompt（根据上下文）
    */

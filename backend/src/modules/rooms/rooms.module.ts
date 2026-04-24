@@ -17,6 +17,6 @@ import { PrismaModule } from '@/prisma/prisma.module';
   ],
   providers: [RoomsService, RoomsGateway, CozeService, DebateService],
   controllers: [RoomsController],
-  exports: [RoomsService, RoomsGateway, DebateService],
+  exports: [RoomsService, RoomsGateway, DebateService, CozeService],
 })
 export class RoomsModule {}
