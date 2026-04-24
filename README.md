@@ -44,45 +44,43 @@ cd graduate-design
 pnpm install
 ```
 
-### 4. 启动前端
+### 4. 启动后端
 
 ```bash
-pnpm frontend:dev
-```
-
-前端运行在 `http://localhost:5173`
-
-### 5. 启动后端
-
-```bash
-pnpm backend:dev
+cd backend
+pnpm run start:dev
 ```
 
 后端运行在 `http://localhost:3000/api/v1`
 
-### 6. 同时启动前后端
+### 5. 启动前端
+
+新开一个终端：
 
 ```bash
+cd frontend-react
 pnpm dev
 ```
 
+前端运行在 `http://localhost:5173`
+
 ## 📝 可用命令
 
-### 前端
+### 前端（在 `frontend-react/` 目录下执行）
 
 ```bash
-pnpm frontend:dev       # 开发模式
-pnpm frontend:build     # 生产构建
-pnpm frontend:preview   # 预览构建结果
+pnpm dev            # 开发模式
+pnpm build          # 生产构建
+pnpm preview        # 预览构建结果
 ```
 
-### 后端
+### 后端（在 `backend/` 目录下执行）
 
 ```bash
-pnpm backend:dev        # 开发模式
-pnpm backend:build      # 生产构建
-pnpm backend:lint       # 代码检查
-pnpm backend:format     # 代码格式化
+pnpm run start:dev  # 开发模式（热重载）
+pnpm build          # 生产构建
+pnpm lint           # 代码检查
+pnpm format         # 代码格式化
 ```
 
 ### 数据库（后端）
@@ -106,11 +104,11 @@ pnpm format             # 格式化代码
 
 ```
 graduate-design/
-├── frontend/                 # Vue 3 前端项目
+├── frontend-react/           # React 18 前端项目（当前使用）
 │   ├── src/
 │   │   ├── components/       # 组件
-│   │   ├── views/           # 页面
-│   │   ├── utils/           # 工具
+│   │   ├── pages/            # 页面
+│   │   ├── utils/            # 工具
 │   │   └── ...
 │   └── README.md            # 前端文档
 │
@@ -128,7 +126,7 @@ graduate-design/
 
 ## 📚 技术栈
 
-**前端**：Vue 3 + TypeScript + Vite + Ant Design Vue + Pinia + Vue Router
+**前端**：React 18 + TypeScript + Vite + Ant Design + React Router（位于 `frontend-react/`）
 
 **后端**：NestJS 11 + TypeScript + Prisma ORM + MySQL + Swagger
 

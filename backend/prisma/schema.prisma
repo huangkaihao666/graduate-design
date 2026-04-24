@@ -23,7 +23,10 @@ model User {
   bio       String? @db.Text
   role      String  @default("USER") @db.VarChar(50)
   isActive  Boolean @default(true)
-  
+  exp       Int     @default(0)
+  level     Int     @default(1)
+  achievements String? @db.Text // JSON 数组，存已解锁成就ID列表
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -33,6 +36,13 @@ model User {
   messages             Message[]
   notificationsReceived Notification[] @relation("NotificationTo")
   notificationsSent     Notification[] @relation("NotificationFrom")
+  knowledgeBases       KnowledgeBase[]
+  userOpinions         UserOpinion[]
+  counselingSessions   CounselingSession[]
+  sentimentRecords     SentimentRecord[]
+  userRelations        UserRelation[]
+  emotionProfile       UserEmotionProfile?
+  customAgents         Agent[]             @relation("AgentCreator")
 
   @@map("users")
   @@index([email])
@@ -52,15 +62,20 @@ model Room {
   // 存储选中的Agent列表，如 ["bot_A", "bot_B", "bot_C"]
   agents    String  @db.Text
 
-  viewCount Int     @default(0)
-  commentCount Int @default(0)
-  
+  viewCount     Int     @default(0)
+  commentCount  Int     @default(0)
+  sentimentType String? @db.VarChar(50) // ANXIOUS/ANGRY/CONFUSED/CALM
+  likeCount     Int     @default(0)
+  favoriteCount Int     @default(0)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // 关系
-  messages  Message[]
-  votes     Vote[]
+  messages     Message[]
+  votes        Vote[]
+  tags         RoomTag[]
+  userOpinions UserOpinion[]
 
   @@map("rooms")
   @@index([ownerId])
@@ -84,6 +99,7 @@ model Message {
   content    String  @db.LongText
   reasoning  String? @db.LongText
   roundNumber Int?   @db.UnsignedInt
+  sentiment  String? @db.VarChar(50) // POSITIVE/NEGATIVE/NEUTRAL
 
   // 回复关系（自引用）：parentId 为 null 表示顶层评论，否则为某条评论的回复
   parentId  Int?    @db.UnsignedInt
@@ -157,14 +173,199 @@ model Agent {
   personality  String  @db.VarChar(100) // 性格特点
   description  String  @db.Text
   avatar       String? @db.VarChar(500)
-  
+
   signature    String? @db.Text // 标志性语录/金句
   winRate      Float   @default(0.5)
   participateCount Int  @default(0)
   fans         Int     @default(0)
 
+  creatorId       Int?    @db.UnsignedInt // null = 系统内置
+  isSystem        Boolean @default(true)
+  isPublic        Boolean @default(true)
+  prompt          String? @db.Text
+  status          String  @default("APPROVED") @db.VarChar(50) // PENDING/APPROVED/REJECTED
+  knowledgeBaseId Int?
+
+  creator         User?   @relation("AgentCreator", fields: [creatorId], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("agents")
+}
+
+// ============ 新增数据模型 ============
+
+/// 用户私有知识库
+model KnowledgeBase {
+  id          Int       @id @default(autoincrement())
+  userId      Int       @db.UnsignedInt
+  name        String    @db.VarChar(255)
+  cozeKbId    String    @db.VarChar(255)
+  description String?   @db.Text
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id])
+  documents   KnowledgeDocument[]
+
+  @@map("knowledge_bases")
+  @@index([userId])
+}
+
+/// 知识库文档
+model KnowledgeDocument {
+  id            Int           @id @default(autoincrement())
+  kbId          Int
+  filename      String        @db.VarChar(255)
+  cozeDocId     String        @db.VarChar(255)
+  size          Int
+  createdAt     DateTime      @default(now())
+  knowledgeBase KnowledgeBase @relation(fields: [kbId], references: [id], onDelete: Cascade)
+
+  @@map("knowledge_documents")
+  @@index([kbId])
+}
+
+/// 辩论室用户观点
+model UserOpinion {
+  id         Int      @id @default(autoincrement())
+  roomId     Int      @db.UnsignedInt
+  userId     Int      @db.UnsignedInt
+  content    String   @db.VarChar(200)
+  stance     String   @db.VarChar(50) @default("NEUTRAL") // SUPPORT_A/SUPPORT_B/NEUTRAL
+  isRelevant Boolean  @default(true)
+  likeCount  Int      @default(0)
+  createdAt  DateTime @default(now())
+  room       Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@map("user_opinions")
+  @@index([roomId])
+  @@index([userId])
+}
+
+/// 心理辅导会话
+model CounselingSession {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @db.UnsignedInt
+  roomId    Int?     @db.UnsignedInt
+  title     String?  @db.VarChar(255)
+  summary   String?  @db.Text
+  status    String   @default("ACTIVE") @db.VarChar(50) // ACTIVE/CLOSED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+  messages  CounselingMessage[]
+
+  @@map("counseling_sessions")
+  @@index([userId])
+}
+
+/// 心理辅导消息
+model CounselingMessage {
+  id        Int               @id @default(autoincrement())
+  sessionId Int
+  role      String            @db.VarChar(50) // USER/ASSISTANT
+  content   String            @db.Text
+  createdAt DateTime          @default(now())
+  session   CounselingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("counseling_messages")
+  @@index([sessionId])
+}
+
+/// 情感分析记录
+model SentimentRecord {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @db.UnsignedInt
+  inputText   String   @db.Text
+  emotionType String   @db.VarChar(50) // ANXIOUS/ANGRY/SAD/CONFUSED/CALM/POSITIVE
+  intensity   Int      // 0-100
+  keywords    String?  @db.Text // JSON 数组
+  suggestion  String?  @db.Text
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@map("sentiment_records")
+  @@index([userId])
+  @@index([createdAt])
+}
+
+/// 话题标签
+model Tag {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique @db.VarChar(100)
+  color     String   @default("#999999") @db.VarChar(20)
+  weight    Int      @default(0)
+  createdAt DateTime @default(now())
+  rooms     RoomTag[]
+
+  @@map("tags")
+}
+
+/// 案件-标签多对多
+model RoomTag {
+  roomId Int          @db.UnsignedInt
+  tagId  Int
+  room   Room         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  tag    Tag          @relation(fields: [tagId], references: [id])
+
+  @@id([roomId, tagId])
+  @@map("room_tags")
+}
+
+/// 用户关系（关注/收藏/点赞统一表，type 区分）
+model UserRelation {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @db.UnsignedInt
+  targetId  Int      // 目标（用户ID 或 房间ID）
+  type      String   @db.VarChar(50) // FOLLOW_USER/FAVORITE_ROOM/LIKE_ROOM
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, targetId, type])
+  @@map("user_relations")
+  @@index([userId])
+  @@index([targetId])
+}
+
+/// 成就定义
+model Achievement {
+  id          Int    @id @default(autoincrement())
+  name        String @unique @db.VarChar(100)
+  description String @db.Text
+  icon        String @db.VarChar(100)
+  condition   String @db.Text
+  expReward   Int    @default(50)
+
+  @@map("achievements")
+}
+
+/// 系统公告
+model Announcement {
+  id        Int       @id @default(autoincrement())
+  title     String    @db.VarChar(255)
+  content   String    @db.Text
+  adminId   Int
+  expireAt  DateTime?
+  createdAt DateTime  @default(now())
+
+  @@map("announcements")
+  @@index([createdAt])
+}
+
+/// 用户情绪档案
+model UserEmotionProfile {
+  id              Int      @id @default(autoincrement())
+  userId          Int      @unique @db.UnsignedInt
+  dominantEmotion String?  @db.VarChar(50)
+  emotionTrend    String?  @db.VarChar(50) // IMPROVING/STABLE/DECLINING
+  coreTopics      String?  @db.Text // JSON 数组
+  preferListening Boolean  @default(true)
+  preferAdvice    Boolean  @default(false)
+  preferRational  Boolean  @default(false)
+  sessionCount    Int      @default(0)
+  lastUpdated     DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id])
+
+  @@map("user_emotion_profiles")
 }

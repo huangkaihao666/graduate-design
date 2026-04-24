@@ -52,17 +52,16 @@ pnpm install --registry=https://registry.npmjs.org
 # 3️⃣ 进入后端目录
 cd backend
 
-# 4️⃣ 生成 Prisma Client
-pnpm prisma:generate
+# 4️⃣ 配置数据库连接（编辑 backend/.env，见注释选择 Mac 或 Windows 配置）
 
-# 5️⃣ 配置数据库（见下面详细说明）
-# 需要本地 MySQL 已启动且配置好用户
+# 5️⃣ 应用数据库迁移，建好所有表
+npx prisma migrate deploy
 
-# 6️⃣ 应用数据库迁移
-pnpm prisma migrate deploy
+# 6️⃣ 生成 Prisma Client
+npx prisma generate
 
-# 7️⃣ 启动项目
-pnpm start:dev
+# 7️⃣ 启动项目（必须在 backend/ 目录下执行）
+pnpm run start:dev
 ```
 
 ✅ 完成后访问：`http://localhost:3000/api/v1/health`
@@ -126,8 +125,11 @@ pnpm prisma migrate deploy
 
 #### 第 5 步：启动服务
 
+> ⚠️ 必须在 `backend/` 目录下执行，不能在根目录用 `pnpm backend:dev`
+
 ```bash
-pnpm start:dev
+cd backend
+pnpm run start:dev
 ```
 
 ✅ 看到 `NestApplication successfully started` 表示启动成功！
@@ -161,8 +163,8 @@ http://localhost:3000/api/docs
 ### 开发
 
 ```bash
-# 启动开发服务器（热重载）
-pnpm start:dev
+# 启动开发服务器（热重载，必须在 backend/ 目录下执行）
+pnpm run start:dev
 
 # 构建项目
 pnpm build
@@ -239,9 +241,9 @@ cd graduate-design
 pnpm install --registry=https://registry.npmjs.org
 
 cd backend
-pnpm prisma:generate
-pnpm prisma migrate deploy
-pnpm start:dev
+npx prisma migrate deploy
+npx prisma generate
+pnpm run start:dev
 ```
 
 说明：

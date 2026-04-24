@@ -1,75 +1,68 @@
-# React + TypeScript + Vite
+# 前端项目
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+基于 **React 18 + TypeScript + Vite + Ant Design** 构建的前端应用。
 
-Currently, two official plugins are available:
+## 快速开始
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+> ⚠️ 必须在 `frontend-react/` 目录下执行，不能在根目录用其他命令代替。
 
-## React Compiler
+```bash
+# 1. 先在仓库根目录安装依赖（只需执行一次）
+cd graduate-design
+pnpm install --registry=https://registry.npmjs.org
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+# 2. 进入前端目录
+cd frontend-react
 
-Note: This will impact Vite dev & build performances.
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+# 3. 启动开发服务器
+pnpm dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+前端运行在 `http://localhost:5173`，确保后端（`http://localhost:3000`）已同时启动。
 
-```js
-// eslint.config.js
-import reactX from "eslint-plugin-react-x";
-import reactDom from "eslint-plugin-react-dom";
+## 常用命令
 
-export default defineConfig([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs["recommended-typescript"],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+| 命令           | 说明                     |
+| -------------- | ------------------------ |
+| `pnpm dev`     | 启动开发服务器（热重载） |
+| `pnpm build`   | 生产构建，输出到 `dist/` |
+| `pnpm preview` | 预览生产构建结果         |
+| `pnpm lint`    | ESLint 代码检查          |
+
+## 项目结构
+
 ```
+frontend-react/
+├── src/
+│   ├── components/     # 公共组件
+│   ├── pages/          # 页面（每个页面一个目录）
+│   ├── hooks/          # 自定义 Hook
+│   ├── services/       # API 请求封装
+│   ├── stores/         # 状态管理
+│   ├── utils/          # 工具函数
+│   ├── App.tsx
+│   └── main.tsx
+├── public/
+├── index.html
+├── vite.config.ts
+└── package.json
+```
+
+## 技术栈
+
+- **React 18** + **TypeScript**
+- **Vite** — 构建工具
+- **Ant Design** — UI 组件库
+- **React Router** — 路由
+- **Axios** — HTTP 请求
+- **Socket.IO Client** — WebSocket 通信
+
+## 常见问题
+
+**接口请求报 CORS 错误**
+
+检查后端 `backend/.env` 中的 `CORS_ORIGIN` 是否包含 `http://localhost:5173`。
+
+**页面空白 / 路由不跳转**
+
+确认后端服务已启动，Token 未过期，可清除 localStorage 后重新登录。
