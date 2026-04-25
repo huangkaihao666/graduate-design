@@ -166,24 +166,50 @@
 
 ## Phase 5：本地 RAG 服务（FastAPI + ChromaDB + Ollama）
 
-> 详见[模块实现方案 - 模块3 RAG部分](./docs/模块实现方案.md)
+> 详见[模块实现方案 - Phase 5 本地 RAG](./模块实现方案.md)
 
-这是四层 RAG 架构中的第三、四层，可以在 Phase 1-C 和 Phase 2-A 完成后再接入。
+实现四层 RAG 中的**第三层（静态，弹幕过滤）**和**第四层（动态，情绪记忆）**，两层共用同一个 FastAPI 微服务。
+
+两个子任务相互独立，可并行推进：
+
+- **子任务 A（第三层）**：弹幕过滤 + 立场识别，不依赖其他模块
+- **子任务 B（第四层）**：情绪记忆存取，依赖 Phase 2-A 共情师（已完成）
 
 **新建目录**：`opinion-service/`（monorepo 根目录下）
 
 ```
 opinion-service/
-├── main.py              # FastAPI 入口
-├── embedder.py          # Ollama 向量嵌入
-├── relevance_checker.py # 弹幕相关性检测
-├── stance_detector.py   # 立场识别
-├── deduplicator.py      # 语义去重
-├── chroma_store.py      # ChromaDB 读写
+├── main.py              # FastAPI 入口，同时服务第三层和第四层
+├── embedder.py          # Ollama 向量嵌入（两层共用，启动时 dummy embed 预热）
+├── relevance_checker.py # 第三层：弹幕相关性检测
+├── stance_detector.py   # 第三层：立场识别
+├── deduplicator.py      # 第三层：语义去重
+├── memory_store.py      # 第四层：用户情绪记忆存取
+├── chroma_store.py      # ChromaDB 读写（两层共用）
 ├── requirements.txt
-└── knowledge/           # 预构建知识库
-    ├── irrelevant.txt   # 灌水示例
-    └── relevant.txt     # 有效观点示例
+└── knowledge/           # 第三层预构建知识库（启动时写入 ChromaDB）
+    ├── irrelevant.txt   # 灌水示例：哈哈/666/第一/纯表情
+    └── relevant.txt     # 有效观点示例：各类风格均可，只要和主题相关
+```
+
+**FastAPI 接口总览**：
+
+| 方法 | 路径             | 说明                                              | 服务层次 |
+| ---- | ---------------- | ------------------------------------------------- | -------- |
+| POST | /process         | 处理单条弹幕，返回 isRelevant + stance            | 第三层   |
+| POST | /batch-filter    | 批量处理弹幕，返回按立场分组的有效观点            | 第三层   |
+| POST | /memories/add    | 向量化会话摘要，存入用户专属 ChromaDB 集合        | 第四层   |
+| POST | /memories/search | 以文本 query 检索最相关历史摘要，返回摘要文本列表 | 第四层   |
+| GET  | /health          | 健康检查                                          | 通用     |
+
+**ChromaDB 数据结构说明**：
+
+每条记忆存三个字段，检索返回的是摘要文本本身，不需要再回查数据库：
+
+```
+向量（embedding）  ← 由摘要文本计算，用于相似度检索
+文本（document）   ← 摘要原文，命中后直接拼入 prompt（如"用户因考研焦虑，倾向被倾听"）
+元数据（metadata） ← { sessionId, date, userId }
 ```
 
 **依赖安装**：
@@ -193,7 +219,33 @@ pip install fastapi uvicorn chromadb ollama sentence-transformers
 ollama pull nomic-embed-text   # 嵌入模型
 ```
 
-**NestJS 接入**：在 `src/modules/opinion-filter/` 封装对 FastAPI 的 HTTP 调用。
+**NestJS 接入**：
+
+- 第三层：`src/modules/opinion-filter/` 封装 HTTP 调用，供 `debate.service.ts` 异步调用
+- 第四层：`counseling.service.ts` 直接调用，`closeSession` 后存摘要，`sendMessage` 前预检索
+
+**第四层延迟优化（预检索）**：
+
+Ollama 嵌入耗时约 200-800ms，不能在用户点击发送后才做。优化方案：用户输入时前端触发防抖预检索，点击发送时结果已就绪。NestJS 用内存 Map 缓存结果，不依赖 Redis：
+
+```typescript
+// counseling.service.ts
+private prefetchCache = new Map<string, string[]>();
+// key = sessionId，value = 检索到的摘要文本列表
+
+async prefetchMemories(sessionId: number, userId: number, inputText: string) {
+  const memories = await this.ragService.searchMemories(userId, inputText);
+  this.prefetchCache.set(`${sessionId}`, memories);
+}
+
+async sendMessage(sessionId: number, userId: number, content: string) {
+  const cachedMemories = this.prefetchCache.get(`${sessionId}`) ?? [];
+  this.prefetchCache.delete(`${sessionId}`); // 用完即清
+  // 将 cachedMemories 拼入 system prompt ...
+}
+```
+
+前端在 `onChange` 防抖 300ms 后调用 `POST /counseling/sessions/:id/prefetch`，用户点击发送时检索已完成，无感知延迟。
 
 ---
 
@@ -300,22 +352,24 @@ npx prisma migrate dev --name <migration_name>
 
 ##### 2. 本地 RAG 记忆层（第四层 RAG，依赖 Phase 5）
 
-**背景**：用户聊了多次后会有大量历史摘要，不能全部塞进 prompt（token 爆炸且大部分不相关）。RAG 的作用是"精准翻日记"——每次发消息时，用这条消息作为 query，从 ChromaDB 检索最相关的 3-5 条历史摘要注入 prompt，其余历史不出现。
+**背景**：RAG 的作用是"精准翻日记"——每次用户发消息时，用这条消息作为 query，从 ChromaDB 检索最相关的 3-5 条历史摘要注入 prompt，实现"上次你提到..."式的跨会话记忆。历史摘要无论多少条都走向量检索，不做数量降级。
 
-**触发时机**：**每次用户发消息时都检索一次**（不只是新会话开始），因为一次对话中话题会漂移，用最新的用户输入做 query 能保证注入的历史始终和当前说的这句话最相关。
+**ChromaDB 存储结构**：每条记忆 = 摘要文本（document）+ 向量（embedding）+ 元数据（sessionId/date）。检索命中后直接把摘要文本拼入 prompt，不需要回查数据库。
+
+**延迟优化**：Ollama 嵌入耗时约 200-800ms，通过预检索消除等待——用户打字时前端防抖 300ms 后触发 `POST /counseling/sessions/:id/prefetch`，NestJS 用内存 Map 缓存结果，用户点击发送时直接读缓存，无感知延迟。
 
 **具体待实现的功能**：
 
-| 功能                       | 说明                                                                                                                            | 实现位置                                               |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| 会话结束后生成摘要         | 调 Coze 将本次对话浓缩为一句话情绪小结（如"用户因考研焦虑，倾向被倾听"），写入 `CounselingSession.summary`                      | `counseling.service.ts` 的 `closeSession` 后异步触发   |
-| 摘要向量化存储             | 将摘要文本向量化，存入用户专属 ChromaDB 集合 `user_{userId}_memories`                                                           | Phase 5 FastAPI 服务提供接口                           |
-| 每条消息触发 RAG 检索      | `sendMessage` 时，以用户当前消息为 query，调 ChromaDB 检索最相关 3-5 条历史摘要，拼入 prompt，实现"上次你提到..."式的跨会话记忆 | `counseling.service.ts` 的 `buildSystemExtra` 方法扩展 |
-| 降级过渡方案（Phase 5 前） | summary 数量少时（< 10 条），直接读最近 5 条 summary 拼入 prompt，无需向量检索；summary 积累多后切换为 RAG 检索，前端无感知     | `counseling.service.ts`                                |
-| 情绪档案动态更新           | 会话结束后分析本次会话，更新 `UserEmotionProfile`（主导情绪/核心话题/应对偏好），供冷启动开场和 Phase 1-D 情绪洞察使用          | `counseling.service.ts` 异步任务                       |
-| 自动归档超时会话           | 超 30 分钟无消息自动关闭并触发摘要生成 + 向量化                                                                                 | NestJS `@Cron` 定时任务                                |
+| 功能               | 说明                                                                                                       | 实现位置                                             |
+| ------------------ | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| 会话结束后生成摘要 | 调 Coze 将本次对话浓缩为一句话情绪小结（如"用户因考研焦虑，倾向被倾听"），写入 `CounselingSession.summary` | `counseling.service.ts` 的 `closeSession` 后异步触发 |
+| 摘要向量化存储     | 将摘要文本向量化，存入用户专属 ChromaDB 集合 `user_{userId}_memories`                                      | Phase 5 FastAPI `/memories/add` 接口                 |
+| 预检索接口         | 用户打字时提前调 ChromaDB 检索，结果缓存在内存 Map，发送时直接读取                                         | `counseling.service.ts` 新增 `prefetchMemories` 方法 |
+| 发送消息时注入记忆 | `sendMessage` 读取预检索缓存，将 3-5 条相关摘要文本拼入 system prompt                                      | `counseling.service.ts` 的 `sendMessage` 扩展        |
+| 情绪档案动态更新   | 会话结束后分析本次会话，更新 `UserEmotionProfile`（主导情绪/核心话题/应对偏好）                            | `counseling.service.ts` 异步任务                     |
+| 自动归档超时会话   | 超 30 分钟无消息自动关闭并触发摘要生成 + 向量化                                                            | NestJS `@Cron` 定时任务                              |
 
-**当前降级方案**：每次对话携带最近 20 条历史消息（单会话内上下文连贯），无跨会话记忆。Phase 5 完成后在 `sendMessage` 里补加 RAG 检索逻辑，无需改动前端。
+**当前状态**：每次对话携带最近 20 条历史消息（单会话内上下文连贯），无跨会话记忆。Phase 5 完成后在 `sendMessage` 里补加预检索逻辑，无需改动前端。
 
 ---
 
