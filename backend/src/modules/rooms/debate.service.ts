@@ -9,6 +9,8 @@ interface DebateContext {
   currentRound: number;
   status: 'WAITING' | 'RUNNING' | 'PAUSED' | 'FINISHED';
   collectingOpinions: boolean; // Round1 后的 60 秒征集窗口
+  agentAName: string; // A 方智能体显示名，供立场识别使用
+  agentBName: string; // B 方智能体显示名，供立场识别使用
   messages: Array<{
     roundNumber: number;
     agentId: string;
@@ -50,12 +52,14 @@ export class DebateService {
       throw new Error('Room not found');
     }
 
-    // 初始化辩论上下文
+    // 初始化辩论上下文（agentAName/agentBName 在 executeRound1 查到后写入）
     const context: DebateContext = {
       roomId,
       currentRound: 1,
       status: 'RUNNING',
       collectingOpinions: false,
+      agentAName: '',
+      agentBName: '',
       messages: [],
     };
     this.debateContexts.set(roomId, context);
@@ -86,6 +90,27 @@ export class DebateService {
     const botA = agents[0];
     const botB = agents[1];
 
+    // 查出双方智能体的显示名，用于立场识别和前端提示
+    const [agentARecord, agentBRecord] = await Promise.all([
+      this.prisma.agent.findUnique({
+        where: { id: botA },
+        select: { name: true },
+      }),
+      this.prisma.agent.findUnique({
+        where: { id: botB },
+        select: { name: true },
+      }),
+    ]);
+    const agentAName = agentARecord?.name ?? botA;
+    const agentBName = agentBRecord?.name ?? botB;
+
+    // 写入 context，供 gateway 实时处理单条弹幕时使用
+    const ctx = this.debateContexts.get(roomId);
+    if (ctx) {
+      ctx.agentAName = agentAName;
+      ctx.agentBName = agentBName;
+    }
+
     const caseInfo = {
       title: room.title,
       content: room.content,
@@ -104,9 +129,12 @@ export class DebateService {
     const context = this.debateContexts.get(roomId);
     if (context) context.collectingOpinions = true;
 
+    // 广播征集开始，同时告知前端双方名字，用于引导用户表态
     this.roomsGateway.broadcastToRoom(roomId, 'opinionCollectStart', {
       roomId,
       duration: COLLECT_DURATION,
+      agentAName,
+      agentBName,
     });
 
     await this.delay(COLLECT_DURATION * 1000);
@@ -133,6 +161,8 @@ export class DebateService {
           userId: o.userId,
         })),
         room.title,
+        agentAName,
+        agentBName,
       );
 
       // 将 RAG 结果回写数据库
@@ -174,37 +204,43 @@ export class DebateService {
       await Promise.all(updates);
     }
 
-    // 读取最终有效观点（RAG 已处理完毕）
+    // 读取最终有效观点（RAG 已处理完毕，取全部有效观点最多20条）
     const opinions = await (this.prisma as any).userOpinion.findMany({
       where: { roomId, isRelevant: true },
       orderBy: { createdAt: 'asc' },
       take: 20,
     });
 
-    const opinionsByStance = {
-      forA: opinions.filter((o: any) => o.stance === 'SUPPORT_A').slice(0, 5),
-      forB: opinions.filter((o: any) => o.stance === 'SUPPORT_B').slice(0, 5),
-      neutral: opinions.filter((o: any) => o.stance === 'NEUTRAL').slice(0, 3),
-    };
+    // RAG 立场分组仅用于日志和广播统计，不再用于分配给对应 bot
+    const forA = opinions.filter((o: any) => o.stance === 'SUPPORT_A');
+    const forB = opinions.filter((o: any) => o.stance === 'SUPPORT_B');
+    const neutral = opinions.filter((o: any) => o.stance === 'NEUTRAL');
+
+    this.logger.log(
+      `[RAG] room ${roomId} 观点收集结果 → ` +
+        `有效:${opinions.length} 条（RAG参考：支持A:${forA.length} 支持B:${forB.length} 中立:${neutral.length}）` +
+        `，全部注入智能体由其自行判断立场`,
+    );
 
     this.roomsGateway.broadcastToRoom(roomId, 'opinionCollectEnd', {
       roomId,
       validCount: opinions.length,
-      validForA: opinionsByStance.forA.length,
-      validForB: opinionsByStance.forB.length,
+      validForA: forA.length,
+      validForB: forB.length,
     });
 
     await this.delay(2000);
-    await this.executeRound2(roomId, room, opinionsByStance);
+    // 把全部有效观点传下去，不按立场拆分
+    await this.executeRound2(roomId, room, opinions);
   }
 
   /**
-   * Round 2: Bot A 和 Bot B 交叉反驳（注入用户观点）
+   * Round 2: Bot A 和 Bot B 交叉反驳（注入全量有效用户观点）
    */
   private async executeRound2(
     roomId: number,
     room: any,
-    opinionsByStance?: { forA: any[]; forB: any[]; neutral: any[] },
+    validOpinions: any[] = [],
   ): Promise<void> {
     this.logger.log(`🟩 Executing Round 2 for room ${roomId}`);
 
@@ -223,24 +259,11 @@ export class DebateService {
     };
 
     const round1Messages = context.messages.filter((m) => m.roundNumber === 1);
+    // 全量有效观点文本，两个 bot 都看到相同的内容，由智能体自行判断哪些支持自己
+    const allAudienceOpinions = validOpinions.map((o: any) => o.content);
 
-    // 构建注入用户观点的 context
-    const buildOpinionHint = (supportingOpinions: any[]) => {
-      if (!supportingOpinions?.length) return [];
-      const hint = `【观众支持你的观点有：${supportingOpinions.map((o: any) => `"${o.content}"`).join('；')}，请在反驳时引用这些民意支撑你的立场】`;
-      return [{ agentId: 'audience', content: hint }];
-    };
-
-    // B 反驳 A：B 收到"支持B的观众观点"
-    const botBContext = [
-      ...round1Messages.filter((m) => m.agentId === botA),
-      ...buildOpinionHint(opinionsByStance?.forB || []),
-    ];
-    // A 反驳 B：A 收到"支持A的观众观点"
-    const botAContext = [
-      ...round1Messages.filter((m) => m.agentId === botB),
-      ...buildOpinionHint(opinionsByStance?.forA || []),
-    ];
+    const botBAgentContext = round1Messages.filter((m) => m.agentId === botA);
+    const botAAgentContext = round1Messages.filter((m) => m.agentId === botB);
 
     this.roomsGateway.broadcastToRoom(roomId, 'roundChanged', {
       roomId,
@@ -251,30 +274,32 @@ export class DebateService {
       roomId,
       botB,
       caseInfo,
-      botBContext,
+      botBAgentContext,
       2,
       'rebuttal',
+      allAudienceOpinions,
     );
     await this.streamAgentResponse(
       roomId,
       botA,
       caseInfo,
-      botAContext,
+      botAAgentContext,
       2,
       'rebuttal',
+      allAudienceOpinions,
     );
 
     await this.delay(2000);
-    await this.executeRound3(roomId, room, opinionsByStance);
+    await this.executeRound3(roomId, room, validOpinions);
   }
 
   /**
-   * Round 3: Bot C 综合裁决（引用用户观点分布）
+   * Round 3: Bot C 综合裁决（引用全量有效用户观点）
    */
   private async executeRound3(
     roomId: number,
     room: any,
-    opinionsByStance?: { forA: any[]; forB: any[]; neutral: any[] },
+    validOpinions: any[] = [],
   ): Promise<void> {
     this.logger.log(`🟥 Executing Round 3 for room ${roomId}`);
 
@@ -291,31 +316,21 @@ export class DebateService {
       content: room.content,
     };
 
-    // Bot C 看到所有之前的消息 + 观众观点分布摘要
-    const opinionSummary = opinionsByStance
-      ? `【观众观点统计：支持A方 ${opinionsByStance.forA.length} 条，支持B方 ${opinionsByStance.forB.length} 条，中立 ${opinionsByStance.neutral.length} 条。` +
-        (opinionsByStance.forA.length
-          ? `支持A代表观点："${opinionsByStance.forA[0]?.content}"。`
-          : '') +
-        (opinionsByStance.forB.length
-          ? `支持B代表观点："${opinionsByStance.forB[0]?.content}"。`
-          : '') +
-        `请在裁决中引用这些民意数据】`
-      : '';
+    // Bot C 看到前两轮所有智能体发言（不含 audience 混入的旧数据）
+    const allAgentMessages = context.messages.filter(
+      (m) => m.agentId !== 'audience',
+    );
 
-    const allMessages = [
-      ...context.messages,
-      ...(opinionSummary
-        ? [
-            {
-              agentId: 'audience',
-              content: opinionSummary,
-              roundNumber: 2,
-              createdAt: new Date(),
-            },
-          ]
-        : []),
-    ];
+    // 全量有效观点整理为文字行传给 buildPrompt，Bot C 自行分析民意分布
+    const verdictAudienceLines: string[] = [];
+    if (validOpinions.length > 0) {
+      verdictAudienceLines.push(
+        `共收到 ${validOpinions.length} 条有效观众观点（已过滤灌水），请自行判断各观点的立场倾向：`,
+      );
+      validOpinions.forEach((o: any, i: number) => {
+        verdictAudienceLines.push(`${i + 1}. "${o.content}"`);
+      });
+    }
 
     // 广播 Round 3 开始
     this.roomsGateway.broadcastToRoom(roomId, 'roundChanged', {
@@ -328,9 +343,10 @@ export class DebateService {
       roomId,
       botC,
       caseInfo,
-      allMessages,
+      allAgentMessages,
       3,
       'verdict',
+      verdictAudienceLines,
     );
 
     // 辩论结束
@@ -347,6 +363,7 @@ export class DebateService {
     context: Array<{ agentId: string; content: string }>,
     roundNumber: number,
     phase: 'statement' | 'rebuttal' | 'verdict',
+    audienceOpinions?: string[], // Round2 专用：经 RAG 过滤后支持己方的观众观点
   ): Promise<void> {
     const debateContext = this.debateContexts.get(roomId);
     if (!debateContext) return;
@@ -383,12 +400,18 @@ export class DebateService {
           : 'Round3：律师 C 汇总裁决（只发一次）';
 
     // 调用 Coze API（Prompt 里带轮次与阶段约束）
-    const prompt = this.cozeService.buildPrompt(caseInfo, context, roleName, {
-      roundNumber,
-      phase,
-      speakingOrderHint,
-      maxChars: phase === 'verdict' ? 1200 : 900,
-    });
+    const prompt = this.cozeService.buildPrompt(
+      caseInfo,
+      context,
+      roleName,
+      {
+        roundNumber,
+        phase,
+        speakingOrderHint,
+        maxChars: phase === 'verdict' ? 1200 : 900,
+      },
+      audienceOpinions,
+    );
     this.logger.log(
       `📨 [room ${roomId}] round ${roundNumber} calling agent ${agentId} (botId=${botId}). Case title: ${caseInfo.title}`,
     );
@@ -633,6 +656,17 @@ export class DebateService {
    */
   isCollectingOpinions(roomId: number): boolean {
     return this.debateContexts.get(roomId)?.collectingOpinions ?? false;
+  }
+
+  /**
+   * 获取本场辩论双方智能体的显示名（供 gateway 实时立场识别使用）
+   */
+  getAgentNames(roomId: number): { agentAName: string; agentBName: string } {
+    const ctx = this.debateContexts.get(roomId);
+    return {
+      agentAName: ctx?.agentAName ?? '',
+      agentBName: ctx?.agentBName ?? '',
+    };
   }
 
   private delay(ms: number): Promise<void> {

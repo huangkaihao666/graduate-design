@@ -52,6 +52,8 @@ export const DebateRoom: React.FC = () => {
   const [voteCountdown, setVoteCountdown] = useState(0)
   const [myVotedAgentId, setMyVotedAgentId] = useState<string | null>(null)
   const voteCountdownRef = useRef<number | null>(null)
+  const voteEndTimeRef = useRef<number>(0)
+  const opinionEndTimeRef = useRef<number>(0)
   const loadedDebateHistoryRef = useRef(false)
 
   // 观点征集窗口状态
@@ -59,6 +61,7 @@ export const DebateRoom: React.FC = () => {
   const [opinionCountdown, setOpinionCountdown] = useState(0)
   const [opinionResult, setOpinionResult] = useState<{ validCount: number; validForA: number; validForB: number } | null>(null)
   const opinionCountdownRef = useRef<number | null>(null)
+  const [opinionAgentNames, setOpinionAgentNames] = useState<{ agentAName: string; agentBName: string } | null>(null)
 
   // 缓冲流式 chunk（区分 reasoning/answer），避免频繁 setState 导致舞台滚动卡死
   const pendingChunksRef = useRef<Map<string, { reasoning: string[]; answer: string[] }>>(new Map())
@@ -277,19 +280,18 @@ export const DebateRoom: React.FC = () => {
       setVoteCountdown(duration)
       message.info(`辩论结束！请在 ${duration} 秒内投票`)
 
-      // 倒计时
+      // 用截止时间戳驱动倒计时，切后台再回来也能正确跳到剩余秒数
+      voteEndTimeRef.current = Date.now() + duration * 1000
       if (voteCountdownRef.current) window.clearInterval(voteCountdownRef.current)
       voteCountdownRef.current = window.setInterval(() => {
-        setVoteCountdown((prev) => {
-          if (prev <= 1) {
-            window.clearInterval(voteCountdownRef.current!)
-            voteCountdownRef.current = null
-            setVoteWindowOpen(false)
-            return 0
-          }
-          return prev - 1
-        })
-      }, 1000)
+        const remaining = Math.max(0, Math.ceil((voteEndTimeRef.current - Date.now()) / 1000))
+        setVoteCountdown(remaining)
+        if (remaining <= 0) {
+          window.clearInterval(voteCountdownRef.current!)
+          voteCountdownRef.current = null
+          setVoteWindowOpen(false)
+        }
+      }, 500)
     })
 
     // 辩论结束（投票窗口关闭后触发）
@@ -308,17 +310,20 @@ export const DebateRoom: React.FC = () => {
       setOpinionCollecting(true)
       setOpinionCountdown(duration)
       setOpinionResult(null)
+      if (data?.agentAName && data?.agentBName) {
+        setOpinionAgentNames({ agentAName: data.agentAName, agentBName: data.agentBName })
+      }
+      // 用截止时间戳驱动倒计时，切后台再回来也能正确跳到剩余秒数
+      opinionEndTimeRef.current = Date.now() + duration * 1000
       if (opinionCountdownRef.current) window.clearInterval(opinionCountdownRef.current)
       opinionCountdownRef.current = window.setInterval(() => {
-        setOpinionCountdown((prev) => {
-          if (prev <= 1) {
-            window.clearInterval(opinionCountdownRef.current!)
-            opinionCountdownRef.current = null
-            return 0
-          }
-          return prev - 1
-        })
-      }, 1000)
+        const remaining = Math.max(0, Math.ceil((opinionEndTimeRef.current - Date.now()) / 1000))
+        setOpinionCountdown(remaining)
+        if (remaining <= 0) {
+          window.clearInterval(opinionCountdownRef.current!)
+          opinionCountdownRef.current = null
+        }
+      }, 500)
     })
 
     // 观点征集结束
@@ -689,6 +694,7 @@ export const DebateRoom: React.FC = () => {
             opinionCollecting={opinionCollecting}
             opinionCountdown={opinionCountdown}
             opinionResult={opinionResult}
+            opinionAgentNames={opinionAgentNames}
           />
         </div>
       </div>

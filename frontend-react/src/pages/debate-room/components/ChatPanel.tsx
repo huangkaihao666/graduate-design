@@ -19,6 +19,7 @@ interface ChatPanelProps {
   opinionCollecting?: boolean
   opinionCountdown?: number
   opinionResult?: { validCount: number; validForA: number; validForB: number } | null
+  opinionAgentNames?: { agentAName: string; agentBName: string } | null
 }
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({
@@ -28,6 +29,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   opinionCollecting = false,
   opinionCountdown = 0,
   opinionResult = null,
+  opinionAgentNames = null,
 }) => {
   const { user } = useAuthStore()
   const [inputValue, setInputValue] = useState('')
@@ -66,9 +68,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     }
   }
 
-  // 征集中的 placeholder 动态变化
+  // 征集中的 placeholder 动态变化，带上双方名字
   const inputPlaceholder = opinionCollecting
-    ? '说说你支持哪方？观点将影响第二轮辩论...'
+    ? opinionAgentNames
+      ? `支持「${opinionAgentNames.agentAName}」还是「${opinionAgentNames.agentBName}」？说出你的理由...`
+      : '说说你支持哪方？观点将影响第二轮辩论...'
     : '说点什么...'
 
   return (
@@ -87,8 +91,18 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           <div className="opinion-banner-left">
             <BulbOutlined className="opinion-banner-icon" />
             <div>
-              <div className="opinion-banner-title">观点征集中</div>
-              <div className="opinion-banner-desc">你的发言将影响第二轮 AI 辩论走向</div>
+              <div className="opinion-banner-title">观点征集中 · 你的发言将影响第二轮辩论</div>
+              {opinionAgentNames ? (
+                <div className="opinion-banner-desc">
+                  支持
+                  <strong style={{ color: '#3b82f6' }}>「{opinionAgentNames.agentAName}」</strong>
+                  还是
+                  <strong style={{ color: '#f59e0b' }}>「{opinionAgentNames.agentBName}」</strong>
+                  ？说出你的理由
+                </div>
+              ) : (
+                <div className="opinion-banner-desc">说说你支持哪方，理由越具体越好</div>
+              )}
             </div>
           </div>
           <div className="opinion-countdown">
@@ -106,7 +120,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             已收集 <strong>{opinionResult.validCount}</strong> 条观点注入第二轮辩论
             {(opinionResult.validForA > 0 || opinionResult.validForB > 0) && (
               <span className="opinion-stance-hint">
-                （支持A {opinionResult.validForA} · 支持B {opinionResult.validForB}）
+                （支持{opinionAgentNames?.agentAName ?? 'A方'} {opinionResult.validForA} · 支持{opinionAgentNames?.agentBName ?? 'B方'} {opinionResult.validForB}）
               </span>
             )}
           </div>
@@ -164,7 +178,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="chat-input">
+      <div className="debate-chat-input">
         <Input.TextArea
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}

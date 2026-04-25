@@ -9,9 +9,9 @@ import chroma_store
 
 IRRELEVANT_COLLECTION = "irrelevant"
 RELEVANT_COLLECTION = "relevant"
-IRRELEVANT_THRESHOLD = 0.65  # 与灌水示例相似度超过此值视为灌水
+IRRELEVANT_THRESHOLD = 0.55  # 与灌水示例相似度超过此值视为灌水（降低误杀率）
 REPEAT_CHAR_RATIO = 0.6      # 单个字符占比超过此值视为重复刷屏灌水
-MIN_LENGTH = 4               # 少于此字数直接视为灌水（纯表情/单字等）
+MIN_LENGTH = 3               # 少于此字数直接视为灌水（纯表情/单字等）
 
 
 def _is_spam_by_rule(text: str) -> bool:

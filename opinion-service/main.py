@@ -44,7 +44,9 @@ def health():
 
 class ProcessRequest(BaseModel):
     text: str
-    topic: str = ""  # 辩论主题（预留，当前未使用）
+    topic: str = ""
+    agentAName: str = ""  # A 方智能体的显示名字，如"毒舌现实主义者"
+    agentBName: str = ""  # B 方智能体的显示名字，如"温柔共情者"
 
 
 class ProcessResponse(BaseModel):
@@ -61,7 +63,13 @@ def process_opinion(req: ProcessRequest):
     result = relevance_checker.process(req.text)
     stance = "NEUTRAL"
     if result["isRelevant"]:
-        stance = stance_detector.detect(result["embedding"])
+        stance = stance_detector.detect(
+            result["embedding"],
+            topic=req.topic,
+            agent_a_name=req.agentAName,
+            agent_b_name=req.agentBName,
+            text=req.text,
+        )
 
     return ProcessResponse(isRelevant=result["isRelevant"], stance=stance)
 
@@ -75,18 +83,25 @@ class OpinionItem(BaseModel):
 class BatchFilterRequest(BaseModel):
     opinions: list[OpinionItem]
     topic: str = ""
+    agentAName: str = ""  # A 方智能体的显示名字
+    agentBName: str = ""  # B 方智能体的显示名字
 
 
 class BatchFilterResponse(BaseModel):
-    forA: list[OpinionItem]     # 支持 A 方的有效观点（去重后，最多5条）
-    forB: list[OpinionItem]     # 支持 B 方的有效观点（去重后，最多5条）
-    neutral: list[OpinionItem]  # 中立有效观点（去重后，最多3条）
+    forA: list[OpinionItem]     # RAG 判断支持 A 方的有效观点（去重后，最多20条）
+    forB: list[OpinionItem]     # RAG 判断支持 B 方的有效观点（去重后，最多20条）
+    neutral: list[OpinionItem]  # RAG 判断中立的有效观点（去重后，最多20条）
+    valid: list[OpinionItem]    # 所有有效观点（去重后，最多20条），立场由智能体自行判断
     filteredCount: int          # 被过滤的灌水数量
 
 
 @app.post("/batch-filter", response_model=BatchFilterResponse)
 def batch_filter(req: BatchFilterRequest):
-    """批量处理弹幕，返回按立场分组的有效观点（已语义去重）。"""
+    """
+    批量处理弹幕：RAG 只负责过滤灌水，立场识别仅供参考。
+    返回所有有效观点（valid），以及按 RAG 立场分组的结果（forA/forB/neutral）。
+    注入 prompt 时优先使用 valid，让智能体自行判断立场。
+    """
     valid_with_meta: list[dict] = []
     filtered_count = 0
 
@@ -95,7 +110,13 @@ def batch_filter(req: BatchFilterRequest):
         if not result["isRelevant"]:
             filtered_count += 1
             continue
-        stance = stance_detector.detect(result["embedding"])
+        stance = stance_detector.detect(
+            result["embedding"],
+            topic=req.topic,
+            agent_a_name=req.agentAName,
+            agent_b_name=req.agentBName,
+            text=op.content,
+        )
         valid_with_meta.append({
             "id": op.id,
             "content": op.content,
@@ -104,20 +125,22 @@ def batch_filter(req: BatchFilterRequest):
             "embedding": result["embedding"],
         })
 
-    # 语义去重（整体去重，避免同义观点跨立场重复）
+    # 语义去重（整体去重，避免同义观点重复注入）
     deduped = deduplicator.deduplicate(valid_with_meta)
 
     def to_item(d: dict) -> OpinionItem:
         return OpinionItem(id=d["id"], content=d["content"], userId=d["userId"])
 
-    for_a = [to_item(d) for d in deduped if d["stance"] == "SUPPORT_A"][:5]
-    for_b = [to_item(d) for d in deduped if d["stance"] == "SUPPORT_B"][:5]
-    neutral = [to_item(d) for d in deduped if d["stance"] == "NEUTRAL"][:3]
+    for_a   = [to_item(d) for d in deduped if d["stance"] == "SUPPORT_A"][:20]
+    for_b   = [to_item(d) for d in deduped if d["stance"] == "SUPPORT_B"][:20]
+    neutral = [to_item(d) for d in deduped if d["stance"] == "NEUTRAL"][:20]
+    valid   = [to_item(d) for d in deduped][:20]  # 全部有效观点，不区分立场
 
     return BatchFilterResponse(
         forA=for_a,
         forB=for_b,
         neutral=neutral,
+        valid=valid,
         filteredCount=filtered_count,
     )
 

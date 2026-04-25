@@ -14,6 +14,8 @@ def load_knowledge():
     for filename, collection in [
         ("irrelevant.txt", "irrelevant"),
         ("relevant.txt", "relevant"),
+        ("support_a.txt", "support_a"),
+        ("support_b.txt", "support_b"),
     ]:
         filepath = KNOWLEDGE_DIR / filename
         if not filepath.exists():

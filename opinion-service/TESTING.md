@@ -554,18 +554,5 @@ curl -X POST http://localhost:8001/memories/search \
 查看后端日志（运行 `pnpm backend:dev` 的终端），搜索 `POST /counseling/sessions` 和 `prefetch` 关键词，确认用户打字时预检索接口被调用。
 
 ```text
-🔌 WebSocket 服务: ws://localhost:3000/socket.io/
-[Nest] 66491  - 2026/04/25 17:45:59     LOG [CounselingService] [RAG] prefetch sessionId=28 query="wo" → 3 条记忆: ["2026-04-25：[焦虑]只想倾诉，拒绝建议","2026-04-25：[委屈]用户因朋友误解求助","2026-04-25：[焦虑]考研压力大，求倾听"]
-[Nest] 66491  - 2026/04/25 17:46:01     LOG [CounselingService] [RAG] prefetch sessionId=28 query="wo zui jin" → 3 条记忆: ["2026-04-25：[焦虑]只想倾诉，拒绝建议","2026-04-25：[委屈]用户因朋友误解求助","2026-04-25：[焦虑]考研压力大，求倾听"]
-[Nest] 66491  - 2026/04/25 17:46:03     LOG [CounselingService] [RAG] prefetch sessionId=28 query="我最近不想回家" → 3 条记忆: ["2026-04-25：[烦躁] 用户因家人关系不想回家","2026-04-25：[委屈]用户因朋友误解求助","2026-04-25：[焦虑]只想倾诉，拒绝建议"]
-[Nest] 66491  - 2026/04/25 17:46:03     LOG [CounselingService] [RAG] prefetch sessionId=28 query="我最近不想回家，" → 3 条记忆: ["2026-04-25：[烦躁] 用户因家人关系不想回家","2026-04-25：[委屈]用户因朋友误解求助","2026-04-25：[焦虑]只想倾诉，拒绝建议"]
-[Nest] 66491  - 2026/04/25 17:46:09     LOG [CounselingService] [RAG] prefetch sessionId=28 query="我最近不想回家，见到jia" → 3 条记忆: ["2026-04-25：[烦躁] 用户因家人关系不想回家","2026-04-25：[焦虑]只想倾诉，拒绝建议","2026-04-25：[委屈]用户因朋友误解求助"]
-[Nest] 66491  - 2026/04/25 17:46:11     LOG [CounselingService] [RAG] prefetch sessionId=28 query="我最近不想回家，见到家里人jiu fan" → 3 条记忆: ["2026-04-25：[烦躁] 用户因家人关系不想回家","2026-04-25：[焦虑]只想倾诉，拒绝建议","2026-04-25：[委屈]用户因朋友误解求助"]
-[Nest] 66491  - 2026/04/25 17:46:12     LOG [CounselingService] [RAG] prefetch sessionId=28 query="我最近不想回家，见到家里人就烦" → 3 条记忆: ["2026-04-25：[烦躁] 用户因家人关系不想回家","2026-04-25：[焦虑]只想倾诉，拒绝建议","2026-04-25：[委屈]用户因朋友误解求助"]
-[Nest] 66491  - 2026/04/25 17:46:16     LOG [CounselingService] [RAG] sendMessage sessionId=28 缓存命中 3 条: ["2026-04-25：[烦躁] 用户因家人关系不想回家","2026-04-25：[焦虑]只想倾诉，拒绝建议","2026-04-25：[委屈]用户因朋友误解求助"]
-[Nest] 66491  - 2026/04/25 17:46:16     LOG [CounselingService] [RAG] 注入 prompt，记忆内容:
-  1. 2026-04-25：[烦躁] 用户因家人关系不想回家
-  2. 2026-04-25：[焦虑]只想倾诉，拒绝建议
-  3. 2026-04-25：[委屈]用户因朋友误解求助
-[Nest] 66491  - 2026/04/25 17:46:16     LOG [CozeService] 💚 Counselor chat: bot=7632299425355792393, history=2 msgs
+
 ```

@@ -473,7 +473,7 @@ export class CozeService {
       title: string;
       content: string;
     },
-    context: Array<{ agentId: string; content: string }>,
+    context: Array<{ agentId: string; content: string; roundNumber?: number }>,
     agentRole: string,
     meta: {
       roundNumber: number;
@@ -481,22 +481,84 @@ export class CozeService {
       speakingOrderHint?: string;
       maxChars?: number;
     },
+    audienceOpinions?: string[],
   ): string {
-    let prompt = `你现在是一个多智能体辩论系统中的「${agentRole}」。\n`;
-    prompt += `当前为第 ${meta.roundNumber} 轮（${meta.phase === 'statement' ? '立场陈述' : meta.phase === 'rebuttal' ? '交叉反驳' : '律师裁决'}）。\n`;
-    if (meta.speakingOrderHint) {
-      prompt += `发言顺序提示：${meta.speakingOrderHint}\n`;
-    }
-    prompt += `\n`;
+    const maxChars = meta.maxChars ?? 900;
 
-    prompt += `案件背景：\n- 标题：${caseInfo.title}\n- 内容：${caseInfo.content}\n\n`;
+    // ── 角色与任务定义 ──────────────────────────────────────────────────
+    let prompt = `你是多智能体辩论系统中的「${agentRole}」，正在参与一场真实的辩论。\n`;
+    prompt += `本次辩论围绕以下案件展开：\n`;
+    prompt += `- 标题：${caseInfo.title}\n`;
+    prompt += `- 背景：${caseInfo.content}\n\n`;
 
-    if (context.length > 0) {
-      prompt += `对方观点（供你回应/反驳，需引用具体点再回应）：\n`;
-      context.forEach((msg, index) => {
-        prompt += `- 观点${index + 1}（来自 ${msg.agentId}）：${msg.content}\n`;
-      });
-      prompt += `\n`;
+    // ── 当前阶段说明 ────────────────────────────────────────────────────
+    if (meta.phase === 'statement') {
+      prompt += `【当前阶段：Round ${meta.roundNumber} · 立场陈述】\n`;
+      prompt += `你需要清晰表明自己的立场，并给出 2-3 个有力论据支撑。语言要有感染力，字数控制在 ${maxChars} 字以内。\n\n`;
+    } else if (meta.phase === 'rebuttal') {
+      const hasAudience = audienceOpinions && audienceOpinions.length > 0;
+
+      prompt += `【当前阶段：Round ${meta.roundNumber} · 交叉反驳】\n`;
+      if (hasAudience) {
+        prompt += `本轮你需要完成两件事：\n`;
+        prompt += `  ① 针对对方智能体在上一轮的发言，逐条找出逻辑漏洞或站不住脚的地方，进行有力反驳；\n`;
+        prompt += `  ② 引用下方观众支持你立场的真实声音，说明民意站在你这边。\n`;
+      } else {
+        prompt += `本轮你需要针对对方智能体在上一轮的发言，逐条找出逻辑漏洞或站不住脚的地方，进行有力反驳。\n`;
+        prompt += `注意：本轮没有观众观点数据，请只基于对方发言内容进行反驳，不要自行编造或假设观众的声音。\n`;
+      }
+      prompt += `字数控制在 ${maxChars} 字以内，语气可以犀利，但论据要具体。\n\n`;
+
+      // 对方智能体上一轮的发言内容
+      const agentContext = context.filter((m) => m.agentId !== 'audience');
+      if (agentContext.length > 0) {
+        prompt += `【对方智能体上一轮的发言】（你需要针对以下内容逐条反驳，不能泛泛而谈）：\n`;
+        agentContext.forEach((msg, index) => {
+          prompt += `${index + 1}. 「${msg.agentId}」说：${msg.content}\n`;
+        });
+        prompt += `\n`;
+      }
+
+      // 全量有效用户观点（已过滤灌水，立场由智能体自行判断）
+      if (hasAudience) {
+        prompt += `【观众的真实声音】（以下是真实用户的发言，系统已过滤无关灌水，立场未预先标注；请你自行判断哪些观点支持你的立场，在反驳时自然引用 1-2 条来增强说服力，不要照抄原文）：\n`;
+        audienceOpinions!.forEach((opinion, index) => {
+          prompt += `${index + 1}. "${opinion}"\n`;
+        });
+        prompt += `\n`;
+      }
+    } else if (meta.phase === 'verdict') {
+      const hasAudience = audienceOpinions && audienceOpinions.length > 0;
+
+      prompt += `【当前阶段：Round ${meta.roundNumber} · 综合裁决】\n`;
+      prompt += `你是本场辩论的裁决者，需要综合以下所有信息给出公正的裁决：\n`;
+      prompt += `  ① 回顾双方在前两轮的核心论点和反驳；\n`;
+      if (hasAudience) {
+        prompt += `  ② 结合下方观众的真实民意分布（支持哪方人数更多、代表性观点是什么）；\n`;
+        prompt += `  ③ 给出你的裁决结论，并说明理由。\n`;
+      } else {
+        prompt += `  ② 本场没有观众民意数据，请只基于双方辩论内容给出裁决，不要自行编造观众声音或假设民意倾向。\n`;
+      }
+      prompt += `字数控制在 ${maxChars} 字以内，语言要客观、有说服力。\n\n`;
+
+      // 前两轮所有智能体发言
+      const agentContext = context.filter((m) => m.agentId !== 'audience');
+      if (agentContext.length > 0) {
+        prompt += `【前两轮辩论记录】：\n`;
+        agentContext.forEach((msg, index) => {
+          prompt += `${index + 1}. Round${msg.roundNumber ?? '?'} 「${msg.agentId}」：${msg.content}\n`;
+        });
+        prompt += `\n`;
+      }
+
+      // 全量有效观众观点（有才渲染，没有绝不提）
+      if (hasAudience) {
+        prompt += `【观众真实声音】（系统已过滤灌水，立场未预先标注；请你自行判断各观点的倾向，在裁决中引用并说明民意分布）：\n`;
+        audienceOpinions!.forEach((line, index) => {
+          prompt += `${index + 1}. ${line}\n`;
+        });
+        prompt += `\n`;
+      }
     }
 
     return prompt;

@@ -52,36 +52,45 @@ export class RagService {
   async processOpinion(
     text: string,
     topic = '',
+    agentAName = '',
+    agentBName = '',
   ): Promise<{ isRelevant: boolean; stance: string }> {
     try {
       const res = await axios.post<{ isRelevant: boolean; stance: string }>(
         `${RAG_BASE_URL}/process`,
-        { text, topic },
+        { text, topic, agentAName, agentBName },
         { timeout: 5000 },
       );
       return res.data;
     } catch (err: any) {
       this.logger.warn(`processOpinion 失败: ${err.message}`);
-      // RAG 服务不可用时降级：视为有效观点，立场中立
       return { isRelevant: true, stance: 'NEUTRAL' };
     }
   }
 
-  /** 第三层：批量过滤弹幕，返回按立场分组的有效观点 */
+  /** 第三层：批量过滤弹幕，RAG 只负责过滤灌水，返回所有有效观点和按立场分组结果 */
   async batchFilter(
     opinions: { id: number; content: string; userId: number }[],
     topic = '',
-  ) {
+    agentAName = '',
+    agentBName = '',
+  ): Promise<{
+    valid: { id: number; content: string; userId: number }[];
+    forA: { id: number; content: string; userId: number }[];
+    forB: { id: number; content: string; userId: number }[];
+    neutral: { id: number; content: string; userId: number }[];
+    filteredCount: number;
+  }> {
     try {
       const res = await axios.post(
         `${RAG_BASE_URL}/batch-filter`,
-        { opinions, topic },
+        { opinions, topic, agentAName, agentBName },
         { timeout: 15000 },
       );
       return res.data;
     } catch (err: any) {
       this.logger.warn(`batchFilter 失败: ${err.message}`);
-      return { forA: [], forB: [], neutral: [], filteredCount: 0 };
+      return { valid: [], forA: [], forB: [], neutral: [], filteredCount: 0 };
     }
   }
 }
