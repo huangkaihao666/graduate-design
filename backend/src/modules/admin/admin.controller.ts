@@ -4,8 +4,10 @@ import {
   Delete,
   Get,
   Param,
+  Post,
   Put,
   Query,
+  Request,
   UseGuards,
 } from '@nestjs/common';
 import { JwtGuard } from '@/common/guards/jwt.guard';
@@ -117,5 +119,83 @@ export class AdminController {
   @Get('stats/hotTopics')
   async hotTopics(@Query('limit') limit?: string) {
     return await this.adminService.getHotTopics(limit ? Number(limit) : 10);
+  }
+
+  // ─── 智能体审核 ──────────────────────────────────────────────
+
+  @Get('agents/pending')
+  async getPendingAgents(
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.adminService.getPendingAgents({
+      page: page ? Number(page) : 1,
+      pageSize: pageSize ? Number(pageSize) : 10,
+      search,
+    });
+  }
+
+  @Put('agents/:id/approve')
+  async approveAgent(@Param('id') id: string) {
+    return this.adminService.approveAgent(id);
+  }
+
+  @Put('agents/:id/reject')
+  async rejectAgent(@Param('id') id: string, @Body('reason') reason: string) {
+    return this.adminService.rejectAgent(id, reason || '不符合平台规范');
+  }
+
+  // ─── 标签管理 ────────────────────────────────────────────────
+
+  @Get('tags')
+  async getAllTags() {
+    return this.adminService.getAllTagsAdmin();
+  }
+
+  @Post('tags')
+  async createTag(
+    @Body() body: { name: string; color?: string; weight?: number },
+  ) {
+    return this.adminService.createTag(body);
+  }
+
+  @Put('tags/:id')
+  async updateTag(
+    @Param('id') id: string,
+    @Body() body: { name?: string; color?: string; weight?: number },
+  ) {
+    return this.adminService.updateTag(Number(id), body);
+  }
+
+  @Delete('tags/:id')
+  async deleteTag(@Param('id') id: string) {
+    return this.adminService.deleteTag(Number(id));
+  }
+
+  // ─── 公告管理 ────────────────────────────────────────────────
+
+  @Get('announcements')
+  async getAnnouncements(
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.adminService.getAnnouncements({
+      page: page ? Number(page) : 1,
+      pageSize: pageSize ? Number(pageSize) : 10,
+    });
+  }
+
+  @Post('announcements')
+  async createAnnouncement(
+    @Request() req: any,
+    @Body() body: { title: string; content: string; expireAt?: string },
+  ) {
+    return this.adminService.createAnnouncement(req.user.id, body);
+  }
+
+  @Delete('announcements/:id')
+  async deleteAnnouncement(@Param('id') id: string) {
+    return this.adminService.deleteAnnouncement(Number(id));
   }
 }

@@ -1,0 +1,239 @@
+// ============ 话题标签管理 ============
+
+.ta-page {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 100%;
+}
+
+// ── Banner ────────────────────────────────────────────────────
+
+.ta-banner {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 55%, #a7f3d0 100%);
+  border-radius: 16px;
+  padding: 28px 32px;
+  border: 1px solid #6ee7b7;
+}
+
+.ta-banner-bg {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(16,185,129,0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(16,185,129,0.06) 1px, transparent 1px);
+  background-size: 32px 32px;
+  pointer-events: none;
+}
+
+.ta-banner-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.ta-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.ta-banner-icon {
+  width: 52px;
+  height: 52px;
+  background: #fff;
+  border: 1px solid #6ee7b7;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: #10B981;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(16,185,129,0.12);
+}
+
+.ta-banner-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #064e3b;
+}
+
+.ta-banner-sub {
+  font-size: 13px;
+  color: #065f46;
+  margin-top: 4px;
+  max-width: 420px;
+  opacity: 0.75;
+}
+
+.ta-create-btn {
+  background: #fff !important;
+  border: 1px solid #6ee7b7 !important;
+  color: #059669 !important;
+  border-radius: 10px !important;
+  font-weight: 700 !important;
+  height: 38px !important;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(16,185,129,0.15) !important;
+
+  &:hover {
+    background: #f0fdf4 !important;
+    border-color: #10B981 !important;
+  }
+}
+
+// ── 标签网格 ──────────────────────────────────────────────────
+
+.ta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+// ── 单个标签卡片 ──────────────────────────────────────────────
+
+.ta-card {
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: box-shadow 0.15s, border-color 0.15s;
+
+  &:hover {
+    border-color: rgba(99,102,241,0.25);
+    box-shadow: 0 4px 16px rgba(99,102,241,0.08);
+  }
+
+  &.ta-card-skeleton {
+    pointer-events: none;
+    min-height: 130px;
+  }
+}
+
+.ta-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ta-tag-preview {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  border-radius: 8px !important;
+  padding: 3px 12px !important;
+}
+
+.ta-icon-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+
+  &:hover {
+    border-color: #6366F1;
+    color: #6366F1;
+    background: #eef2ff;
+  }
+
+  &.ta-icon-btn-danger:hover {
+    border-color: #EF4444;
+    color: #EF4444;
+    background: #fef2f2;
+  }
+}
+
+.ta-card-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ta-stat-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ta-stat-label {
+  font-size: 12px;
+  color: #94a3b8;
+  flex: 1;
+}
+
+.ta-stat-val {
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.ta-bar-track {
+  height: 5px;
+  background: #f1f5f9;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.ta-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+  opacity: 0.8;
+}
+
+.ta-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.ta-color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.ta-color-hex {
+  font-size: 11px;
+  color: #94a3b8;
+  font-family: monospace;
+  flex: 1;
+}
+
+.ta-weight {
+  font-size: 11px;
+  color: #94a3b8;
+  background: #f1f5f9;
+  padding: 1px 7px;
+  border-radius: 5px;
+}
+
+// ── 空状态 ────────────────────────────────────────────────────
+
+.ta-empty {
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  padding: 80px 0;
+  text-align: center;
+}

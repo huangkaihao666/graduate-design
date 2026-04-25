@@ -39,3 +39,35 @@ export const getAdminTrends = (days = 14) => httpClient.get('/admin/stats/trends
 
 export const getAdminHotTopics = (limit = 10) => httpClient.get('/admin/stats/hotTopics', { params: { limit } })
 
+// ─── 智能体审核 ──────────────────────────────────────────────
+
+export const getPendingAgents = (params?: { page?: number; pageSize?: number; search?: string }) =>
+  httpClient.get('/admin/agents/pending', { params })
+
+export const approveAgent = (id: string) => httpClient.put(`/admin/agents/${id}/approve`)
+
+export const rejectAgent = (id: string, reason: string) =>
+  httpClient.put(`/admin/agents/${id}/reject`, { reason })
+
+// ─── 标签管理 ────────────────────────────────────────────────
+
+export const getAdminTags = () => httpClient.get('/admin/tags')
+
+export const createAdminTag = (data: { name: string; color?: string; weight?: number }) =>
+  httpClient.post('/admin/tags', data)
+
+export const updateAdminTag = (id: number, data: { name?: string; color?: string; weight?: number }) =>
+  httpClient.put(`/admin/tags/${id}`, data)
+
+export const deleteAdminTag = (id: number) => httpClient.delete(`/admin/tags/${id}`)
+
+// ─── 公告管理 ────────────────────────────────────────────────
+
+export const getAdminAnnouncements = (params?: { page?: number; pageSize?: number }) =>
+  httpClient.get('/admin/announcements', { params })
+
+export const createAnnouncement = (data: { title: string; content: string; expireAt?: string }) =>
+  httpClient.post('/admin/announcements', data)
+
+export const deleteAnnouncement = (id: number) => httpClient.delete(`/admin/announcements/${id}`)
+

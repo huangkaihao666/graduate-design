@@ -63,6 +63,19 @@ export class NotificationsService {
   }
 
   /**
+   * 获取有效公告列表（用户端）
+   */
+  async getAnnouncements() {
+    return (this.prisma as any).announcement.findMany({
+      where: {
+        OR: [{ expireAt: null }, { expireAt: { gt: new Date() } }],
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+  }
+
+  /**
    * 全部标记为已读
    */
   async markAllRead(userId: number) {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Avatar, Badge, Button, Empty, Pagination, Skeleton } from 'antd'
+import { Avatar, Badge, Button, Empty, Modal, Pagination, Skeleton, Tag, Typography } from 'antd'
 import {
   BellOutlined,
   CheckOutlined,
@@ -10,11 +10,14 @@ import {
   UserOutlined,
   RightOutlined,
   StarFilled,
+  RobotOutlined,
+  NotificationOutlined,
 } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import * as notifApi from '@/api/notifications'
-import type { NotificationItem, NotificationType } from '@/api/notifications'
+import type { Announcement, NotificationItem, NotificationType } from '@/api/notifications'
+import dayjs from 'dayjs'
 import './Notifications.less'
 
 // ─── 类型配置 ────────────────────────────────────────────────
@@ -72,6 +75,27 @@ const TYPE_CONFIG: Record<
     text: () => '恭喜解锁新成就！点击查看',
     sub: '成就',
   },
+  AGENT_APPROVED: {
+    icon: <RobotOutlined />,
+    color: '#10B981',
+    bg: '#ECFDF5',
+    text: () => '你的智能体申请已通过审核，已公开展示',
+    sub: '系统',
+  },
+  AGENT_REJECTED: {
+    icon: <RobotOutlined />,
+    color: '#EF4444',
+    bg: '#FEF2F2',
+    text: () => '你的智能体申请未通过审核',
+    sub: '系统',
+  },
+  ANNOUNCEMENT: {
+    icon: <NotificationOutlined />,
+    color: '#6366F1',
+    bg: '#EEF2FF',
+    text: () => '平台发布了新公告',
+    sub: '系统',
+  },
 }
 
 const TABS = [
@@ -100,6 +124,13 @@ const Notifications: React.FC = () => {
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState('ALL')
   const [page, setPage] = useState(1)
+  const [announcementModal, setAnnouncementModal] = useState(false)
+
+  const { data: announcementsData } = useQuery({
+    queryKey: ['announcements'],
+    queryFn: notifApi.getAnnouncements,
+    enabled: announcementModal,
+  })
 
   const currentTab = TABS.find((t) => t.key === activeTab)!
 
@@ -135,6 +166,8 @@ const Notifications: React.FC = () => {
       })
     }
     if (item.type === 'ACHIEVEMENT_UNLOCKED') navigate('/achievements')
+    else if (item.type === 'AGENT_APPROVED' || item.type === 'AGENT_REJECTED') navigate('/create-agent')
+    else if (item.type === 'ANNOUNCEMENT') setAnnouncementModal(true)
     else if (item.roomId) navigate(`/cases/${item.roomId}`)
   }
 
@@ -292,6 +325,57 @@ const Notifications: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* ── 公告弹窗 ── */}
+      <Modal
+        open={announcementModal}
+        onCancel={() => setAnnouncementModal(false)}
+        footer={<Button type="primary" onClick={() => setAnnouncementModal(false)}>知道了</Button>}
+        title={
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <NotificationOutlined style={{ color: '#6366F1' }} />
+            平台公告
+          </span>
+        }
+        width={560}
+      >
+        {(announcementsData as Announcement[] | undefined)?.length === 0 ? (
+          <Empty description="暂无有效公告" />
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxHeight: 480, overflowY: 'auto', paddingRight: 4 }}>
+            {(announcementsData as Announcement[] | undefined)?.map((a) => (
+              <div
+                key={a.id}
+                style={{
+                  padding: '14px 16px',
+                  background: '#f8fafc',
+                  borderRadius: 10,
+                  border: '1px solid #e2e8f0',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <span style={{ fontWeight: 700, fontSize: 15, color: '#1e1b4b' }}>{a.title}</span>
+                  {a.expireAt ? (
+                    <Tag color="orange" style={{ borderRadius: 6, fontSize: 11 }}>
+                      {dayjs(a.expireAt).format('MM-DD')} 到期
+                    </Tag>
+                  ) : (
+                    <Tag color="blue" style={{ borderRadius: 6, fontSize: 11 }}>长期有效</Tag>
+                  )}
+                </div>
+                <Typography.Paragraph
+                  style={{ margin: 0, fontSize: 13, color: '#475569', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}
+                >
+                  {a.content}
+                </Typography.Paragraph>
+                <div style={{ marginTop: 8, fontSize: 12, color: '#94a3b8' }}>
+                  发布于 {dayjs(a.createdAt).format('YYYY-MM-DD HH:mm')}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

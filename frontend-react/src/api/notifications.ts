@@ -8,6 +8,9 @@ export type NotificationType =
   | 'FAVORITE_ROOM'
   | 'FOLLOW_NEW_ROOM'
   | 'ACHIEVEMENT_UNLOCKED'
+  | 'AGENT_APPROVED'
+  | 'AGENT_REJECTED'
+  | 'ANNOUNCEMENT'
 
 export interface NotificationItem {
   id: number
@@ -65,4 +68,19 @@ export const markAllRead = () => {
  */
 export const markRead = (id: number) => {
   return httpClient.patch(`/notifications/${id}/read`)
+}
+
+export interface Announcement {
+  id: number
+  title: string
+  content: string
+  expireAt?: string | null
+  createdAt: string
+}
+
+/**
+ * 获取有效公告列表（用户端）
+ */
+export const getAnnouncements = (): Promise<Announcement[]> => {
+  return httpClient.get('/notifications/announcements')
 }

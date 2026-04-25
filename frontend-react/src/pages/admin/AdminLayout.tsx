@@ -1,7 +1,7 @@
 import React from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Layout, Menu, Button, Space, Modal } from 'antd'
-import { HomeOutlined, LogoutOutlined, UserOutlined, FileTextOutlined, WarningOutlined, BarChartOutlined, ControlOutlined } from '@ant-design/icons'
+import { HomeOutlined, LogoutOutlined, UserOutlined, FileTextOutlined, WarningOutlined, BarChartOutlined, ControlOutlined, RobotOutlined, TagsOutlined, NotificationOutlined } from '@ant-design/icons'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/store'
 import './AdminLayout.less'
@@ -19,6 +19,9 @@ const AdminLayout: React.FC = () => {
     if (location.pathname.startsWith('/admin/rooms')) return 'rooms'
     if (location.pathname.startsWith('/admin/users')) return 'users'
     if (location.pathname.startsWith('/admin/messages')) return 'messages'
+    if (location.pathname.startsWith('/admin/agents-audit')) return 'agents-audit'
+    if (location.pathname.startsWith('/admin/tags')) return 'tags'
+    if (location.pathname.startsWith('/admin/announcements')) return 'announcements'
     return 'home'
   })()
 
@@ -61,11 +64,15 @@ const AdminLayout: React.FC = () => {
             mode="inline"
             selectedKeys={[selectedKey]}
             items={[
-              { key: 'home', label: '概览', icon: <HomeOutlined />, onClick: () => navigate('/admin') },
-              { key: 'stats', label: '数据面板', icon: <BarChartOutlined />, onClick: () => navigate('/admin/stats') },
-              { key: 'rooms', label: '房间管理', icon: <FileTextOutlined />, onClick: () => navigate('/admin/rooms') },
-              { key: 'users', label: '用户管理', icon: <UserOutlined />, onClick: () => navigate('/admin/users') },
-              { key: 'messages', label: '消息审核', icon: <WarningOutlined />, onClick: () => navigate('/admin/messages') },
+              { key: 'home',          label: '概览',       icon: <HomeOutlined />,         onClick: () => navigate('/admin') },
+              { key: 'stats',         label: '数据面板',    icon: <BarChartOutlined />,      onClick: () => navigate('/admin/stats') },
+              { key: 'rooms',         label: '房间管理',    icon: <FileTextOutlined />,      onClick: () => navigate('/admin/rooms') },
+              { key: 'users',         label: '用户管理',    icon: <UserOutlined />,          onClick: () => navigate('/admin/users') },
+              { key: 'messages',      label: '消息审核',    icon: <WarningOutlined />,       onClick: () => navigate('/admin/messages') },
+              { type: 'divider' as const },
+              { key: 'agents-audit',  label: '智能体审核',  icon: <RobotOutlined />,         onClick: () => navigate('/admin/agents-audit') },
+              { key: 'tags',          label: '话题标签',    icon: <TagsOutlined />,          onClick: () => navigate('/admin/tags') },
+              { key: 'announcements', label: '系统公告',    icon: <NotificationOutlined />,  onClick: () => navigate('/admin/announcements') },
             ]}
           />
         </Sider>

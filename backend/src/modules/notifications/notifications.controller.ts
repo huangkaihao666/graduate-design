@@ -66,4 +66,13 @@ export class NotificationsController {
       req.user.id,
     );
   }
+
+  /**
+   * 获取有效公告列表（用户端，登录即可访问）
+   */
+  @Get('announcements')
+  @ApiOkResponse({ description: '获取有效公告列表' })
+  async getAnnouncements() {
+    return await this.notificationsService.getAnnouncements();
+  }
 }

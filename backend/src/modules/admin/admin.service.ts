@@ -365,4 +365,216 @@ export class AdminService {
       ownerName: r.owner?.name || r.owner?.email || `用户${r.owner?.id}`,
     }));
   }
+
+  // ─── 智能体审核 ──────────────────────────────────────────────
+
+  async getPendingAgents(params: {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+  }) {
+    const page = Math.max(Number(params.page || 1), 1);
+    const pageSize = Math.min(Math.max(Number(params.pageSize || 10), 1), 50);
+    const skip = (page - 1) * pageSize;
+
+    const where: any = { isSystem: false, status: 'PENDING' };
+    if (params.search?.trim()) {
+      where.OR = [
+        { name: { contains: params.search.trim() } },
+        { description: { contains: params.search.trim() } },
+      ];
+    }
+
+    const [total, agents] = await Promise.all([
+      this.prisma.agent.count({ where }),
+      this.prisma.agent.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          creator: { select: { id: true, name: true, avatar: true } },
+        },
+      }),
+    ]);
+
+    return {
+      data: agents,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    };
+  }
+
+  async approveAgent(agentId: string) {
+    const agent = await this.prisma.agent.update({
+      where: { id: agentId },
+      data: { status: 'APPROVED', isPublic: true },
+      select: { creatorId: true, name: true },
+    });
+
+    if (agent.creatorId) {
+      await (this.prisma as any).notification
+        .create({
+          data: {
+            userId: agent.creatorId,
+            type: 'AGENT_APPROVED',
+            fromUserId: agent.creatorId,
+            roomId: null,
+          },
+        })
+        .catch(() => {});
+    }
+
+    return { success: true };
+  }
+
+  async rejectAgent(agentId: string, reason: string) {
+    const agent = await this.prisma.agent.update({
+      where: { id: agentId },
+      data: { status: 'REJECTED' },
+      select: { creatorId: true, name: true },
+    });
+
+    if (agent.creatorId) {
+      await (this.prisma as any).notification
+        .create({
+          data: {
+            userId: agent.creatorId,
+            type: 'AGENT_REJECTED',
+            fromUserId: agent.creatorId,
+            roomId: null,
+          },
+        })
+        .catch(() => {});
+    }
+
+    return { success: true, reason };
+  }
+
+  // ─── 标签管理 ────────────────────────────────────────────────
+
+  async getAllTagsAdmin() {
+    const tags = await this.prisma.tag.findMany({
+      orderBy: { weight: 'desc' },
+      include: { _count: { select: { rooms: true } } },
+    });
+    return tags.map((t) => ({ ...t, roomCount: t._count.rooms }));
+  }
+
+  async createTag(data: { name: string; color?: string; weight?: number }) {
+    return this.prisma.tag.create({
+      data: {
+        name: data.name,
+        color: data.color || '#6366F1',
+        weight: data.weight ?? 0,
+      },
+    });
+  }
+
+  async updateTag(
+    tagId: number,
+    data: { name?: string; color?: string; weight?: number },
+  ) {
+    return this.prisma.tag.update({
+      where: { id: tagId },
+      data: {
+        ...(data.name !== undefined && { name: data.name }),
+        ...(data.color !== undefined && { color: data.color }),
+        ...(data.weight !== undefined && { weight: data.weight }),
+      },
+    });
+  }
+
+  async deleteTag(tagId: number) {
+    await this.prisma.tag.delete({ where: { id: tagId } });
+    return { success: true };
+  }
+
+  // ─── 公告管理 ────────────────────────────────────────────────
+
+  async getAnnouncements(params: { page?: number; pageSize?: number }) {
+    const page = Math.max(Number(params.page || 1), 1);
+    const pageSize = Math.min(Math.max(Number(params.pageSize || 10), 1), 50);
+    const skip = (page - 1) * pageSize;
+
+    const [total, items] = await Promise.all([
+      this.prisma.announcement.count(),
+      this.prisma.announcement.findMany({
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    return {
+      data: items,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    };
+  }
+
+  async createAnnouncement(
+    adminId: number,
+    data: { title: string; content: string; expireAt?: string },
+  ) {
+    const announcement = await this.prisma.announcement.create({
+      data: {
+        title: data.title,
+        content: data.content,
+        adminId,
+        expireAt: data.expireAt ? new Date(data.expireAt) : null,
+      },
+    });
+
+    // 给所有活跃用户推送系统通知（异步，不阻塞）
+    this.pushAnnouncementNotifications(adminId).catch(() => {});
+
+    return announcement;
+  }
+
+  private async pushAnnouncementNotifications(adminId: number) {
+    const users = await this.prisma.user.findMany({
+      where: { isActive: true },
+      select: { id: true },
+      take: 5000,
+    });
+
+    const data = users
+      .filter((u) => u.id !== adminId)
+      .map((u) => ({
+        userId: u.id,
+        type: 'ANNOUNCEMENT',
+        fromUserId: adminId,
+        roomId: null,
+      }));
+
+    if (data.length) {
+      await (this.prisma as any).notification.createMany({
+        data,
+        skipDuplicates: true,
+      });
+    }
+  }
+
+  async deleteAnnouncement(id: number) {
+    await this.prisma.announcement.delete({ where: { id } });
+    return { success: true };
+  }
+
+  async getLatestAnnouncement() {
+    return this.prisma.announcement.findFirst({
+      where: {
+        OR: [{ expireAt: null }, { expireAt: { gt: new Date() } }],
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 }

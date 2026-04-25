@@ -253,7 +253,7 @@ npx prisma migrate dev --name <migration_name>
 | Phase 3-A：关注动态                 | ✅ 已完成   | 关注/取关/粉丝列表/动态流；案件详情关注按钮；Me 页粉丝关注数；/feed 页面        |
 | Phase 3-B：成就中心                 | ✅ 已完成   | achievements 模块 + 12 枚成就种子 + 各 service 埋点 + /achievements 页面        |
 | Phase 3-C：消息中心                 | ✅ 已完成   | /notifications 页面，按类型分 Tab，铃铛下拉加「查看全部」入口                   |
-| Phase 4：管理端扩展                 | ⬜ 待开始   |                                                                                 |
+| Phase 4：管理端扩展                 | ✅ 已完成   | 智能体审核/标签管理/公告管理三个子页面 + 对应后端接口 + 审核通知推送            |
 | Phase 5：本地 RAG 服务              | ⬜ 待开始   |                                                                                 |
 
 ---

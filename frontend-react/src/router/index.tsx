@@ -21,6 +21,9 @@ import {
   UsersAdmin,
   MessagesAdmin,
   StatsAdmin,
+  AgentsAudit,
+  TagsAdmin,
+  AnnouncementsAdmin,
   Counseling,
   CreateAgent,
   Feed,
@@ -70,6 +73,18 @@ export const router = createBrowserRouter([
       {
         path: 'stats',
         element: <StatsAdmin />,
+      },
+      {
+        path: 'agents-audit',
+        element: <AgentsAudit />,
+      },
+      {
+        path: 'tags',
+        element: <TagsAdmin />,
+      },
+      {
+        path: 'announcements',
+        element: <AnnouncementsAdmin />,
       },
     ],
   },
