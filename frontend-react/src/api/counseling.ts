@@ -10,6 +10,8 @@ export interface Session {
   roomId?: number
   roomTitle?: string
   sentimentRecordId?: number
+  counselorBotId?: string | null
+  counselorName?: string
   messageCount?: number
 }
 
@@ -21,6 +23,17 @@ export interface CounselingMessage {
   createdAt: string
 }
 
+export interface AvailableAgent {
+  id: string | null       // null = 系统默认共情师
+  name: string
+  description: string
+  avatar: string | null
+  isSystem: boolean
+}
+
+export const getAvailableAgents = (): Promise<AvailableAgent[]> =>
+  httpClient.get('/counseling/available-agents') as any
+
 export const getSessions = (): Promise<Session[]> =>
   httpClient.get('/counseling/sessions') as any
 
@@ -28,6 +41,7 @@ export const createSession = (data: {
   roomId?: number
   roomTitle?: string
   sentimentRecordId?: number
+  counselorBotId?: string | null
 }): Promise<Session> =>
   httpClient.post('/counseling/sessions', data) as any
 

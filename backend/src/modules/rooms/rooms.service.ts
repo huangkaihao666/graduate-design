@@ -816,7 +816,9 @@ export class RoomsService {
    * 获取所有 Agent
    */
   async getAllAgents() {
-    const agents = await this.prisma.agent.findMany();
+    const agents = await this.prisma.agent.findMany({
+      where: { isSystem: true },
+    });
     return agents;
   }
 

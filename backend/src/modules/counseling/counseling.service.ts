@@ -12,7 +12,8 @@ import { AchievementsService } from '@/modules/achievements/achievements.service
 import { RagService } from '@/modules/rag/rag.service';
 import { Cron } from '@nestjs/schedule';
 
-const COUNSELOR_BOT_ID = '7632299425355792393';
+const DEFAULT_COUNSELOR_BOT_ID = '7632299425355792393';
+const DEFAULT_COUNSELOR_NAME = '默认共情师';
 
 @Injectable()
 export class CounselingService {
@@ -46,14 +47,65 @@ export class CounselingService {
       updatedAt: s.updatedAt,
       roomId: s.roomId,
       roomTitle: s.roomTitle,
+      counselorBotId: s.counselorBotId,
+      counselorName: s.counselorName || DEFAULT_COUNSELOR_NAME,
       messageCount: s._count.messages,
     }));
   }
 
+  /** 获取可用辅导师列表：系统默认 + 用户自建已审核通过的智能体 */
+  async getAvailableAgents(userId: number) {
+    const userAgents = await this.prisma.agent.findMany({
+      where: { creatorId: userId, status: 'APPROVED' },
+      select: { id: true, name: true, description: true, avatar: true },
+    });
+
+    return [
+      {
+        id: null,
+        name: DEFAULT_COUNSELOR_NAME,
+        description: '系统内置，挂载心理学知识库，适合大多数倾诉场景',
+        avatar: null,
+        isSystem: true,
+      },
+      ...userAgents.map((a) => ({
+        id: a.id,
+        name: a.name,
+        description: a.description,
+        avatar: a.avatar,
+        isSystem: false,
+      })),
+    ];
+  }
+
   async createSession(
     userId: number,
-    data: { roomId?: number; roomTitle?: string; sentimentRecordId?: number },
+    data: {
+      roomId?: number;
+      roomTitle?: string;
+      sentimentRecordId?: number;
+      counselorBotId?: string | null;
+    },
   ) {
+    // 若指定了自建智能体，校验归属和审核状态
+    let counselorBotId: string | null = null;
+    let counselorName: string = DEFAULT_COUNSELOR_NAME;
+    if (data.counselorBotId) {
+      const agent = await this.prisma.agent.findFirst({
+        where: {
+          id: data.counselorBotId,
+          creatorId: userId,
+          status: 'APPROVED',
+        },
+        select: { id: true, name: true },
+      });
+      if (!agent) {
+        throw new Error('所选智能体不存在或未通过审核');
+      }
+      counselorBotId = agent.id;
+      counselorName = agent.name;
+    }
+
     // 新建会话时，异步归档上一个仍处于 ACTIVE 状态的会话
     this.archiveLastActiveSession(userId).catch(() => {});
 
@@ -63,6 +115,8 @@ export class CounselingService {
         roomId: data.roomId || null,
         roomTitle: data.roomTitle || null,
         sentimentRecordId: data.sentimentRecordId || null,
+        counselorBotId,
+        counselorName,
         status: 'ACTIVE',
         title: '新的对话',
       },
@@ -221,6 +275,9 @@ export class CounselingService {
     // 构建 system prompt（案件上下文 + RAG 历史记忆）
     const systemExtra = await this.buildSystemExtra(session, cachedMemories);
 
+    // 使用会话绑定的辅导师，没有则回退到系统默认
+    const botId = session.counselorBotId ?? DEFAULT_COUNSELOR_BOT_ID;
+
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
@@ -231,7 +288,7 @@ export class CounselingService {
 
     try {
       await this.cozeService.streamCounselorChat(
-        COUNSELOR_BOT_ID,
+        botId,
         history,
         systemExtra,
         (chunk) => {

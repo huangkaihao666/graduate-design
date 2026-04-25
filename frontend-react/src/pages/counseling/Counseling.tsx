@@ -10,7 +10,10 @@ import {
   MessageOutlined,
   CloseOutlined,
   MenuOutlined,
+  RobotOutlined,
+  CheckOutlined,
 } from '@ant-design/icons'
+import type { AvailableAgent } from '@/api/counseling'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '@/store'
 import * as counselingApi from '@/api/counseling'
@@ -65,6 +68,12 @@ export const Counseling: React.FC = () => {
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
+  // 辅导师选择器
+  const [availableAgents, setAvailableAgents] = useState<AvailableAgent[]>([])
+  const [showAgentPicker, setShowAgentPicker] = useState(false)
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null) // null = 默认共情师
+  const [pendingQuickTopic, setPendingQuickTopic] = useState<string | undefined>(undefined)
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<any>(null)
   const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -75,7 +84,17 @@ export const Counseling: React.FC = () => {
 
   useEffect(() => {
     loadSessions()
+    loadAvailableAgents()
   }, [])
+
+  const loadAvailableAgents = async () => {
+    try {
+      const data = await counselingApi.getAvailableAgents()
+      setAvailableAgents(data)
+    } catch {
+      // 静默失败，降级为只显示默认共情师
+    }
+  }
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -142,16 +161,27 @@ export const Counseling: React.FC = () => {
     if (window.innerWidth < 768) setSidebarOpen(false)
   }
 
-  const handleNewSession = async (quickTopic?: string) => {
+  const handleNewSession = (quickTopic?: string) => {
+    // 有自建智能体可选时，展示选择器；否则直接用默认共情师创建
+    if (availableAgents.length > 1) {
+      setPendingQuickTopic(quickTopic)
+      setShowAgentPicker(true)
+    } else {
+      doCreateSession(null, quickTopic)
+    }
+  }
+
+  const doCreateSession = async (counselorBotId: string | null, quickTopic?: string) => {
+    setShowAgentPicker(false)
     try {
       const newSession = await counselingApi.createSession({
         roomId: roomIdFromReport ? parseInt(roomIdFromReport) : undefined,
         roomTitle: roomTitleFromReport ? decodeURIComponent(roomTitleFromReport) : undefined,
+        counselorBotId,
       })
       setSessions((prev) => [newSession, ...prev])
       setActiveSession(newSession)
       setMessages([])
-      // 轮询等待后端生成开场白（约 8 秒），有消息后自动更新
       pollForOpening(newSession.id)
       if (quickTopic) {
         setInputValue(quickTopic + '，')
@@ -374,6 +404,12 @@ export const Counseling: React.FC = () => {
                 )}
                 <div className="session-item-meta">
                   <span className="session-item-time">{formatTime(session.updatedAt)}</span>
+                  {session.counselorName && session.counselorName !== '默认共情师' && (
+                    <span className="session-item-agent-tag">
+                      <RobotOutlined style={{ fontSize: 10, marginRight: 2 }} />
+                      {session.counselorName}
+                    </span>
+                  )}
                   {session.status === 'ACTIVE' && (
                     <span className="session-item-active-dot" />
                   )}
@@ -467,9 +503,13 @@ export const Counseling: React.FC = () => {
           onClick={() => setSidebarOpen(!sidebarOpen)}
         />
         <div className="chat-topbar-info">
-          <div className="chat-topbar-avatar">💚</div>
+          <div className="chat-topbar-avatar">
+            {activeSession?.counselorBotId ? <RobotOutlined /> : '💚'}
+          </div>
           <div>
-            <div className="chat-topbar-name">AI 共情师</div>
+            <div className="chat-topbar-name">
+              {activeSession?.counselorName || 'AI 共情师'}
+            </div>
             <div className="chat-topbar-status">
               <span className="status-dot" />
               在线
@@ -595,6 +635,53 @@ export const Counseling: React.FC = () => {
     </div>
   )
 
+  // ── 渲染：辅导师选择器 ────────────────────────────────────
+
+  const renderAgentPicker = () => (
+    <div className="agent-picker-overlay" onClick={() => setShowAgentPicker(false)}>
+      <div className="agent-picker-card" onClick={(e) => e.stopPropagation()}>
+        <div className="agent-picker-title">选择你的辅导师</div>
+        <div className="agent-picker-list">
+          {availableAgents.map((agent) => (
+            <div
+              key={agent.id ?? '__default__'}
+              className={`agent-picker-item ${selectedAgentId === agent.id ? 'agent-picker-item-selected' : ''}`}
+              onClick={() => setSelectedAgentId(agent.id)}
+            >
+              <div className="agent-picker-avatar">
+                {agent.isSystem ? '💚' : <RobotOutlined />}
+              </div>
+              <div className="agent-picker-info">
+                <div className="agent-picker-name">
+                  {agent.name}
+                  {agent.isSystem && <span className="agent-picker-recommend">推荐</span>}
+                </div>
+                <div className="agent-picker-desc">{agent.description}</div>
+              </div>
+              {selectedAgentId === agent.id && (
+                <CheckOutlined className="agent-picker-check" />
+              )}
+            </div>
+          ))}
+        </div>
+        {selectedAgentId !== null && (
+          <div className="agent-picker-warning">
+            ⚠️ 自建智能体的风格由你定义，体验可能与默认共情师不同
+          </div>
+        )}
+        <div className="agent-picker-actions">
+          <Button onClick={() => setShowAgentPicker(false)}>取消</Button>
+          <Button
+            type="primary"
+            onClick={() => doCreateSession(selectedAgentId, pendingQuickTopic)}
+          >
+            开始对话
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+
   // ── 主渲染 ────────────────────────────────────────────────
 
   return (
@@ -604,6 +691,8 @@ export const Counseling: React.FC = () => {
       <div className="counseling-main">
         {!activeSession ? renderWelcome() : renderChat()}
       </div>
+
+      {showAgentPicker && renderAgentPicker()}
     </div>
   )
 }

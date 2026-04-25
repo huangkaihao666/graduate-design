@@ -41,7 +41,6 @@ model User {
   counselingSessions   CounselingSession[]
   sentimentRecords     SentimentRecord[]
   userRelations        UserRelation[]
-  emotionProfile       UserEmotionProfile?
   customAgents         Agent[]             @relation("AgentCreator")
 
   @@map("users")
@@ -64,7 +63,6 @@ model Room {
 
   viewCount     Int     @default(0)
   commentCount  Int     @default(0)
-  sentimentType String? @db.VarChar(50) // ANXIOUS/ANGRY/CONFUSED/CALM
   likeCount     Int     @default(0)
   favoriteCount Int     @default(0)
 
@@ -100,7 +98,6 @@ model Message {
   content    String  @db.LongText
   reasoning  String? @db.LongText
   roundNumber Int?   @db.UnsignedInt
-  sentiment  String? @db.VarChar(50) // POSITIVE/NEGATIVE/NEUTRAL
 
   // 回复关系（自引用）：parentId 为 null 表示顶层评论，否则为某条评论的回复
   parentId  Int?    @db.UnsignedInt
@@ -154,13 +151,13 @@ model Notification {
   type       String   @db.VarChar(50)
   fromUserId Int      @db.UnsignedInt
   roomId     Int?     @db.UnsignedInt          // 相关案件（成就通知可为空）
-  messageId  Int?     @db.UnsignedInt
 
   isRead     Boolean  @default(false)
 
   fromUser   User     @relation("NotificationFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
   receiver   User     @relation("NotificationTo",   fields: [userId],     references: [id], onDelete: Cascade)
   room       Room?    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
 
   createdAt  DateTime @default(now())
 
@@ -240,7 +237,6 @@ model UserOpinion {
   content    String   @db.VarChar(200)
   stance     String   @db.VarChar(50) @default("NEUTRAL") // SUPPORT_A/SUPPORT_B/NEUTRAL
   isRelevant Boolean  @default(true)
-  likeCount  Int      @default(0)
   createdAt  DateTime @default(now())
   room       Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
   user       User     @relation(fields: [userId], references: [id])
@@ -257,6 +253,8 @@ model CounselingSession {
   roomId            Int?     @db.UnsignedInt
   roomTitle         String?  @db.VarChar(255) // 冗余案件标题，避免关联查询
   sentimentRecordId Int?     // 关联情感测评记录（可选）
+  counselorBotId    String?  @db.VarChar(255) // null = 系统默认共情师，否则为用户自建智能体的 Coze Bot ID
+  counselorName     String?  @db.VarChar(100) // 辅导师显示名，冗余存储避免关联查询
   title             String?  @db.VarChar(255)
   summary           String?  @db.Text
   status            String   @default("ACTIVE") @db.VarChar(50) // ACTIVE/CLOSED
@@ -362,19 +360,3 @@ model Announcement {
   @@index([createdAt])
 }
 
-/// 用户情绪档案
-model UserEmotionProfile {
-  id              Int      @id @default(autoincrement())
-  userId          Int      @unique @db.UnsignedInt
-  dominantEmotion String?  @db.VarChar(50)
-  emotionTrend    String?  @db.VarChar(50) // IMPROVING/STABLE/DECLINING
-  coreTopics      String?  @db.Text // JSON 数组
-  preferListening Boolean  @default(true)
-  preferAdvice    Boolean  @default(false)
-  preferRational  Boolean  @default(false)
-  sessionCount    Int      @default(0)
-  lastUpdated     DateTime @updatedAt
-  user            User     @relation(fields: [userId], references: [id])
-
-  @@map("user_emotion_profiles")
-}

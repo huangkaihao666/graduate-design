@@ -22,6 +22,14 @@ import { JwtGuard } from '@/common/guards/jwt.guard';
 export class CounselingController {
   constructor(private readonly counselingService: CounselingService) {}
 
+  @Get('available-agents')
+  @ApiOkResponse({
+    description: '获取可用辅导师列表（系统默认 + 用户自建已审核）',
+  })
+  getAvailableAgents(@Request() req: any) {
+    return this.counselingService.getAvailableAgents(req.user.id);
+  }
+
   @Get('sessions')
   @ApiOkResponse({ description: '获取会话列表' })
   getSessions(@Request() req: any) {
@@ -33,7 +41,12 @@ export class CounselingController {
   createSession(
     @Request() req: any,
     @Body()
-    body: { roomId?: number; roomTitle?: string; sentimentRecordId?: number },
+    body: {
+      roomId?: number;
+      roomTitle?: string;
+      sentimentRecordId?: number;
+      counselorBotId?: string | null;
+    },
   ) {
     return this.counselingService.createSession(req.user.id, body);
   }
