@@ -3,6 +3,7 @@ import {
   Get,
   Patch,
   Param,
+  Query,
   UseGuards,
   Request,
 } from '@nestjs/common';
@@ -18,12 +19,21 @@ export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
   /**
-   * 获取通知列表
+   * 获取通知列表（支持 type 过滤和分页）
    */
   @Get()
   @ApiOkResponse({ description: '获取通知列表' })
-  async getNotifications(@Request() req: any) {
-    return await this.notificationsService.getNotifications(req.user.id);
+  async getNotifications(
+    @Request() req: any,
+    @Query('type') type?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return await this.notificationsService.getNotifications(req.user.id, {
+      type,
+      page: page ? Number(page) : 1,
+      pageSize: pageSize ? Number(pageSize) : 30,
+    });
   }
 
   /**

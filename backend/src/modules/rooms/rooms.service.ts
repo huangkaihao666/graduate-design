@@ -542,8 +542,21 @@ export class RoomsService {
     const updated = await this.prisma.room.update({
       where: { id: roomId },
       data: { likeCount: { increment: 1 } },
-      select: { likeCount: true },
+      select: { likeCount: true, ownerId: true },
     });
+    // 通知案件作者（不通知自己点赞自己）
+    if (updated.ownerId !== userId) {
+      await (this.prisma as any).notification
+        .create({
+          data: {
+            userId: updated.ownerId,
+            type: 'LIKE_ROOM',
+            fromUserId: userId,
+            roomId,
+          },
+        })
+        .catch(() => {});
+    }
     return { liked: true, likeCount: updated.likeCount };
   }
 
@@ -593,8 +606,20 @@ export class RoomsService {
     const updated = await this.prisma.room.update({
       where: { id: roomId },
       data: { favoriteCount: { increment: 1 } },
-      select: { favoriteCount: true },
+      select: { favoriteCount: true, ownerId: true },
     });
+    if (updated.ownerId !== userId) {
+      await (this.prisma as any).notification
+        .create({
+          data: {
+            userId: updated.ownerId,
+            type: 'FAVORITE_ROOM',
+            fromUserId: userId,
+            roomId,
+          },
+        })
+        .catch(() => {});
+    }
     return { favorited: true, favoriteCount: updated.favoriteCount };
   }
 

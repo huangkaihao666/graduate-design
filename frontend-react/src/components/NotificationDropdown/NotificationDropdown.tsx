@@ -1,6 +1,6 @@
 import React from 'react'
 import { Badge, Dropdown, Button, List, Avatar, Typography, Empty, Spin, Divider } from 'antd'
-import { BellOutlined, UserOutlined, LikeFilled, MessageFilled, CheckOutlined } from '@ant-design/icons'
+import { BellOutlined, UserOutlined, LikeFilled, MessageFilled, CheckOutlined, TeamOutlined, TrophyFilled, RightOutlined, StarFilled } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import * as notifApi from '@/api/notifications'
@@ -8,18 +8,34 @@ import type { NotificationItem } from '@/api/notifications'
 import './NotificationDropdown.less'
 
 // 通知类型对应的图标和文案
-const TYPE_CONFIG = {
+const TYPE_CONFIG: Record<string, { icon: React.ReactNode; text: (name: string, item: NotificationItem) => string }> = {
   LIKE_COMMENT: {
     icon: <LikeFilled style={{ color: '#ff4d4f' }} />,
-    text: (name: string) => `${name} 赞了你的评论`,
+    text: (name, item) => `${name} 赞了你在「${item.room?.title ?? '某案件'}」中的评论`,
   },
   NEW_COMMENT: {
     icon: <MessageFilled style={{ color: '#6366F1' }} />,
-    text: (name: string) => `${name} 评论了你的案件`,
+    text: (name, item) => `${name} 评论了「${item.room?.title ?? '你的案件'}」`,
   },
   NEW_REPLY: {
     icon: <MessageFilled style={{ color: '#52c41a' }} />,
-    text: (name: string) => `${name} 回复了你的评论`,
+    text: (name, item) => `${name} 回复了你在「${item.room?.title ?? '某案件'}」中的评论`,
+  },
+  LIKE_ROOM: {
+    icon: <LikeFilled style={{ color: '#EF4444' }} />,
+    text: (name, item) => `${name} 点赞了「${item.room?.title ?? '你的案件'}」`,
+  },
+  FAVORITE_ROOM: {
+    icon: <StarFilled style={{ color: '#F59E0B' }} />,
+    text: (name, item) => `${name} 收藏了「${item.room?.title ?? '你的案件'}」`,
+  },
+  FOLLOW_NEW_ROOM: {
+    icon: <TeamOutlined style={{ color: '#3B82F6' }} />,
+    text: (name, item) => `${name} 发起了「${item.room?.title ?? '新辩论'}」`,
+  },
+  ACHIEVEMENT_UNLOCKED: {
+    icon: <TrophyFilled style={{ color: '#F59E0B' }} />,
+    text: () => '恭喜解锁新成就！',
   },
 }
 
@@ -56,7 +72,7 @@ const NotificationDropdown: React.FC = () => {
     enabled: open,
     staleTime: 0,
   })
-  const notifications: NotificationItem[] = (notifData as any) ?? []
+  const notifications: NotificationItem[] = (notifData as any)?.data ?? []
 
   // 全部已读
   const { mutate: readAll } = useMutation({
@@ -76,7 +92,8 @@ const NotificationDropdown: React.FC = () => {
       })
     }
     setOpen(false)
-    navigate(`/cases/${item.roomId}`)
+    if (item.type === 'ACHIEVEMENT_UNLOCKED') navigate('/achievements')
+    else if (item.roomId) navigate(`/cases/${item.roomId}`)
   }
 
   const config = (type: NotificationItem['type']) => TYPE_CONFIG[type] ?? TYPE_CONFIG.NEW_COMMENT
@@ -85,18 +102,29 @@ const NotificationDropdown: React.FC = () => {
     <div className="notif-panel">
       {/* 头部 */}
       <div className="notif-header">
-        <span className="notif-title">通知</span>
-        {unreadCount > 0 && (
-          <Button
-            type="link"
-            size="small"
-            icon={<CheckOutlined />}
-            onClick={() => readAll()}
-            className="read-all-btn"
+        <span className="notif-title">
+          消息
+          {unreadCount > 0 && <span className="notif-title-badge">{unreadCount}</span>}
+        </span>
+        <div className="notif-header-actions">
+          {unreadCount > 0 && (
+            <Button
+              type="link"
+              size="small"
+              icon={<CheckOutlined />}
+              onClick={() => readAll()}
+              className="read-all-btn"
+            >
+              全部已读
+            </Button>
+          )}
+          <button
+            className="notif-view-all-btn"
+            onClick={() => { setOpen(false); navigate('/notifications') }}
           >
-            全部已读
-          </Button>
-        )}
+            消息中心 <RightOutlined style={{ fontSize: 10 }} />
+          </button>
+        </div>
       </div>
       <Divider style={{ margin: 0 }} />
 
@@ -136,7 +164,7 @@ const NotificationDropdown: React.FC = () => {
                     {/* 文字 */}
                     <div className="notif-text">
                       <Typography.Text className="notif-content">
-                        {cfg.text(name)}
+                        {cfg.text(name, item)}
                       </Typography.Text>
                       <Typography.Text type="secondary" className="notif-time">
                         {timeAgo(item.createdAt)}

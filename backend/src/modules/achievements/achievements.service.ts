@@ -105,13 +105,13 @@ export class AchievementsService {
       },
     });
 
-    // 站内通知
+    // 站内通知（成就通知无关联案件）
     await (this.prisma as any).notification.create({
       data: {
         userId,
         type: 'ACHIEVEMENT_UNLOCKED',
         fromUserId: userId,
-        roomId: 0,
+        roomId: null,
       },
     });
 

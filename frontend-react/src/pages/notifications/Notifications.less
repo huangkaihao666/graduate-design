@@ -1,0 +1,442 @@
+// ============ 消息中心 ============
+// 风格：Linear 式信息密度 + 深色 Hero Banner，左侧竖向分类导航
+
+.nm-page {
+  min-height: calc(100vh - 64px);
+  background: var(--bg-page);
+  padding: 24px 24px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+
+  @media (max-width: 768px) {
+    padding: 12px 12px 40px;
+    gap: 14px;
+  }
+}
+
+// ── Hero Banner ────────────────────────────────────────────────
+
+.nm-hero {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #3730a3 100%);
+  border-radius: 20px;
+  padding: 36px 40px;
+  display: flex;
+  align-items: center;
+
+  @media (max-width: 640px) {
+    padding: 28px 24px;
+    border-radius: 16px;
+  }
+}
+
+.nm-hero-bg-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+.nm-orb-1 {
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, #6366F1, transparent 70%);
+  top: -120px;
+  right: 80px;
+  animation: nmOrbFloat 16s ease-in-out infinite;
+}
+
+.nm-orb-2 {
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, #8B5CF6, transparent 70%);
+  bottom: -60px;
+  left: 160px;
+  animation: nmOrbFloat 22s ease-in-out infinite reverse;
+}
+
+@keyframes nmOrbFloat {
+  0%, 100% { transform: translate(0, 0); }
+  50%       { transform: translate(16px, -20px); }
+}
+
+.nm-hero-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+
+.nm-hero-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 20px;
+
+  @media (max-width: 500px) {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.nm-hero-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.nm-hero-icon-wrap {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  backdrop-filter: blur(8px);
+}
+
+.nm-hero-bell {
+  font-size: 26px;
+  color: #fff;
+}
+
+.nm-hero-pulse {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 14px;
+  height: 14px;
+  background: #EF4444;
+  border-radius: 50%;
+  border: 2px solid #312e81;
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.4);
+    animation: nmPulse 1.8s ease-out infinite;
+  }
+}
+
+@keyframes nmPulse {
+  0%   { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+.nm-hero-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: #fff;
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.3px;
+}
+
+.nm-hero-sub {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 4px 0 0;
+}
+
+.nm-hero-readall-btn {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  color: #fff !important;
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+  backdrop-filter: blur(8px);
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.22) !important;
+    border-color: rgba(255, 255, 255, 0.4) !important;
+  }
+}
+
+// ── 主体布局 ──────────────────────────────────────────────────
+
+.nm-body {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 16px;
+  align-items: start;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// ── 左侧竖向分类导航 ──────────────────────────────────────────
+
+.nm-sidebar {
+  background: var(--bg-card);
+  border-radius: 14px;
+  border: 1px solid var(--border-color);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: sticky;
+  top: 80px;
+
+  @media (max-width: 768px) {
+    flex-direction: row;
+    position: static;
+    overflow-x: auto;
+    padding: 6px;
+    gap: 4px;
+  }
+}
+
+.nm-tab-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+
+  &:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  &.active {
+    background: rgba(99, 102, 241, 0.1);
+    color: var(--color-primary);
+    font-weight: 700;
+  }
+
+  @media (max-width: 768px) {
+    width: auto;
+    padding: 8px 12px;
+  }
+}
+
+.nm-tab-icon {
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.nm-tab-label {
+  flex: 1;
+}
+
+.nm-tab-arrow {
+  font-size: 10px;
+  opacity: 0.5;
+
+  @media (max-width: 768px) {
+    display: none;
+  }
+}
+
+// ── 右侧列表区 ────────────────────────────────────────────────
+
+.nm-list-area {
+  background: var(--bg-card);
+  border-radius: 14px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  min-height: 300px;
+}
+
+// 骨架屏
+.nm-skeletons {
+  padding: 8px 0;
+}
+
+.nm-skeleton-item {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border-color);
+
+  &:last-child { border-bottom: none; }
+}
+
+// 空状态
+.nm-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 24px;
+  gap: 10px;
+}
+
+.nm-empty-icon {
+  font-size: 48px;
+  line-height: 1;
+  filter: grayscale(0.3);
+}
+
+.nm-empty-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-top: 4px;
+}
+
+.nm-empty-sub {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  text-align: center;
+  max-width: 260px;
+  line-height: 1.6;
+}
+
+// 通知列表
+.nm-list {
+  display: flex;
+  flex-direction: column;
+}
+
+// 单条通知
+.nm-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px 16px 24px;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: background 0.12s;
+  animation: nmItemIn 0.3s ease both;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: var(--bg-hover);
+
+    .nm-item-arrow {
+      opacity: 1;
+      transform: translateX(2px);
+    }
+  }
+
+  &.nm-item-unread {
+    background: rgba(99, 102, 241, 0.03);
+  }
+}
+
+@keyframes nmItemIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+// 未读左侧竖条
+.nm-item-bar {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 32px;
+  background: var(--color-primary);
+  border-radius: 0 3px 3px 0;
+}
+
+// 头像区
+.nm-item-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.nm-item-avatar {
+  display: block !important;
+}
+
+.nm-item-type-badge {
+  position: absolute;
+  bottom: -3px;
+  right: -5px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 9px;
+  border: 2px solid var(--bg-card);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+}
+
+// 内容区
+.nm-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.nm-item-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nm-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.nm-item-tag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 6px;
+  line-height: 1.6;
+}
+
+.nm-item-time {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+// 右侧箭头
+.nm-item-arrow {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  opacity: 0;
+  transition: opacity 0.15s, transform 0.15s;
+  flex-shrink: 0;
+}
+
+// 分页
+.nm-pagination {
+  display: flex;
+  justify-content: center;
+  padding: 20px 0;
+  border-top: 1px solid var(--border-color);
+}

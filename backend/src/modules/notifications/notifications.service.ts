@@ -6,18 +6,40 @@ export class NotificationsService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * 获取当前用户的通知列表（最新 30 条）
+   * 获取当前用户的通知列表（支持按 type 过滤 + 分页）
    */
-  async getNotifications(userId: number) {
-    const notifications = await (this.prisma as any).notification.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      take: 30,
-      include: {
-        fromUser: { select: { id: true, name: true, avatar: true } },
-      },
-    });
-    return notifications;
+  async getNotifications(
+    userId: number,
+    params: { type?: string; page?: number; pageSize?: number } = {},
+  ) {
+    const { type, page = 1, pageSize = 30 } = params;
+    const where: any = { userId };
+
+    if (type && type !== 'ALL') {
+      // 支持逗号分隔的多类型，如 "LIKE_COMMENT,NEW_COMMENT,NEW_REPLY"
+      const types = type
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
+      where.type = types.length === 1 ? types[0] : { in: types };
+    }
+
+    const skip = (page - 1) * pageSize;
+    const [total, notifications] = await Promise.all([
+      (this.prisma as any).notification.count({ where }),
+      (this.prisma as any).notification.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize,
+        include: {
+          fromUser: { select: { id: true, name: true, avatar: true } },
+          room: { select: { id: true, title: true } },
+        },
+      }),
+    ]);
+
+    return { data: notifications, total, page, pageSize };
   }
 
   /**

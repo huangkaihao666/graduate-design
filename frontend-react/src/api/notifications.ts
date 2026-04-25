@@ -1,10 +1,19 @@
 import { httpClient } from './client'
 
+export type NotificationType =
+  | 'LIKE_COMMENT'
+  | 'NEW_COMMENT'
+  | 'NEW_REPLY'
+  | 'LIKE_ROOM'
+  | 'FAVORITE_ROOM'
+  | 'FOLLOW_NEW_ROOM'
+  | 'ACHIEVEMENT_UNLOCKED'
+
 export interface NotificationItem {
   id: number
-  type: 'LIKE_COMMENT' | 'NEW_COMMENT' | 'NEW_REPLY'
+  type: NotificationType
   fromUserId: number
-  roomId: number
+  roomId?: number | null
   messageId?: number
   isRead: boolean
   createdAt: string
@@ -13,13 +22,28 @@ export interface NotificationItem {
     name: string
     avatar?: string
   }
+  room?: {
+    id: number
+    title: string
+  }
+}
+
+export interface NotificationsResponse {
+  data: NotificationItem[]
+  total: number
+  page: number
+  pageSize: number
 }
 
 /**
- * 获取通知列表（最新30条）
+ * 获取通知列表（支持 type 过滤和分页）
  */
-export const getNotifications = (): Promise<NotificationItem[]> => {
-  return httpClient.get('/notifications')
+export const getNotifications = (params?: {
+  type?: string
+  page?: number
+  pageSize?: number
+}): Promise<NotificationsResponse> => {
+  return httpClient.get('/notifications', { params })
 }
 
 /**

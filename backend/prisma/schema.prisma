@@ -72,10 +72,11 @@ model Room {
   updatedAt DateTime @updatedAt
 
   // 关系
-  messages     Message[]
-  votes        Vote[]
-  tags         RoomTag[]
-  userOpinions UserOpinion[]
+  messages      Message[]
+  votes         Vote[]
+  tags          RoomTag[]
+  userOpinions  UserOpinion[]
+  notifications Notification[]
 
   @@map("rooms")
   @@index([ownerId])
@@ -149,15 +150,17 @@ model MessageLike {
 /// 通知模型
 model Notification {
   id         Int      @id @default(autoincrement()) @db.UnsignedInt
-  userId     Int      @db.UnsignedInt          // 接收通知的用户
-  type       String   @db.VarChar(50)          // LIKE_COMMENT | NEW_COMMENT | NEW_REPLY
-  fromUserId Int      @db.UnsignedInt          // 触发通知的用户
-  roomId     Int      @db.UnsignedInt          // 相关案件
-  messageId  Int?     @db.UnsignedInt          // 相关评论（可选）
+  userId     Int      @db.UnsignedInt
+  type       String   @db.VarChar(50)
+  fromUserId Int      @db.UnsignedInt
+  roomId     Int?     @db.UnsignedInt          // 相关案件（成就通知可为空）
+  messageId  Int?     @db.UnsignedInt
+
   isRead     Boolean  @default(false)
 
   fromUser   User     @relation("NotificationFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
   receiver   User     @relation("NotificationTo",   fields: [userId],     references: [id], onDelete: Cascade)
+  room       Room?    @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
   createdAt  DateTime @default(now())
 
