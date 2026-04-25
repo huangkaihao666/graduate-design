@@ -103,7 +103,7 @@ const AdminLogin: React.FC = () => {
             onClick={() => navigate('/cases')}
             className="adm-back-btn"
           >
-            返回智辩助手平台
+            返回平台首页
           </Button>
         </div>
       </div>

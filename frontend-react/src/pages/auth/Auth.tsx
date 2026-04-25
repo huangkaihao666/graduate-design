@@ -94,7 +94,7 @@ const Auth: React.FC = () => {
           refreshToken: loginData.refreshToken,
         });
       });
-      message.success("登录成功，智辩助手就绪！");
+      message.success("登录成功，欢迎回来！");
       const redirect = searchParams.get("redirect")
       navigate(redirect ? decodeURIComponent(redirect) : "/cases", { replace: true });
     } catch {
@@ -342,17 +342,20 @@ const Auth: React.FC = () => {
             </div>
             <div>
               <Title level={2} className="brand-title">
-                智辩助手
+                AI 辩论与情绪辅导平台
               </Title>
-              <Text className="brand-tagline">多智能体协同 × RAG 知识增强</Text>
+              <Text className="brand-tagline">多智能体协同 · 个性化 RAG · 情绪辅导</Text>
             </div>
           </div>
 
+          {/* 装饰分割线 */}
+          <div className="brand-divider" />
+
           {/* 平台简介 */}
           <p className="brand-desc">
-            基于 <strong>RAG</strong> 知识增强与<strong>多智能体协同</strong>，<br />
-            从逻辑、情感、法律三维视角出发，<br />
-            助你理性分析生活中的两难决策。
+            三位 AI 智能体协同辩论你的人生难题，<br />
+            RAG 情绪记忆图谱让共情师越聊越懂你，<br />
+            决策辅助与情绪疏导，一站搞定。
           </p>
 
           {/* Agent 展示卡片 */}
@@ -408,12 +411,12 @@ const Auth: React.FC = () => {
           <div className="auth-card">
             <div className="auth-card-header">
               <Title level={3} className="auth-card-title">
-                {activeTab === "login" ? "开始辩论之旅 ⚡" : "加入决策社区 🚀"}
+                {activeTab === "login" ? "欢迎回来 👋" : "加入平台 🚀"}
               </Title>
               <Text type="secondary" className="auth-card-subtitle">
                 {activeTab === "login"
-                  ? "三位 AI 专家随时待命，等你发起提问"
-                  : "免费注册，让 AI 帮你看清两难困境"}
+                  ? "AI 智能体与共情师随时待命"
+                  : "免费注册，开启 AI 辅助决策与情绪辅导"}
               </Text>
             </div>
 
@@ -427,7 +430,7 @@ const Auth: React.FC = () => {
           </div>
 
           <div className="auth-footer">
-            © 2026 智辩助手 · 基于多智能体协同与 RAG 架构
+            © 2026 AI 辩论与情绪辅导平台 · 多智能体协同 · 个性化 RAG
           </div>
         </div>
       </div>

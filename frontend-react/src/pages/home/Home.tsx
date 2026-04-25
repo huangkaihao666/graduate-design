@@ -94,17 +94,17 @@ export const Home: React.FC = () => {
         <div className="hero-content">
           <div className="hero-badge">
             <FireOutlined />
-            <span>AI 多智能体辩论平台</span>
+            <span>多智能体协同 · 个性化 RAG · 大学生辅助平台</span>
           </div>
           <h1 className="hero-title">
-            让 AI 专家团队
+            AI 智能体辩论决策
             <br />
-            <span className="hero-title-highlight">为你的人生抉择辩论</span>
+            <span className="hero-title-highlight">RAG 共情师陪你成长</span>
           </h1>
           <p className="hero-desc">
-            三位 AI 专家：直言现实者 · 共情辅导师 · 理性律师
+            三位 AI 专家从逻辑、情感、法律三维度辩论你的难题
             <br />
-            从不同维度深度分析你的生活难题，众包智慧助力决策
+            个性化 RAG 情绪记忆图谱，让共情师越聊越懂你
           </p>
           <div className="hero-actions">
             <Button
