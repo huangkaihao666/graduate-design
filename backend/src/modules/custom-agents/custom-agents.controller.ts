@@ -110,6 +110,17 @@ export class CustomAgentsController {
     return this.service.getMyKnowledgeBases(req.user.id);
   }
 
+  @Delete('knowledge-bases/:kbId')
+  @ApiOkResponse({
+    description: '删除知识库（自动解绑关联智能体，同步删除 Coze Dataset）',
+  })
+  deleteKnowledgeBase(
+    @Param('kbId', ParseIntPipe) kbId: number,
+    @Request() req: any,
+  ) {
+    return this.service.deleteKnowledgeBase(kbId, req.user.id);
+  }
+
   @Post('knowledge-bases')
   @ApiOkResponse({ description: '创建知识库（同步在 Coze 创建 Dataset）' })
   createKnowledgeBase(

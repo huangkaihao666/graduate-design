@@ -198,4 +198,44 @@ export class AdminController {
   async deleteAnnouncement(@Param('id') id: string) {
     return this.adminService.deleteAnnouncement(Number(id));
   }
+
+  // ─── 知识库审核 ──────────────────────────────────────────────
+
+  @Get('knowledge-bases')
+  async getKnowledgeBases(
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.adminService.getKnowledgeBases({
+      page: page ? Number(page) : 1,
+      pageSize: pageSize ? Number(pageSize) : 10,
+      search,
+    });
+  }
+
+  @Delete('knowledge-bases/:id')
+  async deleteKnowledgeBase(@Param('id') id: string) {
+    return this.adminService.deleteKnowledgeBaseAdmin(Number(id));
+  }
+
+  @Get('knowledge-documents/:id/content')
+  async getDocumentContent(@Param('id') id: string) {
+    return this.adminService.getKnowledgeDocumentContent(Number(id));
+  }
+
+  @Delete('knowledge-documents/:id')
+  async deleteKnowledgeDocument(@Param('id') id: string) {
+    return this.adminService.deleteKnowledgeDocumentAdmin(Number(id));
+  }
+
+  @Put('knowledge-documents/:id/approve')
+  async approveDocument(@Param('id') id: string) {
+    return this.adminService.approveKnowledgeDocument(Number(id));
+  }
+
+  @Put('knowledge-documents/:id/reject')
+  async rejectDocument(@Param('id') id: string) {
+    return this.adminService.rejectKnowledgeDocument(Number(id));
+  }
 }

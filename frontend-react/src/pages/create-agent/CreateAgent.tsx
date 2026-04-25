@@ -167,7 +167,7 @@ export const CreateAgent: React.FC = () => {
     mutationFn: ({ kbId, file }: { kbId: number; file: File }) =>
       api.uploadDocument(kbId, file),
     onSuccess: () => {
-      message.success('文档上传成功！Coze 正在处理，稍后可同步查看状态')
+      message.success('文档已提交，等待管理员审核后将自动同步到知识库')
       queryClient.invalidateQueries({ queryKey: ['my-knowledge-bases'] })
       setPendingFile(null)
     },
@@ -189,7 +189,7 @@ export const CreateAgent: React.FC = () => {
     mutationFn: ({ agentId, kbId }: { agentId: string; kbId: number }) =>
       api.bindKnowledgeBase(agentId, kbId),
     onSuccess: () => {
-      message.success('知识库已绑定并同步到 Coze Bot！')
+      message.success('知识库已绑定并同步到智能体')
       queryClient.invalidateQueries({ queryKey: ['my-agents'] })
     },
   })
@@ -199,6 +199,19 @@ export const CreateAgent: React.FC = () => {
     onSuccess: () => {
       message.success('知识库已解绑')
       queryClient.invalidateQueries({ queryKey: ['my-agents'] })
+    },
+  })
+
+  const deleteKbMutation = useMutation({
+    mutationFn: (kbId: number) => api.deleteKnowledgeBase(kbId),
+    onSuccess: () => {
+      message.success('知识库已删除，绑定该知识库的智能体已自动解绑')
+      queryClient.invalidateQueries({ queryKey: ['my-knowledge-bases'] })
+      queryClient.invalidateQueries({ queryKey: ['my-agents'] })
+      setActiveKbId(null)
+    },
+    onError: () => {
+      message.error('删除失败，请重试')
     },
   })
 
@@ -474,7 +487,7 @@ export const CreateAgent: React.FC = () => {
                       <div className="kb-name">{kb.name}</div>
                       <Space size={4}>
                         <Tag>{kb.documents.length} 文档</Tag>
-                        <Tooltip title="从 Coze 同步文档状态">
+                        <Tooltip title="同步文档状态">
                           <Button
                             type="text"
                             size="small"
@@ -485,14 +498,32 @@ export const CreateAgent: React.FC = () => {
                             }}
                           />
                         </Tooltip>
+                        <Popconfirm
+                          title="删除知识库"
+                          description="删除后绑定该知识库的智能体将自动解绑，且无法恢复。确认删除？"
+                          onConfirm={(e) => {
+                            e?.stopPropagation()
+                            deleteKbMutation.mutate(kb.id)
+                          }}
+                          onCancel={(e) => e?.stopPropagation()}
+                          okText="删除"
+                          okButtonProps={{ danger: true }}
+                          cancelText="取消"
+                        >
+                          <Button
+                            type="text"
+                            size="small"
+                            danger
+                            icon={<DeleteOutlined />}
+                            loading={deleteKbMutation.isPending}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </Popconfirm>
                       </Space>
                     </div>
                     {kb.description && (
                       <Text type="secondary" className="kb-desc">{kb.description}</Text>
                     )}
-                    <div className="kb-coze-id">
-                      Dataset ID: <code>{kb.cozeKbId}</code>
-                    </div>
                   </div>
                 ))}
               </div>
@@ -560,9 +591,21 @@ export const CreateAgent: React.FC = () => {
                           <FileTextOutlined className="doc-icon" />
                           <div className="doc-info">
                             <div className="doc-name">{doc.filename}</div>
-                            <Text type="secondary" className="doc-size">
-                              {(doc.size / 1024).toFixed(1)} KB
-                            </Text>
+                            <Space size={6}>
+                              <Text type="secondary" className="doc-size">
+                                {(doc.size / 1024).toFixed(1)} KB
+                              </Text>
+                              <Tag
+                                color={
+                                  doc.status === 'APPROVED' ? 'green' :
+                                  doc.status === 'REJECTED' ? 'red' : 'gold'
+                                }
+                                style={{ borderRadius: 4, fontSize: 11 }}
+                              >
+                                {doc.status === 'APPROVED' ? '已通过' :
+                                 doc.status === 'REJECTED' ? '已拒绝' : '审核中'}
+                              </Tag>
+                            </Space>
                           </div>
                           <Popconfirm
                             title="删除此文档？"

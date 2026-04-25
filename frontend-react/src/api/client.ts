@@ -2,7 +2,7 @@ import type { AxiosInstance, InternalAxiosRequestConfig, AxiosError } from 'axio
 import axios from 'axios'
 import { message } from 'antd'
 import type { ApiResponse } from '@/types/common'
-import { useAuthStore } from '@/store'
+import { useAuthStore, useAdminAuthStore } from '@/store'
 import * as authApi from './auth'
 
 const instance: AxiosInstance = axios.create({
@@ -32,11 +32,15 @@ const processQueue = (error: any, token: string | null = null) => {
 
 instance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const authStore = useAuthStore.getState()
+    const url = config.url ?? ''
+    // 管理端接口用管理员 token，其余用用户 token
+    const isAdminApi = url.startsWith('/admin/')
+    const token = isAdminApi
+      ? useAdminAuthStore.getState().accessToken
+      : useAuthStore.getState().accessToken
 
-    // 添加 accessToken 到请求头
-    if (authStore.accessToken) {
-      config.headers.Authorization = `Bearer ${authStore.accessToken}`
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
     }
 
     return config
@@ -66,6 +70,14 @@ instance.interceptors.response.use(
   async (error: AxiosError<ApiResponse>) => {
     const authStore = useAuthStore.getState()
     const originalRequest = error.config as any
+    const isAdminRequest = (originalRequest?.url ?? '').startsWith('/admin/')
+
+    // 管理端 401 直接跳管理员登录，不走用户端 refresh 流程
+    if (error.response?.status === 401 && isAdminRequest) {
+      useAdminAuthStore.getState().clearAuth()
+      window.location.href = '/admin/login'
+      return Promise.reject(error)
+    }
 
     // 处理 Token 过期的情况
     if (error.response?.status === 401 && !originalRequest._retry) {

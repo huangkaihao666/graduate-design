@@ -24,6 +24,7 @@ import {
   AgentsAudit,
   TagsAdmin,
   AnnouncementsAdmin,
+  KnowledgeBaseAdmin,
   Counseling,
   CreateAgent,
   Feed,
@@ -85,6 +86,10 @@ export const router = createBrowserRouter([
       {
         path: 'announcements',
         element: <AnnouncementsAdmin />,
+      },
+      {
+        path: 'knowledge-bases',
+        element: <KnowledgeBaseAdmin />,
       },
     ],
   },

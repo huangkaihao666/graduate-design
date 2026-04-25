@@ -32,8 +32,10 @@ export interface KnowledgeDocument {
   id: number
   kbId: number
   filename: string
-  cozeDocId: string
+  mimeType?: string
+  cozeDocId?: string | null
   size: number
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
   createdAt: string
 }
 
@@ -112,6 +114,9 @@ export const createKnowledgeBase = (data: {
   name: string
   description?: string
 }): Promise<KnowledgeBase> => httpClient.post('/custom-agents/knowledge-bases', data)
+
+export const deleteKnowledgeBase = (kbId: number): Promise<{ success: boolean }> =>
+  httpClient.delete(`/custom-agents/knowledge-bases/${kbId}`)
 
 export const uploadDocument = (
   kbId: number,

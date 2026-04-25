@@ -71,3 +71,20 @@ export const createAnnouncement = (data: { title: string; content: string; expir
 
 export const deleteAnnouncement = (id: number) => httpClient.delete(`/admin/announcements/${id}`)
 
+// ─── 知识库审核 ──────────────────────────────────────────────
+
+export const getAdminKnowledgeBases = (params?: { page?: number; pageSize?: number; search?: string }) =>
+  httpClient.get('/admin/knowledge-bases', { params })
+
+export const deleteAdminKnowledgeBase = (id: number) => httpClient.delete(`/admin/knowledge-bases/${id}`)
+
+export const deleteAdminKnowledgeDocument = (id: number) => httpClient.delete(`/admin/knowledge-documents/${id}`)
+
+export const getKnowledgeDocumentContent = (id: number): Promise<{
+  id: number; filename: string; mimeType: string; content: string | null; status: string
+}> => httpClient.get(`/admin/knowledge-documents/${id}/content`)
+
+export const approveKnowledgeDocument = (id: number) => httpClient.put(`/admin/knowledge-documents/${id}/approve`)
+
+export const rejectKnowledgeDocument = (id: number) => httpClient.put(`/admin/knowledge-documents/${id}/reject`)
+

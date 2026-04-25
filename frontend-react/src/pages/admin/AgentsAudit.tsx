@@ -3,7 +3,8 @@ import {
   Avatar, Button, Input, Modal, Space, Table, Tag, message, Typography,
 } from 'antd'
 import {
-  CheckOutlined, CloseOutlined, RobotOutlined, SearchOutlined, UserOutlined, CodeOutlined,
+  CheckOutlined, CloseOutlined, RobotOutlined, SearchOutlined, UserOutlined,
+  CodeOutlined, BookOutlined, FileTextOutlined,
 } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import * as adminApi from '@/api/admin'
@@ -191,6 +192,34 @@ const AgentsAudit: React.FC = () => {
                     <div className="aa-expand-text">{r.description}</div>
                   </div>
                 )}
+                {r.knowledgeBase && (
+                  <div className="aa-expand-block">
+                    <div className="aa-expand-label">
+                      <BookOutlined style={{ marginRight: 6 }} />
+                      绑定知识库：{r.knowledgeBase.name}
+                      {r.knowledgeBase.description && (
+                        <span className="aa-kb-desc">— {r.knowledgeBase.description}</span>
+                      )}
+                    </div>
+                    {r.knowledgeBase.documents?.length > 0 ? (
+                      <div className="aa-kb-docs">
+                        {r.knowledgeBase.documents.map((doc: any) => (
+                          <div key={doc.id} className="aa-kb-doc-item">
+                            <FileTextOutlined className="aa-kb-doc-icon" />
+                            <span className="aa-kb-doc-name">{doc.filename}</span>
+                            <span className="aa-kb-doc-size">
+                              {doc.size > 1024 * 1024
+                                ? `${(doc.size / 1024 / 1024).toFixed(1)} MB`
+                                : `${(doc.size / 1024).toFixed(0)} KB`}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="aa-expand-text" style={{ color: '#94a3b8' }}>知识库暂无文档</div>
+                    )}
+                  </div>
+                )}
                 {r.prompt && (
                   <div className="aa-expand-block">
                     <div className="aa-expand-label">
@@ -206,7 +235,7 @@ const AgentsAudit: React.FC = () => {
                 )}
               </div>
             ),
-            rowExpandable: (r: any) => !!(r.description || r.prompt),
+            rowExpandable: (r: any) => !!(r.description || r.prompt || r.knowledgeBase),
           }}
         />
       </div>

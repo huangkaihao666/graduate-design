@@ -1,9 +1,9 @@
 import React from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Layout, Menu, Button, Space, Modal } from 'antd'
-import { HomeOutlined, LogoutOutlined, UserOutlined, FileTextOutlined, WarningOutlined, BarChartOutlined, ControlOutlined, RobotOutlined, TagsOutlined, NotificationOutlined } from '@ant-design/icons'
+import { HomeOutlined, LogoutOutlined, UserOutlined, FileTextOutlined, WarningOutlined, BarChartOutlined, ControlOutlined, RobotOutlined, TagsOutlined, NotificationOutlined, BookOutlined } from '@ant-design/icons'
 import { useQueryClient } from '@tanstack/react-query'
-import { useAuthStore } from '@/store'
+import { useAdminAuthStore } from '@/store'
 import './AdminLayout.less'
 
 const { Header, Sider, Content } = Layout
@@ -11,7 +11,7 @@ const { Header, Sider, Content } = Layout
 const AdminLayout: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { clearAuth } = useAuthStore()
+  const { clearAuth } = useAdminAuthStore()
   const queryClient = useQueryClient()
 
   const selectedKey = (() => {
@@ -20,6 +20,7 @@ const AdminLayout: React.FC = () => {
     if (location.pathname.startsWith('/admin/users')) return 'users'
     if (location.pathname.startsWith('/admin/messages')) return 'messages'
     if (location.pathname.startsWith('/admin/agents-audit')) return 'agents-audit'
+    if (location.pathname.startsWith('/admin/knowledge-bases')) return 'knowledge-bases'
     if (location.pathname.startsWith('/admin/tags')) return 'tags'
     if (location.pathname.startsWith('/admin/announcements')) return 'announcements'
     return 'home'
@@ -70,9 +71,10 @@ const AdminLayout: React.FC = () => {
               { key: 'users',         label: '用户管理',    icon: <UserOutlined />,          onClick: () => navigate('/admin/users') },
               { key: 'messages',      label: '消息审核',    icon: <WarningOutlined />,       onClick: () => navigate('/admin/messages') },
               { type: 'divider' as const },
-              { key: 'agents-audit',  label: '智能体审核',  icon: <RobotOutlined />,         onClick: () => navigate('/admin/agents-audit') },
-              { key: 'tags',          label: '话题标签',    icon: <TagsOutlined />,          onClick: () => navigate('/admin/tags') },
-              { key: 'announcements', label: '系统公告',    icon: <NotificationOutlined />,  onClick: () => navigate('/admin/announcements') },
+              { key: 'agents-audit',    label: '智能体审核',  icon: <RobotOutlined />,         onClick: () => navigate('/admin/agents-audit') },
+              { key: 'knowledge-bases', label: '知识库审核',  icon: <BookOutlined />,          onClick: () => navigate('/admin/knowledge-bases') },
+              { key: 'tags',            label: '话题标签',    icon: <TagsOutlined />,          onClick: () => navigate('/admin/tags') },
+              { key: 'announcements',   label: '系统公告',    icon: <NotificationOutlined />,  onClick: () => navigate('/admin/announcements') },
             ]}
           />
         </Sider>

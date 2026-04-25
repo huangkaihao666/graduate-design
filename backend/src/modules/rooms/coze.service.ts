@@ -459,6 +459,10 @@ export class CozeService {
     });
   }
 
+  async deleteKnowledgeBase(datasetId: string): Promise<void> {
+    await this.makeV1Client().delete(`/datasets/${datasetId}`);
+  }
+
   /**
    * 构建 Prompt（根据上下文）
    */

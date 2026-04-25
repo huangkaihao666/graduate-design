@@ -220,8 +220,11 @@ model KnowledgeDocument {
   id            Int           @id @default(autoincrement())
   kbId          Int
   filename      String        @db.VarChar(255)
-  cozeDocId     String        @db.VarChar(255)
+  mimeType      String        @default("application/octet-stream") @db.VarChar(100)
+  cozeDocId     String?       @db.VarChar(255)   // 审核通过后才有值
   size          Int
+  status        String        @default("PENDING") @db.VarChar(20) // PENDING / APPROVED / REJECTED
+  content       String?       @db.MediumText     // base64 内容，供管理端预览
   createdAt     DateTime      @default(now())
   knowledgeBase KnowledgeBase @relation(fields: [kbId], references: [id], onDelete: Cascade)
 

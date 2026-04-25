@@ -277,6 +277,45 @@ export class CustomAgentsService {
     });
   }
 
+  async deleteKnowledgeBase(kbId: number, userId: number) {
+    const kb = await this.prisma.knowledgeBase.findUnique({
+      where: { id: kbId },
+      include: { documents: true },
+    });
+    if (!kb) throw new NotFoundException('知识库不存在');
+    if (kb.userId !== userId) throw new ForbiddenException('无权操作此知识库');
+
+    // 1. 解绑所有绑定了该知识库的智能体，并同步更新 Coze Bot
+    const boundAgents = await this.prisma.agent.findMany({
+      where: { knowledgeBaseId: kbId },
+      select: { id: true },
+    });
+    for (const agent of boundAgents) {
+      try {
+        await this.cozeService.updateBot({
+          botId: agent.id,
+          knowledgeDatasetIds: [],
+        });
+        await this.cozeService.publishBot(agent.id);
+      } catch (err: any) {
+        this.logger.warn(
+          `Coze unbind KB on delete failed (non-fatal): ${err?.message}`,
+        );
+      }
+    }
+    await this.prisma.agent.updateMany({
+      where: { knowledgeBaseId: kbId },
+      data: { knowledgeBaseId: null },
+    });
+
+    // 2. 删除 Coze 上的知识库（非阻塞）
+    this.cozeService.deleteKnowledgeBase(kb.cozeKbId).catch(() => {});
+
+    // 3. 删除本地记录（cascade 会自动删除 documents）
+    await this.prisma.knowledgeBase.delete({ where: { id: kbId } });
+    return { success: true };
+  }
+
   async uploadDocument(
     kbId: number,
     userId: number,
@@ -290,25 +329,24 @@ export class CustomAgentsService {
     if (!kb) throw new NotFoundException('知识库不存在');
     if (kb.userId !== userId) throw new ForbiddenException('无权操作此知识库');
 
-    let cozeDocId: string;
-    try {
-      cozeDocId = await this.cozeService.uploadDocument({
-        datasetId: kb.cozeKbId,
-        filename,
-        buffer,
-        mimeType,
-      });
-    } catch (err: any) {
-      throw new BadRequestException(`文档上传失败：${err?.message}`);
-    }
+    // 存 base64 内容供管理端预览，状态 PENDING 等待审核，暂不上传 Coze
+    const contentBase64 = buffer.toString('base64');
 
     const doc = await this.prisma.knowledgeDocument.create({
-      data: { kbId, filename, cozeDocId, size: buffer.length },
+      data: {
+        kbId,
+        filename,
+        mimeType,
+        size: buffer.length,
+        status: 'PENDING',
+        content: contentBase64,
+        cozeDocId: null,
+      },
     });
     this.achievementsService
       ?.checkKnowledgeAchievements(userId)
       .catch(() => {});
-    return doc;
+    return { ...doc, content: undefined }; // 不把 base64 返回给前端
   }
 
   async deleteDocument(kbId: number, docId: number, userId: number) {
@@ -323,12 +361,14 @@ export class CustomAgentsService {
     });
     if (!doc || doc.kbId !== kbId) throw new NotFoundException('文档不存在');
 
-    try {
-      await this.cozeService.deleteDocument(kb.cozeKbId, doc.cozeDocId);
-    } catch (err: any) {
-      this.logger.warn(
-        `Coze deleteDocument failed (non-fatal): ${err?.message}`,
-      );
+    if (doc.cozeDocId) {
+      try {
+        await this.cozeService.deleteDocument(kb.cozeKbId, doc.cozeDocId);
+      } catch (err: any) {
+        this.logger.warn(
+          `Coze deleteDocument failed (non-fatal): ${err?.message}`,
+        );
+      }
     }
 
     await this.prisma.knowledgeDocument.delete({ where: { id: docId } });

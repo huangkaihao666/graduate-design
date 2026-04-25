@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { RoomsGateway } from '@/modules/rooms/rooms.gateway';
+import { CozeService } from '@/modules/rooms/coze.service';
 
 @Injectable()
 export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly roomsGateway: RoomsGateway,
+    private readonly cozeService: CozeService,
   ) {}
 
   async getRooms(params: {
@@ -398,8 +400,34 @@ export class AdminService {
       }),
     ]);
 
+    // 补查绑定的知识库（Agent 无 Prisma relation，手动批量查）
+    const kbIds = agents
+      .map((a) => a.knowledgeBaseId)
+      .filter(Boolean) as number[];
+    const kbMap = new Map<number, any>();
+    if (kbIds.length) {
+      const kbs = await this.prisma.knowledgeBase.findMany({
+        where: { id: { in: kbIds } },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          documents: {
+            select: { id: true, filename: true, size: true, createdAt: true },
+            orderBy: { createdAt: 'desc' },
+          },
+        },
+      });
+      kbs.forEach((kb) => kbMap.set(kb.id, kb));
+    }
+
     return {
-      data: agents,
+      data: agents.map((a) => ({
+        ...a,
+        knowledgeBase: a.knowledgeBaseId
+          ? (kbMap.get(a.knowledgeBaseId) ?? null)
+          : null,
+      })),
       pagination: {
         page,
         pageSize,
@@ -576,5 +604,186 @@ export class AdminService {
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  // ─── 知识库审核 ──────────────────────────────────────────────
+
+  async getKnowledgeBases(params: {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+  }) {
+    const page = Math.max(Number(params.page || 1), 1);
+    const pageSize = Math.min(Math.max(Number(params.pageSize || 10), 1), 50);
+    const skip = (page - 1) * pageSize;
+
+    const where: any = {};
+    if (params.search?.trim()) {
+      where.OR = [
+        { name: { contains: params.search.trim() } },
+        { description: { contains: params.search.trim() } },
+      ];
+    }
+
+    const [total, kbs] = await Promise.all([
+      this.prisma.knowledgeBase.count({ where }),
+      this.prisma.knowledgeBase.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: { select: { id: true, name: true, avatar: true } },
+          documents: {
+            select: {
+              id: true,
+              filename: true,
+              mimeType: true,
+              size: true,
+              status: true,
+              createdAt: true,
+            },
+            orderBy: { createdAt: 'desc' },
+          },
+          _count: { select: { documents: true } },
+        },
+      }),
+    ]);
+
+    // 找出每个知识库绑定的智能体
+    const kbIds = kbs.map((k) => k.id);
+    const boundAgents = await this.prisma.agent.findMany({
+      where: { knowledgeBaseId: { in: kbIds } },
+      select: { id: true, name: true, status: true, knowledgeBaseId: true },
+    });
+    const agentsByKb = new Map<number, typeof boundAgents>();
+    for (const a of boundAgents) {
+      if (a.knowledgeBaseId == null) continue;
+      const list = agentsByKb.get(a.knowledgeBaseId) ?? [];
+      list.push(a);
+      agentsByKb.set(a.knowledgeBaseId, list);
+    }
+
+    return {
+      data: kbs.map((k) => ({
+        ...k,
+        docCount: k._count.documents,
+        boundAgents: agentsByKb.get(k.id) ?? [],
+      })),
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    };
+  }
+
+  async deleteKnowledgeBaseAdmin(kbId: number) {
+    await this.prisma.agent.updateMany({
+      where: { knowledgeBaseId: kbId },
+      data: { knowledgeBaseId: null },
+    });
+    await this.prisma.knowledgeBase.delete({ where: { id: kbId } });
+    return { success: true };
+  }
+
+  async getKnowledgeDocumentContent(docId: number) {
+    const doc = await this.prisma.knowledgeDocument.findUnique({
+      where: { id: docId },
+      select: {
+        id: true,
+        filename: true,
+        mimeType: true,
+        content: true,
+        status: true,
+      },
+    });
+    if (!doc) throw new Error('文档不存在');
+    return doc;
+  }
+
+  async deleteKnowledgeDocumentAdmin(docId: number) {
+    const doc = await this.prisma.knowledgeDocument.findUnique({
+      where: { id: docId },
+    });
+    if (!doc) throw new Error('文档不存在');
+    await this.prisma.knowledgeDocument.delete({ where: { id: docId } });
+    return { success: true };
+  }
+
+  async approveKnowledgeDocument(docId: number) {
+    const doc = await this.prisma.knowledgeDocument.findUnique({
+      where: { id: docId },
+      include: { knowledgeBase: true },
+    });
+    if (!doc) throw new Error('文档不存在');
+    if (doc.status === 'APPROVED')
+      return { success: true, message: '已审核通过' };
+
+    // 上传到 Coze
+    let cozeDocId: string | null = doc.cozeDocId ?? null;
+    if (!cozeDocId && doc.content) {
+      try {
+        const buffer = Buffer.from(doc.content, 'base64');
+        cozeDocId = await this.cozeService.uploadDocument({
+          datasetId: doc.knowledgeBase.cozeKbId,
+          filename: doc.filename,
+          buffer,
+          mimeType: doc.mimeType,
+        });
+      } catch (err: any) {
+        console.warn(
+          '[AdminService] Coze upload on approve failed:',
+          err?.message,
+        );
+      }
+    }
+
+    await this.prisma.knowledgeDocument.update({
+      where: { id: docId },
+      data: { status: 'APPROVED', cozeDocId: cozeDocId ?? undefined },
+    });
+
+    // 通知文档所有者
+    const kb = doc.knowledgeBase;
+    await (this.prisma as any).notification
+      .create({
+        data: {
+          userId: kb.userId,
+          type: 'DOCUMENT_APPROVED',
+          fromUserId: kb.userId,
+          roomId: null,
+        },
+      })
+      .catch(() => {});
+
+    return { success: true };
+  }
+
+  async rejectKnowledgeDocument(docId: number) {
+    const doc = await this.prisma.knowledgeDocument.findUnique({
+      where: { id: docId },
+      include: { knowledgeBase: true },
+    });
+    if (!doc) throw new Error('文档不存在');
+
+    await this.prisma.knowledgeDocument.update({
+      where: { id: docId },
+      data: { status: 'REJECTED', cozeDocId: null },
+    });
+
+    await (this.prisma as any).notification
+      .create({
+        data: {
+          userId: doc.knowledgeBase.userId,
+          type: 'DOCUMENT_REJECTED',
+          fromUserId: doc.knowledgeBase.userId,
+          roomId: null,
+        },
+      })
+      .catch(() => {});
+
+    return { success: true };
   }
 }

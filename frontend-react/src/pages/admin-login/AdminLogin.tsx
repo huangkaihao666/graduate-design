@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { Button, Form, Input, message } from 'antd'
 import { LockOutlined, MailOutlined, ArrowLeftOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
 import * as authApi from '@/api/auth'
-import { useAuthStore } from '@/store'
+import { useAdminAuthStore } from '@/store'
 import './AdminLogin.less'
 
 const AdminLogin: React.FC = () => {
   const navigate = useNavigate()
-  const { login, clearAuth } = useAuthStore()
+  const { login, clearAuth } = useAdminAuthStore()
   const [loading, setLoading] = useState(false)
 
   const onFinish = async (values: { email: string; password: string }) => {
