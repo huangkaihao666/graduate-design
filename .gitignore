@@ -35,3 +35,9 @@ lerna-debug.log*
 # Cache
 .cache/
 .eslintcache
+
+# opinion-service
+opinion-service/chroma_data/
+opinion-service/.venv/
+opinion-service/__pycache__/
+opinion-service/**/__pycache__/

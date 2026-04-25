@@ -3,19 +3,28 @@ import {
   NotFoundException,
   ForbiddenException,
   Optional,
+  Logger,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { PrismaService } from '@/prisma/prisma.service';
 import { CozeService } from '../rooms/coze.service';
 import { AchievementsService } from '@/modules/achievements/achievements.service';
+import { RagService } from '@/modules/rag/rag.service';
+import { Cron } from '@nestjs/schedule';
 
 const COUNSELOR_BOT_ID = '7632299425355792393';
 
 @Injectable()
 export class CounselingService {
+  private readonly logger = new Logger(CounselingService.name);
+  // 预检索缓存：key = sessionId，value = 摘要文本列表
+  // sessionId 是自增主键，不同用户天然隔离，无需额外区分
+  private prefetchCache = new Map<string, string[]>();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly cozeService: CozeService,
+    private readonly ragService: RagService,
     @Optional() private readonly achievementsService?: AchievementsService,
   ) {}
 
@@ -45,6 +54,9 @@ export class CounselingService {
     userId: number,
     data: { roomId?: number; roomTitle?: string; sentimentRecordId?: number },
   ) {
+    // 新建会话时，异步归档上一个仍处于 ACTIVE 状态的会话
+    this.archiveLastActiveSession(userId).catch(() => {});
+
     const session = await (this.prisma as any).counselingSession.create({
       data: {
         userId,
@@ -55,10 +67,84 @@ export class CounselingService {
         title: '新的对话',
       },
     });
+
     this.achievementsService
       ?.checkCounselingAchievements(userId)
       .catch(() => {});
+
+    // 立即异步生成开场白，基于已有的历史记忆（不等当前归档完成）
+    // 归档是异步的，开场白检索的是之前已归档的会话，两者互不阻塞
+    this.generateOpeningMessage(session.id, userId, data).catch(() => {});
+
     return session;
+  }
+
+  /**
+   * 归档该用户上一个 ACTIVE 会话（新建会话时触发）。
+   * 只处理最近一条，避免重复归档。
+   */
+  private async archiveLastActiveSession(userId: number) {
+    const last = await (this.prisma as any).counselingSession.findFirst({
+      where: { userId, status: 'ACTIVE' },
+      orderBy: { updatedAt: 'desc' },
+    });
+    if (!last) return;
+
+    await (this.prisma as any).counselingSession.update({
+      where: { id: last.id },
+      data: { status: 'CLOSED' },
+    });
+    await this.archiveSession(last.id, userId);
+  }
+
+  /**
+   * 冷启动开场白：新建会话后立即生成，前端加载消息列表时直接看到共情师已开口。
+   *
+   * 策略：
+   *   - 有历史记忆（>0 条摘要）→ 检索最近相关记忆，生成关心语句
+   *   - 关联案件上下文      → 结合案件内容开场
+   *   - 第一次使用          → 固定欢迎语
+   */
+  private async generateOpeningMessage(
+    sessionId: number,
+    userId: number,
+    data: { roomId?: number; roomTitle?: string },
+  ) {
+    let opening =
+      '你好！很高兴见到你。今天有什么想聊的吗？无论什么都可以说说。';
+
+    try {
+      if (data.roomId && data.roomTitle) {
+        // 关联案件：结合案件内容开场
+        opening = `我看到你刚经历了一场关于「${data.roomTitle}」的辩论，现在感觉怎么样？有什么想聊的吗？`;
+      } else {
+        // 检索历史记忆，判断是否是老用户
+        const memories = await this.ragService.searchMemories(
+          userId,
+          '最近的状态',
+          1,
+        );
+        if (memories.length > 0) {
+          // 有历史记忆：生成关心语句
+          const lastMemory = memories[0];
+          opening =
+            (await this.cozeService.generateOpening(lastMemory)) ??
+            `上次我们聊了一些事情，最近怎么样了？`;
+        }
+      }
+    } catch {
+      // 生成失败静默降级为默认欢迎语
+    }
+
+    // 写入前检查：若用户已经先发消息了（比开场白生成更快），则不写入开场白
+    const existingCount = await (this.prisma as any).counselingMessage.count({
+      where: { sessionId },
+    });
+    if (existingCount > 0) return;
+
+    await (this.prisma as any).counselingMessage.create({
+      data: { sessionId, role: 'ASSISTANT', content: opening },
+    });
   }
 
   async getMessages(sessionId: number, userId: number) {
@@ -70,6 +156,20 @@ export class CounselingService {
     return messages;
   }
 
+  /**
+   * 预检索接口：用户打字时（防抖 300ms）调用，提前完成 RAG 检索。
+   * 结果缓存在内存 Map，sendMessage 时直接读取，消除 Ollama 嵌入延迟。
+   */
+  async prefetchMemories(sessionId: number, userId: number, inputText: string) {
+    if (!inputText.trim()) return { success: true };
+    const memories = await this.ragService.searchMemories(userId, inputText, 3);
+    this.prefetchCache.set(`${sessionId}`, memories);
+    this.logger.log(
+      `[RAG] prefetch sessionId=${sessionId} query="${inputText.slice(0, 30)}" → ${memories.length} 条记忆: ${JSON.stringify(memories)}`,
+    );
+    return { success: true };
+  }
+
   async sendMessage(
     sessionId: number,
     userId: number,
@@ -78,12 +178,19 @@ export class CounselingService {
   ) {
     const session = await this.ensureOwner(sessionId, userId);
 
+    // 读取预检索缓存（用户打字时已提前完成），用完即清
+    const cachedMemories = this.prefetchCache.get(`${sessionId}`) ?? [];
+    this.prefetchCache.delete(`${sessionId}`);
+    this.logger.log(
+      `[RAG] sendMessage sessionId=${sessionId} 缓存命中 ${cachedMemories.length} 条: ${JSON.stringify(cachedMemories)}`,
+    );
+
     // 保存用户消息
     await (this.prisma as any).counselingMessage.create({
       data: { sessionId, role: 'USER', content },
     });
 
-    // 如果是第一条消息，用前20字更新会话标题
+    // 第一条消息时用前 20 字更新会话标题
     const msgCount = await (this.prisma as any).counselingMessage.count({
       where: { sessionId },
     });
@@ -94,13 +201,12 @@ export class CounselingService {
       });
     }
 
-    // 更新 updatedAt
     await (this.prisma as any).counselingSession.update({
       where: { id: sessionId },
       data: { updatedAt: new Date() },
     });
 
-    // 获取历史消息（最近20条，控制 token 用量）
+    // 获取历史消息（最近 20 条，控制 token 用量）
     const allMessages = await (this.prisma as any).counselingMessage.findMany({
       where: { sessionId },
       orderBy: { createdAt: 'asc' },
@@ -112,10 +218,9 @@ export class CounselingService {
       content: m.content,
     }));
 
-    // 构建系统补充 prompt（携带案件上下文）
-    const systemExtra = await this.buildSystemExtra(session);
+    // 构建 system prompt（案件上下文 + RAG 历史记忆）
+    const systemExtra = await this.buildSystemExtra(session, cachedMemories);
 
-    // SSE 流式返回
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
@@ -136,7 +241,6 @@ export class CounselingService {
               `data: ${JSON.stringify({ type: 'chunk', content: chunk.text })}\n\n`,
             );
           } else {
-            // 思考阶段只发信号，不发内容
             res.write(`data: ${JSON.stringify({ type: 'thinking' })}\n\n`);
           }
         },
@@ -149,7 +253,6 @@ export class CounselingService {
       return;
     }
 
-    // 保存 AI 回复
     await (this.prisma as any).counselingMessage.create({
       data: { sessionId, role: 'ASSISTANT', content: fullContent },
     });
@@ -164,6 +267,12 @@ export class CounselingService {
       where: { id: sessionId },
       data: { status: 'CLOSED' },
     });
+
+    // 异步归档：生成摘要 + 向量化存 ChromaDB，不阻塞响应
+    this.archiveSession(sessionId, userId).catch((err) =>
+      console.error('[counseling] 会话归档失败', err),
+    );
+
     return { success: true };
   }
 
@@ -173,6 +282,50 @@ export class CounselingService {
       where: { id: sessionId },
     });
     return { success: true };
+  }
+
+  /** 每 5 分钟扫描一次，自动归档超过 5 分钟无消息的 ACTIVE 会话。 */
+  @Cron('*/5 * * * *')
+  async autoArchiveIdleSessions() {
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const idleSessions = await (this.prisma as any).counselingSession.findMany({
+      where: { status: 'ACTIVE', updatedAt: { lt: fiveMinutesAgo } },
+      select: { id: true, userId: true },
+    });
+    for (const s of idleSessions) {
+      await (this.prisma as any).counselingSession.update({
+        where: { id: s.id },
+        data: { status: 'CLOSED' },
+      });
+      this.archiveSession(s.id, s.userId).catch(() => {});
+    }
+  }
+
+  /**
+   * 会话归档：关闭后异步执行，生成摘要并向量化存入 ChromaDB。
+   * 摘要格式：由 Coze 将对话浓缩为一句话，如"用户因考研焦虑，倾向被倾听"。
+   */
+  private async archiveSession(sessionId: number, userId: number) {
+    const messages = await (this.prisma as any).counselingMessage.findMany({
+      where: { sessionId },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (messages.length < 2) return; // 对话太短，不值得归档
+
+    // 调 Coze 生成摘要
+    const summary = await this.cozeService.summarizeSession(messages);
+    if (!summary) return;
+
+    // 写回数据库
+    await (this.prisma as any).counselingSession.update({
+      where: { id: sessionId },
+      data: { summary },
+    });
+
+    // 向量化摘要，存入用户专属 ChromaDB 集合
+    const date = new Date().toISOString().slice(0, 10);
+    await this.ragService.addMemory({ userId, sessionId, summary, date });
   }
 
   private async ensureOwner(sessionId: number, userId: number) {
@@ -185,19 +338,47 @@ export class CounselingService {
     return session;
   }
 
-  private async buildSystemExtra(session: any): Promise<string> {
-    if (!session.roomId) return '';
+  private async buildSystemExtra(
+    session: any,
+    cachedMemories: string[],
+  ): Promise<string> {
+    const parts: string[] = [];
 
-    try {
-      const room = await this.prisma.room.findUnique({
-        where: { id: session.roomId },
-        select: { title: true, content: true },
-      });
-      if (!room) return '';
-
-      return `【用户关联的困境案件】\n案件标题：${room.title}\n案件描述：${room.content}\n请结合以上背景给予针对性疏导，无需用户重复描述背景。`;
-    } catch {
-      return '';
+    // 注入 RAG 检索到的历史记忆（已在用户打字时预检索完成）
+    if (cachedMemories.length > 0) {
+      this.logger.log(
+        `[RAG] 注入 prompt，记忆内容:\n${cachedMemories.map((m, i) => `  ${i + 1}. ${m}`).join('\n')}`,
+      );
+      parts.push(
+        '【背景参考：以下是该用户在过去几次对话中留下的核心情绪记录，由系统自动检索与本次话题相关的内容提供给你】\n' +
+          cachedMemories.map((m, i) => `${i + 1}. ${m}`).join('\n') +
+          '\n\n【使用指引】\n' +
+          '- 这些是用户真实经历过的事，不是假设；回复时可以自然地提及，例如"你之前提到……""上次你说……"\n' +
+          '- 如果当前话题与某条记录有关联，主动把两者联系起来，帮助用户看到情绪的连贯性\n' +
+          '- 不要一次性列举所有记忆，选最相关的 1-2 条自然融入即可\n' +
+          '- 语气要温暖自然，像一个真正记得用户的朋友，而不是在读档案',
+      );
+    } else {
+      this.logger.log(`[RAG] 无记忆注入 sessionId=${session.id}（缓存为空）`);
     }
+
+    // 注入关联案件上下文
+    if (session.roomId) {
+      try {
+        const room = await this.prisma.room.findUnique({
+          where: { id: session.roomId },
+          select: { title: true, content: true },
+        });
+        if (room) {
+          parts.push(
+            `【用户关联的困境案件】\n案件标题：${room.title}\n案件描述：${room.content}\n请结合以上背景给予针对性疏导，无需用户重复描述背景。`,
+          );
+        }
+      } catch {
+        // 查询失败静默忽略
+      }
+    }
+
+    return parts.join('\n\n');
   }
 }

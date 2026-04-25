@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { Button, Input, Avatar, Skeleton, Tooltip, message as antMessage } from 'antd'
 import {
@@ -67,6 +67,7 @@ export const Counseling: React.FC = () => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<any>(null)
+  const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // 从结案报告跳转携带的 roomId
   const roomIdFromReport = searchParams.get('roomId')
@@ -104,6 +105,37 @@ export const Counseling: React.FC = () => {
     }
   }
 
+  // 新建会话后轮询等待开场白，每 1 秒检查一次，最多等 10 秒
+  // 用 ref 追踪"用户是否已主动发消息"，发过消息后立即停止轮询，避免覆盖流式状态
+  const userHasSentRef = useRef(false)
+  const pollForOpening = useCallback((sessionId: number) => {
+    userHasSentRef.current = false
+    let attempts = 0
+    const maxAttempts = 6
+    const timer = setInterval(async () => {
+      // 用户已发消息，停止轮询，不再覆盖 messages
+      if (userHasSentRef.current) {
+        clearInterval(timer)
+        return
+      }
+      attempts++
+      try {
+        const data = await counselingApi.getMessages(sessionId)
+        // 只有纯 ASSISTANT 消息（开场白）才更新，有 USER 消息说明用户已开始聊，停止
+        if (data.length > 0 && data.every(m => m.role === 'ASSISTANT')) {
+          setMessages(data)
+          clearInterval(timer)
+          return
+        }
+        if (data.some(m => m.role === 'USER')) {
+          clearInterval(timer)
+          return
+        }
+      } catch { /* ignore */ }
+      if (attempts >= maxAttempts) clearInterval(timer)
+    }, 1000)
+  }, [])
+
   const handleSelectSession = (session: Session) => {
     setActiveSession(session)
     loadMessages(session.id)
@@ -119,6 +151,8 @@ export const Counseling: React.FC = () => {
       setSessions((prev) => [newSession, ...prev])
       setActiveSession(newSession)
       setMessages([])
+      // 轮询等待后端生成开场白（约 8 秒），有消息后自动更新
+      pollForOpening(newSession.id)
       if (quickTopic) {
         setInputValue(quickTopic + '，')
         setTimeout(() => inputRef.current?.focus(), 100)
@@ -145,8 +179,31 @@ export const Counseling: React.FC = () => {
     }
   }
 
+  // 用户打字时防抖 300ms 触发预检索，让 RAG 检索在用户思考时并行完成
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value
+    setInputValue(val)
+
+    if (!activeSession || !val.trim() || sending) return
+
+    if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current)
+    prefetchTimerRef.current = setTimeout(() => {
+      counselingApi.prefetchMemories(activeSession.id, val.trim()).catch(() => {})
+    }, 300)
+  }, [activeSession, sending])
+
   const handleSend = async () => {
     if (!inputValue.trim() || sending || !activeSession) return
+
+    // 标记用户已发消息，停止开场白轮询
+    userHasSentRef.current = true
+
+    // 清掉还未触发的预检索 timer（点发送时不需要再预检索）
+    if (prefetchTimerRef.current) {
+      clearTimeout(prefetchTimerRef.current)
+      prefetchTimerRef.current = null
+    }
+
     const content = inputValue.trim()
     setInputValue('')
     setSending(true)
@@ -184,10 +241,9 @@ export const Counseling: React.FC = () => {
     )
 
     try {
-      // SSE 必须直连后端，不能走 Vite proxy（proxy 会缓冲响应破坏流式）
       const token = useAuthStore.getState().accessToken
       const response = await fetch(
-        `http://localhost:3000/api/v1/counseling/sessions/${activeSession.id}/messages`,
+        `/api/v1/counseling/sessions/${activeSession.id}/messages`,
         {
           method: 'POST',
           headers: {
@@ -250,6 +306,14 @@ export const Counseling: React.FC = () => {
       setMessages((prev) => prev.filter((m) => m.id !== placeholderId))
       antMessage.error(err?.message || '发送失败，请重试')
     } finally {
+      // 保底：流结束后如果占位符还在 isTyping/isThinking 状态，停止动画
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === placeholderId
+            ? { ...m, isTyping: false, isThinking: false }
+            : m
+        )
+      )
       setSending(false)
     }
   }
@@ -507,7 +571,7 @@ export const Counseling: React.FC = () => {
           <TextArea
             ref={inputRef}
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
+            onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             placeholder="说说你的感受... （Enter 发送，Shift+Enter 换行）"
             autoSize={{ minRows: 1, maxRows: 5 }}

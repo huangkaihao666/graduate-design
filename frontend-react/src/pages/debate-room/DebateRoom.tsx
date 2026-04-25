@@ -514,7 +514,7 @@ export const DebateRoom: React.FC = () => {
 
   const handleStartDebate = async () => {
     try {
-      await fetch(`http://localhost:3000/api/v1/rooms/${id}/start`, {
+      await fetch(`/api/v1/rooms/${id}/start`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`,

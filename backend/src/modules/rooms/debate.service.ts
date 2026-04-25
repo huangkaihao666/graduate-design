@@ -2,6 +2,7 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { Injectable, Logger } from '@nestjs/common';
 import { CozeService } from './coze.service';
 import { RoomsGateway } from './rooms.gateway';
+import { RagService } from '@/modules/rag/rag.service';
 
 interface DebateContext {
   roomId: number;
@@ -31,6 +32,7 @@ export class DebateService {
     private readonly prisma: PrismaService,
     private readonly cozeService: CozeService,
     private readonly roomsGateway: RoomsGateway,
+    private readonly ragService: RagService,
   ) {}
 
   /**
@@ -111,16 +113,77 @@ export class DebateService {
 
     if (context) context.collectingOpinions = false;
 
-    // 统计有效观点数量
+    // 取所有弹幕，对尚未被 RAG 处理的（默认值 isRelevant=true + stance=NEUTRAL）做兜底过滤
+    const allOpinions = await (this.prisma as any).userOpinion.findMany({
+      where: { roomId },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // 找出还没被 RAG 处理的（仍是默认值：isRelevant=true 且 stance=NEUTRAL）
+    const unprocessed = allOpinions.filter(
+      (o: any) => o.isRelevant === true && o.stance === 'NEUTRAL',
+    );
+
+    if (unprocessed.length > 0) {
+      // 兜底：批量调 RAG 重新过滤，超时则保留默认值
+      const ragResult = await this.ragService.batchFilter(
+        unprocessed.map((o: any) => ({
+          id: o.id,
+          content: o.content,
+          userId: o.userId,
+        })),
+        room.title,
+      );
+
+      // 将 RAG 结果回写数据库
+      const updates: Promise<any>[] = [];
+      for (const group of [
+        { items: ragResult.forA, stance: 'SUPPORT_A', isRelevant: true },
+        { items: ragResult.forB, stance: 'SUPPORT_B', isRelevant: true },
+        { items: ragResult.neutral, stance: 'NEUTRAL', isRelevant: true },
+      ]) {
+        for (const item of group.items) {
+          updates.push(
+            (this.prisma as any).userOpinion
+              .update({
+                where: { id: item.id },
+                data: { stance: group.stance, isRelevant: group.isRelevant },
+              })
+              .catch(() => {}),
+          );
+        }
+      }
+      // 被过滤的灌水标记为 isRelevant=false
+      const validIds = new Set([
+        ...ragResult.forA.map((o: any) => o.id),
+        ...ragResult.forB.map((o: any) => o.id),
+        ...ragResult.neutral.map((o: any) => o.id),
+      ]);
+      for (const op of unprocessed) {
+        if (!validIds.has(op.id)) {
+          updates.push(
+            (this.prisma as any).userOpinion
+              .update({
+                where: { id: op.id },
+                data: { isRelevant: false },
+              })
+              .catch(() => {}),
+          );
+        }
+      }
+      await Promise.all(updates);
+    }
+
+    // 读取最终有效观点（RAG 已处理完毕）
     const opinions = await (this.prisma as any).userOpinion.findMany({
       where: { roomId, isRelevant: true },
-      orderBy: { likeCount: 'desc' },
+      orderBy: { createdAt: 'asc' },
       take: 20,
     });
 
     const opinionsByStance = {
-      forA: opinions.filter((o: any) => o.stance === 'SUPPORT_A').slice(0, 3),
-      forB: opinions.filter((o: any) => o.stance === 'SUPPORT_B').slice(0, 3),
+      forA: opinions.filter((o: any) => o.stance === 'SUPPORT_A').slice(0, 5),
+      forB: opinions.filter((o: any) => o.stance === 'SUPPORT_B').slice(0, 5),
       neutral: opinions.filter((o: any) => o.stance === 'NEUTRAL').slice(0, 3),
     };
 

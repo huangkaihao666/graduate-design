@@ -55,6 +55,20 @@ export class CounselingController {
     await this.counselingService.sendMessage(id, req.user.id, content, res);
   }
 
+  @Post('sessions/:id/prefetch')
+  @ApiOkResponse({ description: '预检索历史记忆（用户打字时调用）' })
+  prefetchMemories(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('content') content: string,
+    @Request() req: any,
+  ) {
+    return this.counselingService.prefetchMemories(
+      id,
+      req.user.id,
+      content ?? '',
+    );
+  }
+
   @Post('sessions/:id/close')
   @ApiOkResponse({ description: '关闭会话' })
   closeSession(@Param('id', ParseIntPipe) id: number, @Request() req: any) {

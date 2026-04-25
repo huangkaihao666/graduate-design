@@ -14,6 +14,7 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '@/prisma/prisma.service';
 import { DebateService } from './debate.service';
 import { AchievementsService } from '@/modules/achievements/achievements.service';
+import { RagService } from '@/modules/rag/rag.service';
 
 @WebSocketGateway({
   cors: {
@@ -57,6 +58,7 @@ export class RoomsGateway
     private readonly prisma: PrismaService,
     @Inject(forwardRef(() => DebateService))
     private readonly debateService: DebateService,
+    private readonly ragService: RagService,
     @Optional() private readonly achievementsService?: AchievementsService,
   ) {
     this.logger.log('🚀 RoomsGateway constructor called');
@@ -347,20 +349,33 @@ export class RoomsGateway
     const next = [...prev, messagePayload].slice(-100);
     this.roomMessages.set(roomKey, next);
 
-    // 若处于观点征集窗口，异步写入 UserOpinion 表
+    // 若处于观点征集窗口，写入 UserOpinion 并异步调 RAG 更新 stance/isRelevant
     if (this.debateService.isCollectingOpinions(data.roomId)) {
+      const content = data.content.slice(0, 200);
+      // 先以默认值写入，不阻塞弹幕显示
       (this.prisma as any).userOpinion
         .create({
           data: {
             roomId: data.roomId,
             userId,
-            content: data.content.slice(0, 200),
+            content,
             stance: 'NEUTRAL',
             isRelevant: true,
           },
         })
+        .then(async (opinion: any) => {
+          // 异步调 RAG 判断相关性和立场，结果回写
+          const result = await this.ragService.processOpinion(
+            content,
+            data.roomId.toString(),
+          );
+          await (this.prisma as any).userOpinion.update({
+            where: { id: opinion.id },
+            data: { isRelevant: result.isRelevant, stance: result.stance },
+          });
+        })
         .catch((e: any) =>
-          this.logger.warn(`UserOpinion write failed: ${e?.message}`),
+          this.logger.warn(`UserOpinion RAG process failed: ${e?.message}`),
         );
     }
 

@@ -39,3 +39,6 @@ export const closeSession = (sessionId: number): Promise<{ success: boolean }> =
 
 export const deleteSession = (sessionId: number): Promise<{ success: boolean }> =>
   httpClient.delete(`/counseling/sessions/${sessionId}`) as any
+
+export const prefetchMemories = (sessionId: number, content: string): Promise<{ success: boolean }> =>
+  httpClient.post(`/counseling/sessions/${sessionId}/prefetch`, { content }) as any

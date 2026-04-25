@@ -163,12 +163,14 @@ export class CozeService {
       `💚 Counselor chat: bot=${botId}, history=${history.length} msgs`,
     );
 
-    // 把系统级补充 prompt 拼到第一条 user 消息前（Coze 不支持 system role，用 user 消息模拟）
-    const messages = history.map((m) => ({
+    // 把系统级补充 prompt 拼到最后一条 user 消息前（Coze 不支持 system role，用 user 消息模拟）
+    // 注入到最后一条而非第一条，确保 RAG 记忆紧贴当前消息，模型生成回复时能直接参考
+    const lastUserIdx = history.map((m) => m.role).lastIndexOf('user');
+    const messages = history.map((m, i) => ({
       role: m.role,
       content:
-        m.role === 'user' && history.indexOf(m) === 0 && systemPromptExtra
-          ? `${systemPromptExtra}\n\n${m.content}`
+        i === lastUserIdx && systemPromptExtra
+          ? `${systemPromptExtra}\n\n用户当前消息：${m.content}`
           : m.content,
       content_type: 'text',
     }));
@@ -498,5 +500,107 @@ export class CozeService {
     }
 
     return prompt;
+  }
+
+  /**
+   * 根据上次会话的历史摘要，生成一句温暖的开场关心语句。
+   * 例如输入"用户因考研焦虑，倾向被倾听" → 输出"上次你提到考研压力很大，最近情况怎么样了？"
+   * 失败时返回 null，调用方降级为默认文案。
+   */
+  async generateOpening(lastMemory: string): Promise<string | null> {
+    const prompt = `你是一位温暖的心理辅导师，用户刚开启了新的对话。根据你对这位用户的了解，生成一句温暖自然的开场关心语（不超过30字），让用户感到被记得、被关心。\n\n关于这位用户你了解到：${lastMemory}\n\n只返回这一句开场语，不要解释，不要加引号。`;
+    try {
+      const result = await this.callChatOnce(prompt);
+      return result?.trim() || null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * 将一段辅导对话浓缩为一句话情绪摘要，用于第四层 RAG 存储。
+   * 格式示例："用户因考研焦虑，倾向被倾听而非获得建议"
+   * 失败时返回 null，调用方静默忽略。
+   */
+  async summarizeSession(
+    messages: Array<{ role: string; content: string }>,
+  ): Promise<string | null> {
+    if (messages.length < 2) return null;
+
+    const transcript = messages
+      .map((m) => `${m.role === 'USER' ? '用户' : '辅导师'}：${m.content}`)
+      .join('\n');
+
+    const prompt = `请将以下心理辅导对话浓缩为一句话（20字以内），格式：[情绪类型] + 核心事件/诉求，例如："用户因考研焦虑，倾向被倾听"。\n\n${transcript}\n\n只返回这一句话，不要解释。`;
+
+    try {
+      const result = await this.callChatOnce(prompt);
+      return result?.trim() || null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * 单次对话，收集完整回答后返回。
+   * 复用流式接口实现，避免非流式接口需要轮询的复杂性。
+   */
+  private async callChatOnce(userMessage: string): Promise<string> {
+    const botId = process.env.COZE_SUMMARY_BOT_ID || '7632299425355792393';
+
+    const response = await this.client.post(
+      '/chat',
+      {
+        bot_id: botId,
+        user_id: 'system',
+        stream: true,
+        auto_save_history: false,
+        additional_messages: [
+          { role: 'user', content: userMessage, content_type: 'text' },
+        ],
+      },
+      { responseType: 'stream' },
+    );
+
+    return new Promise<string>((resolve, reject) => {
+      const stream = response.data as NodeJS.ReadableStream;
+      let buffer = '';
+      let fullAnswer = '';
+      const hasAnswerDeltaByMsgId = new Map<string, boolean>();
+
+      stream.on('data', (chunk: Buffer) => {
+        buffer += chunk.toString('utf8');
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith('data:')) continue;
+          const jsonStr = trimmed.slice(5).trim();
+          try {
+            const payload = JSON.parse(jsonStr);
+            if (String(payload?.type || '') !== 'answer') continue;
+            if (typeof payload?.content === 'string' && payload.content) {
+              const msgId = String(payload?.id || '');
+              const isCompleted = !!payload?.created_at || !!payload?.time_cost;
+              const hasDelta = msgId
+                ? (hasAnswerDeltaByMsgId.get(msgId) ?? false)
+                : false;
+              if (!isCompleted) {
+                fullAnswer += payload.content;
+                if (msgId) hasAnswerDeltaByMsgId.set(msgId, true);
+              } else if (!hasDelta) {
+                fullAnswer += payload.content;
+              }
+            }
+          } catch {
+            /* ignore */
+          }
+        }
+      });
+
+      stream.on('end', () => resolve(fullAnswer.trim()));
+      stream.on('error', reject);
+    });
   }
 }
