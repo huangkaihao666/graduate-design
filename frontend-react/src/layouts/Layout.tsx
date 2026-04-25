@@ -13,6 +13,7 @@ import {
   MoonOutlined,
   HeartOutlined,
   ToolOutlined,
+  TeamOutlined,
 } from '@ant-design/icons'
 import NotificationDropdown from '@/components/NotificationDropdown/NotificationDropdown'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
@@ -65,6 +66,13 @@ const NAV_ITEMS = [
     icon: <ToolOutlined />,
     path: '/create-agent',
     desc: '自定义 AI 专家',
+  },
+  {
+    key: 'feed',
+    label: '关注动态',
+    icon: <TeamOutlined />,
+    path: '/feed',
+    desc: '关注用户的最新辩论',
   },
   {
     key: 'profile',
@@ -135,6 +143,7 @@ const Layout = () => {
     if (location.pathname.includes('/create')) return 'create'
     if (location.pathname.includes('/counseling')) return 'counseling'
     if (location.pathname.includes('/agents')) return 'agents'
+    if (location.pathname.includes('/feed')) return 'feed'
     if (location.pathname.includes('/me') || location.pathname.includes('/profile')) return 'profile'
     return 'cases'
   }

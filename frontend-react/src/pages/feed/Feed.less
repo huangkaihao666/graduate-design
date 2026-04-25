@@ -1,0 +1,245 @@
+// ============ 关注动态页面 ============
+
+.feed-page {
+  min-height: calc(100vh - 64px);
+  background: var(--bg-page);
+  padding: 24px 24px 60px;
+
+  @media (max-width: 768px) {
+    padding: 12px 12px 40px;
+  }
+}
+
+.feed-container {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+// ── 顶部标题栏 ────────────────────────────────────────────────
+
+.feed-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.feed-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.feed-title-icon {
+  color: var(--color-primary);
+  font-size: 22px;
+}
+
+.feed-counts {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.feed-count-item strong {
+  color: var(--text-primary);
+  font-weight: 700;
+  margin-right: 2px;
+}
+
+.feed-count-sep {
+  color: var(--border-color);
+}
+
+// ── 主布局 ────────────────────────────────────────────────────
+
+.feed-layout {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 20px;
+  align-items: start;
+
+  @media (max-width: 960px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// ── 左侧动态流 ────────────────────────────────────────────────
+
+.feed-main {
+  min-width: 0;
+}
+
+.feed-tabs {
+  :global(.ant-tabs-nav) {
+    margin-bottom: 16px;
+  }
+}
+
+.feed-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.feed-skeleton {
+  padding: 16px;
+  background: var(--bg-card);
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+
+.feed-empty {
+  padding: 60px 0;
+}
+
+.feed-empty-text {
+  color: var(--text-secondary);
+  text-align: center;
+
+  .feed-empty-sub {
+    font-size: 13px;
+    color: var(--text-tertiary);
+    margin-top: 4px;
+  }
+}
+
+.feed-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+// 每张卡片的"XXX 发起了辩论"头部
+.feed-card-wrap {
+  margin-bottom: 16px;
+}
+
+.feed-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 4px 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.feed-card-avatar {
+  flex-shrink: 0;
+}
+
+.feed-card-username {
+  font-weight: 600;
+  color: var(--color-primary);
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.feed-card-action {
+  color: var(--text-tertiary);
+}
+
+.feed-pagination {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+// ── 右侧关注列表 ──────────────────────────────────────────────
+
+.feed-sidebar {
+  position: sticky;
+  top: 80px;
+}
+
+.feed-sidebar-card {
+  background: var(--bg-card);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  padding: 16px;
+}
+
+.feed-sidebar-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 14px;
+}
+
+.feed-sidebar-count {
+  margin-left: auto;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.feed-sidebar-empty {
+  color: var(--text-tertiary);
+  font-size: 13px;
+  text-align: center;
+  padding: 16px 0;
+}
+
+.feed-following-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.feed-following-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  :global(.ant-avatar) {
+    flex-shrink: 0;
+  }
+}
+
+.feed-following-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.feed-following-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.feed-following-bio {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.feed-unfollow-btn {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-secondary) !important;
+  border-color: var(--border-color) !important;
+
+  &:hover {
+    color: var(--color-danger) !important;
+    border-color: var(--color-danger) !important;
+  }
+}

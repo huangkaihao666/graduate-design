@@ -11,10 +11,14 @@ import {
   CalendarOutlined,
   FireOutlined,
   TrophyOutlined,
+  UserAddOutlined,
+  UserDeleteOutlined,
 } from '@ant-design/icons'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useAuthStore } from '@/store'
 import * as roomApi from '@/api/rooms'
+import * as usersApi from '@/api/users'
 import './CaseDetail.less'
 
 // ─── @提及高亮渲染 ───────────────────────────────────────────────────────────
@@ -331,6 +335,7 @@ const CaseDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { user: currentUser } = useAuthStore()
   const [comment, setComment] = React.useState('')
   const [commentPage, setCommentPage] = React.useState(1)
 
@@ -345,6 +350,27 @@ const CaseDetail: React.FC = () => {
     queryKey: ['comments', id, commentPage],
     queryFn: () => roomApi.getComments(parseInt(id || '0'), commentPage),
     enabled: !!id,
+  })
+
+  const ownerId = (room as any)?.owner?.id ?? (room as any)?.data?.owner?.id
+  const isOwnCase = currentUser?.id === ownerId
+
+  const { data: followStatus } = useQuery({
+    queryKey: ['is-following', ownerId],
+    queryFn: () => usersApi.isFollowing(ownerId!),
+    enabled: !!ownerId && !!currentUser && !isOwnCase,
+  })
+
+  const followMutation = useMutation({
+    mutationFn: () =>
+      (followStatus as any)?.following
+        ? usersApi.unfollowUser(ownerId!)
+        : usersApi.followUser(ownerId!),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['is-following', ownerId] })
+      void queryClient.invalidateQueries({ queryKey: ['follow-counts', currentUser?.id] })
+      void queryClient.invalidateQueries({ queryKey: ['feed'] })
+    },
   })
 
   const refreshComments = () => {
@@ -478,6 +504,18 @@ const CaseDetail: React.FC = () => {
                   className="cd-owner-avatar"
                 />
                 <span className="cd-owner-name">{caseData.owner.name}</span>
+                {currentUser && !isOwnCase && (
+                  <Button
+                    size="small"
+                    type={(followStatus as any)?.following ? 'default' : 'primary'}
+                    icon={(followStatus as any)?.following ? <UserDeleteOutlined /> : <UserAddOutlined />}
+                    loading={followMutation.isPending}
+                    onClick={() => followMutation.mutate()}
+                    className="cd-follow-btn"
+                  >
+                    {(followStatus as any)?.following ? '取消关注' : '关注'}
+                  </Button>
+                )}
               </div>
             )}
             <div className="cd-stats">

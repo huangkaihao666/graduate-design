@@ -10,6 +10,8 @@ import {
   Query,
   UseGuards,
   Request,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -247,5 +249,60 @@ export class UsersController {
   @UseGuards(JwtGuard)
   async getStats(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
     return this.usersService.getUserStats(id, req.user.id);
+  }
+
+  // ─── 关注 / 粉丝 ─────────────────────────────────────────────
+
+  @Post(':id/follow')
+  @UseGuards(JwtGuard)
+  @HttpCode(HttpStatus.OK)
+  followUser(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
+    return this.usersService.followUser(req.user.id, id);
+  }
+
+  @Delete(':id/follow')
+  @UseGuards(JwtGuard)
+  @HttpCode(HttpStatus.OK)
+  unfollowUser(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
+    return this.usersService.unfollowUser(req.user.id, id);
+  }
+
+  @Get(':id/followers')
+  @UseGuards(JwtGuard)
+  getFollowers(@Param('id', ParseIntPipe) id: number) {
+    return this.usersService.getFollowers(id);
+  }
+
+  @Get(':id/following')
+  @UseGuards(JwtGuard)
+  getFollowing(@Param('id', ParseIntPipe) id: number) {
+    return this.usersService.getFollowing(id);
+  }
+
+  @Get(':id/follow-counts')
+  @UseGuards(JwtGuard)
+  getFollowCounts(@Param('id', ParseIntPipe) id: number) {
+    return this.usersService.getFollowCounts(id);
+  }
+
+  @Get(':id/is-following')
+  @UseGuards(JwtGuard)
+  isFollowing(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
+    return this.usersService.isFollowing(req.user.id, id);
+  }
+
+  // ─── 关注动态流 ──────────────────────────────────────────────
+
+  @Get('feed/timeline')
+  @UseGuards(JwtGuard)
+  getFeed(
+    @Request() req: any,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.usersService.getFeed(req.user.id, {
+      page: page ? Number(page) : 1,
+      pageSize: pageSize ? Number(pageSize) : 20,
+    });
   }
 }

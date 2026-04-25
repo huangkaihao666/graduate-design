@@ -50,6 +50,9 @@ export class RoomsService {
         },
       });
 
+      // 异步通知关注者，不阻塞主流程
+      this.notifyFollowers(userId, room.id).catch(() => {});
+
       return {
         ...room,
         agents: JSON.parse(room.agents),
@@ -955,5 +958,22 @@ export class RoomsService {
         winner,
       },
     };
+  }
+
+  private async notifyFollowers(ownerId: number, roomId: number) {
+    const followers = await this.prisma.userRelation.findMany({
+      where: { targetId: ownerId, type: 'FOLLOW_USER' },
+      select: { userId: true },
+    });
+    if (!followers.length) return;
+    await this.prisma.notification.createMany({
+      data: followers.map((f) => ({
+        userId: f.userId,
+        type: 'FOLLOW_NEW_ROOM',
+        fromUserId: ownerId,
+        roomId,
+      })),
+      skipDuplicates: true,
+    });
   }
 }

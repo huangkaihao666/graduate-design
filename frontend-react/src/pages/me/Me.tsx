@@ -6,14 +6,14 @@ import {
 } from 'antd'
 import type { UploadFile } from 'antd'
 import {
-  ArrowLeftOutlined, SaveOutlined, LockOutlined,
+  ArrowLeftOutlined, LockOutlined,
   DeleteOutlined, UploadOutlined, FileTextOutlined,
   LikeOutlined, EyeOutlined, CommentOutlined,
-  TrophyOutlined, EditOutlined,
+  TrophyOutlined, EditOutlined, TeamOutlined,
 } from '@ant-design/icons'
 import ReactECharts from 'echarts-for-react'
 import { useAuthStore } from '@/store'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import * as usersApi from '@/api/users'
 import * as roomApi from '@/api/rooms'
 import './Me.less'
@@ -51,6 +51,14 @@ const Me: React.FC = () => {
     queryFn: () => usersApi.getMyStats(Number(userId)),
     enabled: !!userId,
   })
+
+  const { data: followCounts } = useQuery({
+    queryKey: ['follow-counts', userId],
+    queryFn: () => usersApi.getFollowCounts(Number(userId)),
+    enabled: !!userId,
+  })
+
+  const followCountsData = followCounts as any
 
   const myRooms = (myRoomsResp as any)?.data || []
   const myVotes = (myVotesResp as any)?.data || []
@@ -165,6 +173,16 @@ const Me: React.FC = () => {
               <div className="me-user-name">{user?.name || '未设置昵称'}</div>
               <div className="me-user-email">{user?.email}</div>
               {user?.bio && <div className="me-user-bio">{user.bio}</div>}
+
+              <div className="me-follow-counts" onClick={() => navigate('/feed')}>
+                <span className="me-follow-item">
+                  <strong>{followCountsData?.following ?? 0}</strong> 关注
+                </span>
+                <span className="me-follow-sep">·</span>
+                <span className="me-follow-item">
+                  <strong>{followCountsData?.followers ?? 0}</strong> 粉丝
+                </span>
+              </div>
 
               <Button
                 block

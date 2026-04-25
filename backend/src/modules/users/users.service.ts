@@ -10,6 +10,8 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import * as bcrypt from 'bcrypt';
 
+const FOLLOW_TYPE = 'FOLLOW_USER';
+
 @Injectable()
 export class UsersService {
   constructor(private prisma: PrismaService) {}
@@ -282,6 +284,139 @@ export class UsersService {
         realism,
       },
     };
+  }
+
+  // ─── 关注 / 取关 ────────────────────────────────────────────
+
+  async followUser(actorId: number, targetId: number) {
+    if (actorId === targetId) throw new BadRequestException('不能关注自己');
+    const target = await this.prisma.user.findUnique({
+      where: { id: targetId },
+    });
+    if (!target) throw new NotFoundException('用户不存在');
+
+    await this.prisma.userRelation.upsert({
+      where: {
+        userId_targetId_type: { userId: actorId, targetId, type: FOLLOW_TYPE },
+      },
+      create: { userId: actorId, targetId, type: FOLLOW_TYPE },
+      update: {},
+    });
+    return { success: true };
+  }
+
+  async unfollowUser(actorId: number, targetId: number) {
+    await this.prisma.userRelation.deleteMany({
+      where: { userId: actorId, targetId, type: FOLLOW_TYPE },
+    });
+    return { success: true };
+  }
+
+  async getFollowers(targetId: number) {
+    const rows = await this.prisma.userRelation.findMany({
+      where: { targetId, type: FOLLOW_TYPE },
+      include: {
+        user: { select: { id: true, name: true, avatar: true, bio: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return rows.map((r) => r.user);
+  }
+
+  async getFollowing(userId: number) {
+    const rows = await this.prisma.userRelation.findMany({
+      where: { userId, type: FOLLOW_TYPE },
+      orderBy: { createdAt: 'desc' },
+    });
+    const targetIds = rows.map((r) => r.targetId);
+    if (!targetIds.length) return [];
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: targetIds } },
+      select: { id: true, name: true, avatar: true, bio: true },
+    });
+    return users;
+  }
+
+  async getFollowCounts(userId: number) {
+    const [followers, following] = await Promise.all([
+      this.prisma.userRelation.count({
+        where: { targetId: userId, type: FOLLOW_TYPE },
+      }),
+      this.prisma.userRelation.count({ where: { userId, type: FOLLOW_TYPE } }),
+    ]);
+    return { followers, following };
+  }
+
+  async isFollowing(actorId: number, targetId: number) {
+    const rel = await this.prisma.userRelation.findUnique({
+      where: {
+        userId_targetId_type: { userId: actorId, targetId, type: FOLLOW_TYPE },
+      },
+    });
+    return { following: !!rel };
+  }
+
+  // ─── 关注动态流 ──────────────────────────────────────────────
+
+  async getFeed(userId: number, params: { page?: number; pageSize?: number }) {
+    const page = Math.max(Number(params.page || 1), 1);
+    const pageSize = Math.min(Math.max(Number(params.pageSize || 20), 1), 50);
+    const skip = (page - 1) * pageSize;
+
+    const following = await this.prisma.userRelation.findMany({
+      where: { userId, type: FOLLOW_TYPE },
+      select: { targetId: true },
+    });
+    const followingIds = following.map((r) => r.targetId);
+
+    if (!followingIds.length) {
+      return {
+        data: [],
+        pagination: { page, pageSize, total: 0, totalPages: 0 },
+      };
+    }
+
+    const where = { ownerId: { in: followingIds } };
+    const [total, rooms] = await Promise.all([
+      this.prisma.room.count({ where }),
+      this.prisma.room.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize,
+        include: { owner: { select: { id: true, name: true, avatar: true } } },
+      }),
+    ]);
+
+    return {
+      data: rooms.map((r) => ({ ...r, agents: JSON.parse(r.agents || '[]') })),
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    };
+  }
+
+  // ─── 触发关注通知（供 RoomsService 调用） ───────────────────
+
+  async notifyFollowersNewRoom(ownerId: number, roomId: number) {
+    const followers = await this.prisma.userRelation.findMany({
+      where: { targetId: ownerId, type: FOLLOW_TYPE },
+      select: { userId: true },
+    });
+    if (!followers.length) return;
+
+    await this.prisma.notification.createMany({
+      data: followers.map((f) => ({
+        userId: f.userId,
+        type: 'FOLLOW_NEW_ROOM',
+        fromUserId: ownerId,
+        roomId,
+      })),
+      skipDuplicates: true,
+    });
   }
 
   async getUserStats(targetUserId: number, actorUserId: number) {
