@@ -132,18 +132,24 @@ export const Home: React.FC = () => {
         <div className="hero-agents">
           <div className="hero-agent-card agent-a">
             <div className="hero-agent-emoji">⚡</div>
-            <div className="hero-agent-name">直言现实者</div>
-            <div className="hero-agent-tag">博弈论 · 谬误识别</div>
+            <div className="hero-agent-info">
+              <div className="hero-agent-name">直言现实者</div>
+              <div className="hero-agent-tag">博弈论 · 谬误识别</div>
+            </div>
           </div>
-          <div className="hero-agent-card agent-b" style={{ marginTop: 24 }}>
+          <div className="hero-agent-card agent-b">
             <div className="hero-agent-emoji">💚</div>
-            <div className="hero-agent-name">共情辅导师</div>
-            <div className="hero-agent-tag">心理学 · NVC</div>
+            <div className="hero-agent-info">
+              <div className="hero-agent-name">共情辅导师</div>
+              <div className="hero-agent-tag">心理学 · NVC</div>
+            </div>
           </div>
           <div className="hero-agent-card agent-c">
             <div className="hero-agent-emoji">⚖️</div>
-            <div className="hero-agent-name">理性律师</div>
-            <div className="hero-agent-tag">民法 · 劳动法</div>
+            <div className="hero-agent-info">
+              <div className="hero-agent-name">理性律师</div>
+              <div className="hero-agent-tag">民法 · 劳动法</div>
+            </div>
           </div>
         </div>
 

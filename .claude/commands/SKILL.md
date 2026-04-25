@@ -50,29 +50,54 @@ Remember: Claude is capable of extraordinary creative work. Don't hold back, sho
 
 > 以下规则优先级高于上方通用规范，适用于 `/Users/huangkaihao/Desktop/graduate-design/frontend-react/` 下所有页面重构。
 
-### 强制：浅色主题
+### 强制：浅色主题（有色温，非纯白）
 
 **必须使用浅色调**，原因：截图需打印到纸质版论文，深色背景打印后文字不清晰、墨水消耗大。
 
-- 页面背景：使用浅灰蓝（如 `#f0f4f8`）或纯白，禁止深色背景
-- 文字：深色墨色（如 `#1a2332`）保证打印对比度
-- 装饰光效（orb/gradient）：透明度控制在 0.1 以下，打印时几乎不可见
-- 禁止使用实景背景图（`url(...)`），改用 CSS 几何纹理（点阵、细线网格）
+**重要**：「浅色」不等于「白色」。背景必须有明确的色彩感（蓝灰调），卡片比背景浅一档但也带色温，禁止纯白 `#ffffff` 作为大面积背景或卡片底色。用户反馈「太白」时，应换用更深的有色背景，而非微调白色深度。
 
-### 主色调参考（登录页已确立，后续页面保持统一）
+- 页面背景：石板蓝灰，参考 `#b8c8d8`（有明确色温，不发白）
+- 卡片/面板：比背景浅一档的蓝调，参考 `#e8f0f8`，禁止纯白
+- 输入框：`#dce8f4`，比卡片再深半档
+- 文字：深墨色（`#0f1e2e`）保证打印对比度
+- 装饰光效（orb/gradient）：透明度 ≤ 0.2，打印时几乎不可见
+- 禁止使用实景背景图（`url(...)`），改用 CSS 几何纹理（点阵）
+
+### 主色调规范（已确立，后续页面保持统一）
 
 ```css
---auth-bg: #f0f4f8; /* 页面背景 */
---auth-surface: #ffffff; /* 卡片/面板底色 */
---auth-ink: #1a2332; /* 主文字 */
---auth-ink-muted: #4a5568; /* 次级文字 */
---auth-ink-light: #8896a8; /* 占位/辅助文字 */
---auth-primary: #2563eb; /* 主色：靛蓝 */
---auth-primary-dark: #1d4ed8;
---auth-primary-light: #3b82f6;
---auth-accent: #0ea5e9; /* 强调色：天蓝 */
---auth-border-soft: rgba(0, 0, 0, 0.08);
---auth-border: rgba(37, 99, 235, 0.15);
+/* 页面背景：石板蓝灰，有色温 */
+--bg-page: #b8c8d8;
+/* 卡片/面板：带蓝调的浅色 */
+--surface: #e8f0f8;
+/* 输入框底色 */
+--surface-input: #dce8f4;
+/* 主文字 */
+--ink: #0f1e2e;
+/* 次级文字 */
+--ink-muted: #3a4f63;
+/* 辅助/占位文字 */
+--ink-light: #6b85a0;
+/* 主色：靛蓝 */
+--primary: #1d5bbf;
+--primary-dark: #154fa8;
+--primary-light: #2e72d2;
+/* 强调色：青蓝 */
+--accent: #0891b2;
+/* 描边 */
+--border: rgba(29, 91, 191, 0.2);
+--border-soft: rgba(15, 30, 46, 0.12);
+```
+
+### 色阶层次（从深到浅，每层约差 #10～#18）
+
+```
+页面背景  #b8c8d8  ← 最深，有色彩感
+侧边栏    #c8d6e4
+卡片/面板 #e8f0f8
+输入框    #dce8f4
+工具栏    #d4e0ec
+标签/Tag  #cdd8e8
 ```
 
 ### 背景装饰规范

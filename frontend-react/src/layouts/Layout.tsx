@@ -230,7 +230,7 @@ const Layout = () => {
             >
               <div className="app-logo-icon">⚖️</div>
               <div className="app-logo-text">
-                <span className="app-logo-name">AI 辩论与情绪辅导平台</span>
+                <span className="app-logo-name">智辩助手</span>
                 <span className="app-logo-sub">多智能体 · RAG · 情绪辅导</span>
               </div>
             </div>
