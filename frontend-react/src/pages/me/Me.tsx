@@ -217,8 +217,8 @@ const Me: React.FC = () => {
 
             {/* 成就徽章 */}
             {((st?.badges || []).length > 0) && (
-              <div className="me-badges-card">
-                <div className="me-card-title"><TrophyOutlined /> 成就</div>
+              <div className="me-badges-card" onClick={() => navigate('/achievements')} style={{ cursor: 'pointer' }}>
+                <div className="me-card-title"><TrophyOutlined /> 成就 <span style={{ fontSize: 11, color: 'var(--color-primary)', marginLeft: 4 }}>查看全部 →</span></div>
                 <div className="me-badges">
                   {(st.badges || []).map((b: any) => (
                     <span key={b.key} className={`me-badge ${b.achieved ? 'achieved' : ''}`}>{b.name}</span>

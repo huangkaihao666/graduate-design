@@ -2,10 +2,12 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  Optional,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { PrismaService } from '@/prisma/prisma.service';
 import { CozeService } from '../rooms/coze.service';
+import { AchievementsService } from '@/modules/achievements/achievements.service';
 
 const COUNSELOR_BOT_ID = '7632299425355792393';
 
@@ -14,6 +16,7 @@ export class CounselingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cozeService: CozeService,
+    @Optional() private readonly achievementsService?: AchievementsService,
   ) {}
 
   async getSessions(userId: number) {
@@ -52,6 +55,9 @@ export class CounselingService {
         title: '新的对话',
       },
     });
+    this.achievementsService
+      ?.checkCounselingAchievements(userId)
+      .catch(() => {});
     return session;
   }
 

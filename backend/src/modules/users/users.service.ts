@@ -9,12 +9,17 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import * as bcrypt from 'bcrypt';
+import { Optional } from '@nestjs/common';
+import { AchievementsService } from '../achievements/achievements.service';
 
 const FOLLOW_TYPE = 'FOLLOW_USER';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Optional() private readonly achievementsService?: AchievementsService,
+  ) {}
 
   async create(createUserDto: CreateUserDto): Promise<any> {
     return this.prisma.user.create({
@@ -302,6 +307,9 @@ export class UsersService {
       create: { userId: actorId, targetId, type: FOLLOW_TYPE },
       update: {},
     });
+    this.achievementsService
+      ?.checkFollowerAchievements(targetId)
+      .catch(() => {});
     return { success: true };
   }
 

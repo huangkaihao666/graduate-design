@@ -9,10 +9,11 @@ import {
   MessageBody,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger, forwardRef, Inject } from '@nestjs/common';
+import { Logger, forwardRef, Inject, Optional } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '@/prisma/prisma.service';
 import { DebateService } from './debate.service';
+import { AchievementsService } from '@/modules/achievements/achievements.service';
 
 @WebSocketGateway({
   cors: {
@@ -56,6 +57,7 @@ export class RoomsGateway
     private readonly prisma: PrismaService,
     @Inject(forwardRef(() => DebateService))
     private readonly debateService: DebateService,
+    @Optional() private readonly achievementsService?: AchievementsService,
   ) {
     this.logger.log('🚀 RoomsGateway constructor called');
   }
@@ -295,6 +297,8 @@ export class RoomsGateway
         agentId: data.agentId,
       },
     });
+
+    this.achievementsService?.checkVoteAchievements(userId).catch(() => {});
 
     const counts: Record<string, number> = {};
     for (const agentId of voteMap.values()) {

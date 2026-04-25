@@ -3,17 +3,20 @@ import {
   BadRequestException,
   NotFoundException,
   ForbiddenException,
+  Optional,
 } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { QueryRoomDto } from './dto/query-room.dto';
 import { DebateService } from './debate.service';
+import { AchievementsService } from '@/modules/achievements/achievements.service';
 
 @Injectable()
 export class RoomsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly debateService: DebateService,
+    @Optional() private readonly achievementsService?: AchievementsService,
   ) {}
 
   /**
@@ -50,8 +53,8 @@ export class RoomsService {
         },
       });
 
-      // 异步通知关注者，不阻塞主流程
       this.notifyFollowers(userId, room.id).catch(() => {});
+      this.achievementsService?.checkRoomAchievements(userId).catch(() => {});
 
       return {
         ...room,

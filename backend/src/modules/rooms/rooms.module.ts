@@ -6,10 +6,12 @@ import { RoomsGateway } from './rooms.gateway';
 import { CozeService } from './coze.service';
 import { DebateService } from './debate.service';
 import { PrismaModule } from '@/prisma/prisma.module';
+import { AchievementsModule } from '@/modules/achievements/achievements.module';
 
 @Module({
   imports: [
     PrismaModule,
+    AchievementsModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
       signOptions: { expiresIn: '7d' },

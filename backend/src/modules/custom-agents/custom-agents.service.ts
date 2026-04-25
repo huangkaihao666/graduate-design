@@ -4,9 +4,11 @@ import {
   ForbiddenException,
   BadRequestException,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { CozeService } from '../rooms/coze.service';
+import { AchievementsService } from '@/modules/achievements/achievements.service';
 import { CreateCustomAgentDto } from './dto/create-agent.dto';
 import { UpdateCustomAgentDto } from './dto/update-agent.dto';
 
@@ -20,6 +22,7 @@ export class CustomAgentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cozeService: CozeService,
+    @Optional() private readonly achievementsService?: AchievementsService,
   ) {}
 
   // ─── 工作空间 ────────────────────────────────────────────────
@@ -165,6 +168,7 @@ export class CustomAgentsService {
       },
     });
 
+    this.achievementsService?.checkAgentAchievements(userId).catch(() => {});
     return agent;
   }
 
@@ -298,9 +302,13 @@ export class CustomAgentsService {
       throw new BadRequestException(`文档上传失败：${err?.message}`);
     }
 
-    return this.prisma.knowledgeDocument.create({
+    const doc = await this.prisma.knowledgeDocument.create({
       data: { kbId, filename, cozeDocId, size: buffer.length },
     });
+    this.achievementsService
+      ?.checkKnowledgeAchievements(userId)
+      .catch(() => {});
+    return doc;
   }
 
   async deleteDocument(kbId: number, docId: number, userId: number) {

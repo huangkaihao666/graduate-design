@@ -11,6 +11,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { TagsModule } from './modules/tags/tags.module';
 import { CounselingModule } from './modules/counseling/counseling.module';
 import { CustomAgentsModule } from './modules/custom-agents/custom-agents.module';
+import { AchievementsModule } from './modules/achievements/achievements.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -26,6 +27,7 @@ import { PrismaModule } from './prisma/prisma.module';
     TagsModule,
     CounselingModule,
     CustomAgentsModule,
+    AchievementsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

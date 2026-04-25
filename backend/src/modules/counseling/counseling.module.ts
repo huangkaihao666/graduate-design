@@ -3,9 +3,10 @@ import { CounselingController } from './counseling.controller';
 import { CounselingService } from './counseling.service';
 import { PrismaModule } from '@/prisma/prisma.module';
 import { CozeService } from '../rooms/coze.service';
+import { AchievementsModule } from '@/modules/achievements/achievements.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, AchievementsModule],
   controllers: [CounselingController],
   providers: [CounselingService, CozeService],
 })

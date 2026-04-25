@@ -251,7 +251,7 @@ npx prisma migrate dev --name <migration_name>
 | Phase 1-D：情感分析（情绪洞察中心） | ⬜ 待开始   | 调整后整合案件 + 共情师 + 手动测评三路数据                                      |
 | Phase 2-B：创建智能体               | 🔶 部分完成 | 核心功能已上线，管理端审核页待实现（当前智能体永久卡在 PENDING 无法在图鉴展示） |
 | Phase 3-A：关注动态                 | ✅ 已完成   | 关注/取关/粉丝列表/动态流；案件详情关注按钮；Me 页粉丝关注数；/feed 页面        |
-| Phase 3-B：成就中心                 | ⬜ 待开始   |                                                                                 |
+| Phase 3-B：成就中心                 | ✅ 已完成   | achievements 模块 + 12 枚成就种子 + 各 service 埋点 + /achievements 页面        |
 | Phase 3-C：通知独立页               | ⬜ 待开始   |                                                                                 |
 | Phase 4：管理端扩展                 | ⬜ 待开始   |                                                                                 |
 | Phase 5：本地 RAG 服务              | ⬜ 待开始   |                                                                                 |

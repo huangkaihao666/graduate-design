@@ -14,6 +14,7 @@ import {
   HeartOutlined,
   ToolOutlined,
   TeamOutlined,
+  TrophyOutlined,
 } from '@ant-design/icons'
 import NotificationDropdown from '@/components/NotificationDropdown/NotificationDropdown'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
@@ -73,6 +74,13 @@ const NAV_ITEMS = [
     icon: <TeamOutlined />,
     path: '/feed',
     desc: '关注用户的最新辩论',
+  },
+  {
+    key: 'achievements',
+    label: '成就中心',
+    icon: <TrophyOutlined />,
+    path: '/achievements',
+    desc: '等级、徽章与排行榜',
   },
   {
     key: 'profile',
@@ -144,6 +152,7 @@ const Layout = () => {
     if (location.pathname.includes('/counseling')) return 'counseling'
     if (location.pathname.includes('/agents')) return 'agents'
     if (location.pathname.includes('/feed')) return 'feed'
+    if (location.pathname.includes('/achievements')) return 'achievements'
     if (location.pathname.includes('/me') || location.pathname.includes('/profile')) return 'profile'
     return 'cases'
   }
