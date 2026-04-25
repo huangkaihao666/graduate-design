@@ -91,20 +91,23 @@ export const Home: React.FC = () => {
     <div className="home-page">
       {/* ── Hero Banner ── */}
       <div className="home-hero">
+        {/* 背景装饰 */}
+        <div className="hero-bg-grid" />
+        <div className="hero-bg-orb orb-1" />
+        <div className="hero-bg-orb orb-2" />
+
+        {/* 左侧：文字 + 按钮 + 数据统计 */}
         <div className="hero-content">
           <div className="hero-badge">
             <FireOutlined />
             <span>多智能体协同 · 个性化 RAG · 大学生辅助平台</span>
           </div>
           <h1 className="hero-title">
-            AI 智能体辩论决策
-            <br />
+            <span>AI 智能体辅助决策</span>
             <span className="hero-title-highlight">RAG 共情师陪你成长</span>
           </h1>
           <p className="hero-desc">
-            三位 AI 专家从逻辑、情感、法律三维度辩论你的难题
-            <br />
-            个性化 RAG 情绪记忆图谱，让共情师越聊越懂你
+            三位 AI 专家从逻辑、情感、法律三维度分析你的难题，提供多角度参考，个性化 RAG 情绪记忆图谱让共情师越聊越懂你
           </p>
           <div className="hero-actions">
             <Button
@@ -126,9 +129,26 @@ export const Home: React.FC = () => {
               浏览案件
             </Button>
           </div>
+          {/* 底部数据统计行 */}
+          <div className="hero-stats">
+            <div className="hero-stat-item">
+              <span className="hero-stat-num">3</span>
+              <span className="hero-stat-label">AI 专家</span>
+            </div>
+            <div className="hero-stat-divider" />
+            <div className="hero-stat-item">
+              <span className="hero-stat-num">RAG</span>
+              <span className="hero-stat-label">知识增强</span>
+            </div>
+            <div className="hero-stat-divider" />
+            <div className="hero-stat-item">
+              <span className="hero-stat-num">实时</span>
+              <span className="hero-stat-label">流式辩论</span>
+            </div>
+          </div>
         </div>
 
-        {/* 右侧 Agent 预览 */}
+        {/* 右侧：Agent 卡片列 */}
         <div className="hero-agents">
           <div className="hero-agent-card agent-a">
             <div className="hero-agent-emoji">⚡</div>

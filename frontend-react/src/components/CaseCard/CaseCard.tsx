@@ -27,11 +27,11 @@ const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
 
 // 占位背景图案（SVG 数据 URI），根据 id 选一种颜色
 const PLACEHOLDER_COLORS = [
-  'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
-  'linear-gradient(135deg, #F97316 0%, #FB923C 100%)',
-  'linear-gradient(135deg, #10B981 0%, #34D399 100%)',
-  'linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%)',
-  'linear-gradient(135deg, #EC4899 0%, #F472B6 100%)',
+  'linear-gradient(135deg, #0f2d5a 0%, #1a4a8a 55%, #0891b2 100%)',
+  'linear-gradient(135deg, #1a3a2a 0%, #166534 55%, #0d9488 100%)',
+  'linear-gradient(135deg, #3b0764 0%, #7c3aed 55%, #c026d3 100%)',
+  'linear-gradient(135deg, #7c2d12 0%, #c2410c 55%, #d97706 100%)',
+  'linear-gradient(135deg, #0c1a3a 0%, #1e40af 55%, #2563eb 100%)',
 ]
 
 const PLACEHOLDER_ICONS = ['⚖️', '💬', '🤔', '💡', '🎯']
@@ -145,9 +145,10 @@ export const CaseCard: React.FC<CaseCardProps> = ({ room, agents }) => {
       {/* ── 顶部封面区 ── */}
       <div
         className="card-cover"
-        style={room.image
-          ? { backgroundImage: `url(${room.image})` }
-          : { background: PLACEHOLDER_COLORS[colorIdx] }
+        style={
+          room.image
+            ? { backgroundImage: `url(${room.image})` }
+            : { background: PLACEHOLDER_COLORS[colorIdx] }
         }
       >
         {!room.image && (

@@ -1,6 +1,8 @@
-# 📦 Monorepo 项目模板
+# 基于多智能体协同与个性化 RAG 的大学生决策辅助与情绪辅导平台
 
-> 基于 Vue 3 + NestJS + TypeScript + pnpm 的现代化 Monorepo 项目模板
+> 本平台定位为**辅助决策工具**，通过多智能体从多角度分析问题、提供参考意见，帮助用户理性思考，**不代替用户做出最终决策**。
+>
+> 技术栈：React 18 + NestJS + MySQL + ChromaDB + Ollama + Coze API
 
 [![Vue](https://img.shields.io/badge/Vue-3.x-green.svg)](https://vuejs.org/)
 [![NestJS](https://img.shields.io/badge/NestJS-11.x-red.svg)](https://nestjs.com/)
@@ -69,7 +71,7 @@ pnpm dev
 
 ## 🤖 RAG 微服务（opinion-service）
 
-本地 RAG 服务，实现辩论室弹幕过滤（第三层）和 AI 共情师情绪记忆（第四层）。  
+本地 RAG 服务，实现辩论室弹幕过滤与 AI 共情师情绪记忆功能。  
 技术栈：FastAPI + ChromaDB + Ollama（全部开源免费，无需 API Key）。
 
 ### 前置条件
