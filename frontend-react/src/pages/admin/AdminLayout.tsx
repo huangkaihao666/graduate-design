@@ -1,10 +1,54 @@
 import React from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Layout, Menu, Button, Space, Modal } from 'antd'
+import { ConfigProvider, Layout, Menu, Button, Space, Modal } from 'antd'
 import { HomeOutlined, LogoutOutlined, UserOutlined, FileTextOutlined, WarningOutlined, BarChartOutlined, ControlOutlined, RobotOutlined, TagsOutlined, NotificationOutlined, BookOutlined } from '@ant-design/icons'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAdminAuthStore } from '@/store'
 import './AdminLayout.less'
+
+// 管理端专属 token：覆盖全局 indigo 主题色，换成暖灰中性风格
+const adminTheme = {
+  token: {
+    colorPrimary: '#1a1612',
+    colorBgContainer: 'rgba(255,253,249,0.9)',
+    colorBgLayout: '#faf8f4',
+    colorBorder: 'rgba(26,22,18,0.1)',
+    colorBorderSecondary: 'rgba(26,22,18,0.06)',
+    colorText: '#1a1612',
+    colorTextSecondary: '#6b6459',
+    colorTextTertiary: '#b0a89c',
+    colorFillAlter: '#f3f0ea',
+    colorFill: 'rgba(26,22,18,0.04)',
+    borderRadius: 10,
+  },
+  components: {
+    Menu: {
+      itemSelectedBg: 'rgba(26,22,18,0.07)',
+      itemSelectedColor: '#1a1612',
+      itemHoverBg: '#f3f0ea',
+      itemHoverColor: '#1a1612',
+      itemColor: '#6b6459',
+      colorBgContainer: 'transparent',
+      itemActiveBg: 'rgba(26,22,18,0.07)',
+      inkBarColor: 'transparent',
+    },
+    Table: {
+      headerBg: '#f3f0ea',
+      headerColor: '#6b6459',
+      rowHoverBg: '#f3f0ea',
+      colorBgContainer: 'rgba(255,253,249,0.9)',
+      borderColor: 'rgba(26,22,18,0.06)',
+    },
+    Layout: {
+      headerBg: '#faf8f4',
+      siderBg: '#faf8f4',
+      bodyBg: '#faf8f4',
+    },
+    Card: {
+      colorBgContainer: 'rgba(255,253,249,0.9)',
+    },
+  },
+}
 
 const { Header, Sider, Content } = Layout
 
@@ -27,6 +71,7 @@ const AdminLayout: React.FC = () => {
   })()
 
   return (
+    <ConfigProvider theme={adminTheme}>
     <Layout className="admin-shell">
       <Header className="admin-header">
         <div className="admin-header-left" onClick={() => navigate('/admin')}>
@@ -85,6 +130,7 @@ const AdminLayout: React.FC = () => {
         </Content>
       </Layout>
     </Layout>
+    </ConfigProvider>
   )
 }
 

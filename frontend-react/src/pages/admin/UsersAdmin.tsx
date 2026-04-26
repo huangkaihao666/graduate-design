@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Button, Card, Input, Modal, Select, Space, Switch, Table, Tag, message } from 'antd'
+import { Button, Input, Modal, Select, Switch, Table, Tag, message } from 'antd'
+import { ReloadOutlined } from '@ant-design/icons'
 import * as adminApi from '@/api/admin'
+import './UsersAdmin.less'
 
 const UsersAdmin: React.FC = () => {
   const [role, setRole] = useState<string | undefined>(undefined)
@@ -11,13 +13,7 @@ const UsersAdmin: React.FC = () => {
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['admin-users', role, status, search],
     queryFn: () =>
-      adminApi.getAdminUsers({
-        page: 1,
-        pageSize: 50,
-        role,
-        status,
-        search: search.trim() || undefined,
-      }),
+      adminApi.getAdminUsers({ page: 1, pageSize: 50, role, status, search: search.trim() || undefined }),
   })
 
   const rows = (data as any)?.data || []
@@ -30,12 +26,12 @@ const UsersAdmin: React.FC = () => {
       {
         title: '角色',
         dataIndex: 'role',
-        width: 150,
+        width: 160,
         render: (v: string, r: any) => (
           <Select
             size="small"
             value={v}
-            style={{ width: 130 }}
+            style={{ width: 140 }}
             options={[
               { value: 'USER', label: 'USER' },
               { value: 'ADMIN', label: 'ADMIN' },
@@ -70,16 +66,17 @@ const UsersAdmin: React.FC = () => {
         title: '创建时间',
         dataIndex: 'createdAt',
         width: 180,
-        render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
+        render: (v: string) => v ? new Date(v).toLocaleString() : '-',
       },
       {
         title: '操作',
         key: 'actions',
-        width: 120,
+        width: 100,
         render: (_: any, r: any) => (
           <Button
             danger
             size="small"
+            style={{ borderRadius: 7, fontWeight: 600, fontSize: 12 }}
             onClick={() => {
               Modal.confirm({
                 title: '确认封禁该用户？',
@@ -104,44 +101,58 @@ const UsersAdmin: React.FC = () => {
   )
 
   return (
-    <Card style={{ borderRadius: 16 }} title="用户管理" extra={<Button onClick={() => refetch()}>刷新</Button>}>
-      <Space wrap style={{ marginBottom: 12 }}>
-        <Select
-          allowClear
-          placeholder="角色筛选"
-          style={{ width: 160 }}
-          value={role}
-          onChange={(v) => setRole(v)}
-          options={[
-            { value: 'USER', label: 'USER' },
-            { value: 'ADMIN', label: 'ADMIN' },
-            { value: 'MODERATOR', label: 'MODERATOR' },
-          ]}
-        />
-        <Select
-          allowClear
-          placeholder="状态筛选"
-          style={{ width: 160 }}
-          value={status}
-          onChange={(v) => setStatus(v)}
-          options={[
-            { value: 'ACTIVE', label: 'ACTIVE' },
-            { value: 'DISABLED', label: 'DISABLED' },
-          ]}
-        />
-        <Input.Search
-          allowClear
-          placeholder="搜索邮箱/昵称"
-          style={{ width: 320 }}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </Space>
+    <div className="ua-page">
+      <div className="ua-banner">
+        <h2 className="ua-banner-title">用户管理</h2>
+        <div className="ua-toolbar">
+          <Select
+            allowClear
+            placeholder="角色筛选"
+            style={{ width: 140 }}
+            value={role}
+            onChange={(v) => setRole(v)}
+            options={[
+              { value: 'USER', label: 'USER' },
+              { value: 'ADMIN', label: 'ADMIN' },
+              { value: 'MODERATOR', label: 'MODERATOR' },
+            ]}
+          />
+          <Select
+            allowClear
+            placeholder="状态筛选"
+            style={{ width: 140 }}
+            value={status}
+            onChange={(v) => setStatus(v)}
+            options={[
+              { value: 'ACTIVE', label: 'ACTIVE' },
+              { value: 'DISABLED', label: 'DISABLED' },
+            ]}
+          />
+          <Input.Search
+            allowClear
+            placeholder="搜索邮箱/昵称"
+            style={{ width: 260 }}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <Button icon={<ReloadOutlined />} onClick={() => refetch()} style={{ borderRadius: 9 }}>
+            刷新
+          </Button>
+        </div>
+      </div>
 
-      <Table rowKey="id" loading={isLoading} dataSource={rows} columns={columns as any} pagination={false} />
-    </Card>
+      <div className="ua-table-wrap">
+        <Table
+          className="ua-table"
+          rowKey="id"
+          loading={isLoading}
+          dataSource={rows}
+          columns={columns as any}
+          pagination={false}
+        />
+      </div>
+    </div>
   )
 }
 
 export default UsersAdmin
-

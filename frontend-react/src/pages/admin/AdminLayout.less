@@ -1,130 +1,167 @@
-// ============ 管理后台布局样式 ============
+// ============================================================
+//  Admin Layout — "The Tribunal" editorial light theme
+//  Cream base · Playfair Display · gold accent
+// ============================================================
 
-// ── 整体外壳 ──────────────────────────────────────────────────
-.admin-shell {
-  min-height: 100vh;
-  background: #F0F2F8;
+// ── Design tokens (same as AdminLogin) ───────────────────────
+.admin-shell,
+.admin-header,
+.admin-sider,
+.admin-content {
+  --cream:        #faf8f4;
+  --cream-2:      #f3f0ea;
+  --ink:          #1a1612;
+  --ink-muted:    #6b6459;
+  --ink-faint:    #b0a89c;
+  --gold:         #d97706;
+  --indigo:       #6366f1;
+  --indigo-light: #eef2ff;
+  --border:       rgba(26,22,18,0.08);
+  --border-soft:  rgba(26,22,18,0.05);
+  --shadow-sm:    0 1px 4px rgba(26,22,18,0.06);
+  --shadow-md:    0 4px 16px rgba(26,22,18,0.08);
 }
 
-// ── 顶部导航 ──────────────────────────────────────────────────
+// ── 整体外壳 ─────────────────────────────────────────────────
+.admin-shell {
+  min-height: 100vh;
+  background: var(--cream);
+
+  // 全局圆点纹理
+  &::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image: radial-gradient(rgba(26,22,18,0.045) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+}
+
+// ── 顶部导航 ─────────────────────────────────────────────────
 .admin-header {
-  background: #1E1B4B !important;
-  padding: 0 24px !important;
-  height: 56px !important;
-  line-height: 56px !important;
+  background: var(--cream) !important;
+  padding: 0 32px !important;
+  height: 60px !important;
+  line-height: 60px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3) !important;
+  border-bottom: 1px solid var(--border) !important;
+  box-shadow: 0 1px 0 var(--border-soft) !important;
   position: sticky !important;
   top: 0 !important;
   z-index: 100 !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 
   .admin-header-left {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     cursor: pointer;
-    transition: opacity 0.2s ease;
+    transition: opacity 0.2s;
 
-    &:hover {
-      opacity: 0.85;
-    }
+    &:hover { opacity: 0.75; }
 
     .admin-logo {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      background: linear-gradient(135deg, #6366F1, #8B5CF6);
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      width: 34px; height: 34px;
+      border-radius: 9px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      display: flex; align-items: center; justify-content: center;
       color: #fff;
       font-size: 16px;
+      box-shadow: 0 4px 12px rgba(99,102,241,0.3);
     }
 
     .admin-title {
-      font-size: 15px;
-      font-weight: 800;
-      color: #fff;
-      letter-spacing: -0.3px;
+      font-family: 'Playfair Display', serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--ink);
+      letter-spacing: -0.2px;
     }
   }
 
-  // 右侧按钮组
+  // 右侧按钮
   :global(.ant-btn) {
     border-radius: 8px !important;
     font-weight: 600 !important;
     height: 34px !important;
-    font-size: 13px !important;
-    border-color: rgba(255, 255, 255, 0.2) !important;
-    color: rgba(255, 255, 255, 0.8) !important;
-    background: rgba(255, 255, 255, 0.08) !important;
+    font-size: 12px !important;
+    letter-spacing: 0.3px;
+    border-color: var(--border) !important;
+    color: var(--ink-muted) !important;
+    background: transparent !important;
 
     &:hover {
-      border-color: rgba(255, 255, 255, 0.5) !important;
-      color: #fff !important;
-      background: rgba(255, 255, 255, 0.15) !important;
+      border-color: var(--indigo) !important;
+      color: var(--indigo) !important;
+      background: var(--indigo-light) !important;
     }
   }
 
   :global(.ant-btn-dangerous) {
-    background: rgba(239, 68, 68, 0.15) !important;
-    border-color: rgba(239, 68, 68, 0.4) !important;
-    color: #FCA5A5 !important;
+    background: rgba(220,38,38,0.05) !important;
+    border-color: rgba(220,38,38,0.2) !important;
+    color: #dc2626 !important;
 
     &:hover {
-      background: rgba(239, 68, 68, 0.3) !important;
-      border-color: #EF4444 !important;
-      color: #fff !important;
+      background: rgba(220,38,38,0.1) !important;
+      border-color: #dc2626 !important;
     }
   }
 }
 
-// ── 侧边栏 ────────────────────────────────────────────────────
+// ── 侧边栏 ───────────────────────────────────────────────────
 .admin-sider {
-  background: #fff !important;
-  border-right: 1px solid rgba(99, 102, 241, 0.1) !important;
-  box-shadow: 2px 0 12px rgba(99, 102, 241, 0.05) !important;
-  padding-top: 12px !important;
+  background: var(--cream) !important;
+  border-right: 1px solid var(--border) !important;
+  box-shadow: none !important;
+  padding-top: 8px !important;
 
   :global(.ant-menu) {
+    background: transparent !important;
     border-right: none !important;
-    padding: 0 8px !important;
+    padding: 0 10px !important;
   }
 
   :global(.ant-menu-item) {
     border-radius: 10px !important;
+    font-size: 13px !important;
     font-weight: 600 !important;
-    color: #64748B !important;
+    color: var(--ink-muted) !important;
     margin: 2px 0 !important;
-    height: 44px !important;
-    line-height: 44px !important;
+    height: 42px !important;
+    line-height: 42px !important;
+    transition: all 0.18s !important;
 
     &:hover {
-      color: #6366F1 !important;
-      background: #EEF2FF !important;
+      color: var(--ink) !important;
+      background: var(--cream-2) !important;
     }
   }
 
   :global(.ant-menu-item-selected) {
-    background: linear-gradient(135deg, #EEF2FF, #F5F0FF) !important;
-    color: #6366F1 !important;
+    background: rgba(26,22,18,0.07) !important;
+    color: var(--ink) !important;
     font-weight: 700 !important;
 
-    &::after {
-      display: none !important;
-    }
+    &::after { display: none !important; }
+
+    :global(.anticon) { color: var(--ink) !important; }
   }
 
   :global(.ant-menu-item .anticon) {
-    font-size: 16px !important;
+    font-size: 15px !important;
+    color: var(--ink-faint) !important;
   }
 }
 
-// ── 内容区 ────────────────────────────────────────────────────
+// ── 内容区 ───────────────────────────────────────────────────
 .admin-content {
-  background: #F0F2F8 !important;
+  background: var(--cream) !important;
   overflow: auto !important;
 }
 
@@ -132,57 +169,212 @@
   min-height: 100%;
   padding: 0;
 
-  // 所有卡片对齐主题
+  // ── Ant Design 组件统一覆写 ───────────────────────────────
+
+  // Card
   :global(.ant-card) {
-    border-radius: 14px !important;
-    border-color: rgba(99, 102, 241, 0.1) !important;
-    box-shadow: 0 2px 12px rgba(99, 102, 241, 0.05) !important;
+    border-radius: 16px !important;
+    border-color: var(--border) !important;
+    background: rgba(255,253,249,0.85) !important;
+    box-shadow: var(--shadow-sm) !important;
+    backdrop-filter: blur(8px);
   }
 
   :global(.ant-card-head) {
-    background: linear-gradient(90deg, #FAFBFF, #F8F8FF) !important;
-    border-bottom-color: rgba(99, 102, 241, 0.08) !important;
+    background: transparent !important;
+    border-bottom-color: var(--border) !important;
+    font-family: 'Playfair Display', serif !important;
     font-weight: 700 !important;
-    color: #1E1B4B !important;
+    color: var(--ink) !important;
+    font-size: 15px !important;
   }
 
-  // 统计卡片
+  :global(.ant-card-body) {
+    background: transparent !important;
+  }
+
+  // Statistic
   :global(.ant-statistic-title) {
-    font-size: 12px !important;
-    font-weight: 600 !important;
-    color: #64748B !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    color: var(--ink-faint) !important;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
   }
 
   :global(.ant-statistic-content) {
-    font-size: 28px !important;
-    font-weight: 900 !important;
-    color: #1E1B4B !important;
+    font-family: 'Playfair Display', serif !important;
+    font-size: 30px !important;
+    font-weight: 700 !important;
+    color: var(--ink) !important;
   }
 
   // Table
+  :global(.ant-table) {
+    background: transparent !important;
+    font-size: 13px !important;
+  }
+
   :global(.ant-table-thead > tr > th) {
-    background: #F8FAFC !important;
-    color: #374151 !important;
+    background: var(--cream-2) !important;
+    color: var(--ink-muted) !important;
     font-weight: 700 !important;
-    border-bottom-color: #E2E8F0 !important;
+    font-size: 11px !important;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border-bottom-color: var(--border) !important;
+  }
+
+  :global(.ant-table-tbody > tr > td) {
+    border-bottom-color: var(--border-soft) !important;
+    color: var(--ink) !important;
   }
 
   :global(.ant-table-tbody > tr:hover > td) {
-    background: #EEF2FF !important;
+    background: var(--cream-2) !important;
   }
 
-  // Button
-  :global(.ant-btn-primary) {
-    background: linear-gradient(135deg, #6366F1, #8B5CF6) !important;
-    border: none !important;
+  :global(.ant-table-tbody > tr:last-child > td) {
+    border-bottom: none !important;
+  }
+
+  :global(.ant-table-expanded-row > td) {
+    background: var(--cream-2) !important;
+    padding: 0 !important;
+  }
+
+  :global(.ant-pagination) {
+    padding: 14px 16px !important;
+    margin: 0 !important;
+  }
+
+  :global(.ant-pagination-item) {
     border-radius: 8px !important;
+    border-color: var(--border) !important;
+    font-weight: 600 !important;
+
+    a { color: var(--ink-muted) !important; }
+
+    &:hover {
+      border-color: var(--indigo) !important;
+      a { color: var(--indigo) !important; }
+    }
+  }
+
+  :global(.ant-pagination-item-active) {
+    background: var(--indigo) !important;
+    border-color: var(--indigo) !important;
+    a { color: #fff !important; }
+  }
+
+  :global(.ant-pagination-prev .ant-pagination-item-link),
+  :global(.ant-pagination-next .ant-pagination-item-link) {
+    border-radius: 8px !important;
+    border-color: var(--border) !important;
+    color: var(--ink-muted) !important;
+  }
+
+  // Button — primary
+  :global(.ant-btn-primary) {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+    border: none !important;
+    border-radius: 9px !important;
     font-weight: 700 !important;
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3) !important;
+    box-shadow: 0 3px 12px rgba(99,102,241,0.3) !important;
+    letter-spacing: 0.3px;
+
+    &:hover:not(:disabled) {
+      transform: translateY(-1px) !important;
+      box-shadow: 0 6px 20px rgba(99,102,241,0.4) !important;
+    }
+  }
+
+  // Button — default
+  :global(.ant-btn-default) {
+    border-color: var(--border) !important;
+    color: var(--ink-muted) !important;
+    border-radius: 9px !important;
+    font-weight: 600 !important;
+
+    &:hover:not(:disabled) {
+      border-color: var(--indigo) !important;
+      color: var(--indigo) !important;
+    }
+  }
+
+  // Input
+  :global(.ant-input),
+  :global(.ant-input-affix-wrapper) {
+    border-radius: 9px !important;
+    border-color: var(--border) !important;
+    background: rgba(255,253,249,0.8) !important;
+    color: var(--ink) !important;
+
+    &:hover { border-color: rgba(99,102,241,0.3) !important; }
+    &:focus, &.ant-input-affix-wrapper-focused {
+      border-color: var(--indigo) !important;
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important;
+    }
+  }
+
+  // Select
+  :global(.ant-select-selector) {
+    border-radius: 9px !important;
+    border-color: var(--border) !important;
+    background: rgba(255,253,249,0.8) !important;
+    color: var(--ink) !important;
   }
 
   // Tag
   :global(.ant-tag) {
     border-radius: 6px !important;
     font-weight: 600 !important;
+    font-size: 11px !important;
+  }
+
+  // Modal
+  :global(.ant-modal-content) {
+    border-radius: 20px !important;
+    background: var(--cream) !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: 0 8px 40px rgba(26,22,18,0.14) !important;
+  }
+
+  :global(.ant-modal-header) {
+    background: transparent !important;
+    border-bottom-color: var(--border) !important;
+  }
+
+  :global(.ant-modal-title) {
+    font-family: 'Playfair Display', serif !important;
+    font-size: 18px !important;
+    font-weight: 700 !important;
+    color: var(--ink) !important;
+  }
+
+  // Form label
+  :global(.ant-form-item-label > label) {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    color: var(--ink-muted) !important;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  // Switch
+  :global(.ant-switch-checked) {
+    background: var(--indigo) !important;
+  }
+
+  // Alert
+  :global(.ant-alert) {
+    border-radius: 10px !important;
+  }
+
+  // Tooltip
+  :global(.ant-tooltip-inner) {
+    border-radius: 8px !important;
+    background: var(--ink) !important;
+    font-size: 12px !important;
   }
 }

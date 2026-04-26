@@ -1,17 +1,14 @@
 import React, { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Card, Col, Row, Statistic, Table, Tag } from 'antd'
+import { Table, Tag } from 'antd'
 import {
-  FileTextOutlined,
-  UserOutlined,
-  LikeOutlined,
-  PlayCircleOutlined,
-  CheckCircleOutlined,
-  UserAddOutlined,
-  StopOutlined,
+  FileTextOutlined, UserOutlined, LikeOutlined,
+  PlayCircleOutlined, CheckCircleOutlined,
+  UserAddOutlined, StopOutlined,
 } from '@ant-design/icons'
 import ReactECharts from 'echarts-for-react'
 import * as adminApi from '@/api/admin'
+import './StatsAdmin.less'
 
 const StatsAdmin: React.FC = () => {
   const { data: overview } = useQuery({
@@ -29,171 +26,90 @@ const StatsAdmin: React.FC = () => {
 
   const ov = overview as any
 
+  const stats = [
+    { label: '总案件数',    value: ov?.totalRooms ?? 0,  icon: <FileTextOutlined />,   color: '#6366f1', suffix: null },
+    { label: '进行中',      value: ov?.liveRooms ?? 0,   icon: <PlayCircleOutlined />, color: '#3b82f6', suffix: null },
+    { label: '已结案',      value: ov?.closedRooms ?? 0, icon: <CheckCircleOutlined />,color: '#10b981', suffix: null },
+    { label: '总投票数',    value: ov?.totalVotes ?? 0,  icon: <LikeOutlined />,       color: '#f59e0b', suffix: `今日 +${ov?.todayVotes ?? 0}` },
+    { label: '总用户数',    value: ov?.totalUsers ?? 0,  icon: <UserOutlined />,       color: '#8b5cf6', suffix: null },
+    { label: '今日新增用户',value: ov?.todayUsers ?? 0,  icon: <UserAddOutlined />,    color: '#06b6d4', suffix: null },
+    { label: '本周新增用户',value: ov?.weekUsers ?? 0,   icon: <UserAddOutlined />,    color: '#10b981', suffix: null },
+    { label: '封禁用户',    value: ov?.bannedUsers ?? 0, icon: <StopOutlined />,       color: ov?.bannedUsers > 0 ? '#ef4444' : '#b0a89c', suffix: null },
+  ]
+
   const trendOption = useMemo(() => {
     const list = Array.isArray(trends) ? trends : []
     return {
-      tooltip: { trigger: 'axis' },
-      legend: { data: ['新增案件', '新增用户', '新增投票'], bottom: 0 },
+      tooltip: { trigger: 'axis', backgroundColor: '#faf8f4', borderColor: 'rgba(26,22,18,0.1)', textStyle: { color: '#1a1612', fontSize: 12 } },
+      legend: { data: ['新增案件', '新增用户', '新增投票'], bottom: 0, textStyle: { color: '#6b6459', fontSize: 11 } },
       grid: { left: 36, right: 20, top: 16, bottom: 40 },
-      xAxis: { type: 'category', data: list.map((i: any) => i.date), axisLabel: { fontSize: 11 } },
-      yAxis: { type: 'value', minInterval: 1 },
+      xAxis: { type: 'category', data: list.map((i: any) => i.date), axisLabel: { fontSize: 11, color: '#b0a89c' }, axisLine: { lineStyle: { color: 'rgba(26,22,18,0.1)' } } },
+      yAxis: { type: 'value', minInterval: 1, axisLabel: { color: '#b0a89c', fontSize: 11 }, splitLine: { lineStyle: { color: 'rgba(26,22,18,0.06)' } } },
       series: [
-        {
-          name: '新增案件',
-          type: 'line',
-          smooth: true,
-          data: list.map((i: any) => i.rooms ?? i.count ?? 0),
-          areaStyle: { color: 'rgba(99,102,241,0.1)' },
-          lineStyle: { color: '#6366F1', width: 2 },
-          itemStyle: { color: '#6366F1' },
-        },
-        {
-          name: '新增用户',
-          type: 'line',
-          smooth: true,
-          data: list.map((i: any) => i.users ?? 0),
-          areaStyle: { color: 'rgba(16,185,129,0.08)' },
-          lineStyle: { color: '#10B981', width: 2 },
-          itemStyle: { color: '#10B981' },
-        },
-        {
-          name: '新增投票',
-          type: 'line',
-          smooth: true,
-          data: list.map((i: any) => i.votes ?? 0),
-          areaStyle: { color: 'rgba(245,158,11,0.08)' },
-          lineStyle: { color: '#F59E0B', width: 2 },
-          itemStyle: { color: '#F59E0B' },
-        },
+        { name: '新增案件', type: 'line', smooth: true, data: list.map((i: any) => i.rooms ?? i.count ?? 0), areaStyle: { color: 'rgba(99,102,241,0.08)' }, lineStyle: { color: '#6366f1', width: 2 }, itemStyle: { color: '#6366f1' } },
+        { name: '新增用户', type: 'line', smooth: true, data: list.map((i: any) => i.users ?? 0), areaStyle: { color: 'rgba(16,185,129,0.07)' }, lineStyle: { color: '#10b981', width: 2 }, itemStyle: { color: '#10b981' } },
+        { name: '新增投票', type: 'line', smooth: true, data: list.map((i: any) => i.votes ?? 0), areaStyle: { color: 'rgba(245,158,11,0.07)' }, lineStyle: { color: '#f59e0b', width: 2 }, itemStyle: { color: '#f59e0b' } },
       ],
     }
   }, [trends])
 
   return (
-    <div>
-      <Row gutter={[14, 14]}>
-        {/* ── 案件 ── */}
-        <Col xs={12} md={6}>
-          <Card style={{ borderRadius: 16 }}>
-            <Statistic
-              title="总案件数"
-              value={ov?.totalRooms ?? 0}
-              prefix={<FileTextOutlined style={{ color: '#6366F1' }} />}
-              valueStyle={{ color: '#6366F1' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} md={6}>
-          <Card style={{ borderRadius: 16 }}>
-            <Statistic
-              title="进行中"
-              value={ov?.liveRooms ?? 0}
-              prefix={<PlayCircleOutlined style={{ color: '#3B82F6' }} />}
-              valueStyle={{ color: '#3B82F6' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} md={6}>
-          <Card style={{ borderRadius: 16 }}>
-            <Statistic
-              title="已结案"
-              value={ov?.closedRooms ?? 0}
-              prefix={<CheckCircleOutlined style={{ color: '#10B981' }} />}
-              valueStyle={{ color: '#10B981' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} md={6}>
-          <Card style={{ borderRadius: 16 }}>
-            <Statistic
-              title="总投票数"
-              value={ov?.totalVotes ?? 0}
-              prefix={<LikeOutlined style={{ color: '#F59E0B' }} />}
-              valueStyle={{ color: '#F59E0B' }}
-              suffix={<span style={{ fontSize: 12, color: '#94A3B8' }}>今日 +{ov?.todayVotes ?? 0}</span>}
-            />
-          </Card>
-        </Col>
+    <div className="sa-page">
+      <div className="sa-stats-grid">
+        {stats.map(({ label, value, icon, color, suffix }) => (
+          <div key={label} className="sa-stat-card" style={{ '--stat-color': color } as React.CSSProperties}>
+            <span className="sa-stat-label">{label}</span>
+            <div className="sa-stat-value-row">
+              <span className="sa-stat-icon" style={{ color }}>{icon}</span>
+              <span className="sa-stat-num" style={{ color }}>{value}</span>
+              {suffix && <span className="sa-stat-suffix">{suffix}</span>}
+            </div>
+          </div>
+        ))}
+      </div>
 
-        {/* ── 用户 ── */}
-        <Col xs={12} md={6}>
-          <Card style={{ borderRadius: 16 }}>
-            <Statistic
-              title="总用户数"
-              value={ov?.totalUsers ?? 0}
-              prefix={<UserOutlined style={{ color: '#8B5CF6' }} />}
-              valueStyle={{ color: '#8B5CF6' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} md={6}>
-          <Card style={{ borderRadius: 16 }}>
-            <Statistic
-              title="今日新增用户"
-              value={ov?.todayUsers ?? 0}
-              prefix={<UserAddOutlined style={{ color: '#06B6D4' }} />}
-              valueStyle={{ color: '#06B6D4' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} md={6}>
-          <Card style={{ borderRadius: 16 }}>
-            <Statistic
-              title="本周新增用户"
-              value={ov?.weekUsers ?? 0}
-              prefix={<UserAddOutlined style={{ color: '#10B981' }} />}
-              valueStyle={{ color: '#10B981' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} md={6}>
-          <Card style={{ borderRadius: 16 }}>
-            <Statistic
-              title="封禁用户"
-              value={ov?.bannedUsers ?? 0}
-              prefix={<StopOutlined style={{ color: '#EF4444' }} />}
-              valueStyle={{ color: ov?.bannedUsers > 0 ? '#EF4444' : undefined }}
-            />
-          </Card>
-        </Col>
+      <div className="sa-charts-row">
+        <div className="sa-chart-card">
+          <div className="sa-chart-header">
+            <h3 className="sa-chart-title">近 14 天趋势</h3>
+          </div>
+          <div className="sa-chart-body">
+            <ReactECharts option={trendOption as any} style={{ height: 300 }} />
+          </div>
+        </div>
 
-        {/* ── 趋势图 ── */}
-        <Col xs={24} md={14}>
-          <Card style={{ borderRadius: 16 }} title="近 14 天趋势（案件 / 用户 / 投票）">
-            <ReactECharts option={trendOption as any} style={{ height: 320 }} />
-          </Card>
-        </Col>
-
-        {/* ── 热门话题 ── */}
-        <Col xs={24} md={10}>
-          <Card style={{ borderRadius: 16 }} title="热门话题排行（Top 10）">
-            <Table
-              rowKey="id"
-              dataSource={Array.isArray(hotTopics) ? hotTopics : []}
-              pagination={false}
-              columns={[
-                { title: 'ID', dataIndex: 'id', width: 50 },
-                { title: '标题', dataIndex: 'title', ellipsis: true },
-                {
-                  title: '状态',
-                  dataIndex: 'status',
-                  width: 80,
-                  render: (v: string) => (
-                    <Tag color={v === 'LIVE' ? 'blue' : v === 'WAITING' ? 'gold' : 'default'}>
-                      {v === 'LIVE' ? '进行中' : v === 'WAITING' ? '待开始' : '已结案'}
-                    </Tag>
-                  ),
-                },
-                { title: '围观', dataIndex: 'viewCount', width: 60 },
-                { title: '评论', dataIndex: 'commentCount', width: 60 },
-                { title: '投票', dataIndex: 'voteCount', width: 60 },
-              ]}
-              size="small"
-              scroll={{ y: 280 }}
-            />
-          </Card>
-        </Col>
-      </Row>
+        <div className="sa-chart-card">
+          <div className="sa-chart-header">
+            <h3 className="sa-chart-title">热门话题排行</h3>
+          </div>
+          <Table
+            className="sa-table"
+            rowKey="id"
+            dataSource={Array.isArray(hotTopics) ? hotTopics : []}
+            pagination={false}
+            size="small"
+            scroll={{ y: 260 }}
+            columns={[
+              { title: 'ID', dataIndex: 'id', width: 45 },
+              { title: '标题', dataIndex: 'title', ellipsis: true },
+              {
+                title: '状态',
+                dataIndex: 'status',
+                width: 72,
+                render: (v: string) => (
+                  <Tag
+                    color={v === 'LIVE' ? 'blue' : v === 'WAITING' ? 'gold' : 'default'}
+                    style={{ borderRadius: 6, fontWeight: 600, fontSize: 10 }}
+                  >
+                    {v === 'LIVE' ? '进行中' : v === 'WAITING' ? '待开始' : '已结案'}
+                  </Tag>
+                ),
+              },
+              { title: '围观', dataIndex: 'viewCount', width: 52 },
+            ]}
+          />
+        </div>
+      </div>
     </div>
   )
 }

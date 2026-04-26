@@ -1,0 +1,146 @@
+// ============================================================
+//  StatsAdmin — "The Tribunal" editorial light theme
+// ============================================================
+
+.sa-page {
+  padding: 28px 32px;
+  font-family: 'Lato', 'PingFang SC', sans-serif;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sa-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+
+  @media (max-width: 1024px) { grid-template-columns: repeat(2, 1fr); }
+}
+
+.sa-stat-card {
+  background: rgba(255,253,249,0.9);
+  border-radius: 16px;
+  border: 1px solid rgba(26,22,18,0.07);
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: all 0.2s cubic-bezier(0.22,1,0.36,1);
+  box-shadow: 0 1px 4px rgba(26,22,18,0.04);
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--stat-color, #6366f1);
+    border-radius: 0 2px 2px 0;
+    opacity: 0.6;
+  }
+
+  &:hover {
+    border-color: rgba(26,22,18,0.12);
+    box-shadow: 0 6px 20px rgba(26,22,18,0.08);
+    transform: translateY(-2px);
+  }
+}
+
+.sa-stat-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #b0a89c;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.sa-stat-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.sa-stat-icon {
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.sa-stat-num {
+  font-family: 'Playfair Display', serif;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -1px;
+}
+
+.sa-stat-suffix {
+  font-size: 12px;
+  color: #b0a89c;
+  font-weight: 400;
+}
+
+// ── 图表区 ───────────────────────────────────────────────────
+.sa-charts-row {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 14px;
+
+  @media (max-width: 900px) { grid-template-columns: 1fr; }
+}
+
+.sa-chart-card {
+  background: rgba(255,253,249,0.9);
+  border-radius: 18px;
+  border: 1px solid rgba(26,22,18,0.08);
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(26,22,18,0.05);
+}
+
+.sa-chart-header {
+  padding: 18px 24px 14px;
+  border-bottom: 1px solid rgba(26,22,18,0.06);
+}
+
+.sa-chart-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1612;
+  margin: 0;
+}
+
+.sa-chart-body {
+  padding: 16px 16px 8px;
+}
+
+// ── 热门话题表格 ─────────────────────────────────────────────
+.sa-table {
+  :global(.ant-table-thead > tr > th) {
+    background: #f3f0ea !important;
+    color: #6b6459 !important;
+    font-weight: 700 !important;
+    font-size: 11px !important;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border-bottom: 1px solid rgba(26,22,18,0.08) !important;
+    padding: 10px 14px !important;
+  }
+
+  :global(.ant-table-tbody > tr > td) {
+    padding: 10px 14px !important;
+    border-bottom: 1px solid rgba(26,22,18,0.04) !important;
+    color: #1a1612 !important;
+    font-size: 12px !important;
+  }
+
+  :global(.ant-table-tbody > tr:hover > td) {
+    background: #f3f0ea !important;
+  }
+
+  :global(.ant-table-tbody > tr:last-child > td) {
+    border-bottom: none !important;
+  }
+}

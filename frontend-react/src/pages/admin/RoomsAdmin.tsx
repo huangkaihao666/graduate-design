@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Button, Card, Input, Modal, Select, Space, Table, Tag, message } from 'antd'
+import { Button, Input, Modal, Select, Space, Table, Tag, message } from 'antd'
+import { ReloadOutlined } from '@ant-design/icons'
 import * as adminApi from '@/api/admin'
+import './RoomsAdmin.less'
 
 const RoomsAdmin: React.FC = () => {
   const [status, setStatus] = useState<string | undefined>(undefined)
@@ -50,15 +52,22 @@ const RoomsAdmin: React.FC = () => {
         title: '在线',
         dataIndex: 'onlineCount',
         width: 90,
-        render: (v: number) => <Tag color={v > 0 ? 'green' : 'default'}>{v ?? 0}</Tag>,
+        render: (v: number) => (
+          <Tag
+            color={v > 0 ? 'green' : 'default'}
+            style={{ borderRadius: 6, fontWeight: 600, fontSize: 11 }}
+          >
+            {v ?? 0}
+          </Tag>
+        ),
       },
       {
         title: '围观/评论',
         key: 'stats',
-        width: 140,
+        width: 120,
         render: (_: any, r: any) => (
-          <span>
-            {r.viewCount ?? 0}/{r.commentCount ?? 0}
+          <span style={{ color: '#6b6459', fontSize: 13 }}>
+            {r.viewCount ?? 0} / {r.commentCount ?? 0}
           </span>
         ),
       },
@@ -66,16 +75,17 @@ const RoomsAdmin: React.FC = () => {
         title: '创建时间',
         dataIndex: 'createdAt',
         width: 170,
-        render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
+        render: (v: string) => v ? new Date(v).toLocaleString() : '-',
       },
       {
         title: '操作',
         key: 'actions',
-        width: 120,
+        width: 100,
         render: (_: any, r: any) => (
           <Button
             danger
             size="small"
+            style={{ borderRadius: 7, fontWeight: 600, fontSize: 12 }}
             onClick={() => {
               Modal.confirm({
                 title: '确认删除房间？',
@@ -100,39 +110,47 @@ const RoomsAdmin: React.FC = () => {
   )
 
   return (
-    <Card style={{ borderRadius: 16 }} title="房间管理" extra={<Button onClick={() => refetch()}>刷新</Button>}>
-      <Space wrap style={{ marginBottom: 12 }}>
-        <Select
-          allowClear
-          placeholder="状态筛选"
-          style={{ width: 160 }}
-          value={status}
-          onChange={(v) => setStatus(v)}
-          options={[
-            { value: 'WAITING', label: 'WAITING' },
-            { value: 'LIVE', label: 'LIVE' },
-            { value: 'CLOSED', label: 'CLOSED' },
-          ]}
-        />
-        <Input.Search
-          allowClear
-          placeholder="搜索标题/内容"
-          style={{ width: 320 }}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </Space>
+    <div className="ra-page">
+      <div className="ra-banner">
+        <h2 className="ra-banner-title">房间管理</h2>
+        <div className="ra-toolbar">
+          <Select
+            allowClear
+            placeholder="状态筛选"
+            style={{ width: 140 }}
+            value={status}
+            onChange={(v) => setStatus(v)}
+            options={[
+              { value: 'WAITING', label: 'WAITING' },
+              { value: 'LIVE', label: 'LIVE' },
+              { value: 'CLOSED', label: 'CLOSED' },
+            ]}
+          />
+          <Input.Search
+            allowClear
+            placeholder="搜索标题/内容"
+            style={{ width: 280 }}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <Button icon={<ReloadOutlined />} onClick={() => refetch()} style={{ borderRadius: 9 }}>
+            刷新
+          </Button>
+        </div>
+      </div>
 
-      <Table
-        rowKey="id"
-        loading={isLoading}
-        dataSource={rows}
-        columns={columns as any}
-        pagination={false}
-      />
-    </Card>
+      <div className="ra-table-wrap">
+        <Table
+          className="ra-table"
+          rowKey="id"
+          loading={isLoading}
+          dataSource={rows}
+          columns={columns as any}
+          pagination={false}
+        />
+      </div>
+    </div>
   )
 }
 
 export default RoomsAdmin
-

@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Button, Card, Input, Modal, Space, Table, Tag, message } from 'antd'
+import { Button, Input, Modal, Space, Table, Tag, message } from 'antd'
+import { ReloadOutlined } from '@ant-design/icons'
 import * as adminApi from '@/api/admin'
+import './MessagesAdmin.less'
 
 const MessagesAdmin: React.FC = () => {
   const [search, setSearch] = useState('')
@@ -22,38 +24,42 @@ const MessagesAdmin: React.FC = () => {
         width: 220,
         render: (u: any) => (
           <Space>
-            <span>{u?.name || u?.email || `用户${u?.id}`}</span>
-            <Tag color={u?.isActive ? 'green' : 'default'}>{u?.isActive ? 'ACTIVE' : 'BANNED'}</Tag>
+            <span style={{ fontWeight: 500 }}>{u?.name || u?.email || `用户${u?.id}`}</span>
+            <Tag
+              color={u?.isActive ? 'green' : 'default'}
+              style={{ borderRadius: 6, fontWeight: 600, fontSize: 10 }}
+            >
+              {u?.isActive ? 'ACTIVE' : 'BANNED'}
+            </Tag>
           </Space>
         ),
       },
-      { title: '房间', dataIndex: ['room', 'title'], width: 260, ellipsis: true },
-      {
-        title: '内容',
-        dataIndex: 'content',
-        ellipsis: true,
-      },
+      { title: '房间', dataIndex: ['room', 'title'], width: 240, ellipsis: true },
+      { title: '内容', dataIndex: 'content', ellipsis: true },
       {
         title: '原因',
         dataIndex: 'reason',
-        width: 140,
-        render: (v: string) => <Tag color="red">{v}</Tag>,
+        width: 130,
+        render: (v: string) => (
+          <Tag color="red" style={{ borderRadius: 6, fontWeight: 600, fontSize: 11 }}>{v}</Tag>
+        ),
       },
       {
         title: '时间',
         dataIndex: 'createdAt',
-        width: 170,
-        render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
+        width: 160,
+        render: (v: string) => v ? new Date(v).toLocaleString() : '-',
       },
       {
         title: '操作',
         key: 'actions',
-        width: 200,
+        width: 180,
         render: (_: any, r: any) => (
           <Space>
             <Button
               danger
               size="small"
+              style={{ borderRadius: 7, fontWeight: 600, fontSize: 12 }}
               onClick={() => {
                 Modal.confirm({
                   title: '删除该消息？',
@@ -73,6 +79,7 @@ const MessagesAdmin: React.FC = () => {
             </Button>
             <Button
               size="small"
+              style={{ borderRadius: 7, fontWeight: 600, fontSize: 12 }}
               onClick={() => {
                 Modal.confirm({
                   title: '封禁该用户？',
@@ -98,20 +105,35 @@ const MessagesAdmin: React.FC = () => {
   )
 
   return (
-    <Card style={{ borderRadius: 16 }} title="消息审核（关键词命中）" extra={<Button onClick={() => refetch()}>刷新</Button>}>
-      <Space wrap style={{ marginBottom: 12 }}>
-        <Input.Search
-          allowClear
-          placeholder="搜索消息内容"
-          style={{ width: 360 }}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+    <div className="ma-page">
+      <div className="ma-banner">
+        <h2 className="ma-banner-title">消息审核</h2>
+        <div className="ma-toolbar">
+          <Input.Search
+            allowClear
+            placeholder="搜索消息内容"
+            style={{ width: 320 }}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <Button icon={<ReloadOutlined />} onClick={() => refetch()} style={{ borderRadius: 9 }}>
+            刷新
+          </Button>
+        </div>
+      </div>
+
+      <div className="ma-table-wrap">
+        <Table
+          className="ma-table"
+          rowKey="id"
+          loading={isLoading}
+          dataSource={rows}
+          columns={columns as any}
+          pagination={false}
         />
-      </Space>
-      <Table rowKey="id" loading={isLoading} dataSource={rows} columns={columns as any} pagination={false} />
-    </Card>
+      </div>
+    </div>
   )
 }
 
 export default MessagesAdmin
-
