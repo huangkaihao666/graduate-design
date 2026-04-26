@@ -50,7 +50,7 @@ const NAV_ITEMS = [
   },
   {
     key: 'counseling',
-    label: 'AI 共情师',
+    label: 'AI 情绪伙伴',
     icon: <HeartOutlined />,
     path: '/counseling',
     desc: '倾诉与情绪辅导',

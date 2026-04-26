@@ -521,7 +521,7 @@ export class CozeService {
 
       // 全量有效用户观点（已过滤灌水，立场由智能体自行判断）
       if (hasAudience) {
-        prompt += `【观众的真实声音】（以下是真实用户的发言，系统已过滤无关灌水，立场未预先标注；请你自行判断哪些观点支持你的立场，在反驳时自然引用 1-2 条来增强说服力，不要照抄原文）：\n`;
+        prompt += `【观众的真实声音】（以下是真实用户的发言，系统已过滤无关灌水，立场未预先标注；请你自行判断每条观点的倾向：支持你的可引用 1-2 条增强说服力，支持对方的可主动接住并反驳，体现你在认真回应民意；不要照抄原文，改写融入即可）：\n`;
         audienceOpinions!.forEach((opinion, index) => {
           prompt += `${index + 1}. "${opinion}"\n`;
         });
@@ -530,16 +530,16 @@ export class CozeService {
     } else if (meta.phase === 'verdict') {
       const hasAudience = audienceOpinions && audienceOpinions.length > 0;
 
-      prompt += `【当前阶段：Round ${meta.roundNumber} · 综合裁决】\n`;
-      prompt += `你是本场辩论的裁决者，需要综合以下所有信息给出公正的裁决：\n`;
-      prompt += `  ① 回顾双方在前两轮的核心论点和反驳；\n`;
+      prompt += `【当前阶段：Round ${meta.roundNumber} · 综合总结】\n`;
+      prompt += `你是本场辩论的中立观察者，需要综合以下所有信息给出客观的综合总结：\n`;
+      prompt += `  ① 用各自的名字称呼前两位 AI，归纳他们在前两轮的核心观点与局限，不要用"A方""B方"代替；\n`;
       if (hasAudience) {
         prompt += `  ② 结合下方观众的真实民意分布（支持哪方人数更多、代表性观点是什么）；\n`;
-        prompt += `  ③ 给出你的裁决结论，并说明理由。\n`;
+        prompt += `  ③ 给出你的综合建议，帮助用户看清问题全貌，语言贴近大学生。\n`;
       } else {
-        prompt += `  ② 本场没有观众民意数据，请只基于双方辩论内容给出裁决，不要自行编造观众声音或假设民意倾向。\n`;
+        prompt += `  ② 本场没有观众民意数据，请只基于双方辩论内容给出综合总结，不要自行编造观众声音或假设民意倾向。\n`;
       }
-      prompt += `字数控制在 ${maxChars} 字以内，语言要客观、有说服力。\n\n`;
+      prompt += `字数控制在 ${maxChars} 字以内，语言平和客观，说人话，避免官话套话。\n\n`;
 
       // 前两轮所有智能体发言
       const agentContext = context.filter((m) => m.agentId !== 'audience');

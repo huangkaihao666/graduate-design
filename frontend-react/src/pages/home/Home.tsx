@@ -104,10 +104,10 @@ export const Home: React.FC = () => {
           </div>
           <h1 className="hero-title">
             <span>AI 智能体辅助决策</span>
-            <span className="hero-title-highlight">RAG 共情师陪你成长</span>
+            <span className="hero-title-highlight">RAG 情绪伙伴陪你成长</span>
           </h1>
           <p className="hero-desc">
-            三位 AI 专家从逻辑、情感、法律三维度分析你的难题，提供多角度参考，个性化 RAG 情绪记忆图谱让共情师越聊越懂你
+            三位 AI 专家从逻辑、情感、综合三视角分析你的难题，提供多角度参考，个性化 RAG 情绪记忆图谱让情绪伙伴越聊越懂你
           </p>
           <div className="hero-actions">
             <Button
@@ -126,7 +126,7 @@ export const Home: React.FC = () => {
               iconPosition="end"
               onClick={() => document.getElementById('case-list')?.scrollIntoView({ behavior: 'smooth' })}
             >
-              浏览案件
+              浏览话题
             </Button>
           </div>
           {/* 底部数据统计行 */}
@@ -160,14 +160,14 @@ export const Home: React.FC = () => {
           <div className="hero-agent-card agent-b">
             <div className="hero-agent-emoji">💚</div>
             <div className="hero-agent-info">
-              <div className="hero-agent-name">共情辅导师</div>
+              <div className="hero-agent-name">温柔共情者</div>
               <div className="hero-agent-tag">心理学 · NVC</div>
             </div>
           </div>
           <div className="hero-agent-card agent-c">
             <div className="hero-agent-emoji">⚖️</div>
             <div className="hero-agent-info">
-              <div className="hero-agent-name">理性律师</div>
+              <div className="hero-agent-name">中立观察者</div>
               <div className="hero-agent-tag">民法 · 劳动法</div>
             </div>
           </div>
@@ -205,7 +205,7 @@ export const Home: React.FC = () => {
           <div className="toolbar-right">
             {/* 搜索 */}
             <Input.Search
-              placeholder="搜索案件..."
+              placeholder="搜索话题..."
               allowClear
               onSearch={handleSearch}
               className="search-input"
@@ -274,7 +274,7 @@ export const Home: React.FC = () => {
             <Empty
               description={
                 <span>
-                  暂无案件
+                  暂无话题
                   <Button type="link" onClick={() => navigate('/create')}>发起第一个辩论</Button>
                 </span>
               }
@@ -301,7 +301,7 @@ export const Home: React.FC = () => {
                   上一页
                 </Button>
                 <span className="page-info">
-                  第 {page} 页 · 共 {Math.ceil(pagination.total / pageSize)} 页 · {pagination.total} 个案件
+                  第 {page} 页 · 共 {Math.ceil(pagination.total / pageSize)} 页 · {pagination.total} 个话题
                 </span>
                 <Button
                   disabled={page >= Math.ceil(pagination.total / pageSize)}

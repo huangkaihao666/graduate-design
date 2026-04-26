@@ -34,8 +34,8 @@ const AGENT_VISUAL: Array<{
     bg: '#FFF7ED',
     border: 'rgba(249,115,22,0.25)',
     gradient: 'linear-gradient(135deg, #F97316, #FB923C)',
-    tags: ['博弈论', '逻辑谬误', '社会学'],
-    role: '直言现实者',
+    tags: ['就业数据', '机会成本', '行业趋势'],
+    role: '毒舌现实主义者',
   },
   {
     emoji: '💚',
@@ -43,8 +43,8 @@ const AGENT_VISUAL: Array<{
     bg: '#ECFDF5',
     border: 'rgba(16,185,129,0.25)',
     gradient: 'linear-gradient(135deg, #10B981, #34D399)',
-    tags: ['心理学', 'NVC', 'NLP'],
-    role: '共情辅导师',
+    tags: ['心理健康', '非暴力沟通', '价值观探索'],
+    role: '温柔共情者',
   },
   {
     emoji: '⚖️',
@@ -52,8 +52,8 @@ const AGENT_VISUAL: Array<{
     bg: '#EFF6FF',
     border: 'rgba(59,130,246,0.25)',
     gradient: 'linear-gradient(135deg, #3B82F6, #60A5FA)',
-    tags: ['民法', '劳动法', '合同法'],
-    role: '理性律师',
+    tags: ['决策案例', '综合分析', '两难框架'],
+    role: '中立观察者',
   },
 ]
 

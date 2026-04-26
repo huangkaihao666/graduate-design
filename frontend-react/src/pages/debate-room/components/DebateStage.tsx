@@ -66,7 +66,7 @@ export const DebateStage: React.FC<DebateStageProps> = ({
       ? '阐述观点（Round 1）'
       : currentRound === 2
         ? '交叉反驳（Round 2）'
-        : '律师裁决（Round 3）'
+        : '综合总结（Round 3）'
 
   const activeTypingName = (() => {
     const first = Array.from(typingAgents)[0]
@@ -132,7 +132,7 @@ export const DebateStage: React.FC<DebateStageProps> = ({
                         ? '阐述观点'
                         : message.roundNumber === 2
                           ? '交叉反驳'
-                          : '律师裁决'}
+                          : '综合总结'}
                     </span>
                   </div>
                 )}

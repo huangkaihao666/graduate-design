@@ -69,7 +69,7 @@ export const DebateRoom: React.FC = () => {
   const flushTimerRef = useRef<number | null>(null)
 
   const getRoundPhaseLabel = (round: number) =>
-    round === 1 ? '阐述观点' : round === 2 ? '交叉反驳' : '律师裁决'
+    round === 1 ? '阐述观点' : round === 2 ? '交叉反驳' : '综合总结'
 
   const notifyEnterRound = (round: number) => {
     if (!round || Number.isNaN(round)) return

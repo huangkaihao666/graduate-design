@@ -47,7 +47,7 @@ async function main() {
       update: {},
       create: {
         id: 'bot_C',
-        name: '理智律师',
+        name: '中立观察者',
         personality: '客观公正，逻辑严密',
         description:
           '一位资深律师，用法律和逻辑的语言分析每个问题。他相信证据和条款，用严密的论证为你护航。在辩论中，他是最能帮你规避风险的那一位。',

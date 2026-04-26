@@ -34,7 +34,7 @@ type Winner =
   | { type: 'WIN'; agentId: string; topPercent?: number }
 
 const getRoundLabel = (round: number) =>
-  round === 1 ? '阐述观点' : round === 2 ? '交叉反驳' : round === 3 ? '律师裁决' : '辩论回顾'
+  round === 1 ? '阐述观点' : round === 2 ? '交叉反驳' : round === 3 ? '综合总结' : '辩论回顾'
 
 const getRankLabel = (rank: number) =>
   rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}th`
@@ -228,7 +228,7 @@ export const RoomReport: React.FC = () => {
           <h3>报告不存在或无权限访问</h3>
           <p>该结案报告可能尚未生成，或您没有访问权限</p>
           <Button type="primary" onClick={() => navigate('/cases')} className="rr-empty-btn">
-            返回案件列表
+            返回话题列表
           </Button>
         </div>
       </div>
@@ -327,11 +327,11 @@ export const RoomReport: React.FC = () => {
             </div>
 
             {!hasVotes ? (
-              /* 无票 → 提示并折叠展示律师建议 */
+              /* 无票 → 提示并折叠展示综合总结 */
               <div className="rr-no-vote-verdict">
                 <div className="rr-no-vote-illus">🗳️</div>
                 <div className="rr-no-vote-title">本场暂无投票记录</div>
-                <div className="rr-no-vote-sub">以下为 AI 律师的综合裁决，可作为参考结论</div>
+                <div className="rr-no-vote-sub">以下为 AI 中立观察者的综合总结，可作为参考结论</div>
                 {finalAdviceRaw ? (
                   <div className="rr-advice-inline">
                     <div className="rr-advice-body">{finalAdviceRaw.content}</div>
@@ -344,7 +344,7 @@ export const RoomReport: React.FC = () => {
                     )}
                   </div>
                 ) : (
-                  <div className="rr-no-advice-hint">律师建议暂未生成</div>
+                  <div className="rr-no-advice-hint">综合总结暂未生成</div>
                 )}
               </div>
             ) : winner?.type === 'TIE' ? (
@@ -438,7 +438,7 @@ export const RoomReport: React.FC = () => {
             )}
           </section>
 
-          {/* ② 有胜者时展示胜者精彩发言；无投票时展示律师建议 */}
+          {/* ② 有胜者时展示胜者精彩发言；无投票时展示综合总结 */}
           {hasVotes && winner?.type === 'WIN' && winnerAgent ? (
             (() => {
               // 取胜者最后一条发言（通常是最具代表性的总结）
@@ -553,7 +553,7 @@ export const RoomReport: React.FC = () => {
                 <span className="rr-counseling-emoji">💚</span>
                 <div>
                   <div className="rr-counseling-title">有话想说？</div>
-                  <div className="rr-counseling-desc">AI 共情师帮你梳理情绪、聊聊感受</div>
+                  <div className="rr-counseling-desc">AI 情绪伙伴帮你梳理情绪、聊聊感受</div>
                 </div>
               </div>
               <Button
@@ -571,11 +571,11 @@ export const RoomReport: React.FC = () => {
             </div>
           </div>
 
-          {/* 案件信息 */}
+          {/* 话题信息 */}
           <div className="rr-widget">
             <div className="rr-widget-header">
               <span className="rr-widget-emoji">📋</span>
-              <span>案件信息</span>
+              <span>话题信息</span>
             </div>
             <div className="rr-info-list">
               <div className="rr-info-row">

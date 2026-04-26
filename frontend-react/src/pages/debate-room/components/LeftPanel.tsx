@@ -133,7 +133,7 @@ export const LeftPanel: React.FC<LeftPanelProps> = ({
             <span className="lp-counseling-icon">💚</span>
             <div>
               <div className="lp-counseling-card-title">有话想说？</div>
-              <div className="lp-counseling-card-sub">和 AI 共情师聊聊这个案件</div>
+              <div className="lp-counseling-card-sub">和 AI 情绪伙伴聊聊这个话题</div>
             </div>
           </div>
           <Button
