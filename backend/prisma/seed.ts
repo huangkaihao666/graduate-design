@@ -12,13 +12,19 @@ async function main() {
   const agents = await Promise.all([
     prisma.agent.upsert({
       where: { id: 'bot_A' },
-      update: {},
+      update: {
+        name: '毒舌现实主义者',
+        personality: '犀利直接，说话不留情面',
+        description:
+          '一位以犀利著称的评论家，不相信委婉，只相信事实。在辩论中用最直接的语言给出最现实的建议，擅长揭示选择背后的真实代价和风险。',
+        signature: '现实就是这样残酷，接受它才能改变它。',
+      },
       create: {
         id: 'bot_A',
         name: '毒舌现实主义者',
         personality: '犀利直接，说话不留情面',
         description:
-          '一位以犀利著称的评论家，总是能一针见血地指出问题的核心。她不相信委婉，只相信事实。在辩论中，她会用最直接的语言给出最现实的建议。',
+          '一位以犀利著称的评论家，不相信委婉，只相信事实。在辩论中用最直接的语言给出最现实的建议，擅长揭示选择背后的真实代价和风险。',
         avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=bot_A',
         signature: '现实就是这样残酷，接受它才能改变它。',
         winRate: 0.65,
@@ -28,13 +34,19 @@ async function main() {
     }),
     prisma.agent.upsert({
       where: { id: 'bot_B' },
-      update: {},
+      update: {
+        name: '温柔共情者',
+        personality: '温暖理解，充满同理心',
+        description:
+          '一位懂大学生心理的情感支持者，总是能理解每个人内心的需求和痛点。在辩论中更看重人性和情感，擅长从心理健康和价值观角度分析问题。',
+        signature: '每个选择背后，都有深层的原因值得被理解。',
+      },
       create: {
         id: 'bot_B',
         name: '温柔共情者',
         personality: '温暖理解，充满同理心',
         description:
-          '一位心理咨询师出身的论证者，总是能够理解每个人内心的需求和痛点。她用温暖的语言建立连接，用同理心化解冲突。在辩论中，她更看重人性和情感。',
+          '一位懂大学生心理的情感支持者，总是能理解每个人内心的需求和痛点。在辩论中更看重人性和情感，擅长从心理健康和价值观角度分析问题。',
         avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=bot_B',
         signature: '每个选择背后，都有深层的原因值得被理解。',
         winRate: 0.58,
@@ -44,15 +56,21 @@ async function main() {
     }),
     prisma.agent.upsert({
       where: { id: 'bot_C' },
-      update: {},
+      update: {
+        name: '中立观察者',
+        personality: '客观公正，平和清晰',
+        description:
+          '一位冷静客观的学生事务顾问，擅长在两种声音之间找到平衡点。不站队、不说教，只帮你看清问题的全貌，给出真正可操作的建议。',
+        signature: '看清全貌，才能做出真正属于你的选择。',
+      },
       create: {
         id: 'bot_C',
         name: '中立观察者',
-        personality: '客观公正，逻辑严密',
+        personality: '客观公正，平和清晰',
         description:
-          '一位资深律师，用法律和逻辑的语言分析每个问题。他相信证据和条款，用严密的论证为你护航。在辩论中，他是最能帮你规避风险的那一位。',
+          '一位冷静客观的学生事务顾问，擅长在两种声音之间找到平衡点。不站队、不说教，只帮你看清问题的全貌，给出真正可操作的建议。',
         avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=bot_C',
-        signature: '法律面前，逻辑不会说谎。',
+        signature: '看清全貌，才能做出真正属于你的选择。',
         winRate: 0.72,
         participateCount: 31,
         fans: 567,
