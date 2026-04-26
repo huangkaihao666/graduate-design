@@ -1,105 +1,141 @@
-// ============ 我的案件页面样式 ============
+// ============ 我的足迹页 ============
 
 .my-cases-page {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 0 60px;
+  padding: 0 0 48px;
 }
 
-// ── 页面头部 ──────────────────────────────────────────────────
+// ── 页面头部 ──────────────────────────────────────────────────────
 .my-cases-header {
   position: relative;
-  background: var(--gradient-hero);
-  padding: 40px 32px 36px;
-  border-radius: 0 0 24px 24px;
-  margin-bottom: 28px;
+  background: linear-gradient(135deg, #0f2d5a 0%, #1a4a8a 45%, #1565a0 75%, #0891b2 100%);
+  padding: 32px 40px;
+  border-radius: 16px;
+  margin-bottom: 20px;
   overflow: hidden;
+  box-shadow: 0 6px 24px rgba(15, 45, 90, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
 
-  // 背景装饰
+  // 点阵纹理
   &::before {
     content: '';
     position: absolute;
-    top: -40%;
-    right: -5%;
-    width: 320px;
-    height: 320px;
+    inset: 0;
+    background-image: radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px);
+    background-size: 26px 26px;
+    pointer-events: none;
+  }
+
+  // 右侧光晕
+  &::after {
+    content: '';
+    position: absolute;
+    width: 280px;
+    height: 280px;
     border-radius: 50%;
-    background: rgba(99, 102, 241, 0.2);
+    background: radial-gradient(circle, rgba(125,211,252,0.18), transparent 70%);
+    right: -60px;
+    top: -80px;
     filter: blur(60px);
     pointer-events: none;
   }
 
-  &::after {
-    content: '📝';
-    position: absolute;
-    right: 40px;
-    bottom: -12px;
-    font-size: 110px;
-    opacity: 0.08;
-    pointer-events: none;
-    user-select: none;
+  @media (max-width: 640px) {
+    padding: 24px 22px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
   }
+}
+
+.header-info {
+  position: relative;
+  z-index: 1;
 
   h1 {
-    font-size: 28px;
+    font-size: 24px;
     font-weight: 900;
-    color: #fff;
-    margin: 0 0 8px;
+    color: #ffffff;
+    margin: 0 0 6px;
+    letter-spacing: -0.2px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.15);
   }
 
   p {
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.6);
-    margin: 0 0 20px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.62);
+    margin: 0;
+    line-height: 1.5;
   }
+}
 
-  // 创建按钮
+.header-action {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+
   :global(.ant-btn-primary) {
-    height: 42px !important;
-    padding: 0 24px !important;
-    border-radius: 10px !important;
-    background: var(--gradient-primary) !important;
-    border: none !important;
+    height: 40px !important;
+    padding: 0 20px !important;
+    border-radius: 8px !important;
+    background: rgba(255,255,255,0.15) !important;
+    border: 1.5px solid rgba(255,255,255,0.35) !important;
     font-weight: 700 !important;
-    font-size: 14px !important;
-    box-shadow: var(--shadow-primary) !important;
-    transition: all 0.2s ease !important;
+    font-size: 13.5px !important;
+    color: #ffffff !important;
+    backdrop-filter: blur(8px);
+    transition: all 0.22s ease !important;
+    box-shadow: none !important;
+
+    span { color: #ffffff !important; }
 
     &:hover {
-      transform: translateY(-2px) !important;
-      box-shadow: var(--shadow-lg) !important;
+      background: rgba(255,255,255,0.25) !important;
+      border-color: rgba(255,255,255,0.55) !important;
+      transform: translateY(-1px) !important;
     }
   }
 }
 
-// ── Tabs 样式 ─────────────────────────────────────────────────
+// ── Tabs ──────────────────────────────────────────────────────────
 .my-cases-page {
   :global(.ant-tabs-nav) {
-    padding: 0 4px !important;
-    margin-bottom: 20px !important;
+    padding: 0 2px !important;
+    margin-bottom: 18px !important;
+
+    &::before {
+      border-color: rgba(26, 74, 138, 0.15) !important;
+    }
   }
 
   :global(.ant-tabs-tab) {
+    font-size: 13.5px !important;
     font-weight: 600 !important;
-    color: var(--text-secondary) !important;
+    color: #3a5068 !important;
+    padding: 8px 4px !important;
 
     &:hover {
-      color: var(--color-primary) !important;
+      color: #1a4a8a !important;
     }
   }
 
   :global(.ant-tabs-tab-active .ant-tabs-tab-btn) {
-    color: var(--color-primary) !important;
+    color: #1a4a8a !important;
+    font-weight: 700 !important;
   }
 
   :global(.ant-tabs-ink-bar) {
-    background: var(--gradient-primary) !important;
-    height: 3px !important;
-    border-radius: 3px 3px 0 0 !important;
+    background: linear-gradient(90deg, #1a4a8a, #0891b2) !important;
+    height: 2px !important;
+    border-radius: 1px !important;
   }
 }
 
-// ── 案件卡片网格 ──────────────────────────────────────────────
+// ── 案件卡片网格 ──────────────────────────────────────────────────
 .cases-grid {
   min-height: 200px;
 
@@ -111,8 +147,7 @@
     width: 100%;
   }
 
-  // 空态
   :global(.ant-empty) {
-    padding: 40px 0 !important;
+    padding: 48px 0 !important;
   }
 }

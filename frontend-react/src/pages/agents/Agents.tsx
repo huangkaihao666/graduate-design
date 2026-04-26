@@ -74,7 +74,7 @@ export const Agents: React.FC = () => {
     <div className="agents-page">
       <div className="agents-hero">
         <div>
-          <h1 className="agents-hero-title">🤖 AI Agent 图鉴</h1>
+          <h1 className="agents-hero-title">AI Agent 图鉴</h1>
           <div className="agents-hero-sub">浏览智能体的人设、金句与数据表现，选择你喜欢的辩论风格。</div>
         </div>
       </div>

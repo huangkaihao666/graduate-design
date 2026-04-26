@@ -280,13 +280,10 @@ export const CreateAgent: React.FC = () => {
         <div className="hero-bg-orb orb-1" />
         <div className="hero-bg-orb orb-2" />
         <div className="hero-content">
-          <div className="hero-icon">🛠️</div>
-          <div>
-            <h1 className="hero-title">创建智能体</h1>
-            <p className="hero-sub">
-              自定义 AI 人设与知识库，打造专属辩论专家，参与你的每一场决策
-            </p>
-          </div>
+          <h1 className="hero-title">创建智能体</h1>
+          <p className="hero-sub">
+            自定义 AI 人设与知识库，打造专属辩论专家，参与你的每一场决策
+          </p>
         </div>
         <Button
           type="primary"
@@ -358,6 +355,7 @@ export const CreateAgent: React.FC = () => {
                           {!agent.avatar ? agent.name[0] : ''}
                         </Avatar>
                         <div className="agent-info">
+                          {/* 第一行：名字 + 状态 */}
                           <div className="agent-name-row">
                             <span className="agent-name">{agent.name}</span>
                             <Tag color={statusInfo.color} className="status-tag">
@@ -365,43 +363,46 @@ export const CreateAgent: React.FC = () => {
                               {statusInfo.label}
                             </Tag>
                           </div>
+                          {/* 第二行：性格描述 */}
                           {agent.personality && (
                             <Text type="secondary" className="agent-personality">
-                              {agent.personality}
+                              <span className="agent-field-label">性格：</span>{agent.personality}
                             </Text>
                           )}
-                          {agent.domainsArr && agent.domainsArr.length > 0 && (
-                            <div className="agent-domains">
-                              {agent.domainsArr.slice(0, 3).map((d) => (
-                                <Tag key={d} className="domain-tag">{d}</Tag>
-                              ))}
+                          {/* 第三行：领域标签 + 知识库绑定 + Bot ID */}
+                          <div className="agent-meta-row">
+                            {agent.domainsArr && agent.domainsArr.length > 0 && (
+                              <div className="agent-domains">
+                                <span className="agent-field-label">领域：</span>
+                                {agent.domainsArr.slice(0, 3).map((d) => (
+                                  <Tag key={d} className="domain-tag">{d}</Tag>
+                                ))}
+                              </div>
+                            )}
+                            {boundKb ? (
+                              <div className="kb-bound-badge">
+                                <CheckCircleOutlined />
+                                <span>已绑定：{boundKb.name}</span>
+                                <Popconfirm
+                                  title="解绑知识库？"
+                                  onConfirm={() => unbindKbMutation.mutate(agent.id)}
+                                  okText="解绑"
+                                  okButtonProps={{ danger: true }}
+                                >
+                                  <Button type="link" size="small" danger style={{ padding: '0 4px' }}>
+                                    解绑
+                                  </Button>
+                                </Popconfirm>
+                              </div>
+                            ) : (
+                              <div className="kb-unbound-badge">
+                                <ExclamationCircleOutlined />
+                                <span>未绑定知识库</span>
+                              </div>
+                            )}
+                            <div className="agent-coze-id" style={{ marginTop: 0 }}>
+                              Bot ID: <code>{agent.id}</code>
                             </div>
-                          )}
-                          {/* 知识库绑定状态 */}
-                          {boundKb ? (
-                            <div className="kb-bound-badge">
-                              <CheckCircleOutlined />
-                              <span>已绑定：{boundKb.name}</span>
-                              <Popconfirm
-                                title="解绑知识库？"
-                                onConfirm={() => unbindKbMutation.mutate(agent.id)}
-                                okText="解绑"
-                                okButtonProps={{ danger: true }}
-                              >
-                                <Button type="link" size="small" danger style={{ padding: '0 4px' }}>
-                                  解绑
-                                </Button>
-                              </Popconfirm>
-                            </div>
-                          ) : (
-                            <div className="kb-unbound-badge">
-                              <ExclamationCircleOutlined />
-                              <span>未绑定知识库</span>
-                            </div>
-                          )}
-                          {/* Coze Bot ID */}
-                          <div className="agent-coze-id">
-                            Bot ID: <code>{agent.id}</code>
                           </div>
                         </div>
                       </div>
@@ -755,8 +756,8 @@ export const CreateAgent: React.FC = () => {
                 </div>
                 <Text type="secondary" style={{ fontSize: 12 }}>
                   {isPublic
-                    ? '提交审核后，审核通过的智能体会出现在 AI 图鉴供所有人选择'
-                    : '仅在发起辩论时自己可以选择此智能体'}
+                    ? '提交审核后，审核通过的智能体会出现在 AI 图鉴，所有用户均可在 AI 共情师中选择使用'
+                    : '仅自己可在 AI 共情师中选择此智能体作为辅导师'}
                 </Text>
               </div>
               <Switch checked={isPublic} onChange={setIsPublic} />

@@ -250,16 +250,19 @@ const MyCases: React.FC = () => {
   return (
     <div className="my-cases-page">
       <div className="my-cases-header">
-        <h1>👣 我的足迹</h1>
-        <p>记录您的案件、点赞与收藏</p>
-        <Button
-          type="primary"
-          size="large"
-          icon={<PlusOutlined />}
-          onClick={() => navigate('/create')}
-        >
-          创建新案件
-        </Button>
+        <div className="header-info">
+          <h1>我的足迹</h1>
+          <p>记录你的案件、点赞与收藏</p>
+        </div>
+        <div className="header-action">
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => navigate('/create')}
+          >
+            发起辩论
+          </Button>
+        </div>
       </div>
 
       <Tabs

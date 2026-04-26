@@ -9,52 +9,58 @@
 // ── Hero 区域 ─────────────────────────────────────────────────
 .agents-hero {
   position: relative;
-  background: linear-gradient(135deg, #1E1B4B 0%, #312E81 50%, #4C1D95 100%);
-  padding: 48px 32px;
-  margin-bottom: 28px;
-  border-radius: 0 0 24px 24px;
+  background: linear-gradient(135deg, #0f2d5a 0%, #1a4a8a 45%, #1565a0 75%, #0891b2 100%);
+  padding: 32px 40px;
+  margin-bottom: 20px;
+  border-radius: 16px;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  box-shadow: 0 6px 24px rgba(15, 45, 90, 0.28);
 
-  // 背景装饰
+  // 点阵纹理
   &::before {
     content: '';
     position: absolute;
-    top: -50%;
-    right: -10%;
-    width: 400px;
-    height: 400px;
+    inset: 0;
+    background-image: radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px);
+    background-size: 26px 26px;
+    pointer-events: none;
+  }
+
+  // 右侧光晕（无 emoji）
+  &::after {
+    content: '';
+    position: absolute;
+    width: 280px;
+    height: 280px;
     border-radius: 50%;
-    background: rgba(139, 92, 246, 0.2);
+    background: radial-gradient(circle, rgba(125,211,252,0.18), transparent 70%);
+    right: -60px;
+    top: -80px;
     filter: blur(60px);
     pointer-events: none;
   }
 
-  &::after {
-    content: '🤖';
-    position: absolute;
-    right: 48px;
-    bottom: -10px;
-    font-size: 120px;
-    opacity: 0.08;
-    pointer-events: none;
-    user-select: none;
-  }
-
   .agents-hero-title {
-    font-size: 32px;
+    position: relative;
+    z-index: 1;
+    font-size: 24px;
     font-weight: 900;
     color: #fff;
-    margin: 0 0 8px;
-    letter-spacing: -0.5px;
+    margin: 0 0 6px;
+    letter-spacing: -0.2px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.15);
   }
 
   .agents-hero-sub {
-    font-size: 15px;
-    color: rgba(255, 255, 255, 0.65);
-    max-width: 500px;
+    position: relative;
+    z-index: 1;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.62);
+    max-width: 480px;
+    line-height: 1.6;
   }
 }
 
@@ -105,17 +111,17 @@
 
 // ── Agent 卡片 ────────────────────────────────────────────────
 .agent-card {
-  border-radius: 16px !important;
-  border: 1px solid rgba(99, 102, 241, 0.12) !important;
-  box-shadow: 0 2px 12px rgba(99, 102, 241, 0.06) !important;
-  transition: all 0.25s ease !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(26, 74, 138, 0.14) !important;
+  box-shadow: 0 1px 6px rgba(15, 45, 90, 0.07) !important;
+  transition: all 0.24s ease !important;
   overflow: hidden;
   cursor: pointer;
 
   &:hover {
     transform: translateY(-4px) !important;
-    box-shadow: 0 12px 32px rgba(99, 102, 241, 0.16) !important;
-    border-color: rgba(99, 102, 241, 0.3) !important;
+    box-shadow: 0 10px 28px rgba(15, 45, 90, 0.14) !important;
+    border-color: rgba(26, 74, 138, 0.28) !important;
   }
 
   .agent-card-top {
@@ -124,26 +130,24 @@
     align-items: center;
     margin-bottom: 10px;
 
+    // 头像：按 agent 类型用不同颜色
     :global(.ant-avatar) {
-      background: linear-gradient(135deg, #6366F1, #8B5CF6) !important;
+      background: linear-gradient(135deg, #1a4a8a, #0891b2) !important;
       font-weight: 900 !important;
+      font-size: 16px !important;
     }
 
     .agent-name {
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 800;
-      color: #1E1B4B;
+      color: #0f1e2e;
       margin: 0 0 4px;
-
-      [data-theme='dark'] & {
-        color: rgba(255, 255, 255, 0.92);
-      }
     }
 
     .agent-persona {
       :global(.ant-tag) {
         font-size: 11px;
-        border-radius: 999px;
+        border-radius: 6px;
         font-weight: 600;
         padding: 1px 8px;
       }
@@ -151,14 +155,10 @@
   }
 
   .agent-desc {
-    font-size: 13px;
-    color: #64748B;
+    font-size: 12.5px;
+    color: #3a5068;
     margin-bottom: 14px !important;
-    line-height: 1.6 !important;
-
-    [data-theme='dark'] & {
-      color: rgba(255, 255, 255, 0.55);
-    }
+    line-height: 1.65 !important;
   }
 
   // 统计数字行
@@ -168,31 +168,22 @@
     gap: 8px;
 
     .stat-box {
-      background: #F8FAFC;
-      border-radius: 10px;
+      background: #d4e3f0;
+      border-radius: 8px;
       padding: 8px 6px;
       text-align: center;
-      border: 1px solid #E2E8F0;
-
-      [data-theme='dark'] & {
-        background: rgba(255, 255, 255, 0.05);
-        border-color: rgba(255, 255, 255, 0.08);
-      }
+      border: 1px solid rgba(26, 74, 138, 0.1);
 
       .stat-label {
         font-size: 11px;
-        color: #94A3B8;
-        margin-bottom: 4px;
-
-        [data-theme='dark'] & {
-          color: rgba(255, 255, 255, 0.45);
-        }
+        color: #6b85a0;
+        margin-bottom: 3px;
       }
 
       .stat-value {
         font-size: 16px;
         font-weight: 800;
-        color: #6366F1;
+        color: #1a4a8a;
       }
     }
   }
@@ -240,27 +231,22 @@
 
 // 金句展示框
 .quote-box {
-  font-size: 15px;
-  line-height: 1.7;
-  color: #374151;
+  font-size: 14px;
+  line-height: 1.75;
+  color: #0f1e2e;
   font-style: italic;
   font-weight: 600;
-  background: linear-gradient(135deg, #EEF2FF, #F5F0FF);
-  border-left: 4px solid #6366F1;
+  background: linear-gradient(135deg, #d4e6f2, #c8daea);
+  border-left: 4px solid #1a4a8a;
   border-radius: 0 10px 10px 0;
   padding: 12px 16px;
   position: relative;
 
-  [data-theme='dark'] & {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.12));
-    color: rgba(255, 255, 255, 0.8);
-  }
-
   &::before {
     content: '"';
     font-size: 32px;
-    color: #6366F1;
-    opacity: 0.3;
+    color: #1a4a8a;
+    opacity: 0.25;
     position: absolute;
     top: -4px;
     left: 12px;
