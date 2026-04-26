@@ -2,7 +2,9 @@
 
 .app-layout {
   min-height: 100vh;
-  background: #c8daea;
+  // 从左上角浅蓝白到右下角略深的蓝灰，产生空间感
+  background: linear-gradient(145deg, #e8f2f8 0%, #dce8f2 40%, #d4e3ee 100%);
+  background-attachment: fixed;
 }
 
 // ── 顶部导航 ──────────────────────────────────────────────────────
@@ -188,12 +190,12 @@
   display: flex;
   flex: 1;
   min-height: calc(100vh - 56px);
-  background: #c8daea !important;
+  background: transparent !important;
 }
 
 // ── 侧边栏 ────────────────────────────────────────────────────────
 .app-sider {
-  background: #b8ccde !important;
+  background: #cfe0ed !important;
   border-right: 1px solid rgba(37, 99, 235, 0.08) !important;
   position: sticky !important;
   top: 56px;
@@ -412,7 +414,7 @@
   flex: 1;
   min-width: 0;
   padding: 24px;
-  background: #c8daea !important;
+  background: transparent !important;
   min-height: calc(100vh - 56px);
   overflow-y: auto;
 

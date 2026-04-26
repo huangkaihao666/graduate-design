@@ -317,25 +317,17 @@ const Auth: React.FC = () => {
 
   return (
     <div className="auth-page">
-      {/* 背景图层 */}
-      <div className="auth-bg-image" />
-      {/* 深色叠加层 */}
-      <div className="auth-bg-overlay" />
-      {/* 动态光效 */}
+      {/* 全局背景光晕 */}
       <div className="auth-bg-orbs">
         <div className="auth-orb orb-1" />
         <div className="auth-orb orb-2" />
         <div className="auth-orb orb-3" />
       </div>
-      {/* 网格线 */}
-      <div className="auth-bg-grid" />
-      {/* 扫描光束 */}
-      <div className="auth-bg-scan" />
 
-      <div className="auth-wrapper">
-        {/* ── 左侧：品牌展示区 ── */}
+      {/* 整页内容区：左侧品牌 + 右侧卡片 */}
+      <div className="auth-inner">
+        {/* ── 左侧品牌信息 ── */}
         <div className="auth-brand">
-          {/* Logo */}
           <div className="brand-logo-wrap">
             <div className="brand-logo">
               <span className="brand-logo-icon">⚖️</span>
@@ -348,28 +340,20 @@ const Auth: React.FC = () => {
             </div>
           </div>
 
-          {/* 装饰分割线 */}
           <div className="brand-divider" />
 
-          {/* 平台简介 */}
           <p className="brand-desc">
             三位 AI 智能体协同辩论你的人生难题，<br />
             RAG 情绪记忆图谱让共情师越聊越懂你，<br />
             决策辅助与情绪疏导，一站搞定。
           </p>
 
-          {/* Agent 展示卡片 */}
           <div className="brand-agents">
             {AGENTS.map((agent) => (
               <div
                 key={agent.id}
                 className="agent-preview-card"
-                style={
-                  {
-                    "--agent-color": agent.color,
-                    "--agent-bg": agent.bg,
-                  } as React.CSSProperties
-                }
+                style={{ "--agent-color": agent.color } as React.CSSProperties}
               >
                 <div className="agent-preview-emoji">{agent.emoji}</div>
                 <div className="agent-preview-info">
@@ -377,9 +361,7 @@ const Auth: React.FC = () => {
                   <div className="agent-preview-desc">{agent.desc}</div>
                   <div className="agent-preview-tags">
                     {agent.tags.map((tag) => (
-                      <span key={tag} className="agent-preview-tag">
-                        {tag}
-                      </span>
+                      <span key={tag} className="agent-preview-tag">{tag}</span>
                     ))}
                   </div>
                 </div>
@@ -387,7 +369,6 @@ const Auth: React.FC = () => {
             ))}
           </div>
 
-          {/* 底部数据 */}
           <div className="brand-stats">
             <div className="brand-stat">
               <span className="brand-stat-num">3</span>
@@ -406,16 +387,16 @@ const Auth: React.FC = () => {
           </div>
         </div>
 
-        {/* ── 右侧：表单区 ── */}
+        {/* ── 右侧毛玻璃表单卡片 ── */}
         <div className="auth-form-panel">
           <div className="auth-card">
             <div className="auth-card-header">
               <Title level={3} className="auth-card-title">
-                {activeTab === "login" ? "欢迎回来 👋" : "加入平台 🚀"}
+                {activeTab === "login" ? "欢迎回来" : "创建账号"}
               </Title>
               <Text type="secondary" className="auth-card-subtitle">
                 {activeTab === "login"
-                  ? "AI 智能体与共情师随时待命"
+                  ? "三位 AI 智能体随时待命，为你解析人生难题"
                   : "免费注册，开启 AI 辅助决策与情绪辅导"}
               </Text>
             </div>

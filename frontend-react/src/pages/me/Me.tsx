@@ -1,22 +1,26 @@
-import React, { useMemo, useState } from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Avatar, Button, Divider, Form, Input, Modal,
-  Space, Table, Tag, Upload, message, Tabs,
+  Space, Table, Tag, Tabs, Upload, message,
 } from 'antd'
 import type { UploadFile } from 'antd'
 import {
-  ArrowLeftOutlined, LockOutlined,
-  DeleteOutlined, UploadOutlined, FileTextOutlined,
-  LikeOutlined, EyeOutlined, CommentOutlined,
-  TrophyOutlined, EditOutlined, TeamOutlined,
+  LockOutlined, DeleteOutlined, UploadOutlined,
+  FileTextOutlined, LikeOutlined, EyeOutlined,
+  CommentOutlined, TrophyOutlined, EditOutlined,
 } from '@ant-design/icons'
-import ReactECharts from 'echarts-for-react'
 import { useAuthStore } from '@/store'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import * as usersApi from '@/api/users'
 import * as roomApi from '@/api/rooms'
 import './Me.less'
+
+const STATUS_MAP: Record<string, { label: string; color: string }> = {
+  LIVE:    { label: '进行中', color: 'blue' },
+  WAITING: { label: '待开始', color: 'gold' },
+  CLOSED:  { label: '已结束', color: 'default' },
+}
 
 const Me: React.FC = () => {
   const navigate = useNavigate()
@@ -33,7 +37,7 @@ const Me: React.FC = () => {
 
   const { data: myRoomsResp, isLoading: myRoomsLoading, refetch: refetchMyRooms } = useQuery({
     queryKey: ['me-rooms', userId],
-    queryFn: () => usersApi.getMyRooms(Number(userId), { page: 1, pageSize: 20 }),
+    queryFn: () => usersApi.getMyRooms(Number(userId), { page: 1, pageSize: 50 }),
     enabled: !!userId,
   })
   const { data: myVotesResp, isLoading: myVotesLoading } = useQuery({
@@ -41,17 +45,11 @@ const Me: React.FC = () => {
     queryFn: () => usersApi.getMyVotes(Number(userId), { page: 1, pageSize: 50 }),
     enabled: !!userId,
   })
-  const { data: diagnosis, isLoading: diagnosisLoading } = useQuery({
-    queryKey: ['me-diagnosis', userId],
-    queryFn: () => usersApi.getMyDiagnosis(Number(userId)),
-    enabled: !!userId,
-  })
   const { data: stats } = useQuery({
     queryKey: ['me-stats', userId],
     queryFn: () => usersApi.getMyStats(Number(userId)),
     enabled: !!userId,
   })
-
   const { data: followCounts } = useQuery({
     queryKey: ['follow-counts', userId],
     queryFn: () => usersApi.getFollowCounts(Number(userId)),
@@ -59,36 +57,16 @@ const Me: React.FC = () => {
   })
 
   const followCountsData = followCounts as any
-
   const myRooms = (myRoomsResp as any)?.data || []
   const myVotes = (myVotesResp as any)?.data || []
   const st = stats as any
 
-  const radarOption = useMemo(() => {
-    const radar = (diagnosis as any)?.radar || []
-    if (!radar.length) return null
-    return {
-      tooltip: {},
-      radar: {
-        indicator: radar.map((r: any) => ({ name: r.name, max: 100 })),
-        radius: '65%',
-        splitNumber: 4,
-        axisName: { color: 'var(--text-secondary)', fontWeight: 700, fontSize: 12 },
-        splitLine: { lineStyle: { color: ['var(--border-color)'] } },
-        splitArea: { areaStyle: { color: ['rgba(99,102,241,0.04)', 'rgba(99,102,241,0.02)'] } },
-      },
-      series: [{
-        type: 'radar',
-        data: [{
-          value: radar.map((r: any) => r.value),
-          name: '画像',
-          areaStyle: { color: 'rgba(99,102,241,0.18)' },
-          lineStyle: { color: '#6366F1', width: 2 },
-          itemStyle: { color: '#6366F1' },
-        }],
-      }],
-    }
-  }, [diagnosis])
+  const statItems = [
+    { icon: <FileTextOutlined />, label: '发布案件', value: st?.roomsCount ?? 0, color: '#1a4a8a' },
+    { icon: <LikeOutlined />,     label: '参与投票', value: st?.votesCount ?? 0, color: '#059669' },
+    { icon: <EyeOutlined />,      label: '总围观量', value: st?.views ?? 0,      color: '#0891b2' },
+    { icon: <CommentOutlined />,  label: '评论数',   value: st?.comments ?? 0,   color: '#b45309' },
+  ]
 
   const fileToDataUrl = (file: File) =>
     new Promise<string>((resolve, reject) => {
@@ -138,71 +116,144 @@ const Me: React.FC = () => {
     })
   }
 
-  const statItems = [
-    { icon: <FileTextOutlined />, label: '发布案件', value: st?.roomsCount ?? 0, color: '#6366F1' },
-    { icon: <LikeOutlined />, label: '参与投票', value: st?.votesCount ?? 0, color: '#10B981' },
-    { icon: <EyeOutlined />, label: '总围观量', value: st?.views ?? 0, color: '#3B82F6' },
-    { icon: <CommentOutlined />, label: '评论数', value: st?.comments ?? 0, color: '#F59E0B' },
+  // 案件表格列
+  const roomColumns = [
+    {
+      title: 'ID', dataIndex: 'id', width: 56,
+      render: (v: number) => <span style={{ color: '#6b85a0', fontSize: 12 }}>#{v}</span>,
+    },
+    {
+      title: '标题', dataIndex: 'title', ellipsis: true,
+      render: (v: string, record: any) => (
+        <span
+          className="table-title-link"
+          onClick={() => navigate(record.status === 'LIVE' ? `/debate/${record.id}` : `/cases/${record.id}`)}
+        >
+          {v}
+        </span>
+      ),
+    },
+    {
+      title: '状态', dataIndex: 'status', width: 88,
+      render: (v: string) => {
+        const cfg = STATUS_MAP[v] || STATUS_MAP.CLOSED
+        return <Tag color={cfg.color} style={{ borderRadius: 6, fontSize: 11 }}>{cfg.label}</Tag>
+      },
+    },
+    {
+      title: '创建时间', dataIndex: 'createdAt', width: 160,
+      render: (v: string) => v ? (
+        <span style={{ whiteSpace: 'nowrap', fontSize: 12, color: '#6b85a0' }}>
+          {new Date(v).toLocaleString('zh-CN')}
+        </span>
+      ) : '-',
+    },
+    {
+      title: '操作', key: 'actions', width: 64,
+      render: (_: any, record: any) => (
+        <Button danger size="small" icon={<DeleteOutlined />} onClick={() => handleDeleteRoom(record.id)} />
+      ),
+    },
+  ]
+
+  // 投票表格列
+  const voteColumns = [
+    {
+      title: '时间', dataIndex: 'createdAt', width: 160,
+      render: (v: string) => (
+        <span style={{ whiteSpace: 'nowrap', fontSize: 12, color: '#6b85a0' }}>
+          {new Date(v).toLocaleString('zh-CN')}
+        </span>
+      ),
+    },
+    {
+      title: '案件', dataIndex: ['room', 'title'], ellipsis: true,
+      render: (v: string, record: any) => (
+        <span
+          className="table-title-link"
+          onClick={() => navigate(`/cases/${record.room?.id}`)}
+        >
+          {v}
+        </span>
+      ),
+    },
+    {
+      title: '支持的 Agent', dataIndex: 'agent', width: 260,
+      render: (a: any) => (
+        <Space size={6} style={{ flexWrap: 'nowrap', whiteSpace: 'nowrap' }}>
+          <Avatar size={22} src={a?.avatar} style={{ background: 'linear-gradient(135deg,#1a4a8a,#0891b2)', fontSize: 11, flexShrink: 0 }}>
+            {!a?.avatar ? (a?.name?.[0] || '?') : ''}
+          </Avatar>
+          <span style={{ fontSize: 13, whiteSpace: 'nowrap' }}>{a?.name || a?.id}</span>
+          {a?.personality && (
+            <Tag color="blue" style={{ fontSize: 11, borderRadius: 4, whiteSpace: 'nowrap', marginInlineEnd: 0 }}>
+              {a.personality}
+            </Tag>
+          )}
+        </Space>
+      ),
+    },
+    {
+      title: '案件状态', dataIndex: ['room', 'status'], width: 88,
+      render: (v: string) => {
+        const cfg = STATUS_MAP[v] || STATUS_MAP.CLOSED
+        return <Tag color={cfg.color} style={{ borderRadius: 6, fontSize: 11 }}>{cfg.label}</Tag>
+      },
+    },
   ]
 
   return (
     <div className="me-page">
       <div className="me-container">
-        {/* 返回 */}
-        <div className="me-back-row">
-          <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/cases')} className="me-back-btn">
-            返回案件列表
-          </Button>
+
+        {/* ── Hero Banner：头像 + 基本信息 + 操作按钮 ── */}
+        <div className="me-hero">
+          <div className="me-hero-avatar">
+            <Avatar size={72} src={avatarDataUrl}>
+              {!avatarDataUrl ? String(user?.name || 'U')[0] : ''}
+            </Avatar>
+            {st?.level && (
+              <span className="me-level-badge" style={{ background: st.level.color || '#1a4a8a' }}>
+                {st.level.name}
+              </span>
+            )}
+          </div>
+
+          <div className="me-hero-info">
+            <div className="me-hero-name">{user?.name || '未设置昵称'}</div>
+            <div className="me-hero-email">{user?.email}</div>
+            {user?.bio && <div className="me-hero-bio">{user.bio}</div>}
+            <div className="me-follow-counts" onClick={() => navigate('/feed')}>
+              <strong>{followCountsData?.following ?? 0}</strong> 关注
+              <span className="me-follow-sep">·</span>
+              <strong>{followCountsData?.followers ?? 0}</strong> 粉丝
+            </div>
+          </div>
+
+          <div className="me-hero-actions">
+            <Button
+              icon={<EditOutlined />}
+              className="me-edit-btn"
+              onClick={() => {
+                profileForm.setFieldsValue({ name: user?.name || '', email: user?.email || '', bio: user?.bio || '' })
+                setAvatarDataUrl(user?.avatar || undefined)
+                setAvatarFileList([])
+                setEditingProfile(true)
+              }}
+            >
+              编辑资料
+            </Button>
+            <Button icon={<LockOutlined />} className="me-pwd-btn" onClick={() => setPwdModalOpen(true)}>
+              修改密码
+            </Button>
+          </div>
         </div>
 
+        {/* ── 两列主体 ── */}
         <div className="me-layout">
-          {/* ── 左侧用户卡 ── */}
+
+          {/* 左侧：统计 + 成就 */}
           <aside className="me-sidebar">
-            {/* 头像 + 基本信息 */}
-            <div className="me-user-card">
-              <div className="me-avatar-wrap">
-                <Avatar size={80} src={avatarDataUrl} className="me-avatar">
-                  {!avatarDataUrl ? String(user?.name || 'U')[0] : ''}
-                </Avatar>
-                {st?.level && (
-                  <span className="me-level-badge" style={{ background: st.level.color || '#6366F1' }}>
-                    {st.level.name}
-                  </span>
-                )}
-              </div>
-              <div className="me-user-name">{user?.name || '未设置昵称'}</div>
-              <div className="me-user-email">{user?.email}</div>
-              {user?.bio && <div className="me-user-bio">{user.bio}</div>}
-
-              <div className="me-follow-counts" onClick={() => navigate('/feed')}>
-                <span className="me-follow-item">
-                  <strong>{followCountsData?.following ?? 0}</strong> 关注
-                </span>
-                <span className="me-follow-sep">·</span>
-                <span className="me-follow-item">
-                  <strong>{followCountsData?.followers ?? 0}</strong> 粉丝
-                </span>
-              </div>
-
-              <Button
-                block
-                icon={<EditOutlined />}
-                className="me-edit-btn"
-                onClick={() => {
-                  profileForm.setFieldsValue({ name: user?.name || '', email: user?.email || '', bio: user?.bio || '' })
-                  setAvatarDataUrl(user?.avatar || undefined)
-                  setAvatarFileList([])
-                  setEditingProfile(true)
-                }}
-              >
-                编辑资料
-              </Button>
-              <Button block icon={<LockOutlined />} className="me-pwd-btn" onClick={() => setPwdModalOpen(true)}>
-                修改密码
-              </Button>
-            </div>
-
-            {/* 数据统计 */}
             <div className="me-stats-card">
               {statItems.map((item) => (
                 <div key={item.label} className="me-stat-item">
@@ -215,10 +266,13 @@ const Me: React.FC = () => {
               ))}
             </div>
 
-            {/* 成就徽章 */}
-            {((st?.badges || []).length > 0) && (
-              <div className="me-badges-card" onClick={() => navigate('/achievements')} style={{ cursor: 'pointer' }}>
-                <div className="me-card-title"><TrophyOutlined /> 成就 <span style={{ fontSize: 11, color: 'var(--color-primary)', marginLeft: 4 }}>查看全部 →</span></div>
+            {(st?.badges || []).length > 0 && (
+              <div className="me-badges-card" onClick={() => navigate('/achievements')}>
+                <div className="me-card-title">
+                  <TrophyOutlined />
+                  成就
+                  <span style={{ fontSize: 11, color: '#1a4a8a', marginLeft: 4 }}>查看全部 →</span>
+                </div>
                 <div className="me-badges">
                   {(st.badges || []).map((b: any) => (
                     <span key={b.key} className={`me-badge ${b.achieved ? 'achieved' : ''}`}>{b.name}</span>
@@ -228,16 +282,16 @@ const Me: React.FC = () => {
             )}
           </aside>
 
-          {/* ── 右侧内容区 ── */}
+          {/* 右侧：案件 + 投票历史 */}
           <main className="me-main">
             <div className="me-tabs-card">
               <Tabs
-                defaultActiveKey="rooms"
                 className="me-tabs"
+                defaultActiveKey="rooms"
                 items={[
                   {
                     key: 'rooms',
-                    label: `我的案件 (${myRooms.length})`,
+                    label: `我的案件（${myRooms.length}）`,
                     children: (
                       <Table
                         rowKey="id"
@@ -246,91 +300,25 @@ const Me: React.FC = () => {
                         pagination={false}
                         size="small"
                         className="me-table"
-                        columns={[
-                          { title: 'ID', dataIndex: 'id', width: 60 },
-                          { title: '标题', dataIndex: 'title', ellipsis: true },
-                          {
-                            title: '状态', dataIndex: 'status', width: 90,
-                            render: (v: string) => (
-                              <Tag color={v === 'LIVE' ? 'blue' : v === 'WAITING' ? 'gold' : 'default'}>
-                                {v === 'LIVE' ? '进行中' : v === 'WAITING' ? '待开始' : '已结束'}
-                              </Tag>
-                            ),
-                          },
-                          {
-                            title: '创建时间', dataIndex: 'createdAt', width: 150,
-                            render: (v: string) => v ? new Date(v).toLocaleString('zh-CN') : '-',
-                          },
-                          {
-                            title: '操作', key: 'actions', width: 80,
-                            render: (_: any, record: any) => (
-                              <Button danger size="small" icon={<DeleteOutlined />} onClick={() => handleDeleteRoom(record.id)} />
-                            ),
-                          },
-                        ]}
+                        columns={roomColumns}
+                        locale={{ emptyText: '暂无案件' }}
                       />
                     ),
                   },
                   {
                     key: 'votes',
-                    label: `投票历史 (${myVotes.length})`,
+                    label: `投票历史（${myVotes.length}）`,
                     children: (
                       <Table
                         rowKey="id"
                         loading={myVotesLoading}
                         dataSource={myVotes}
-                        pagination={false}
+                        pagination={{ pageSize: 10, size: 'small', showTotal: (total) => `共 ${total} 条` }}
                         size="small"
                         className="me-table"
-                        columns={[
-                          {
-                            title: '时间', dataIndex: 'createdAt', width: 150,
-                            render: (v: string) => new Date(v).toLocaleString('zh-CN'),
-                          },
-                          { title: '案件', dataIndex: ['room', 'title'], ellipsis: true },
-                          {
-                            title: '我支持', dataIndex: 'agent', width: 180,
-                            render: (a: any) => (
-                              <Space size={6}>
-                                <Avatar size={20} src={a?.avatar} />
-                                <span>{a?.name || a?.id}</span>
-                                {a?.personality && <Tag color="blue" style={{ fontSize: 11 }}>{a.personality}</Tag>}
-                              </Space>
-                            ),
-                          },
-                          {
-                            title: '案件状态', dataIndex: ['room', 'status'], width: 90,
-                            render: (v: string) => (
-                              <Tag color={v === 'LIVE' ? 'blue' : v === 'WAITING' ? 'gold' : 'default'}>
-                                {v === 'LIVE' ? '进行中' : v === 'WAITING' ? '待开始' : '已结束'}
-                              </Tag>
-                            ),
-                          },
-                        ]}
+                        columns={voteColumns}
+                        locale={{ emptyText: '暂无投票记录' }}
                       />
-                    ),
-                  },
-                  {
-                    key: 'radar',
-                    label: '性格诊断',
-                    children: (
-                      <div className="me-radar-wrap">
-                        {diagnosisLoading ? (
-                          <div className="me-loading">加载中…</div>
-                        ) : !radarOption ? (
-                          <div className="me-empty-radar">
-                            <div className="me-empty-icon">🧠</div>
-                            <div>参与投票后即可生成性格诊断</div>
-                          </div>
-                        ) : (
-                          <>
-                            <ReactECharts option={radarOption} style={{ height: 360 }} />
-                            {(diagnosis as any)?.tips && (
-                              <div className="me-radar-tips">{(diagnosis as any).tips}</div>
-                            )}
-                          </>
-                        )}
-                      </div>
                     ),
                   },
                 ]}
@@ -341,17 +329,10 @@ const Me: React.FC = () => {
       </div>
 
       {/* 编辑资料弹窗 */}
-      <Modal
-        open={editingProfile}
-        onCancel={() => setEditingProfile(false)}
-        onOk={handleSaveProfile}
-        okText="保存"
-        cancelText="取消"
-        title="编辑个人资料"
-        width={480}
-      >
+      <Modal open={editingProfile} onCancel={() => setEditingProfile(false)} onOk={handleSaveProfile}
+        okText="保存" cancelText="取消" title="编辑个人资料" width={480}>
         <div className="me-edit-avatar-row">
-          <Avatar size={64} src={avatarDataUrl} className="me-avatar">
+          <Avatar size={64} src={avatarDataUrl} style={{ background: 'linear-gradient(135deg,#1a4a8a,#0891b2)', fontSize: 22, fontWeight: 900 }}>
             {!avatarDataUrl ? String(user?.name || 'U')[0] : ''}
           </Avatar>
           <Upload.Dragger
@@ -361,9 +342,9 @@ const Me: React.FC = () => {
             beforeUpload={handleAvatarBeforeUpload as any}
             onRemove={() => { setAvatarDataUrl(undefined); setAvatarFileList([]) }}
           >
-            <UploadOutlined style={{ fontSize: 18, color: 'var(--color-primary)' }} />
-            <div style={{ fontSize: 12, marginTop: 4, color: 'var(--text-secondary)' }}>点击或拖拽上传头像</div>
-            <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>仅支持图片，小于 200KB</div>
+            <UploadOutlined style={{ fontSize: 18, color: '#1a4a8a' }} />
+            <div style={{ fontSize: 12, marginTop: 4, color: '#3a5068' }}>点击或拖拽上传头像</div>
+            <div style={{ fontSize: 11, color: '#6b85a0' }}>仅支持图片，小于 200KB</div>
           </Upload.Dragger>
         </div>
         <Divider style={{ margin: '12px 0' }} />
@@ -381,15 +362,8 @@ const Me: React.FC = () => {
       </Modal>
 
       {/* 修改密码弹窗 */}
-      <Modal
-        open={pwdModalOpen}
-        onCancel={() => setPwdModalOpen(false)}
-        onOk={handleChangePassword}
-        okText="确认修改"
-        cancelText="取消"
-        title="修改密码"
-        width={420}
-      >
+      <Modal open={pwdModalOpen} onCancel={() => setPwdModalOpen(false)} onOk={handleChangePassword}
+        okText="确认修改" cancelText="取消" title="修改密码" width={420}>
         <Form form={pwdForm} layout="vertical" style={{ marginTop: 8 }}>
           <Form.Item name="oldPassword" label="旧密码" rules={[{ required: true, message: '请输入旧密码' }]}>
             <Input.Password placeholder="请输入旧密码" />
@@ -397,9 +371,7 @@ const Me: React.FC = () => {
           <Form.Item name="newPassword" label="新密码" rules={[{ required: true }, { min: 6, message: '至少 6 位' }]}>
             <Input.Password placeholder="至少 6 位" />
           </Form.Item>
-          <Form.Item
-            name="confirm" label="确认新密码"
-            dependencies={['newPassword']}
+          <Form.Item name="confirm" label="确认新密码" dependencies={['newPassword']}
             rules={[
               { required: true, message: '请再次输入新密码' },
               ({ getFieldValue }) => ({
@@ -408,8 +380,7 @@ const Me: React.FC = () => {
                   return Promise.reject(new Error('两次输入的新密码不一致'))
                 },
               }),
-            ]}
-          >
+            ]}>
             <Input.Password placeholder="再次输入新密码" />
           </Form.Item>
         </Form>
@@ -417,5 +388,6 @@ const Me: React.FC = () => {
     </div>
   )
 }
+
 
 export default Me

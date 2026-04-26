@@ -59,10 +59,10 @@ export const lightTheme: ThemeConfig = {
     colorTextBase: '#0f1e2e',
     colorTextSecondary: '#3a5068',
     colorTextTertiary: '#6b85a0',
-    colorBgBase: '#e8f2f8',
-    colorBgContainer: '#ddeaf4',   // Card、Input、Select 等组件背景
-    colorBgLayout: '#c8daea',      // 页面背景
-    colorBgElevated: '#eef5fb',    // 浮层（Dropdown、Modal）背景
+    colorBgBase: '#f0f7fb',
+    colorBgContainer: '#eaf3f9',   // Card、Input、Select 等组件背景
+    colorBgLayout: '#dce8f2',      // 页面背景
+    colorBgElevated: '#f4f9fc',    // 浮层（Dropdown、Modal）背景
     colorBorder: 'rgba(26,74,138,0.18)',
     colorBorderSecondary: 'rgba(26,74,138,0.1)',
     colorFill: '#d4e6f2',
