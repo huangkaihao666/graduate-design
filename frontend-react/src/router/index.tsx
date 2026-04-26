@@ -25,6 +25,7 @@ import {
   TagsAdmin,
   AnnouncementsAdmin,
   KnowledgeBaseAdmin,
+  EmotionAlertsAdmin,
   Counseling,
   CreateAgent,
   Feed,
@@ -90,6 +91,10 @@ export const router = createBrowserRouter([
       {
         path: 'knowledge-bases',
         element: <KnowledgeBaseAdmin />,
+      },
+      {
+        path: 'emotion-alerts',
+        element: <EmotionAlertsAdmin />,
       },
     ],
   },

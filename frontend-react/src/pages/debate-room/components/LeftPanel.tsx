@@ -1,6 +1,7 @@
 import React from 'react'
-import { Avatar, Progress, Tooltip } from 'antd'
-import { ArrowLeftOutlined, CheckCircleFilled } from '@ant-design/icons'
+import { Avatar, Button, Progress, Tooltip } from 'antd'
+import { ArrowLeftOutlined, CheckCircleFilled, HeartOutlined } from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
 import './LeftPanel.less'
 
 interface LeftPanelProps {
@@ -20,6 +21,7 @@ export const LeftPanel: React.FC<LeftPanelProps> = ({
   myVotedAgentId,
   onBack,
 }) => {
+  const navigate = useNavigate()
   const roomAgents: string[] = room.agents || []
   const voteStats = room.votes || {}
   const totalVotes = Object.values(voteStats).reduce((sum: number, c: any) => sum + (c || 0), 0)
@@ -121,6 +123,32 @@ export const LeftPanel: React.FC<LeftPanelProps> = ({
             </div>
           </div>
         )}
+
+      </div>
+
+      {/* AI 共情师入口 — 固定在面板底部 */}
+      <div className="lp-counseling-entry">
+        <div className="lp-counseling-card">
+          <div className="lp-counseling-card-left">
+            <span className="lp-counseling-icon">💚</span>
+            <div>
+              <div className="lp-counseling-card-title">有话想说？</div>
+              <div className="lp-counseling-card-sub">和 AI 共情师聊聊这个案件</div>
+            </div>
+          </div>
+          <Button
+            size="small"
+            icon={<HeartOutlined />}
+            className="lp-counseling-btn"
+            onClick={() =>
+              navigate(
+                `/counseling?roomId=${room.id}&roomTitle=${encodeURIComponent(room.title || '')}`
+              )
+            }
+          >
+            去聊聊
+          </Button>
+        </div>
       </div>
     </div>
   )

@@ -604,12 +604,12 @@ export class CozeService {
   }
 
   /**
-   * 单次对话，收集完整回答后返回。
-   * 复用流式接口实现，避免非流式接口需要轮询的复杂性。
+   * 单次对话（内部通用实现），收集完整回答后返回。
    */
-  private async callChatOnce(userMessage: string): Promise<string> {
-    const botId = process.env.COZE_SUMMARY_BOT_ID || '7632299425355792393';
-
+  private async callChatOnceWithBot(
+    botId: string,
+    userMessage: string,
+  ): Promise<string> {
     const response = await this.client.post(
       '/chat',
       {
@@ -664,5 +664,57 @@ export class CozeService {
       stream.on('end', () => resolve(fullAnswer.trim()));
       stream.on('error', reject);
     });
+  }
+
+  private async callChatOnce(userMessage: string): Promise<string> {
+    const botId = process.env.COZE_SUMMARY_BOT_ID || '7632299425355792393';
+    return this.callChatOnceWithBot(botId, userMessage);
+  }
+
+  /**
+   * 情绪风险分析，返回固定 JSON 结构。
+   * 使用独立的情感分析 Bot，不影响共情师对话流程。
+   */
+  async analyzeSentiment(text: string): Promise<{
+    emotionType: string;
+    intensity: number;
+    riskLevel: string;
+    summary: string;
+  } | null> {
+    const SENTIMENT_BOT_ID = '7633056883112476722';
+    try {
+      const raw = await this.callChatOnceWithBot(SENTIMENT_BOT_ID, text);
+      const match = raw.match(/\{[\s\S]*\}/);
+      if (!match) return null;
+      const parsed = JSON.parse(match[0]);
+
+      const validEmotionTypes = [
+        'POSITIVE',
+        'CALM',
+        'ANXIOUS',
+        'ANGRY',
+        'SAD',
+        'DEPRESSED',
+        'DESPERATE',
+      ];
+      const validRiskLevels = ['NONE', 'MEDIUM', 'HIGH'];
+
+      if (
+        !validEmotionTypes.includes(parsed.emotionType) ||
+        typeof parsed.intensity !== 'number' ||
+        !validRiskLevels.includes(parsed.riskLevel)
+      ) {
+        return null;
+      }
+
+      return {
+        emotionType: parsed.emotionType,
+        intensity: Math.min(100, Math.max(0, Math.round(parsed.intensity))),
+        riskLevel: parsed.riskLevel,
+        summary: typeof parsed.summary === 'string' ? parsed.summary : '',
+      };
+    } catch {
+      return null;
+    }
   }
 }

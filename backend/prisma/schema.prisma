@@ -42,6 +42,7 @@ model User {
   sentimentRecords     SentimentRecord[]
   userRelations        UserRelation[]
   customAgents         Agent[]             @relation("AgentCreator")
+  emotionAlerts        EmotionAlert[]
 
   @@map("users")
   @@index([email])
@@ -358,5 +359,23 @@ model Announcement {
 
   @@map("announcements")
   @@index([createdAt])
+}
+
+/// 情绪预警记录
+model EmotionAlert {
+  id         Int       @id @default(autoincrement())
+  userId     Int       @db.UnsignedInt
+  sessionId  Int
+  riskLevel  String    @db.VarChar(20)  // MEDIUM / HIGH
+  summary    String    @db.Text         // Bot 生成的摘要，或原文前50字
+  isHandled  Boolean   @default(false)
+  handleNote String?   @db.Text
+  createdAt  DateTime  @default(now())
+  handledAt  DateTime?
+  user       User      @relation(fields: [userId], references: [id])
+
+  @@map("emotion_alerts")
+  @@index([userId])
+  @@index([isHandled])
 }
 

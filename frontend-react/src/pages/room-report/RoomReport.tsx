@@ -22,6 +22,7 @@ import {
   MessageOutlined,
   StarOutlined,
   StarFilled,
+  HeartOutlined,
 } from '@ant-design/icons'
 import * as roomApi from '@/api/rooms'
 import { generateReportPdf } from '@/utils'
@@ -545,6 +546,31 @@ export const RoomReport: React.FC = () => {
 
         {/* 右侧栏 */}
         <aside className="rr-sidebar">
+          {/* AI 共情师入口 */}
+          <div className="rr-widget rr-widget-counseling">
+            <div className="rr-counseling-inner">
+              <div className="rr-counseling-left">
+                <span className="rr-counseling-emoji">💚</span>
+                <div>
+                  <div className="rr-counseling-title">有话想说？</div>
+                  <div className="rr-counseling-desc">AI 共情师帮你梳理情绪、聊聊感受</div>
+                </div>
+              </div>
+              <Button
+                size="small"
+                icon={<HeartOutlined />}
+                className="rr-counseling-btn"
+                onClick={() =>
+                  navigate(
+                    `/counseling?roomId=${room.id}&roomTitle=${encodeURIComponent(room.title || '')}`
+                  )
+                }
+              >
+                去聊聊
+              </Button>
+            </div>
+          </div>
+
           {/* 案件信息 */}
           <div className="rr-widget">
             <div className="rr-widget-header">

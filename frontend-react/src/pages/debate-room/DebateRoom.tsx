@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { message, Tabs, Skeleton } from 'antd'
+import { message, notification, Tabs, Skeleton } from 'antd'
+import { BulbOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import { io } from 'socket.io-client'
 import type { Socket } from 'socket.io-client'
@@ -194,12 +195,26 @@ export const DebateRoom: React.FC = () => {
       setCurrentRound(data.round)
       setRoomStatus('LIVE')
       notifyEnterRound(Number(data.round))
+      if (Number(data.round) === 1) {
+        message.info({
+          content: '💬 辩论开始！现在就可以在弹幕区发表你的看法，观点将影响第二轮辩论',
+          duration: 6,
+          key: 'round1-hint',
+        })
+      }
     })
 
     // 轮次变化
     socketInstance.on('roundChanged', (data: any) => {
       setCurrentRound(data.round)
       notifyEnterRound(Number(data.round))
+      if (Number(data.round) === 1) {
+        message.info({
+          content: '💬 辩论开始！现在就可以在弹幕区发表你的看法，观点将影响第二轮辩论',
+          duration: 6,
+          key: 'round1-hint',
+        })
+      }
     })
 
     // Agent 正在输入
@@ -302,17 +317,39 @@ export const DebateRoom: React.FC = () => {
         voteCountdownRef.current = null
       }
       setRoomStatus('CLOSED')
+      notification.open({
+        key: 'debate-finished',
+        message: '辩论已结束',
+        description: '结案报告正在生成，稍后可点击右上角「📊 结案报告」查看。',
+        duration: 0,
+        placement: 'topRight',
+        style: { borderLeft: '4px solid #10b981' },
+      })
     })
 
     // 观点征集开始
     socketInstance.on('opinionCollectStart', (data: any) => {
       const duration = data?.duration ?? 60
+      const agentAName = data?.agentAName ?? 'A方'
+      const agentBName = data?.agentBName ?? 'B方'
       setOpinionCollecting(true)
       setOpinionCountdown(duration)
       setOpinionResult(null)
       if (data?.agentAName && data?.agentBName) {
-        setOpinionAgentNames({ agentAName: data.agentAName, agentBName: data.agentBName })
+        setOpinionAgentNames({ agentAName, agentBName })
       }
+
+      // 全局 notification，持续整个征集窗口
+      notification.open({
+        key: 'opinion-collect',
+        message: '观点征集进行中',
+        description: `支持「${agentAName}」还是「${agentBName}」？在右侧弹幕区说出你的理由，有效观点将直接注入第二轮辩论！`,
+        icon: <BulbOutlined style={{ color: '#f59e0b' }} />,
+        duration: duration,
+        placement: 'topRight',
+        style: { borderLeft: '4px solid #f59e0b' },
+      })
+
       // 用截止时间戳驱动倒计时，切后台再回来也能正确跳到剩余秒数
       opinionEndTimeRef.current = Date.now() + duration * 1000
       if (opinionCountdownRef.current) window.clearInterval(opinionCountdownRef.current)
@@ -333,12 +370,19 @@ export const DebateRoom: React.FC = () => {
         window.clearInterval(opinionCountdownRef.current)
         opinionCountdownRef.current = null
       }
-      setOpinionResult({
-        validCount: data?.validCount ?? 0,
-        validForA: data?.validForA ?? 0,
-        validForB: data?.validForB ?? 0,
+      const validCount = data?.validCount ?? 0
+      const validForA = data?.validForA ?? 0
+      const validForB = data?.validForB ?? 0
+      setOpinionResult({ validCount, validForA, validForB })
+
+      // 关掉征集 notification，换成结果提示
+      notification.destroy('opinion-collect')
+      message.success({
+        content: `已收集 ${validCount} 条有效观点，即将注入第二轮辩论`,
+        duration: 4,
+        key: 'opinion-result',
       })
-      // 3 秒后清除结果提示
+
       setTimeout(() => setOpinionResult(null), 4000)
     })
 
@@ -483,6 +527,20 @@ export const DebateRoom: React.FC = () => {
       }
     }
   }, [id, accessToken, refreshToken, room])
+
+  // 辩论历史加载完毕后关掉"正在生成"提示，并更新 notification 告知可查看
+  useEffect(() => {
+    if (roomStatus === 'CLOSED' && messages.length > 0) {
+      notification.open({
+        key: 'debate-finished',
+        message: '结案报告已生成',
+        description: '点击右上角「📊 结案报告」即可查看完整报告。',
+        duration: 6,
+        placement: 'topRight',
+        style: { borderLeft: '4px solid #10b981' },
+      })
+    }
+  }, [roomStatus, messages.length])
 
   // CLOSED 状态下从持久化 report 拉取辩论历史，填充舞台（刷新/重启后也可回放）
   useEffect(() => {

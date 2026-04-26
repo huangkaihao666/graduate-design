@@ -11,8 +11,8 @@ import {
   CloseOutlined,
   MenuOutlined,
   RobotOutlined,
-  CheckOutlined,
 } from '@ant-design/icons'
+import { Select } from 'antd'
 import type { AvailableAgent } from '@/api/counseling'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '@/store'
@@ -68,15 +68,15 @@ export const Counseling: React.FC = () => {
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
-  // 辅导师选择器
+  // 辅导师选择
   const [availableAgents, setAvailableAgents] = useState<AvailableAgent[]>([])
-  const [showAgentPicker, setShowAgentPicker] = useState(false)
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null) // null = 默认共情师
-  const [pendingQuickTopic, setPendingQuickTopic] = useState<string | undefined>(undefined)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<any>(null)
   const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const autoCreatedRef = useRef(false)
 
   // 从结案报告跳转携带的 roomId
   const roomIdFromReport = searchParams.get('roomId')
@@ -86,6 +86,32 @@ export const Counseling: React.FC = () => {
     loadSessions()
     loadAvailableAgents()
   }, [])
+
+  // 携带案件参数跳转过来时，自动用默认共情师创建会话（不弹选择器）
+  useEffect(() => {
+    if (!roomIdFromReport || !roomTitleFromReport) return
+    if (autoCreatedRef.current) return
+    autoCreatedRef.current = true
+
+    const autoCreate = async () => {
+      try {
+        const newSession = await counselingApi.createSession({
+          roomId: parseInt(roomIdFromReport),
+          roomTitle: decodeURIComponent(roomTitleFromReport),
+          counselorBotId: null,
+        })
+        setSessions((prev) => [newSession, ...prev])
+        setActiveSession(newSession)
+        setMessages([])
+        pollForOpening(newSession.id)
+        setTimeout(() => inputRef.current?.focus(), 100)
+      } catch {
+        // 静默失败，用户仍可手动创建
+      }
+    }
+    void autoCreate()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomIdFromReport, roomTitleFromReport])
 
   const loadAvailableAgents = async () => {
     try {
@@ -97,7 +123,8 @@ export const Counseling: React.FC = () => {
   }
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const el = messagesContainerRef.current
+    if (el) el.scrollTop = el.scrollHeight
   }, [messages])
 
   const loadSessions = async () => {
@@ -162,17 +189,10 @@ export const Counseling: React.FC = () => {
   }
 
   const handleNewSession = (quickTopic?: string) => {
-    // 有自建智能体可选时，展示选择器；否则直接用默认共情师创建
-    if (availableAgents.length > 1) {
-      setPendingQuickTopic(quickTopic)
-      setShowAgentPicker(true)
-    } else {
-      doCreateSession(null, quickTopic)
-    }
+    doCreateSession(selectedAgentId, quickTopic)
   }
 
   const doCreateSession = async (counselorBotId: string | null, quickTopic?: string) => {
-    setShowAgentPicker(false)
     try {
       const newSession = await counselingApi.createSession({
         roomId: roomIdFromReport ? parseInt(roomIdFromReport) : undefined,
@@ -507,9 +527,27 @@ export const Counseling: React.FC = () => {
             {activeSession?.counselorBotId ? <RobotOutlined /> : '💚'}
           </div>
           <div>
-            <div className="chat-topbar-name">
-              {activeSession?.counselorName || 'AI 共情师'}
-            </div>
+            {availableAgents.length > 1 ? (
+              <Select
+                size="small"
+                className="chat-topbar-agent-select"
+                value={selectedAgentId ?? '__default__'}
+                onChange={(val) => {
+                  const id = val === '__default__' ? null : val
+                  setSelectedAgentId(id)
+                  doCreateSession(id)
+                }}
+                options={availableAgents.map((a) => ({
+                  label: a.isSystem ? 'AI 共情师' : a.name,
+                  value: a.id ?? '__default__',
+                }))}
+                variant="borderless"
+              />
+            ) : (
+              <div className="chat-topbar-name">
+                {activeSession?.counselorName || 'AI 共情师'}
+              </div>
+            )}
             <div className="chat-topbar-status">
               <span className="status-dot" />
               在线
@@ -526,7 +564,7 @@ export const Counseling: React.FC = () => {
       </div>
 
       {/* 消息列表 */}
-      <div className="chat-messages">
+      <div className="chat-messages" ref={messagesContainerRef}>
         {loadingMessages ? (
           <div className="messages-loading">
             {[1, 2].map((i) => (
@@ -536,15 +574,21 @@ export const Counseling: React.FC = () => {
             ))}
           </div>
         ) : messages.length === 0 ? (
-          <div className="messages-empty">
-            <div className="messages-empty-avatar">💚</div>
-            <div className="messages-empty-bubble">
-              {activeSession?.roomId
-                ? `我已了解你的案件背景，我们可以直接从这里开始聊。你现在感觉怎么样？`
-                : `你好！很高兴见到你。今天有什么想聊的吗？无论什么都可以说说。`
-              }
+          activeSession?.roomId ? (
+            // 关联案件时等后端开场白，不显示占位避免闪烁
+            <div className="messages-loading">
+              <div className="message-skeleton">
+                <Skeleton avatar active paragraph={{ rows: 2 }} />
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="messages-empty">
+              <div className="messages-empty-avatar">💚</div>
+              <div className="messages-empty-bubble">
+                你好！很高兴见到你。今天有什么想聊的吗？无论什么都可以说说。
+              </div>
+            </div>
+          )
         ) : (
           messages.map((msg) => (
             <div
@@ -602,7 +646,6 @@ export const Counseling: React.FC = () => {
           ))
         )}
 
-        <div ref={messagesEndRef} />
       </div>
 
       {/* 输入区 */}
@@ -635,52 +678,6 @@ export const Counseling: React.FC = () => {
     </div>
   )
 
-  // ── 渲染：辅导师选择器 ────────────────────────────────────
-
-  const renderAgentPicker = () => (
-    <div className="agent-picker-overlay" onClick={() => setShowAgentPicker(false)}>
-      <div className="agent-picker-card" onClick={(e) => e.stopPropagation()}>
-        <div className="agent-picker-title">选择你的辅导师</div>
-        <div className="agent-picker-list">
-          {availableAgents.map((agent) => (
-            <div
-              key={agent.id ?? '__default__'}
-              className={`agent-picker-item ${selectedAgentId === agent.id ? 'agent-picker-item-selected' : ''}`}
-              onClick={() => setSelectedAgentId(agent.id)}
-            >
-              <div className="agent-picker-avatar">
-                {agent.isSystem ? '💚' : <RobotOutlined />}
-              </div>
-              <div className="agent-picker-info">
-                <div className="agent-picker-name">
-                  {agent.name}
-                  {agent.isSystem && <span className="agent-picker-recommend">推荐</span>}
-                </div>
-                <div className="agent-picker-desc">{agent.description}</div>
-              </div>
-              {selectedAgentId === agent.id && (
-                <CheckOutlined className="agent-picker-check" />
-              )}
-            </div>
-          ))}
-        </div>
-        {selectedAgentId !== null && (
-          <div className="agent-picker-warning">
-            ⚠️ 自建智能体的风格由你定义，体验可能与默认共情师不同
-          </div>
-        )}
-        <div className="agent-picker-actions">
-          <Button onClick={() => setShowAgentPicker(false)}>取消</Button>
-          <Button
-            type="primary"
-            onClick={() => doCreateSession(selectedAgentId, pendingQuickTopic)}
-          >
-            开始对话
-          </Button>
-        </div>
-      </div>
-    </div>
-  )
 
   // ── 主渲染 ────────────────────────────────────────────────
 
@@ -691,8 +688,6 @@ export const Counseling: React.FC = () => {
       <div className="counseling-main">
         {!activeSession ? renderWelcome() : renderChat()}
       </div>
-
-      {showAgentPicker && renderAgentPicker()}
     </div>
   )
 }

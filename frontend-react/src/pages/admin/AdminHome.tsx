@@ -11,12 +11,12 @@ import {
   StopOutlined,
   UserAddOutlined,
 } from '@ant-design/icons'
-import { useAuthStore } from '@/store'
+import { useAdminAuthStore } from '@/store/adminAuthStore'
 import * as adminApi from '@/api/admin'
 import './AdminHome.less'
 
 const AdminHome: React.FC = () => {
-  const { user } = useAuthStore()
+  const { user } = useAdminAuthStore()
   const navigate = useNavigate()
 
   const { data: overview, isLoading: overviewLoading } = useQuery({

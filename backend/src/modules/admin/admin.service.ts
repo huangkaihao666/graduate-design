@@ -786,4 +786,57 @@ export class AdminService {
 
     return { success: true };
   }
+
+  // ─── 情绪预警 ───────────────────────────────────────────
+
+  async getAlerts(query: {
+    riskLevel?: string;
+    isHandled?: string;
+    page?: number;
+    pageSize?: number;
+  }) {
+    const page = Number(query.page) || 1;
+    const pageSize = Number(query.pageSize) || 20;
+    const where: any = {};
+    if (query.riskLevel) where.riskLevel = query.riskLevel;
+    if (query.isHandled !== undefined) {
+      where.isHandled = query.isHandled === 'true';
+    }
+
+    const [items, total] = await Promise.all([
+      (this.prisma as any).emotionAlert.findMany({
+        where,
+        include: {
+          user: { select: { id: true, name: true, avatar: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      (this.prisma as any).emotionAlert.count({ where }),
+    ]);
+
+    return { items, total, page, pageSize };
+  }
+
+  async handleAlert(id: number, handleNote: string) {
+    return (this.prisma as any).emotionAlert.update({
+      where: { id },
+      data: { isHandled: true, handleNote, handledAt: new Date() },
+    });
+  }
+
+  async getAlertStats() {
+    const [highCount, mediumCount, totalUnhandled] = await Promise.all([
+      (this.prisma as any).emotionAlert.count({
+        where: { riskLevel: 'HIGH', isHandled: false },
+      }),
+      (this.prisma as any).emotionAlert.count({
+        where: { riskLevel: 'MEDIUM', isHandled: false },
+      }),
+      (this.prisma as any).emotionAlert.count({ where: { isHandled: false } }),
+    ]);
+
+    return { highCount, mediumCount, totalUnhandled };
+  }
 }

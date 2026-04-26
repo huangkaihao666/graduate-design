@@ -316,6 +316,9 @@ export class CounselingService {
 
     res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
     res.end();
+
+    // 异步情绪风险检测，不阻塞主流程
+    this.checkEmotionRisk(session.userId, sessionId, content).catch(() => {});
   }
 
   async closeSession(sessionId: number, userId: number) {
@@ -437,5 +440,63 @@ export class CounselingService {
     }
 
     return parts.join('\n\n');
+  }
+
+  private async checkEmotionRisk(
+    userId: number,
+    sessionId: number,
+    text: string,
+  ) {
+    const HIGH_KEYWORDS = [
+      '不想活',
+      '撑不下去',
+      '结束一切',
+      '活着没意思',
+      '去死',
+      '自杀',
+      '想死',
+    ];
+    const hitKeyword = HIGH_KEYWORDS.some((kw) => text.includes(kw));
+
+    let riskLevel: string | null = null;
+    let summary = text.slice(0, 50);
+
+    if (hitKeyword) {
+      riskLevel = 'HIGH';
+    } else {
+      const result = await this.cozeService.analyzeSentiment(text);
+      if (!result || result.riskLevel === 'NONE') return;
+      riskLevel = result.riskLevel;
+      summary = result.summary || text.slice(0, 50);
+    }
+
+    // 同一会话同等级未处理预警不重复触发
+    const exists = await (this.prisma as any).emotionAlert.findFirst({
+      where: { sessionId, riskLevel, isHandled: false },
+    });
+    if (exists) return;
+
+    await (this.prisma as any).emotionAlert.create({
+      data: { userId, sessionId, riskLevel, summary },
+    });
+
+    // 推送通知给所有管理员
+    const admins = await (this.prisma as any).user.findMany({
+      where: { role: 'ADMIN', isActive: true },
+      select: { id: true },
+    });
+
+    await Promise.all(
+      admins.map((admin: { id: number }) =>
+        (this.prisma as any).notification.create({
+          data: {
+            userId: admin.id,
+            type: riskLevel === 'HIGH' ? 'ALERT_HIGH' : 'ALERT_MEDIUM',
+            fromUserId: userId,
+            roomId: null,
+          },
+        }),
+      ),
+    );
   }
 }

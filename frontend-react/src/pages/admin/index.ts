@@ -8,4 +8,5 @@ export { default as AgentsAudit } from './AgentsAudit'
 export { default as TagsAdmin } from './TagsAdmin'
 export { default as AnnouncementsAdmin } from './AnnouncementsAdmin'
 export { default as KnowledgeBaseAdmin } from './KnowledgeBaseAdmin'
+export { default as EmotionAlertsAdmin } from './EmotionAlertsAdmin'
 

@@ -1,0 +1,192 @@
+.ea-page {
+  padding: 28px 32px;
+  font-family: 'Lato', 'PingFang SC', sans-serif;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+// ─── Banner ──────────────────────────────────────────────────
+
+.ea-banner {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255,253,249,0.9);
+  border-radius: 18px;
+  padding: 22px 28px;
+  border: 1px solid rgba(26,22,18,0.08);
+  box-shadow: 0 2px 12px rgba(26,22,18,0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #dc2626, #f87171, transparent);
+    border-radius: 18px 18px 0 0;
+  }
+}
+
+.ea-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.ea-banner-icon {
+  font-size: 32px;
+  color: #dc2626;
+  opacity: 0.85;
+}
+
+.ea-banner-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1612;
+  margin: 0 0 4px;
+}
+
+.ea-banner-sub {
+  font-size: 13px;
+  color: #6b6459;
+  margin: 0;
+}
+
+// ─── Stats row ───────────────────────────────────────────────
+
+.ea-stat-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ea-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 20px;
+  border-radius: 12px;
+  min-width: 90px;
+  border: 1px solid transparent;
+
+  &.ea-stat-high {
+    background: #fef2f2;
+    border-color: rgba(220,38,38,0.15);
+    .ea-stat-num { color: #dc2626; }
+  }
+
+  &.ea-stat-medium {
+    background: #fff7ed;
+    border-color: rgba(234,88,12,0.15);
+    .ea-stat-num { color: #ea580c; }
+  }
+
+  &.ea-stat-total {
+    background: #f3f0ea;
+    border-color: rgba(26,22,18,0.1);
+    .ea-stat-num { color: #1a1612; }
+  }
+}
+
+.ea-stat-num {
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.ea-stat-label {
+  font-size: 11px;
+  color: #6b6459;
+  margin-top: 4px;
+  white-space: nowrap;
+}
+
+// ─── Toolbar ─────────────────────────────────────────────────
+
+.ea-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+// ─── Table ───────────────────────────────────────────────────
+
+.ea-table-wrap {
+  background: rgba(255,253,249,0.9);
+  border-radius: 16px;
+  border: 1px solid rgba(26,22,18,0.08);
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(26,22,18,0.05);
+}
+
+.ea-table {
+  :global(.ant-table-thead > tr > th) {
+    background: #f3f0ea !important;
+    color: #6b6459 !important;
+    font-weight: 700 !important;
+    font-size: 11px !important;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border-bottom: 1px solid rgba(26,22,18,0.08) !important;
+    padding: 11px 16px !important;
+  }
+
+  :global(.ant-table-tbody > tr > td) {
+    padding: 13px 16px !important;
+    border-bottom: 1px solid rgba(26,22,18,0.04) !important;
+    color: #1a1612 !important;
+    font-size: 13px !important;
+  }
+
+  :global(.ant-table-tbody > tr:hover > td) {
+    background: #f3f0ea !important;
+  }
+
+  :global(.ant-table-tbody > tr:last-child > td) {
+    border-bottom: none !important;
+  }
+
+  // 高风险行高亮
+  :global(.ea-row-high > td) {
+    background: #fff5f5 !important;
+  }
+
+  :global(.ea-row-high:hover > td) {
+    background: #fee2e2 !important;
+  }
+}
+
+// ─── Modal ───────────────────────────────────────────────────
+
+.ea-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.ea-modal-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.ea-modal-summary {
+  align-items: flex-start;
+  line-height: 1.6;
+}
+
+.ea-modal-label {
+  color: #6b6459;
+  font-weight: 600;
+  white-space: nowrap;
+}

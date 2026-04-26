@@ -238,4 +238,24 @@ export class AdminController {
   async rejectDocument(@Param('id') id: string) {
     return this.adminService.rejectKnowledgeDocument(Number(id));
   }
+
+  // ─── 情绪预警 ───────────────────────────────────────────
+
+  @Get('alerts/stats')
+  async getAlertStats() {
+    return this.adminService.getAlertStats();
+  }
+
+  @Get('alerts')
+  async getAlerts(@Query() query: any) {
+    return this.adminService.getAlerts(query);
+  }
+
+  @Put('alerts/:id/handle')
+  async handleAlert(
+    @Param('id') id: string,
+    @Body() body: { handleNote: string },
+  ) {
+    return this.adminService.handleAlert(Number(id), body.handleNote || '');
+  }
 }

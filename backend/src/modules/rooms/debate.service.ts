@@ -109,6 +109,8 @@ export class DebateService {
     if (ctx) {
       ctx.agentAName = agentAName;
       ctx.agentBName = agentBName;
+      // Round1 发言开始时就开启收集，让用户边看边发弹幕
+      ctx.collectingOpinions = true;
     }
 
     const caseInfo = {
@@ -116,7 +118,7 @@ export class DebateService {
       content: room.content,
     };
 
-    // 严格交替发言（A → B）
+    // 严格交替发言（A → B），期间弹幕已开始收集
     this.roomsGateway.broadcastToRoom(roomId, 'roundChanged', {
       roomId,
       round: 1,
@@ -124,12 +126,10 @@ export class DebateService {
     await this.streamAgentResponse(roomId, botA, caseInfo, [], 1, 'statement');
     await this.streamAgentResponse(roomId, botB, caseInfo, [], 1, 'statement');
 
-    // ── 用户观点征集窗口（60 秒）──
+    // ── 用户观点征集窗口（60 秒）：Round1 结束后继续收集 ──
     const COLLECT_DURATION = 60; // 秒
-    const context = this.debateContexts.get(roomId);
-    if (context) context.collectingOpinions = true;
 
-    // 广播征集开始，同时告知前端双方名字，用于引导用户表态
+    // 广播征集开始（前端显示倒计时提示条），同时告知双方名字
     this.roomsGateway.broadcastToRoom(roomId, 'opinionCollectStart', {
       roomId,
       duration: COLLECT_DURATION,
@@ -139,7 +139,7 @@ export class DebateService {
 
     await this.delay(COLLECT_DURATION * 1000);
 
-    if (context) context.collectingOpinions = false;
+    if (ctx) ctx.collectingOpinions = false;
 
     // 取所有弹幕，对尚未被 RAG 处理的（默认值 isRelevant=true + stance=NEUTRAL）做兜底过滤
     const allOpinions = await (this.prisma as any).userOpinion.findMany({

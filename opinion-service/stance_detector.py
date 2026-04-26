@@ -65,10 +65,36 @@ def _cosine_sim(a: list[float], b: list[float]) -> float:
 _SUPPORT_KEYWORDS = ["支持", "赞同", "同意", "站", "认为.*对", "觉得.*对", "说得对", "说的对", "有道理"]
 _OPPOSE_KEYWORDS  = ["反对", "不支持", "不赞同", "不同意", "不认为"]
 
+# 名字至少匹配几个字才算命中（防止单字误匹配）
+_MIN_FRAGMENT_LEN = 2
+
+
+def _name_fragments(name: str) -> list[str]:
+    """
+    从智能体全名中提取所有长度 >= _MIN_FRAGMENT_LEN 的连续子串，
+    按长度降序排列（优先匹配更长的片段，减少误匹配）。
+    例：「毒舌现实主义者」→ ['毒舌现实主义者','毒舌现实主义','现实主义者','毒舌现实','现实主义','毒舌','现实','主义','主义者',...]
+    """
+    frags = set()
+    n = len(name)
+    for start in range(n):
+        for end in range(start + _MIN_FRAGMENT_LEN, n + 1):
+            frags.add(name[start:end])
+    return sorted(frags, key=len, reverse=True)
+
+
+def _mentions_agent(text: str, name: str) -> bool:
+    """判断 text 是否提到了 name 的任意片段（模糊匹配）。"""
+    for frag in _name_fragments(name):
+        if frag in text:
+            return True
+    return False
+
 
 def _keyword_stance(text: str, agent_a_name: str, agent_b_name: str) -> Optional[str]:
     """
-    关键词前置判断：若文本明确提到智能体名字 + 支持/反对词，直接返回立场。
+    关键词前置判断：若文本提到智能体名字的任意片段 + 支持/反对词，直接返回立场。
+    支持「毒舌」「现实主义」「温柔」「共情者」等不完整写法。
     返回 None 表示无法判断，交给向量检索。
     """
     import re
@@ -77,9 +103,10 @@ def _keyword_stance(text: str, agent_a_name: str, agent_b_name: str) -> Optional
 
     has_support = bool(support_pat.search(text))
     has_oppose  = bool(oppose_pat.search(text))
-    has_a = agent_a_name and agent_a_name in text
-    has_b = agent_b_name and agent_b_name in text
+    has_a = agent_a_name and _mentions_agent(text, agent_a_name)
+    has_b = agent_b_name and _mentions_agent(text, agent_b_name)
 
+    # 两个名字都命中时不做判断，交给向量（避免"毒舌不如温柔"这类被误判）
     if has_a and not has_b:
         if has_support: return "SUPPORT_A"
         if has_oppose:  return "SUPPORT_B"

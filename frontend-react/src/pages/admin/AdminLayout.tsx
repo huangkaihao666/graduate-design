@@ -1,8 +1,9 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { ConfigProvider, Layout, Menu, Button, Space, Modal } from 'antd'
-import { HomeOutlined, LogoutOutlined, UserOutlined, FileTextOutlined, WarningOutlined, BarChartOutlined, ControlOutlined, RobotOutlined, TagsOutlined, NotificationOutlined, BookOutlined } from '@ant-design/icons'
-import { useQueryClient } from '@tanstack/react-query'
+import { ConfigProvider, Layout, Menu, Button, Space, Modal, notification } from 'antd'
+import { HomeOutlined, LogoutOutlined, UserOutlined, FileTextOutlined, WarningOutlined, BarChartOutlined, ControlOutlined, RobotOutlined, TagsOutlined, NotificationOutlined, BookOutlined, AlertOutlined } from '@ant-design/icons'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import * as adminApi from '@/api/admin'
 import { useAdminAuthStore } from '@/store'
 import './AdminLayout.less'
 
@@ -67,11 +68,57 @@ const AdminLayout: React.FC = () => {
     if (location.pathname.startsWith('/admin/knowledge-bases')) return 'knowledge-bases'
     if (location.pathname.startsWith('/admin/tags')) return 'tags'
     if (location.pathname.startsWith('/admin/announcements')) return 'announcements'
+    if (location.pathname.startsWith('/admin/emotion-alerts')) return 'emotion-alerts'
     return 'home'
   })()
 
+  const [notifApi, notifHolder] = notification.useNotification()
+  const notifiedRef = useRef(false)
+
+  const { data: alertStats } = useQuery({
+    queryKey: ['admin-alert-stats'],
+    queryFn: () => adminApi.getAdminAlertStats(),
+    refetchInterval: 60000,
+  })
+  const unhandledCount = (alertStats as any)?.totalUnhandled ?? 0
+  const highCount = (alertStats as any)?.highCount ?? 0
+
+  // 首次加载有待处理预警时弹出通知
+  useEffect(() => {
+    if (notifiedRef.current) return
+    if (unhandledCount <= 0) return
+    notifiedRef.current = true
+    notifApi.warning({
+      message: '存在未处理的情绪预警',
+      description: (
+        <span>
+          当前有 <strong style={{ color: '#dc2626' }}>{unhandledCount}</strong> 条预警待处理
+          {highCount > 0 && <>，其中 <strong style={{ color: '#dc2626' }}>{highCount}</strong> 条高风险，请及时跟进。</>}
+        </span>
+      ),
+      btn: (
+        <Button
+          size="small"
+          danger
+          style={{ borderRadius: 7, fontWeight: 600 }}
+          onClick={() => {
+            navigate('/admin/emotion-alerts')
+            notification.destroy('emotion-alert-notif')
+          }}
+        >
+          前往处理
+        </Button>
+      ),
+      key: 'emotion-alert-notif',
+      duration: 8,
+      icon: <AlertOutlined style={{ color: '#dc2626' }} />,
+      placement: 'topRight',
+    })
+  }, [unhandledCount, highCount, notifApi, navigate])
+
   return (
     <ConfigProvider theme={adminTheme}>
+    {notifHolder}
     <Layout className="admin-shell">
       <Header className="admin-header">
         <div className="admin-header-left" onClick={() => navigate('/admin')}>
@@ -120,6 +167,32 @@ const AdminLayout: React.FC = () => {
               { key: 'knowledge-bases', label: '知识库审核',  icon: <BookOutlined />,          onClick: () => navigate('/admin/knowledge-bases') },
               { key: 'tags',            label: '话题标签',    icon: <TagsOutlined />,          onClick: () => navigate('/admin/tags') },
               { key: 'announcements',   label: '系统公告',    icon: <NotificationOutlined />,  onClick: () => navigate('/admin/announcements') },
+              { type: 'divider' as const },
+              {
+                key: 'emotion-alerts',
+                icon: <AlertOutlined />,
+                onClick: () => navigate('/admin/emotion-alerts'),
+                label: (
+                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    情绪预警
+                    {unhandledCount > 0 && (
+                      <span style={{
+                        background: '#dc2626',
+                        color: '#fff',
+                        borderRadius: 10,
+                        padding: '0 6px',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        lineHeight: '18px',
+                        minWidth: 18,
+                        textAlign: 'center',
+                      }}>
+                        {unhandledCount > 99 ? '99+' : unhandledCount}
+                      </span>
+                    )}
+                  </span>
+                ),
+              },
             ]}
           />
         </Sider>

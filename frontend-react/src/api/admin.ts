@@ -88,3 +88,17 @@ export const approveKnowledgeDocument = (id: number) => httpClient.put(`/admin/k
 
 export const rejectKnowledgeDocument = (id: number) => httpClient.put(`/admin/knowledge-documents/${id}/reject`)
 
+// ─── 情绪预警 ────────────────────────────────────────────────
+
+export const getAdminAlerts = (params?: {
+  riskLevel?: string
+  isHandled?: string
+  page?: number
+  pageSize?: number
+}) => httpClient.get('/admin/alerts', { params })
+
+export const getAdminAlertStats = () => httpClient.get('/admin/alerts/stats')
+
+export const handleAdminAlert = (id: number, handleNote: string) =>
+  httpClient.put(`/admin/alerts/${id}/handle`, { handleNote })
+
