@@ -143,16 +143,17 @@ export const CaseCard: React.FC<CaseCardProps> = ({ room, agents }) => {
   return (
     <div className="case-card" onClick={handleClick}>
       {/* ── 顶部封面区 ── */}
-      <div
-        className="card-cover"
-        style={
-          room.image
-            ? { backgroundImage: `url(${room.image})` }
-            : { background: PLACEHOLDER_COLORS[colorIdx] }
-        }
-      >
-        {!room.image && (
-          <div className="card-cover-placeholder">
+      <div className="card-cover">
+        {room.image ? (
+          <>
+            <img src={room.image} alt={room.title} className="card-cover-img" />
+            <div className="card-cover-mask" />
+          </>
+        ) : (
+          <div
+            className="card-cover-placeholder"
+            style={{ background: PLACEHOLDER_COLORS[colorIdx] }}
+          >
             <span className="placeholder-icon">{PLACEHOLDER_ICONS[colorIdx]}</span>
           </div>
         )}

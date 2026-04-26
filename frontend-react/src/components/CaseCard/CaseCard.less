@@ -1,23 +1,25 @@
-// ============ 案件卡片 — 渐变重设计版 ============
+// ============ 案件卡片 ============
 
 .case-card {
   background: #ffffff;
-  border-radius: 14px;
+  border-radius: 12px;
   overflow: hidden;
   cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  box-shadow: 0 2px 12px rgba(15, 45, 90, 0.1), 0 1px 4px rgba(15, 45, 90, 0.06);
-  transition: all 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(200, 218, 234, 0.8);
+  box-shadow: 0 1px 6px rgba(15, 45, 90, 0.07);
+  transition: all 0.24s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
   position: relative;
 
   &:hover {
-    transform: translateY(-6px);
-    border-color: rgba(26, 74, 138, 0.2);
-    box-shadow: 0 16px 40px rgba(15, 45, 90, 0.18), 0 4px 12px rgba(15, 45, 90, 0.1);
+    transform: translateY(-4px);
+    border-color: rgba(26, 74, 138, 0.22);
+    box-shadow: 0 8px 28px rgba(15, 45, 90, 0.13), 0 2px 8px rgba(15, 45, 90, 0.07);
 
     .card-title { color: #1a4a8a; }
+
+    .card-cover-img { transform: scale(1.04); }
   }
 }
 
@@ -25,31 +27,37 @@
 .card-cover {
   position: relative;
   width: 100%;
-  height: 130px;
+  height: 110px; // 缩小封面高度，减少图片喧宾夺主
   overflow: hidden;
   flex-shrink: 0;
-  // 有图片时显示图片，无图片时背景渐变由 style 传入
-  background-size: cover;
-  background-position: center;
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.4s ease;
-  }
-
-  // hover 时图片轻微放大
-  .case-card:hover & img {
-    transform: scale(1.04);
-  }
 }
 
-// 封面内容（点阵 + 图标）
+// 真实图片：加一层半透明深色遮罩，降低视觉干扰
+.card-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+  display: block;
+}
+
+// 图片上叠加渐变遮罩，统一视觉、让徽章更易读
+.card-cover-mask {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(15, 30, 46, 0.15) 0%,
+    rgba(15, 30, 46, 0.05) 50%,
+    rgba(15, 30, 46, 0.25) 100%
+  );
+  pointer-events: none;
+}
+
+// 无图片时的渐变占位
 .card-cover-placeholder {
   position: absolute;
   inset: 0;
-  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -59,42 +67,42 @@
     position: absolute;
     inset: 0;
     background-image:
-      linear-gradient(rgba(255,255,255,0.07) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,0.07) 1px, transparent 1px);
-    background-size: 22px 22px;
+      linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px);
+    background-size: 20px 20px;
   }
 
   &::after {
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(circle at 20% 50%, rgba(255,255,255,0.18) 0%, transparent 55%);
+    background: radial-gradient(circle at 25% 50%, rgba(255,255,255,0.15) 0%, transparent 55%);
   }
 }
 
 .placeholder-icon {
   position: relative;
-  z-index: 3;
-  font-size: 42px;
+  z-index: 1;
+  font-size: 36px;
   line-height: 1;
-  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3));
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3));
   opacity: 0.88;
 }
 
 // 状态徽章
 .card-status-badge {
   position: absolute;
-  top: 10px;
-  left: 10px;
+  top: 8px;
+  left: 8px;
   z-index: 4;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 3px 10px;
-  border-radius: 8px;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 6px;
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.2px;
   backdrop-filter: blur(8px);
 
   &.status-waiting {
@@ -108,15 +116,15 @@
   }
 
   &.status-closed {
-    background: rgba(15, 23, 42, 0.65);
+    background: rgba(15, 23, 42, 0.6);
     color: rgba(255,255,255,0.9);
   }
 }
 
 .live-pulse {
   display: inline-block;
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: #fff;
   animation: liveDot 1.4s ease-in-out infinite;
@@ -129,14 +137,14 @@
 
 .card-hot-badge {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 8px;
+  right: 8px;
   z-index: 4;
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  padding: 3px 9px;
-  border-radius: 8px;
+  padding: 2px 8px;
+  border-radius: 6px;
   background: rgba(185, 28, 28, 0.88);
   color: #fff;
   font-size: 11px;
@@ -149,17 +157,16 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 9px;
-  padding: 14px 15px 10px;
-  background: #ffffff;
+  padding: 12px 14px 10px;
+  gap: 0; // 各子元素自控间距
 }
 
 .card-title {
-  margin: 0;
+  margin: 0 0 7px;
   font-size: 14px;
   font-weight: 700;
   color: #0f1e2e;
-  line-height: 1.5;
+  line-height: 1.45;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -167,11 +174,27 @@
   transition: color 0.2s ease;
 }
 
+// 话题标签（紧贴标题下方）
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 7px;
+
+  .card-tag {
+    font-size: 11px;
+    padding: 0 7px;
+    line-height: 18px;
+    border-radius: 4px;
+    margin: 0;
+  }
+}
+
 .card-desc {
-  margin: 0;
+  margin: 0 0 10px;
   font-size: 12px;
-  color: #3a5068;
-  line-height: 1.65;
+  color: #4a6070;
+  line-height: 1.6;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -179,59 +202,43 @@
   flex: 1;
 }
 
-.card-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-
-  .card-tag {
-    font-size: 11px;
-    padding: 0 8px;
-    line-height: 20px;
-    border-radius: 6px;
-    margin: 0;
-  }
-}
-
 // Agent 头像行
 .card-agents {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding-top: 6px;
-  border-top: 1px solid rgba(15, 45, 90, 0.07);
+  gap: 7px;
+  padding: 7px 0 0;
+  border-top: 1px solid rgba(15, 45, 90, 0.06);
+  margin-bottom: 8px;
 }
 
 .agent-avatars {
   display: flex;
 
-  .agent-avatar-item:not(:first-child) { margin-left: -7px; }
+  .agent-avatar-item:not(:first-child) { margin-left: -6px; }
 }
 
 .agent-avatar-item {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   border: 2px solid #ffffff;
   background: var(--agent-bg, #dbeafe);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 1px 4px rgba(15, 45, 90, 0.15);
+  box-shadow: 0 1px 3px rgba(15, 45, 90, 0.12);
   transition: transform 0.2s ease;
   overflow: hidden;
 
-  &:hover {
-    transform: translateY(-3px) scale(1.1);
-    z-index: 5;
-  }
+  &:hover { transform: translateY(-2px) scale(1.1); z-index: 5; }
 
-  .agent-emoji { font-size: 13px; line-height: 1; }
+  .agent-emoji { font-size: 12px; line-height: 1; }
 }
 
 .agent-label {
   font-size: 11px;
-  color: #6b85a0;
+  color: #7a90a4;
   font-weight: 500;
 }
 
@@ -239,13 +246,14 @@
 .card-vote-bar {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
+  margin-bottom: 0;
 }
 
 .vote-bar-track {
-  height: 5px;
-  border-radius: 3px;
-  background: rgba(15, 45, 90, 0.08);
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(15, 45, 90, 0.07);
   display: flex;
   overflow: hidden;
 }
@@ -254,51 +262,51 @@
   background: linear-gradient(90deg, #1a4a8a, #2563eb);
   transition: width 0.5s ease;
   min-width: 0;
-  border-radius: 3px 0 0 3px;
+  border-radius: 2px 0 0 2px;
 }
 
 .vote-bar-right {
   background: linear-gradient(90deg, #b45309, #d97706);
   transition: width 0.5s ease;
   min-width: 0;
-  border-radius: 0 3px 3px 0;
+  border-radius: 0 2px 2px 0;
 }
 
 .vote-bar-labels {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 11px;
+  font-size: 10.5px;
 }
 
 .vote-label-left  { color: #1a4a8a; font-weight: 600; }
 .vote-label-right { color: #b45309; font-weight: 600; }
-.vote-total       { color: #6b85a0; }
+.vote-total       { color: #7a90a4; }
 
 // ── 底部区 ────────────────────────────────────────────────────────
 .card-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 15px;
-  border-top: 1px solid rgba(15, 45, 90, 0.07);
-  background: #f0f6fc;
+  padding: 7px 14px;
+  border-top: 1px solid rgba(15, 45, 90, 0.06);
+  background: #f4f8fc;
 }
 
 .card-owner {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 
   .owner-avatar {
     background: linear-gradient(135deg, #1a4a8a, #0891b2) !important;
   }
 
   .owner-name {
-    font-size: 12px;
-    color: #3a5068;
+    font-size: 11.5px;
+    color: #4a6070;
     font-weight: 500;
-    max-width: 88px;
+    max-width: 80px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -308,17 +316,17 @@
 .card-meta {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
 }
 
 .meta-item {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  font-size: 11.5px;
-  color: #6b85a0;
+  gap: 2px;
+  font-size: 11px;
+  color: #7a90a4;
 
-  :global(.anticon) { font-size: 12px; }
+  :global(.anticon) { font-size: 11px; }
 }
 
 .meta-like {

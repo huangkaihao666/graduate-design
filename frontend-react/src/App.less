@@ -37,18 +37,18 @@
   --color-info: #3B82F6;
 
   // 背景
-  --bg-page: #F1F5F9;
-  --bg-card: #FFFFFF;
-  --bg-sidebar: #FFFFFF;
-  --bg-header: #FFFFFF;
+  --bg-page: #c8daea;
+  --bg-card: #ddeaf4;
+  --bg-sidebar: #b8ccde;
+  --bg-header: #b8ccde;
 
   // 文字
-  --text-primary: #1E1B4B;
-  --text-secondary: #64748B;
-  --text-tertiary: #94A3B8;
+  --text-primary: #0f1e2e;
+  --text-secondary: #3a5068;
+  --text-tertiary: #6b85a0;
 
   // 边框
-  --border-color: #E2E8F0;
+  --border-color: rgba(26, 74, 138, 0.15);
   --border-radius: 10px;
   --border-radius-lg: 14px;
 
@@ -157,24 +157,50 @@ body {
   .ant-input:focus,
   .ant-input-number-focused,
   .ant-select-focused .ant-select-selector {
-    border-color: #6366F1 !important;
-    box-shadow: 0 0 0 3px rgba(99,102,241,0.12) !important;
+    border-color: #1a4a8a !important;
+    box-shadow: 0 0 0 3px rgba(26,74,138,0.12) !important;
   }
 
   // 按钮悬浮
   .ant-btn-primary:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(99,102,241,0.4) !important;
+    box-shadow: 0 6px 20px rgba(26,74,138,0.4) !important;
   }
 
   .ant-btn:active:not(:disabled) {
     transform: translateY(0);
   }
 
-  // 卡片
+  // 卡片：强制覆盖背景色，消除纯白
   .ant-card {
-    border-radius: 14px;
+    border-radius: 12px;
     border-color: var(--border-color);
+    background: var(--bg-card) !important;
+  }
+
+  .ant-card-body,
+  .ant-card-head {
+    background: var(--bg-card) !important;
+  }
+
+  // 输入框、Select、Upload 等组件背景
+  .ant-input,
+  .ant-input-affix-wrapper,
+  .ant-select-selector,
+  .ant-picker {
+    background: var(--bg-card) !important;
+  }
+
+  // Upload Dragger
+  .ant-upload-drag,
+  .ant-upload-drag .ant-upload {
+    background: var(--bg-card) !important;
+  }
+
+  // 默认按钮文字颜色
+  .ant-btn-default:hover:not(:disabled) {
+    border-color: #1a4a8a !important;
+    color: #1a4a8a !important;
   }
 
   // 模态框
