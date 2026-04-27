@@ -329,6 +329,10 @@ export class AdminService {
       bannedUsers,
       totalVotes,
       todayVotes,
+      totalDanmu,
+      totalAnnouncements,
+      pendingAgents,
+      totalComments,
     ] = await Promise.all([
       this.prisma.room.count(),
       this.prisma.room.count({ where: { status: 'LIVE' } }),
@@ -339,22 +343,37 @@ export class AdminService {
       this.prisma.user.count({ where: { isActive: false } }),
       this.prisma.vote.count(),
       this.prisma.vote.count({ where: { createdAt: { gte: todayStart } } }),
+      // 弹幕数（roundNumber=0 的 HUMAN 消息）
+      this.prisma.message.count({
+        where: { senderType: 'HUMAN', roundNumber: 0 },
+      }),
+      // 公告数
+      (this.prisma as any).announcement.count(),
+      // 待审核智能体
+      this.prisma.agent.count({
+        where: { isSystem: false, status: 'PENDING' },
+      }),
+      // 评论数（roundNumber IS NULL 的 HUMAN 消息）
+      this.prisma.message.count({
+        where: { senderType: 'HUMAN', roundNumber: null },
+      }),
     ]);
 
     return {
-      // 案件
       totalRooms,
       liveRooms,
       closedRooms,
       waitingRooms: totalRooms - liveRooms - closedRooms,
-      // 用户
       totalUsers,
       todayUsers,
       weekUsers,
       bannedUsers,
-      // 投票
       totalVotes,
       todayVotes,
+      totalDanmu,
+      totalComments,
+      totalAnnouncements,
+      pendingAgents,
     };
   }
 
@@ -434,6 +453,15 @@ export class AdminService {
       },
     });
 
+    // 批量查各房间弹幕数
+    const roomIds = rooms.map((r) => r.id);
+    const danmuCounts = await this.prisma.message.groupBy({
+      by: ['roomId'],
+      where: { roomId: { in: roomIds }, senderType: 'HUMAN', roundNumber: 0 },
+      _count: { id: true },
+    });
+    const danmuMap = new Map(danmuCounts.map((d) => [d.roomId, d._count.id]));
+
     return rooms.map((r) => ({
       id: r.id,
       title: r.title,
@@ -441,6 +469,7 @@ export class AdminService {
       viewCount: r.viewCount,
       commentCount: r.commentCount,
       voteCount: r._count.votes,
+      danmuCount: danmuMap.get(r.id) ?? 0,
       createdAt: r.createdAt,
       ownerName: r.owner?.name || r.owner?.email || `用户${r.owner?.id}`,
     }));

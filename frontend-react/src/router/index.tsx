@@ -20,7 +20,6 @@ import {
   RoomsAdmin,
   UsersAdmin,
   MessagesAdmin,
-  StatsAdmin,
   AgentsAudit,
   TagsAdmin,
   AnnouncementsAdmin,
@@ -71,10 +70,6 @@ export const router = createBrowserRouter([
       {
         path: 'messages',
         element: <MessagesAdmin />,
-      },
-      {
-        path: 'stats',
-        element: <StatsAdmin />,
       },
       {
         path: 'agents-audit',

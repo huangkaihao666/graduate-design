@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ConfigProvider, Layout, Menu, Button, Space, Modal, notification } from 'antd'
-import { HomeOutlined, LogoutOutlined, UserOutlined, FileTextOutlined, WarningOutlined, BarChartOutlined, ControlOutlined, RobotOutlined, TagsOutlined, NotificationOutlined, BookOutlined, AlertOutlined } from '@ant-design/icons'
+import { HomeOutlined, LogoutOutlined, UserOutlined, FileTextOutlined, WarningOutlined, ControlOutlined, RobotOutlined, TagsOutlined, NotificationOutlined, BookOutlined, AlertOutlined } from '@ant-design/icons'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import * as adminApi from '@/api/admin'
 import { useAdminAuthStore } from '@/store'
@@ -60,7 +60,6 @@ const AdminLayout: React.FC = () => {
   const queryClient = useQueryClient()
 
   const selectedKey = (() => {
-    if (location.pathname.startsWith('/admin/stats')) return 'stats'
     if (location.pathname.startsWith('/admin/rooms')) return 'rooms'
     if (location.pathname.startsWith('/admin/users')) return 'users'
     if (location.pathname.startsWith('/admin/messages')) return 'messages'
@@ -157,8 +156,7 @@ const AdminLayout: React.FC = () => {
             mode="inline"
             selectedKeys={[selectedKey]}
             items={[
-              { key: 'home',          label: '概览',       icon: <HomeOutlined />,         onClick: () => navigate('/admin') },
-              { key: 'stats',         label: '数据面板',    icon: <BarChartOutlined />,      onClick: () => navigate('/admin/stats') },
+              { key: 'home',          label: '数据概览',    icon: <HomeOutlined />,         onClick: () => navigate('/admin') },
               { key: 'rooms',         label: '房间管理',    icon: <FileTextOutlined />,      onClick: () => navigate('/admin/rooms') },
               { key: 'users',         label: '用户管理',    icon: <UserOutlined />,          onClick: () => navigate('/admin/users') },
               { key: 'messages',      label: '消息审核',    icon: <WarningOutlined />,       onClick: () => navigate('/admin/messages') },
