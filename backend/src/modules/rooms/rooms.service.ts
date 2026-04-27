@@ -390,6 +390,7 @@ export class RoomsService {
       senderType: 'HUMAN',
       senderId: { not: null },
       parentId: null,
+      roundNumber: null, // 排除弹幕（roundNumber=0），只取评论区内容
     } as any;
 
     const [comments, total] = await Promise.all([
@@ -487,7 +488,7 @@ export class RoomsService {
           userId: msg.senderId,
           type: 'LIKE_COMMENT',
           fromUserId: userId,
-          messageId,
+          roomId: msg.roomId,
         },
       });
       if (!exists) {
@@ -498,7 +499,6 @@ export class RoomsService {
               type: 'LIKE_COMMENT',
               fromUserId: userId,
               roomId: msg.roomId,
-              messageId,
             },
           })
           .catch(() => null);
