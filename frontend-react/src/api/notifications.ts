@@ -11,6 +11,7 @@ export type NotificationType =
   | 'AGENT_APPROVED'
   | 'AGENT_REJECTED'
   | 'ANNOUNCEMENT'
+  | 'WARN_MESSAGE'
 
 export interface NotificationItem {
   id: number
@@ -18,6 +19,7 @@ export interface NotificationItem {
   fromUserId: number
   roomId?: number | null
   messageId?: number
+  extra?: string | null      // JSON 附加数据，WARN_MESSAGE 时含 { content: string }
   isRead: boolean
   createdAt: string
   fromUser?: {

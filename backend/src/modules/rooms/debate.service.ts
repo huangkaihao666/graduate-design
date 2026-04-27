@@ -9,6 +9,7 @@ interface DebateContext {
   currentRound: number;
   status: 'WAITING' | 'RUNNING' | 'PAUSED' | 'FINISHED';
   collectingOpinions: boolean; // Round1 后的 60 秒征集窗口
+  collectEndAt?: number; // 征集窗口截止时间戳（ms），供新加入用户计算剩余时间
   agentAName: string; // A 方智能体显示名，供立场识别使用
   agentBName: string; // B 方智能体显示名，供立场识别使用
   messages: Array<{
@@ -129,17 +130,23 @@ export class DebateService {
     // ── 用户观点征集窗口（60 秒）：Round1 结束后继续收集 ──
     const COLLECT_DURATION = 60; // 秒
 
-    // 广播征集开始（前端显示倒计时提示条），同时告知双方名字
+    // 广播征集开始（前端显示倒计时提示条），同时告知双方名字和截止时间戳
+    const collectEndAt = Date.now() + COLLECT_DURATION * 1000;
+    if (ctx) ctx.collectEndAt = collectEndAt;
     this.roomsGateway.broadcastToRoom(roomId, 'opinionCollectStart', {
       roomId,
       duration: COLLECT_DURATION,
+      endAt: collectEndAt,
       agentAName,
       agentBName,
     });
 
     await this.delay(COLLECT_DURATION * 1000);
 
-    if (ctx) ctx.collectingOpinions = false;
+    if (ctx) {
+      ctx.collectingOpinions = false;
+      ctx.collectEndAt = undefined;
+    }
 
     // 取所有弹幕，对尚未被 RAG 处理的（默认值 isRelevant=true + stance=NEUTRAL）做兜底过滤
     const allOpinions = await (this.prisma as any).userOpinion.findMany({

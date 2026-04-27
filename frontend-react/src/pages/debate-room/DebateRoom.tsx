@@ -327,17 +327,23 @@ export const DebateRoom: React.FC = () => {
       })
     })
 
-    // 观点征集开始
+    // 观点征集开始（重新进入时 duration 为剩余秒数，endAt 为截止时间戳）
     socketInstance.on('opinionCollectStart', (data: any) => {
-      const duration = data?.duration ?? 60
       const agentAName = data?.agentAName ?? 'A方'
       const agentBName = data?.agentBName ?? 'B方'
       setOpinionCollecting(true)
-      setOpinionCountdown(duration)
       setOpinionResult(null)
       if (data?.agentAName && data?.agentBName) {
         setOpinionAgentNames({ agentAName, agentBName })
       }
+
+      // 优先用服务端的截止时间戳，保证重新进入时倒计时准确
+      opinionEndTimeRef.current = data?.endAt
+        ? Number(data.endAt)
+        : Date.now() + (data?.duration ?? 60) * 1000
+
+      const initialRemaining = Math.max(0, Math.ceil((opinionEndTimeRef.current - Date.now()) / 1000))
+      setOpinionCountdown(initialRemaining)
 
       // 全局 notification，持续整个征集窗口
       notification.open({
@@ -345,13 +351,11 @@ export const DebateRoom: React.FC = () => {
         message: '观点征集进行中',
         description: `支持「${agentAName}」还是「${agentBName}」？在右侧弹幕区说出你的理由，有效观点将直接注入第二轮辩论！`,
         icon: <BulbOutlined style={{ color: '#f59e0b' }} />,
-        duration: duration,
+        duration: initialRemaining,
         placement: 'topRight',
         style: { borderLeft: '4px solid #f59e0b' },
       })
 
-      // 用截止时间戳驱动倒计时，切后台再回来也能正确跳到剩余秒数
-      opinionEndTimeRef.current = Date.now() + duration * 1000
       if (opinionCountdownRef.current) window.clearInterval(opinionCountdownRef.current)
       opinionCountdownRef.current = window.setInterval(() => {
         const remaining = Math.max(0, Math.ceil((opinionEndTimeRef.current - Date.now()) / 1000))
@@ -393,6 +397,24 @@ export const DebateRoom: React.FC = () => {
         setVoteCounts(data.counts)
         setTotalVotes(data.totalVotes)
       }
+    })
+
+    // 辩论历史（LIVE 状态重新进入时，服务端推送已完成的 AI 发言）
+    socketInstance.on('debateHistory', (data: any[]) => {
+      if (!Array.isArray(data) || data.length === 0) return
+      setMessages((prev) => {
+        // 已有消息时不覆盖（避免正在打字时被历史覆盖）
+        if (prev.length > 0) return prev
+        return data.map((m: any) => ({
+          id: String(m.id),
+          agentId: String(m.agentId),
+          content: String(m.content || ''),
+          reasoning: m.reasoning ?? undefined,
+          roundNumber: Number(m.roundNumber ?? 0),
+          createdAt: m.createdAt ? new Date(m.createdAt) : new Date(),
+          isTyping: false,
+        }))
+      })
     })
 
     // 新消息

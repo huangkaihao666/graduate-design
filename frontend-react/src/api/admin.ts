@@ -29,7 +29,12 @@ export const updateAdminUserStatus = (userId: number, isActive: boolean) =>
 export const getAdminViolations = (params?: { page?: number; pageSize?: number; search?: string }) =>
   httpClient.get('/admin/messages/violations', { params })
 
+export const getAdminRoomMessages = (roomId: number, params?: { page?: number; pageSize?: number; search?: string }) =>
+  httpClient.get(`/admin/messages/room/${roomId}`, { params })
+
 export const deleteAdminMessage = (messageId: number) => httpClient.delete(`/admin/messages/${messageId}`)
+
+export const warnAdminMessage = (messageId: number) => httpClient.post(`/admin/messages/${messageId}/warn`)
 
 export const banAdminUser = (userId: number) => httpClient.put(`/admin/users/${userId}/ban`)
 

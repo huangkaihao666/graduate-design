@@ -12,6 +12,7 @@ import {
   StarFilled,
   RobotOutlined,
   NotificationOutlined,
+  WarningFilled,
 } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
@@ -96,6 +97,16 @@ const TYPE_CONFIG: Record<
     text: () => '平台发布了新公告',
     sub: '系统',
   },
+  WARN_MESSAGE: {
+    icon: <WarningFilled />,
+    color: '#D97706',
+    bg: '#FFFBEB',
+    text: (_name, item) => {
+      const roomTitle = item.room?.title ? `「${item.room.title}」` : '某辩论室'
+      return `你在 ${roomTitle} 中的弹幕被管理员标记为违规`
+    },
+    sub: '违规警告',
+  },
 }
 
 const TABS = [
@@ -125,6 +136,7 @@ const Notifications: React.FC = () => {
   const [activeTab, setActiveTab] = useState('ALL')
   const [page, setPage] = useState(1)
   const [announcementModal, setAnnouncementModal] = useState(false)
+  const [warnItem, setWarnItem] = useState<NotificationItem | null>(null)
 
   const { data: announcementsData } = useQuery({
     queryKey: ['announcements'],
@@ -168,6 +180,7 @@ const Notifications: React.FC = () => {
     if (item.type === 'ACHIEVEMENT_UNLOCKED') navigate('/achievements')
     else if (item.type === 'AGENT_APPROVED' || item.type === 'AGENT_REJECTED') navigate('/create-agent')
     else if (item.type === 'ANNOUNCEMENT') setAnnouncementModal(true)
+    else if (item.type === 'WARN_MESSAGE') setWarnItem(item)
     else if (item.roomId) navigate(`/cases/${item.roomId}`)
   }
 
@@ -375,6 +388,67 @@ const Notifications: React.FC = () => {
             ))}
           </div>
         )}
+      </Modal>
+      {/* ── 违规警告弹窗 ── */}
+      <Modal
+        open={!!warnItem}
+        onCancel={() => setWarnItem(null)}
+        footer={
+          <Button type="primary" onClick={() => setWarnItem(null)}
+            style={{ background: '#D97706', borderColor: '#D97706' }}>
+            我知道了，会注意的
+          </Button>
+        }
+        title={
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <WarningFilled style={{ color: '#D97706' }} />
+            <span style={{ color: '#1a1612' }}>违规行为警告</span>
+          </span>
+        }
+        width={480}
+      >
+        {warnItem && (() => {
+          const roomTitle = warnItem.room?.title
+          let warnContent: string | null = null
+          try { warnContent = warnItem.extra ? JSON.parse(warnItem.extra).content : null } catch {}
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{
+                background: '#FFFBEB', border: '1px solid rgba(217,119,6,0.25)',
+                borderRadius: 10, padding: '14px 16px', fontSize: 13, color: '#92400E', lineHeight: 1.7,
+              }}>
+                管理员认为你在
+                {roomTitle
+                  ? <b style={{ color: '#D97706' }}>「{roomTitle}」</b>
+                  : '某辩论室'}
+                中发表的弹幕内容涉嫌违规，请注意言行。
+              </div>
+
+              {warnContent && (
+                <div>
+                  <div style={{ fontSize: 11, color: '#b0a89c', fontWeight: 700, letterSpacing: '0.8px', textTransform: 'uppercase', marginBottom: 6 }}>
+                    违规内容
+                  </div>
+                  <div style={{
+                    background: '#f3f0ea', borderRadius: 8, padding: '10px 14px',
+                    fontSize: 13, color: '#3d3530', lineHeight: 1.65,
+                    borderLeft: '3px solid rgba(217,119,6,0.4)',
+                  }}>
+                    "{warnContent}"
+                  </div>
+                </div>
+              )}
+
+              <div style={{
+                background: '#F0FDF4', border: '1px solid rgba(16,185,129,0.2)',
+                borderRadius: 10, padding: '12px 16px', fontSize: 13, color: '#065F46', lineHeight: 1.75,
+              }}>
+                🌿 <b>友好发言提示</b><br />
+                请在辩论室保持理性、尊重的交流氛围。发表评论时避免使用攻击性、侮辱性语言，共同维护健康的讨论环境。多次违规可能导致账号被封禁。
+              </div>
+            </div>
+          )
+        })()}
       </Modal>
     </div>
   )

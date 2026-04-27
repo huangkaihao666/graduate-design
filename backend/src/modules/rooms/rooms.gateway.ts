@@ -238,6 +238,59 @@ export class RoomsGateway
     }
     client.emit('chatHistory', history);
 
+    // LIVE 状态：推送已完成的 AI 辩论发言历史（让重新进入的用户能看到之前的发言）
+    if (room?.status === 'LIVE') {
+      const aiMessages = await this.prisma.message.findMany({
+        where: { roomId: data.roomId, senderType: 'AI' },
+        orderBy: { createdAt: 'asc' },
+        select: {
+          id: true,
+          botId: true,
+          content: true,
+          reasoning: true,
+          roundNumber: true,
+          createdAt: true,
+        },
+      });
+      if (aiMessages.length > 0) {
+        client.emit(
+          'debateHistory',
+          aiMessages.map((m: any) => ({
+            id: String(m.id),
+            agentId: String(m.botId),
+            content: m.content,
+            reasoning: m.reasoning ?? undefined,
+            roundNumber: Number(m.roundNumber ?? 0),
+            createdAt: m.createdAt,
+            isTyping: false,
+          })),
+        );
+      }
+
+      // 如果正在观点征集窗口，推送剩余时间让新加入用户能看到倒计时
+      const ctx = this.debateService.getDebateContext(data.roomId);
+      if (ctx?.collectingOpinions && ctx?.collectEndAt) {
+        const remaining = Math.max(
+          0,
+          Math.ceil((ctx.collectEndAt - Date.now()) / 1000),
+        );
+        if (remaining > 0) {
+          client.emit('opinionCollectStart', {
+            roomId: data.roomId,
+            duration: remaining,
+            endAt: ctx.collectEndAt,
+            agentAName: ctx.agentAName,
+            agentBName: ctx.agentBName,
+          });
+        }
+      }
+
+      // 推送当前轮次
+      if (ctx?.currentRound) {
+        client.emit('roundChanged', { round: ctx.currentRound });
+      }
+    }
+
     // 广播给房间内其他用户
     client.to(roomId).emit('userJoined', {
       userId,

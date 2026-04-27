@@ -152,13 +152,13 @@ model Notification {
   type       String   @db.VarChar(50)
   fromUserId Int      @db.UnsignedInt
   roomId     Int?     @db.UnsignedInt          // 相关案件（成就通知可为空）
+  extra      String?  @db.Text                 // JSON 附加数据，如警告消息的弹幕原文
 
   isRead     Boolean  @default(false)
 
   fromUser   User     @relation("NotificationFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
   receiver   User     @relation("NotificationTo",   fields: [userId],     references: [id], onDelete: Cascade)
   room       Room?    @relation(fields: [roomId], references: [id], onDelete: Cascade)
-
 
   createdAt  DateTime @default(now())
 

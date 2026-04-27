@@ -1,6 +1,6 @@
 import React from 'react'
 import { Badge, Dropdown, Button, List, Avatar, Typography, Empty, Spin, Divider } from 'antd'
-import { BellOutlined, UserOutlined, LikeFilled, MessageFilled, CheckOutlined, TeamOutlined, TrophyFilled, RightOutlined, StarFilled, RobotOutlined, NotificationOutlined } from '@ant-design/icons'
+import { BellOutlined, UserOutlined, LikeFilled, MessageFilled, CheckOutlined, TeamOutlined, TrophyFilled, RightOutlined, StarFilled, RobotOutlined, NotificationOutlined, WarningFilled } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import * as notifApi from '@/api/notifications'
@@ -48,6 +48,13 @@ const TYPE_CONFIG: Record<string, { icon: React.ReactNode; text: (name: string, 
   ANNOUNCEMENT: {
     icon: <NotificationOutlined style={{ color: '#6366F1' }} />,
     text: () => '平台发布了新公告',
+  },
+  WARN_MESSAGE: {
+    icon: <WarningFilled style={{ color: '#D97706' }} />,
+    text: (_name: string, item: NotificationItem) => {
+      const roomTitle = item.room?.title ? `「${item.room.title}」` : '某辩论室'
+      return `你在 ${roomTitle} 中的弹幕被管理员标记为违规`
+    },
   },
 }
 
@@ -106,7 +113,7 @@ const NotificationDropdown: React.FC = () => {
     setOpen(false)
     if (item.type === 'ACHIEVEMENT_UNLOCKED') navigate('/achievements')
     else if (item.type === 'AGENT_APPROVED' || item.type === 'AGENT_REJECTED') navigate('/create-agent')
-    else if (item.type === 'ANNOUNCEMENT') { setOpen(false); navigate('/notifications') }
+    else if (item.type === 'ANNOUNCEMENT' || item.type === 'WARN_MESSAGE') { setOpen(false); navigate('/notifications') }
     else if (item.roomId) navigate(`/cases/${item.roomId}`)
   }
 

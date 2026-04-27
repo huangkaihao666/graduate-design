@@ -225,6 +225,84 @@ export class AdminService {
     return { success: true };
   }
 
+  // 按房间获取弹幕（roundNumber=0 的 HUMAN 消息）
+  async getRoomMessages(
+    roomId: number,
+    params: { page?: number; pageSize?: number; search?: string },
+  ) {
+    const page = Math.max(Number(params.page || 1), 1);
+    const pageSize = Math.min(Math.max(Number(params.pageSize || 50), 1), 100);
+    const skip = (page - 1) * pageSize;
+
+    const where: any = {
+      roomId,
+      senderType: 'HUMAN',
+      roundNumber: 0,
+    };
+    if (params.search?.trim()) {
+      where.content = { contains: params.search.trim() };
+    }
+
+    const [total, messages] = await Promise.all([
+      this.prisma.message.count({ where }),
+      this.prisma.message.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: 'asc' },
+        include: {
+          sender: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              avatar: true,
+              isActive: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    return {
+      data: messages.map((m) => ({
+        id: m.id,
+        content: m.content,
+        createdAt: m.createdAt,
+        user: m.sender,
+      })),
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    };
+  }
+
+  // 发违规警告通知给用户（写入 Notification 表，extra 存弹幕原文）
+  async warnUser(messageId: number, adminId: number) {
+    const msg = await this.prisma.message.findUnique({
+      where: { id: messageId },
+      select: { senderId: true, content: true, roomId: true },
+    });
+    if (!msg || !msg.senderId) {
+      return { success: false, error: '消息不存在或发送者未知' };
+    }
+
+    await (this.prisma as any).notification.create({
+      data: {
+        userId: msg.senderId,
+        type: 'WARN_MESSAGE',
+        fromUserId: adminId,
+        roomId: msg.roomId,
+        extra: JSON.stringify({ content: msg.content.slice(0, 200) }),
+      },
+    });
+
+    return { success: true };
+  }
+
   async banUser(userId: number) {
     await this.prisma.user.update({
       where: { id: userId },

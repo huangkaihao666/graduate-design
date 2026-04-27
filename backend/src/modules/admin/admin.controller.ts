@@ -101,6 +101,25 @@ export class AdminController {
     return await this.adminService.deleteMessage(Number(id));
   }
 
+  @Get('messages/room/:roomId')
+  async getRoomMessages(
+    @Param('roomId') roomId: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('search') search?: string,
+  ) {
+    return await this.adminService.getRoomMessages(Number(roomId), {
+      page: page ? Number(page) : 1,
+      pageSize: pageSize ? Number(pageSize) : 50,
+      search,
+    });
+  }
+
+  @Post('messages/:id/warn')
+  async warnUser(@Param('id') id: string, @Request() req: any) {
+    return await this.adminService.warnUser(Number(id), req.user.id);
+  }
+
   @Put('users/:id/ban')
   async banUser(@Param('id') id: string) {
     return await this.adminService.banUser(Number(id));

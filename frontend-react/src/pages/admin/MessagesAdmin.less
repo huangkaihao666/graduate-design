@@ -1,5 +1,5 @@
 // ============================================================
-//  MessagesAdmin — "The Tribunal" editorial light theme
+//  MessagesAdmin — 消息审核页
 // ============================================================
 
 .ma-page {
@@ -7,80 +7,184 @@
   font-family: 'Lato', 'PingFang SC', sans-serif;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
+
+  @media (max-width: 768px) { padding: 16px; }
 }
 
+// ── Banner ────────────────────────────────────────────────────
 .ma-banner {
   position: relative;
   overflow: hidden;
   background: rgba(255,253,249,0.9);
-  border-radius: 18px;
-  padding: 22px 28px;
+  border-radius: 16px;
+  padding: 20px 24px;
   border: 1px solid rgba(26,22,18,0.08);
-  box-shadow: 0 2px 12px rgba(26,22,18,0.06);
+  box-shadow: 0 2px 10px rgba(26,22,18,0.05);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  flex-wrap: wrap;
 
   &::before {
     content: '';
     position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, #dc2626, #f87171, transparent);
-    border-radius: 18px 18px 0 0;
+    top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, #d97706, #fbbf24, transparent);
+    border-radius: 16px 16px 0 0;
   }
+}
+
+.ma-banner-left {
+  display: flex; flex-direction: column; gap: 3px;
 }
 
 .ma-banner-title {
   font-family: 'Playfair Display', serif;
-  font-size: 18px;
-  font-weight: 700;
-  color: #1a1612;
-  margin: 0;
+  font-size: 18px; font-weight: 700; color: #1a1612; margin: 0;
 }
 
-.ma-toolbar {
+.ma-banner-sub {
+  font-size: 12px; color: #b0a89c; margin: 0;
+}
+
+// ── 房间选择区 ────────────────────────────────────────────────
+.ma-room-picker {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  padding: 16px 20px;
+  background: rgba(255,253,249,0.9);
+  border-radius: 14px;
+  border: 1px solid rgba(26,22,18,0.08);
+  box-shadow: 0 1px 6px rgba(26,22,18,0.04);
   flex-wrap: wrap;
 }
 
-.ma-table-wrap {
-  background: rgba(255,253,249,0.9);
-  border-radius: 16px;
-  border: 1px solid rgba(26,22,18,0.08);
-  overflow: hidden;
-  box-shadow: 0 2px 12px rgba(26,22,18,0.05);
+.ma-room-picker-label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 800; color: #6b6459;
+  letter-spacing: 0.8px; text-transform: uppercase;
+  white-space: nowrap; flex-shrink: 0;
 }
 
-.ma-table {
-  :global(.ant-table-thead > tr > th) {
-    background: #f3f0ea !important;
-    color: #6b6459 !important;
-    font-weight: 700 !important;
-    font-size: 11px !important;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    border-bottom: 1px solid rgba(26,22,18,0.08) !important;
-    padding: 11px 16px !important;
+// ── 空状态 / 加载 ─────────────────────────────────────────────
+.ma-empty-hint {
+  padding: 60px 0;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.ma-loading {
+  padding: 60px 0;
+  display: flex; align-items: center; justify-content: center;
+}
+
+// ── 弹幕区 ───────────────────────────────────────────────────
+.ma-msg-zone {
+  display: flex; flex-direction: column; gap: 12px;
+}
+
+.ma-room-info-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 4px;
+}
+
+.ma-room-info-title {
+  font-size: 14px; font-weight: 700; color: #1a1612;
+}
+
+.ma-room-info-count {
+  font-size: 12px; color: #b0a89c;
+}
+
+// ── 弹幕列表 ──────────────────────────────────────────────────
+.ma-msg-list {
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+.ma-msg-item {
+  background: rgba(255,253,249,0.95);
+  border: 1px solid rgba(26,22,18,0.07);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: box-shadow 0.18s ease, border-color 0.18s ease;
+
+  &:hover {
+    box-shadow: 0 2px 12px rgba(26,22,18,0.08);
+    border-color: rgba(26,22,18,0.12);
   }
 
-  :global(.ant-table-tbody > tr > td) {
-    padding: 13px 16px !important;
-    border-bottom: 1px solid rgba(26,22,18,0.04) !important;
-    color: #1a1612 !important;
-    font-size: 13px !important;
+  &--banned {
+    opacity: 0.65;
+    background: rgba(243,240,234,0.6);
   }
+}
 
-  :global(.ant-table-tbody > tr:hover > td) {
-    background: #f3f0ea !important;
+.ma-msg-user {
+  display: flex; align-items: center; gap: 10px;
+}
+
+.ma-msg-user-info {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: 4px;
+}
+
+.ma-msg-username {
+  font-size: 13px; font-weight: 700; color: #1a1612;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.ma-msg-time {
+  font-size: 11px; color: #b0a89c; flex-shrink: 0; margin-left: auto;
+}
+
+.ma-msg-content {
+  font-size: 13.5px; line-height: 1.65; color: #3d3530;
+  padding: 10px 14px;
+  background: rgba(243,240,234,0.5);
+  border-radius: 8px;
+  border-left: 3px solid rgba(26,22,18,0.1);
+  word-break: break-word;
+}
+
+.ma-msg-actions {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+
+// 操作按钮
+.ma-btn-warn {
+  border-radius: 7px !important;
+  font-size: 12px !important; font-weight: 600 !important;
+  color: #d97706 !important;
+  border-color: rgba(217,119,6,0.3) !important;
+  background: rgba(217,119,6,0.06) !important;
+  transition: all 0.15s ease !important;
+
+  &:hover {
+    background: rgba(217,119,6,0.12) !important;
+    border-color: #d97706 !important;
   }
+}
 
-  :global(.ant-table-tbody > tr:last-child > td) {
-    border-bottom: none !important;
+.ma-btn-delete {
+  border-radius: 7px !important;
+  font-size: 12px !important; font-weight: 600 !important;
+}
+
+.ma-btn-ban {
+  border-radius: 7px !important;
+  font-size: 12px !important; font-weight: 600 !important;
+  color: #6b6459 !important;
+  border-color: rgba(26,22,18,0.15) !important;
+  background: rgba(26,22,18,0.04) !important;
+  transition: all 0.15s ease !important;
+
+  &:hover {
+    color: #dc2626 !important;
+    border-color: rgba(220,38,38,0.3) !important;
+    background: rgba(220,38,38,0.06) !important;
   }
 }
