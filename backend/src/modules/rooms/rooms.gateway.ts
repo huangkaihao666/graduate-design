@@ -214,7 +214,28 @@ export class RoomsGateway
     });
 
     // 发送房间历史聊天记录（仅给当前加入的用户）
-    const history = this.roomMessages.get(roomId) || [];
+    // CLOSED 状态优先从数据库读取持久化弹幕，确保重启/重进后历史仍可见
+    const room = await this.prisma.room.findUnique({
+      where: { id: data.roomId },
+      select: { status: true },
+    });
+    let history: any[];
+    if (room?.status === 'CLOSED') {
+      const dbMessages = await this.prisma.message.findMany({
+        where: { roomId: data.roomId, senderType: 'HUMAN', roundNumber: 0 },
+        orderBy: { createdAt: 'asc' },
+        take: 200,
+      });
+      history = dbMessages.map((m) => ({
+        id: m.id,
+        roomId: m.roomId,
+        senderId: m.senderId ?? 0,
+        content: m.content,
+        createdAt: m.createdAt.toISOString(),
+      }));
+    } else {
+      history = this.roomMessages.get(roomId) || [];
+    }
     client.emit('chatHistory', history);
 
     // 广播给房间内其他用户
@@ -348,6 +369,19 @@ export class RoomsGateway
     const prev = this.roomMessages.get(roomKey) || [];
     const next = [...prev, messagePayload].slice(-100);
     this.roomMessages.set(roomKey, next);
+
+    // 异步持久化弹幕到数据库（roundNumber=0 标识弹幕，与评论区区分）
+    this.prisma.message
+      .create({
+        data: {
+          roomId: data.roomId,
+          senderId: userId,
+          senderType: 'HUMAN',
+          roundNumber: 0,
+          content: data.content.slice(0, 500),
+        },
+      })
+      .catch((e: any) => this.logger.warn(`弹幕持久化失败: ${e?.message}`));
 
     // 若处于观点征集窗口，写入 UserOpinion 并异步调 RAG 更新 stance/isRelevant
     if (this.debateService.isCollectingOpinions(data.roomId)) {

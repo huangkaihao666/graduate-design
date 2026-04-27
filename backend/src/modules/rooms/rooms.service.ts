@@ -961,6 +961,34 @@ export class RoomsService {
               topPercent: top.percent,
             };
 
+    // 民意统计：从 UserOpinion 表聚合弹幕立场分布
+    const opinions = await (this.prisma as any).userOpinion.findMany({
+      where: { roomId },
+      select: { content: true, stance: true, isRelevant: true },
+    });
+    const relevantOpinions = opinions.filter((o: any) => o.isRelevant);
+    const opinionTotal = relevantOpinions.length;
+    const supportA = relevantOpinions.filter(
+      (o: any) => o.stance === 'SUPPORT_A',
+    ).length;
+    const supportB = relevantOpinions.filter(
+      (o: any) => o.stance === 'SUPPORT_B',
+    ).length;
+    const neutral = relevantOpinions.filter(
+      (o: any) => o.stance === 'NEUTRAL',
+    ).length;
+    // 各立场取最多 2 条代表性弹幕
+    const pickTop = (stance: string, n: number) =>
+      relevantOpinions
+        .filter((o: any) => o.stance === stance)
+        .slice(0, n)
+        .map((o: any) => ({ content: o.content, stance: o.stance }));
+    const topOpinions = [
+      ...pickTop('SUPPORT_A', 2),
+      ...pickTop('SUPPORT_B', 2),
+      ...pickTop('NEUTRAL', 2),
+    ];
+
     return {
       room: {
         id: room.id,
@@ -986,6 +1014,13 @@ export class RoomsService {
         percentByAgentId,
         ranking: ranking.map((r, idx) => ({ ...r, rank: idx + 1 })),
         winner,
+      },
+      opinionStats: {
+        total: opinionTotal,
+        supportA,
+        supportB,
+        neutral,
+        topOpinions,
       },
     };
   }

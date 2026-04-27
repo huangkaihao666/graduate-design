@@ -1,31 +1,15 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useMemo, useRef, useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Avatar, Button, Collapse, Skeleton, Tag, message, Tooltip } from 'antd'
+import ReactECharts from 'echarts-for-react'
 import {
-  Avatar,
-  Button,
-  Collapse,
-  Progress,
-  Skeleton,
-  Tag,
-  message,
-} from 'antd'
-import {
-  ArrowLeftOutlined,
-  CopyOutlined,
-  DownloadOutlined,
-  UserOutlined,
-  CalendarOutlined,
-  LikeOutlined,
-  LikeFilled,
-  RightOutlined,
-  MessageOutlined,
-  StarOutlined,
-  StarFilled,
-  HeartOutlined,
+  ArrowLeftOutlined, UserOutlined,
+  CalendarOutlined, LikeOutlined, LikeFilled, MessageOutlined,
+  StarOutlined, StarFilled, HeartOutlined, BulbOutlined,
+  TeamOutlined, ThunderboltOutlined, ShareAltOutlined,
 } from '@ant-design/icons'
 import * as roomApi from '@/api/rooms'
-import { generateReportPdf } from '@/utils'
 import './RoomReport.less'
 
 type Winner =
@@ -36,27 +20,97 @@ type Winner =
 const getRoundLabel = (round: number) =>
   round === 1 ? '阐述观点' : round === 2 ? '交叉反驳' : round === 3 ? '综合总结' : '辩论回顾'
 
-const getRankLabel = (rank: number) =>
-  rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}th`
-
 const AGENT_COLORS = [
-  { color: '#F97316', gradient: 'linear-gradient(135deg, #F97316, #FB923C)', bg: 'rgba(249,115,22,0.1)' },
-  { color: '#10B981', gradient: 'linear-gradient(135deg, #10B981, #34D399)', bg: 'rgba(16,185,129,0.1)' },
-  { color: '#3B82F6', gradient: 'linear-gradient(135deg, #3B82F6, #60A5FA)', bg: 'rgba(59,130,246,0.1)' },
+  { color: '#F97316', gradient: 'linear-gradient(135deg,#F97316,#FB923C)', bg: 'rgba(249,115,22,0.08)', soft: 'rgba(249,115,22,0.12)', border: 'rgba(249,115,22,0.2)' },
+  { color: '#10B981', gradient: 'linear-gradient(135deg,#10B981,#34D399)', bg: 'rgba(16,185,129,0.08)', soft: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.2)' },
+  { color: '#6366F1', gradient: 'linear-gradient(135deg,#6366F1,#818CF8)', bg: 'rgba(99,102,241,0.08)', soft: 'rgba(99,102,241,0.12)', border: 'rgba(99,102,241,0.2)' },
 ]
-
 const getAgentTheme = (idx: number) => AGENT_COLORS[idx % AGENT_COLORS.length]
+
+// ── 投票环形图 ────────────────────────────────────────────────
+const VoteDonutChart: React.FC<{ agents: any[]; ranking: any[]; totalVotes: number }> = ({ agents, ranking, totalVotes }) => {
+  if (totalVotes === 0 || agents.length === 0) return (
+    <div className="rr-empty-chart"><span>🗳️</span><p>暂无投票记录</p></div>
+  )
+  const pieData = agents.map((a, idx) => {
+    const r = ranking.find((r: any) => r.agentId === a.id)
+    const theme = getAgentTheme(idx)
+    return { name: a.name, value: r?.count || 0, percent: r?.percent || 0, itemStyle: { color: theme.color } }
+  }).filter(d => d.value > 0)
+
+  const option = {
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: '#1e293b',
+      borderColor: 'rgba(255,255,255,0.06)',
+      borderWidth: 1,
+      textStyle: { color: '#f1f5f9', fontSize: 13 },
+      formatter: (p: any) => `<b style="color:${p.color}">${p.name}</b><br/>${p.value} 票 &nbsp;·&nbsp; <b>${p.data.percent}%</b>`,
+    },
+    series: [{
+      type: 'pie',
+      radius: ['56%', '84%'],
+      center: ['50%', '50%'],
+      avoidLabelOverlap: true,
+      itemStyle: { borderWidth: 3, borderColor: 'transparent' },
+      label: { show: true, position: 'outside', formatter: '{b}\n{d}%', fontSize: 12, fontWeight: 700, color: '#64748b', lineHeight: 18 },
+      labelLine: { length: 8, length2: 12, smooth: true },
+      emphasis: { scale: true, scaleSize: 6, itemStyle: { shadowBlur: 16, shadowColor: 'rgba(0,0,0,0.15)' } },
+      animationType: 'scale', animationEasing: 'elasticOut', animationDuration: 1000,
+      data: pieData,
+    }],
+  }
+  return <ReactECharts option={option} style={{ height: 220, width: '100%' }} opts={{ renderer: 'svg' }} />
+}
+
+// ── 民意条形图 ────────────────────────────────────────────────
+const OpinionBar: React.FC<{
+  supportA: number; supportB: number; neutral: number
+  agentAName: string; agentBName: string; agentAColor: string; agentBColor: string
+}> = ({ supportA, supportB, neutral, agentAName, agentBName, agentAColor, agentBColor }) => {
+  const total = supportA + supportB + neutral
+  if (total === 0) return <div className="rr-empty-chart"><span>💬</span><p>暂无弹幕观点</p></div>
+  const pA = Math.round((supportA / total) * 100)
+  const pB = Math.round((supportB / total) * 100)
+  const pN = 100 - pA - pB
+  const bars = [
+    { label: agentAName, value: supportA, pct: pA, color: agentAColor },
+    { label: '中立', value: neutral, pct: pN, color: '#94a3b8' },
+    { label: agentBName, value: supportB, pct: pB, color: agentBColor },
+  ]
+  return (
+    <div className="rr-opinion-bars">
+      {bars.map((b) => (
+        <div key={b.label} className="rr-opinion-bar-row">
+          <div className="rr-opinion-bar-meta">
+            <span className="rr-opinion-bar-label" style={{ color: b.color }}>{b.label}</span>
+            <span className="rr-opinion-bar-count">{b.value} 条 · <b style={{ color: b.color }}>{b.pct}%</b></span>
+          </div>
+          <div className="rr-opinion-bar-track">
+            <div className="rr-opinion-bar-fill" style={{ width: `${b.pct}%`, background: b.color }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 export const RoomReport: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const pageRef = useRef<HTMLDivElement>(null)
-  const [downloading, setDownloading] = useState(false)
-  // 受控的展开状态：null = 用户自由控制，string[] = 下载时强制全展开
+  const [scrolled, setScrolled] = useState(false)
   const [roundsActiveKey, setRoundsActiveKey] = useState<string[] | undefined>(undefined)
   const [reasoningActiveKeys, setReasoningActiveKeys] = useState<Record<string, string[]> | undefined>(undefined)
-  const [winnerReasoningKey, setWinnerReasoningKey] = useState<string[] | undefined>(undefined)
+  const [verdictReasoningKey, setVerdictReasoningKey] = useState<string[] | undefined>(undefined)
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   const roomId = Number(id || 0)
 
@@ -65,7 +119,6 @@ export const RoomReport: React.FC = () => {
     queryFn: () => roomApi.getRoomReport(roomId),
     enabled: !!roomId,
   })
-
   const { data: interactionData } = useQuery({
     queryKey: ['room-interaction', roomId],
     queryFn: () => roomApi.getRoomInteractionStatus(roomId),
@@ -83,59 +136,30 @@ export const RoomReport: React.FC = () => {
   const displayFavoriteCount = favoriteCount !== null ? favoriteCount : (interaction.favoriteCount ?? 0)
 
   const likeMutation = useMutation({
-    mutationFn: (wasLiked: boolean) =>
-      wasLiked ? roomApi.unlikeRoom(roomId) : roomApi.likeRoom(roomId),
-    onSuccess: (data: any) => {
-      setLiked(data.liked)
-      setLikeCount(data.likeCount)
-    },
-    onError: (_err, wasLiked: boolean) => {
-      setLiked(wasLiked)
-      setLikeCount((c) => c !== null ? (wasLiked ? c + 1 : c - 1) : null)
-      message.error('操作失败，请重试')
-    },
+    mutationFn: (w: boolean) => w ? roomApi.unlikeRoom(roomId) : roomApi.likeRoom(roomId),
+    onSuccess: (d: any) => { setLiked(d.liked); setLikeCount(d.likeCount) },
+    onError: (_e, w: boolean) => { setLiked(w); setLikeCount(c => c !== null ? (w ? c + 1 : c - 1) : null); message.error('操作失败') },
   })
-
   const favoriteMutation = useMutation({
-    mutationFn: (wasFavorited: boolean) =>
-      wasFavorited ? roomApi.unfavoriteRoom(roomId) : roomApi.favoriteRoom(roomId),
-    onSuccess: (data: any) => {
-      setFavorited(data.favorited)
-      setFavoriteCount(data.favoriteCount)
-      queryClient.invalidateQueries({ queryKey: ['my-favorites'] })
-    },
-    onError: (_err, wasFavorited: boolean) => {
-      setFavorited(wasFavorited)
-      setFavoriteCount((c) => c !== null ? (wasFavorited ? c + 1 : c - 1) : null)
-      message.error('操作失败，请重试')
-    },
+    mutationFn: (w: boolean) => w ? roomApi.unfavoriteRoom(roomId) : roomApi.favoriteRoom(roomId),
+    onSuccess: (d: any) => { setFavorited(d.favorited); setFavoriteCount(d.favoriteCount); queryClient.invalidateQueries({ queryKey: ['my-favorites'] }) },
+    onError: (_e, w: boolean) => { setFavorited(w); setFavoriteCount(c => c !== null ? (w ? c + 1 : c - 1) : null); message.error('操作失败') },
   })
 
-  const handleLike = () => {
-    const snapshot = displayLiked
-    setLiked(!snapshot)
-    setLikeCount((c) => (c !== null ? c : interaction.likeCount ?? 0) + (snapshot ? -1 : 1))
-    likeMutation.mutate(snapshot)
-  }
-
-  const handleFavorite = () => {
-    const snapshot = displayFavorited
-    setFavorited(!snapshot)
-    setFavoriteCount((c) => (c !== null ? c : interaction.favoriteCount ?? 0) + (snapshot ? -1 : 1))
-    favoriteMutation.mutate(snapshot)
-  }
+  const handleLike = () => { const s = displayLiked; setLiked(!s); setLikeCount(c => (c ?? interaction.likeCount ?? 0) + (s ? -1 : 1)); likeMutation.mutate(s) }
+  const handleFavorite = () => { const s = displayFavorited; setFavorited(!s); setFavoriteCount(c => (c ?? interaction.favoriteCount ?? 0) + (s ? -1 : 1)); favoriteMutation.mutate(s) }
+  const handleCopyLink = async () => { try { await navigator.clipboard.writeText(window.location.href); message.success('链接已复制') } catch { message.error('复制失败') } }
 
   const report = (data as any) || null
   const room = report?.room
   const voteStats = report?.voteStats
+  const opinionStats = report?.opinionStats || { total: 0, supportA: 0, supportB: 0, neutral: 0, topOpinions: [] }
   const debateMessages = Array.isArray(report?.debateMessages) ? report.debateMessages : []
   const agents = Array.isArray(room?.agents) ? room.agents : []
 
   const agentMap = useMemo(() => {
     const m: Record<string, any> = {}
-    agents.forEach((a: any, idx: number) => {
-      m[a.id] = { ...a, _theme: getAgentTheme(idx) }
-    })
+    agents.forEach((a: any, idx: number) => { m[a.id] = { ...a, _theme: getAgentTheme(idx) } })
     return m
   }, [agents])
 
@@ -144,167 +168,153 @@ export const RoomReport: React.FC = () => {
   const rounds = useMemo(() => {
     const byRound: Record<string, any[]> = {}
     debateMessages.forEach((m: any) => {
-      const r = Number(m.roundNumber || 0)
-      const key = String(r || 0)
+      const key = String(Number(m.roundNumber || 0))
       byRound[key] = byRound[key] || []
       byRound[key].push(m)
     })
-    const keys = Object.keys(byRound).sort((a, b) => Number(a) - Number(b))
-    return keys.map((k) => ({ round: Number(k), items: byRound[k] }))
+    return Object.keys(byRound).sort((a, b) => Number(a) - Number(b)).map(k => ({ round: Number(k), items: byRound[k] }))
   }, [debateMessages])
 
-  const handleCopyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(window.location.href)
-      message.success('链接已复制')
-    } catch {
-      message.error('复制失败，请手动复制地址栏链接')
-    }
-  }
+  const keyPoints = useMemo(() => rounds.filter(r => r.round > 0).map(r => ({
+    round: r.round, label: getRoundLabel(r.round),
+    items: r.items.map((m: any) => {
+      const agent = agentMap[m.agentId]
+      if (!agent) return null
+      const excerpt = (m.content || '').split(/[。！？\n]/)[0].trim().slice(0, 60)
+      return { agent, excerpt: excerpt + (excerpt.length >= 60 ? '…' : '') }
+    }).filter(Boolean),
+  })).filter(r => r.items.length > 0), [rounds, agentMap])
 
-  const handleDownloadPdf = async () => {
-    if (!pageRef.current || downloading) return
-    setDownloading(true)
-    message.loading({ content: '正在生成 PDF，请稍候…', key: 'pdf', duration: 0 })
-
-    // 1. 通过 React 状态把所有 Collapse 全部展开
-    const allRoundKeys = rounds.map((r) => String(r.round))
-    const allReasoningKeys: Record<string, string[]> = {}
-    debateMessages.forEach((m: any) => {
-      if (m.reasoning && String(m.reasoning).trim().length > 0) {
-        allReasoningKeys[String(m.id || `${m.agentId}-${m.roundNumber}`)] = ['r']
-      }
-    })
-    setRoundsActiveKey(allRoundKeys)
-    setReasoningActiveKeys(allReasoningKeys)
-    setWinnerReasoningKey(['r'])
-
-    // 2. 等 React 重渲染 + CSS transition 动画完成（Ant Design Collapse 动画约 300ms）
-    await new Promise((r) => setTimeout(r, 400))
-
-    try {
-      await generateReportPdf(pageRef.current, room?.title || '结案报告')
-      message.success({ content: 'PDF 已下载', key: 'pdf' })
-    } catch (e) {
-      console.error(e)
-      message.error({ content: 'PDF 生成失败，请重试', key: 'pdf' })
-    } finally {
-      // 3. 恢复用户原来的折叠状态
-      setRoundsActiveKey(undefined)
-      setReasoningActiveKeys(undefined)
-      setWinnerReasoningKey(undefined)
-      setDownloading(false)
-    }
-  }
-
-  // ── 加载骨架屏 ────────────────────────────────────────────────
-  if (isLoading) {
-    return (
-      <div className="rr-page">
-        <div className="rr-back-row">
-          <Skeleton.Button active size="small" style={{ width: 80 }} />
-        </div>
-        <div className="rr-hero-skeleton">
-          <Skeleton active title={{ width: '40%' }} paragraph={{ rows: 3, width: ['60%', '80%', '50%'] }} />
-        </div>
-        <div className="rr-body">
-          <div className="rr-main">
-            <Skeleton active paragraph={{ rows: 10 }} />
-          </div>
-          <div className="rr-sidebar">
-            <Skeleton active paragraph={{ rows: 5 }} />
-            <Skeleton active paragraph={{ rows: 4 }} />
-          </div>
-        </div>
+  // ── Loading ──────────────────────────────────────────────────
+  if (isLoading) return (
+    <div className="rr-page">
+      <div className="rr-navbar rr-navbar--scrolled">
+        <Skeleton.Button active size="small" style={{ width: 100 }} />
+        <Skeleton.Button active size="small" style={{ width: 200, marginLeft: 'auto' }} />
       </div>
-    )
-  }
-
-  if (!report || !room) {
-    return (
-      <div className="rr-page">
-        <div className="rr-empty-state">
-          <div className="rr-empty-icon">📭</div>
-          <h3>报告不存在或无权限访问</h3>
-          <p>该结案报告可能尚未生成，或您没有访问权限</p>
-          <Button type="primary" onClick={() => navigate('/cases')} className="rr-empty-btn">
-            返回话题列表
-          </Button>
-        </div>
+      <div className="rr-hero-band">
+        <div className="rr-hero-inner"><Skeleton active title={{ width: '55%' }} paragraph={{ rows: 2, width: ['70%', '40%'] }} /></div>
       </div>
-    )
-  }
+      <div className="rr-content-zone"><Skeleton active paragraph={{ rows: 14 }} /></div>
+    </div>
+  )
+
+  if (!report || !room) return (
+    <div className="rr-page">
+      <div className="rr-empty-state">
+        <div className="rr-empty-icon">📭</div>
+        <h3>报告不存在或无权限访问</h3>
+        <p>该结案报告可能尚未生成，或您没有访问权限</p>
+        <Button type="primary" onClick={() => navigate('/cases')} className="rr-empty-btn">返回话题列表</Button>
+      </div>
+    </div>
+  )
 
   const finalAdviceRaw = report?.finalAdvice?.raw || null
   const ranking = Array.isArray(voteStats?.ranking) ? voteStats.ranking : []
   const winnerAgent = winner?.type === 'WIN' ? agentMap[(winner as any).agentId] : null
   const hasVotes = winner?.type !== 'NO_VOTES' && (voteStats?.totalVotes ?? 0) > 0
+  const agentA = agents[0], agentB = agents[1]
+  const agentATheme = agentA ? getAgentTheme(0) : null
+  const agentBTheme = agentB ? getAgentTheme(1) : null
 
   const statusConfig = {
-    CLOSED: { label: '已结案', color: '#10B981', bg: 'rgba(16,185,129,0.12)' },
-    LIVE:   { label: '进行中', color: '#3B82F6', bg: 'rgba(59,130,246,0.12)' },
-    WAITING:{ label: '待开始', color: '#F59E0B', bg: 'rgba(245,158,11,0.12)' },
+    CLOSED:  { label: '已结案', color: '#10B981', bg: 'rgba(16,185,129,0.12)' },
+    LIVE:    { label: '进行中', color: '#3B82F6', bg: 'rgba(59,130,246,0.12)' },
+    WAITING: { label: '待开始', color: '#F59E0B', bg: 'rgba(245,158,11,0.12)' },
   }
   const statusCfg = statusConfig[room.status as keyof typeof statusConfig] || statusConfig.CLOSED
 
   return (
     <div className="rr-page" ref={pageRef}>
-      {/* 返回按钮 */}
-      <div className="rr-back-row">
-        <Button
-          type="text"
-          icon={<ArrowLeftOutlined />}
-          onClick={() => navigate(`/debate/${room.id}`)}
-          className="rr-back-btn"
-        >
-          返回辩论室
-        </Button>
-      </div>
 
-      {/* Hero */}
-      <div className="rr-hero">
-        <div className="rr-hero-orb rr-orb-1" />
-        <div className="rr-hero-orb rr-orb-2" />
-        <div className="rr-hero-grid" />
-        <div className="rr-hero-content">
-          <div className="rr-hero-top">
-            <div className="rr-hero-badge">📊 结案报告</div>
-            <span className="rr-status-pill" style={{ background: statusCfg.bg, color: statusCfg.color }}>
-              {statusCfg.label}
-            </span>
-          </div>
-          <h1 className="rr-hero-title">{room.title}</h1>
-          <div className="rr-hero-meta">
-            {room.owner && (
-              <div className="rr-meta-item">
-                <Avatar src={room.owner.avatar} icon={!room.owner.avatar && <UserOutlined />} size={20} className="rr-owner-avatar" />
-                <span>{room.owner.name || room.owner.email || `用户${room.owner.id}`}</span>
-              </div>
-            )}
-            {room.createdAt && (
-              <div className="rr-meta-item">
-                <CalendarOutlined />
-                <span>{new Date(room.createdAt).toLocaleDateString('zh-CN')}</span>
-              </div>
-            )}
-            <div className="rr-meta-item">
-              <LikeOutlined />
-              <span>{voteStats?.totalVotes ?? 0} 票</span>
+      {/* ══ Sticky Navbar ══ */}
+      <nav className={`rr-navbar ${scrolled ? 'rr-navbar--scrolled' : ''}`}>
+        <button className="rr-nav-back" onClick={() => navigate(`/debate/${room.id}`)}>
+          <ArrowLeftOutlined />
+          <span>返回辩论室</span>
+        </button>
+        <div className="rr-nav-title" style={{ opacity: scrolled ? 1 : 0 }}>
+          {room.title}
+        </div>
+        <div className="rr-nav-actions">
+          <Tooltip title={displayLiked ? '取消点赞' : '点赞'}>
+            <button
+              className={`rr-nav-btn ${displayLiked ? 'rr-nav-btn--active-like' : ''}`}
+              onClick={handleLike}
+            >
+              {displayLiked ? <LikeFilled /> : <LikeOutlined />}
+              {displayLikeCount > 0 && <span>{displayLikeCount}</span>}
+            </button>
+          </Tooltip>
+          <Tooltip title={displayFavorited ? '取消收藏' : '收藏'}>
+            <button
+              className={`rr-nav-btn ${displayFavorited ? 'rr-nav-btn--active-fav' : ''}`}
+              onClick={handleFavorite}
+            >
+              {displayFavorited ? <StarFilled /> : <StarOutlined />}
+              {displayFavoriteCount > 0 && <span>{displayFavoriteCount}</span>}
+            </button>
+          </Tooltip>
+          <Tooltip title="复制链接">
+            <button className="rr-nav-btn" onClick={handleCopyLink}><ShareAltOutlined /></button>
+          </Tooltip>
+        </div>
+      </nav>
+
+      {/* ══ Hero Band（全宽深色背景） ══ */}
+      <div className="rr-hero-band">
+        <div className="rr-hero-inner">
+          <div className="rr-hero-left">
+            <div className="rr-hero-tags">
+              <span className="rr-hero-tag">📊 结案报告</span>
+              <span className="rr-hero-status" style={{ background: statusCfg.bg, color: statusCfg.color }}>{statusCfg.label}</span>
             </div>
-            <div className="rr-meta-item">
-              <MessageOutlined />
-              <span>{debateMessages.length} 条发言</span>
+            <h1 className="rr-hero-title">{room.title}</h1>
+            <div className="rr-hero-title-line" />
+            <div className="rr-hero-meta">
+              {room.owner && (
+                <span className="rr-hero-meta-item">
+                  <Avatar src={room.owner.avatar} icon={!room.owner.avatar && <UserOutlined />} size={16} />
+                  {room.owner.name || room.owner.email || `用户${room.owner.id}`}
+                </span>
+              )}
+              {room.createdAt && (
+                <span className="rr-hero-meta-item"><CalendarOutlined />{new Date(room.createdAt).toLocaleDateString('zh-CN')}</span>
+              )}
+              <span className="rr-hero-meta-item"><LikeOutlined />{voteStats?.totalVotes ?? 0} 票</span>
+              <span className="rr-hero-meta-item"><MessageOutlined />{debateMessages.length} 条发言</span>
+              {opinionStats.total > 0 && <span className="rr-hero-meta-item"><TeamOutlined />{opinionStats.total} 条弹幕</span>}
             </div>
+            {/* 情绪伙伴入口 */}
+            <button
+              className="rr-hero-counseling-btn"
+              onClick={() => navigate(`/counseling?roomId=${room.id}&roomTitle=${encodeURIComponent(room.title || '')}`)}
+            >
+              <HeartOutlined />
+              <span>辩论结束了，和 AI 情绪伙伴聊聊？</span>
+              <span className="rr-hero-counseling-arrow">→</span>
+            </button>
           </div>
+          {/* Agent 卡片行 */}
           {agents.length > 0 && (
             <div className="rr-hero-agents">
               {agents.map((a: any, idx: number) => {
                 const theme = getAgentTheme(idx)
+                const rankItem = ranking.find((r: any) => r.agentId === a.id)
+                const isWinner = winner?.type === 'WIN' && (winner as any).agentId === a.id
                 return (
-                  <div key={a.id} className="rr-agent-chip" style={{ borderColor: `${theme.color}30`, background: theme.bg }}>
-                    <Avatar size={20} src={a.avatar} style={{ background: theme.gradient }} />
-                    <span className="rr-chip-name" style={{ color: theme.color }}>{a.name}</span>
-                    {a.personality && <span className="rr-chip-tag">{a.personality}</span>}
+                  <div key={a.id} className={`rr-hero-agent-card ${isWinner ? 'rr-hero-agent-card--winner' : ''}`}
+                    style={{ '--agent-color': theme.color, '--agent-border': theme.border } as React.CSSProperties}>
+                    {isWinner && <span className="rr-hero-agent-crown">👑</span>}
+                    <Avatar size={36} src={a.avatar} style={{ background: theme.gradient, flexShrink: 0 }} />
+                    <div className="rr-hero-agent-info">
+                      <span className="rr-hero-agent-name" style={{ color: theme.color }}>{a.name}</span>
+                      {a.personality && <span className="rr-hero-agent-role">{a.personality}</span>}
+                    </div>
+                    <span className="rr-hero-agent-pct" style={{ color: theme.color }}>
+                      {rankItem ? `${rankItem.percent}%` : '—'}
+                    </span>
                   </div>
                 )
               })}
@@ -313,372 +323,173 @@ export const RoomReport: React.FC = () => {
         </div>
       </div>
 
-      {/* 主体两栏 */}
-      <div className="rr-body">
-        {/* 左主栏 */}
-        <div className="rr-main">
+      {/* ══ 内容区（全宽，内部 padding 控制） ══ */}
+      <div className="rr-content-zone">
 
-          {/* ① 投票结果 / 胜者 —— 优先展示 */}
-          <section className="rr-section rr-verdict-section">
-            <div className="rr-section-header">
-              <span className="rr-section-icon">🏆</span>
-              <h2 className="rr-section-title">投票裁决</h2>
-              <Tag className="rr-round-tag">{voteStats?.totalVotes ?? 0} 票</Tag>
+        {/* ── 核心数据三栏 ── */}
+        <div className="rr-data-grid">
+
+          {/* AI 综合建议 */}
+          {finalAdviceRaw && (
+            <div className="rr-data-card rr-data-card--verdict">
+              <div className="rr-data-card-header">
+                <span className="rr-data-card-dot" style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)' }} />
+                <span className="rr-data-card-title">💡 AI 综合建议</span>
+              </div>
+              <div className="rr-verdict-body">
+                <div className="rr-verdict-quote">"</div>
+                <div className="rr-verdict-text">{finalAdviceRaw.content}</div>
+              </div>
+              {finalAdviceRaw.reasoning?.trim() && (
+                <Collapse className="rr-collapse rr-collapse--flush" size="small"
+                  {...(verdictReasoningKey !== undefined ? { activeKey: verdictReasoningKey } : {})}
+                  onChange={k => setVerdictReasoningKey(Array.isArray(k) ? k : [k])}
+                  items={[{ key: 'r', label: '📐 推理过程', children: <div className="rr-reasoning">{finalAdviceRaw.reasoning}</div> }]}
+                />
+              )}
             </div>
+          )}
 
-            {!hasVotes ? (
-              /* 无票 → 提示并折叠展示综合总结 */
-              <div className="rr-no-vote-verdict">
-                <div className="rr-no-vote-illus">🗳️</div>
-                <div className="rr-no-vote-title">本场暂无投票记录</div>
-                <div className="rr-no-vote-sub">以下为 AI 中立观察者的综合总结，可作为参考结论</div>
-                {finalAdviceRaw ? (
-                  <div className="rr-advice-inline">
-                    <div className="rr-advice-body">{finalAdviceRaw.content}</div>
-                    {finalAdviceRaw.reasoning && String(finalAdviceRaw.reasoning).trim().length > 0 && (
-                      <Collapse
-                        className="rr-reasoning-collapse"
-                        size="small"
-                        items={[{ key: 'r', label: '📐 查看分析推理', children: <div className="rr-reasoning">{finalAdviceRaw.reasoning}</div> }]}
-                      />
-                    )}
-                  </div>
-                ) : (
-                  <div className="rr-no-advice-hint">综合总结暂未生成</div>
-                )}
-              </div>
-            ) : winner?.type === 'TIE' ? (
-              /* 平票 */
-              <div className="rr-tie-verdict">
-                <div className="rr-tie-icon">🤝</div>
-                <div className="rr-tie-title">势均力敌，平票！</div>
-                <div className="rr-tie-sub">共 {voteStats?.totalVotes} 票，各方票数相同</div>
-                <div className="rr-tie-agents">
-                  {ranking.map((r: any) => {
-                    const agent = agentMap[r.agentId]
-                    const theme = agent?._theme || AGENT_COLORS[0]
-                    return (
-                      <div key={r.agentId} className="rr-tie-agent-item" style={{ borderColor: `${theme.color}40`, background: theme.bg }}>
-                        <Avatar size={36} src={agent?.avatar} style={{ background: theme.gradient }} />
-                        <span style={{ color: theme.color, fontWeight: 700 }}>{agent?.name}</span>
-                        <span style={{ color: theme.color, fontSize: 13 }}>{r.count} 票</span>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            ) : (
-              /* 有明确胜者 */
-              <div className="rr-win-verdict">
-                {/* 胜者主卡 */}
-                <div className="rr-winner-main" style={{ '--winner-gradient': winnerAgent?._theme?.gradient } as React.CSSProperties}>
-                  <div className="rr-winner-crown-wrap">
-                    <div className="rr-winner-crown">👑</div>
-                    <Avatar
-                      size={80}
-                      src={winnerAgent?.avatar}
-                      className="rr-winner-big-avatar"
-                      style={{ background: winnerAgent?._theme?.gradient }}
-                    >
-                      {!winnerAgent?.avatar && String(winnerAgent?.name || 'W')[0]}
-                    </Avatar>
-                  </div>
-                  <div className="rr-winner-info">
-                    <div className="rr-winner-label-tag">本场胜者</div>
-                    <div className="rr-winner-name" style={{ color: winnerAgent?._theme?.color }}>
-                      {winnerAgent?.name || (winner as any).agentId}
-                    </div>
-                    {winnerAgent?.personality && (
-                      <div className="rr-winner-personality">{winnerAgent.personality}</div>
-                    )}
-                    {typeof (winner as any).topPercent === 'number' && (
-                      <div className="rr-winner-percent">
-                        获得 <strong style={{ color: winnerAgent?._theme?.color }}>{(winner as any).topPercent}%</strong> 的票数支持
-                      </div>
-                    )}
-                  </div>
-                  {typeof (winner as any).topPercent === 'number' && (
-                    <Progress
-                      type="circle"
-                      percent={Math.min(100, Math.max(0, Number((winner as any).topPercent)))}
-                      size={72}
-                      strokeColor={winnerAgent?._theme?.gradient || 'var(--gradient-primary)'}
-                      format={(p) => (
-                        <span style={{ fontSize: 14, fontWeight: 800, color: winnerAgent?._theme?.color }}>{p}%</span>
-                      )}
-                    />
-                  )}
-                </div>
-
-                {/* 所有选手票数排名 */}
-                {ranking.length > 0 && (
-                  <div className="rr-ranking-list">
-                    {ranking.map((r: any) => {
-                      const agent = agentMap[r.agentId]
-                      const theme = agent?._theme || AGENT_COLORS[0]
-                      const isWinner = r.agentId === (winner as any).agentId
-                      return (
-                        <div key={r.agentId} className={`rr-ranking-item ${isWinner ? 'is-winner' : ''}`}>
-                          <span className="rr-rank-medal">{getRankLabel(r.rank)}</span>
-                          <Avatar size={32} src={agent?.avatar} style={{ background: theme.gradient, flexShrink: 0 }} />
-                          <span className="rr-rank-name">{agent?.name || r.agentId}</span>
-                          <div className="rr-rank-bar-wrap">
-                            <div className="rr-rank-bar">
-                              <div className="rr-rank-bar-fill" style={{ width: `${r.percent || 0}%`, background: theme.gradient }} />
-                            </div>
-                            <span className="rr-rank-pct" style={{ color: theme.color }}>{r.percent ?? 0}%</span>
-                          </div>
-                          <span className="rr-rank-count">{r.count} 票</span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
+          {/* 投票分布 */}
+          <div className="rr-data-card">
+            <div className="rr-data-card-header">
+              <span className="rr-data-card-dot" style={{ background: 'linear-gradient(135deg,#F59E0B,#FCD34D)' }} />
+              <span className="rr-data-card-title">🏆 投票分布</span>
+              <span className="rr-data-card-badge">{voteStats?.totalVotes ?? 0} 票</span>
+            </div>
+            <VoteDonutChart agents={agents} ranking={ranking} totalVotes={voteStats?.totalVotes ?? 0} />
+            {hasVotes && winner?.type === 'WIN' && winnerAgent && (
+              <div className="rr-winner-row" style={{ background: winnerAgent._theme?.soft, borderColor: winnerAgent._theme?.border }}>
+                <span className="rr-winner-crown">👑</span>
+                <Avatar size={22} src={winnerAgent.avatar} style={{ background: winnerAgent._theme?.gradient }} />
+                <span style={{ color: winnerAgent._theme?.color, fontWeight: 700, flex: 1 }}>{winnerAgent.name}</span>
+                <span style={{ color: winnerAgent._theme?.color, fontWeight: 900, fontSize: 16 }}>{(winner as any).topPercent}%</span>
               </div>
             )}
-          </section>
+            {hasVotes && winner?.type === 'TIE' && (
+              <div className="rr-winner-row rr-winner-row--tie"><span>🤝</span><span style={{ flex: 1 }}>势均力敌，平票</span></div>
+            )}
+          </div>
 
-          {/* ② 有胜者时展示胜者精彩发言；无投票时展示综合总结 */}
-          {hasVotes && winner?.type === 'WIN' && winnerAgent ? (
-            (() => {
-              // 取胜者最后一条发言（通常是最具代表性的总结）
-              const winnerMsgs = debateMessages.filter((m: any) => m.agentId === winnerAgent.id)
-              const lastMsg = winnerMsgs[winnerMsgs.length - 1]
-              return lastMsg ? (
-                <section className="rr-section">
-                  <div className="rr-section-header">
-                    <Avatar size={24} src={winnerAgent.avatar} style={{ background: winnerAgent._theme?.gradient, flexShrink: 0 }} />
-                    <h2 className="rr-section-title" style={{ color: winnerAgent._theme?.color }}>
-                      {winnerAgent.name} · 精彩发言
-                    </h2>
-                    <Tag className="rr-round-tag">Round {lastMsg.roundNumber}</Tag>
-                  </div>
-                  <div className="rr-winner-speech">
-                    {lastMsg.reasoning && String(lastMsg.reasoning).trim().length > 0 && (
-                      <Collapse
-                        className="rr-reasoning-collapse"
-                        size="small"
-                        {...(winnerReasoningKey !== undefined ? { activeKey: winnerReasoningKey } : {})}
-                        items={[{ key: 'r', label: '📐 思考过程', children: <div className="rr-reasoning">{lastMsg.reasoning}</div> }]}
-                      />
-                    )}
-                    <div className="rr-winner-speech-content">{lastMsg.content}</div>
-                  </div>
-                </section>
-              ) : null
-            })()
-          ) : !hasVotes ? null : null}
-
-          {/* ③ 辩论时间线 */}
-          <section className="rr-section">
-            <div className="rr-section-header">
-              <span className="rr-section-icon">🧾</span>
-              <h2 className="rr-section-title">完整辩论回顾</h2>
+          {/* 弹幕民意 */}
+          <div className="rr-data-card">
+            <div className="rr-data-card-header">
+              <span className="rr-data-card-dot" style={{ background: 'linear-gradient(135deg,#10B981,#34D399)' }} />
+              <span className="rr-data-card-title"><TeamOutlined /> 弹幕民意</span>
+              {opinionStats.total > 0 && <span className="rr-data-card-badge">{opinionStats.total} 条</span>}
             </div>
-            <Collapse
-              className="rr-rounds-collapse"
-              {...(roundsActiveKey !== undefined
-                ? { activeKey: roundsActiveKey }
-                : { defaultActiveKey: rounds.length > 0 ? [String(rounds[0].round)] : [] }
-              )}
-              items={rounds.map((r) => ({
-                key: String(r.round),
-                label: (
-                  <div className="rr-round-label">
-                    {r.round ? (
-                      <>
-                        <span className="rr-round-badge">Round {r.round}</span>
-                        <span className="rr-round-name">{getRoundLabel(r.round)}</span>
-                      </>
-                    ) : (
-                      <span className="rr-round-name">辩论回顾</span>
-                    )}
-                    <span className="rr-round-count">{r.items.length} 条发言</span>
-                  </div>
-                ),
-                children: (
-                  <div className="rr-timeline">
-                    {r.items.map((m: any, mIdx: number) => {
-                      const agent = agentMap[m.agentId]
-                      const theme = agent?._theme || AGENT_COLORS[0]
-                      return (
-                        <div key={m.id || mIdx} className="rr-timeline-item">
-                          <div className="rr-timeline-axis">
-                            <div className="rr-timeline-dot" style={{ background: theme.gradient }} />
-                            {mIdx < r.items.length - 1 && <div className="rr-timeline-line" />}
-                          </div>
-                          <div className="rr-msg-card">
-                            <div className="rr-msg-header">
-                              <div className="rr-msg-agent">
-                                <Avatar size={32} src={agent?.avatar} style={{ background: theme.gradient, flexShrink: 0 }} />
-                                <div>
-                                  <div className="rr-msg-name" style={{ color: theme.color }}>{agent?.name || m.agentId}</div>
-                                  {m.createdAt && (
-                                    <div className="rr-msg-time">
-                                      {new Date(m.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            {m.reasoning && String(m.reasoning).trim().length > 0 && (
-                              <Collapse
-                                className="rr-reasoning-collapse"
-                                size="small"
-                                {...(reasoningActiveKeys !== undefined
-                                  ? { activeKey: reasoningActiveKeys[String(m.id || `${m.agentId}-${m.roundNumber}`)] || [] }
-                                  : {}
-                                )}
-                                items={[{ key: 'r', label: '思考过程', children: <div className="rr-reasoning">{m.reasoning}</div> }]}
-                              />
-                            )}
-                            <div className="rr-msg-content">{m.content}</div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                ),
-              }))}
+            <OpinionBar
+              supportA={opinionStats.supportA} supportB={opinionStats.supportB} neutral={opinionStats.neutral}
+              agentAName={agentA?.name || 'A方'} agentBName={agentB?.name || 'B方'}
+              agentAColor={agentATheme?.color || '#F97316'} agentBColor={agentBTheme?.color || '#10B981'}
             />
-          </section>
-        </div>
-
-        {/* 右侧栏 */}
-        <aside className="rr-sidebar">
-          {/* AI 共情师入口 */}
-          <div className="rr-widget rr-widget-counseling">
-            <div className="rr-counseling-inner">
-              <div className="rr-counseling-left">
-                <span className="rr-counseling-emoji">💚</span>
-                <div>
-                  <div className="rr-counseling-title">有话想说？</div>
-                  <div className="rr-counseling-desc">AI 情绪伙伴帮你梳理情绪、聊聊感受</div>
-                </div>
-              </div>
-              <Button
-                size="small"
-                icon={<HeartOutlined />}
-                className="rr-counseling-btn"
-                onClick={() =>
-                  navigate(
-                    `/counseling?roomId=${room.id}&roomTitle=${encodeURIComponent(room.title || '')}`
-                  )
-                }
-              >
-                去聊聊
-              </Button>
-            </div>
-          </div>
-
-          {/* 话题信息 */}
-          <div className="rr-widget">
-            <div className="rr-widget-header">
-              <span className="rr-widget-emoji">📋</span>
-              <span>话题信息</span>
-            </div>
-            <div className="rr-info-list">
-              <div className="rr-info-row">
-                <span className="rr-info-label">状态</span>
-                <span className="rr-info-status" style={{ background: statusCfg.bg, color: statusCfg.color }}>{statusCfg.label}</span>
-              </div>
-              <div className="rr-info-row">
-                <span className="rr-info-label">辩论轮次</span>
-                <span className="rr-info-value">{rounds.filter((r) => r.round > 0).length} 轮</span>
-              </div>
-              <div className="rr-info-row">
-                <span className="rr-info-label">总发言数</span>
-                <span className="rr-info-value">{debateMessages.length} 条</span>
-              </div>
-              <div className="rr-info-row">
-                <span className="rr-info-label">总投票数</span>
-                <span className="rr-info-value">{voteStats?.totalVotes ?? 0} 票</span>
-              </div>
-            </div>
-          </div>
-
-          {/* 参与 AI */}
-          {agents.length > 0 && (
-            <div className="rr-widget">
-              <div className="rr-widget-header">
-                <span className="rr-widget-emoji">🤖</span>
-                <span>参与 AI</span>
-              </div>
-              <div className="rr-agents-list">
-                {agents.map((a: any, idx: number) => {
-                  const theme = getAgentTheme(idx)
-                  const rankItem = ranking.find((r: any) => r.agentId === a.id)
+            {opinionStats.topOpinions.length > 0 && (
+              <div className="rr-quotes-list">
+                {opinionStats.topOpinions.slice(0, 4).map((op: any, i: number) => {
+                  const isA = op.stance === 'SUPPORT_A', isB = op.stance === 'SUPPORT_B'
+                  const color = isA ? agentATheme?.color : isB ? agentBTheme?.color : '#94a3b8'
+                  const label = isA ? agentA?.name : isB ? agentB?.name : '中立'
                   return (
-                    <div key={a.id} className="rr-agent-row">
-                      <Avatar size={36} src={a.avatar} style={{ background: theme.gradient, flexShrink: 0 }} />
-                      <div className="rr-agent-row-info">
-                        <div className="rr-agent-row-name" style={{ color: theme.color }}>{a.name}</div>
-                        {a.personality && <div className="rr-agent-row-tag">{a.personality}</div>}
-                        {rankItem && (
-                          <div className="rr-agent-row-bar">
-                            <div className="rr-agent-bar-fill" style={{ width: `${rankItem.percent || 0}%`, background: theme.gradient }} />
-                          </div>
-                        )}
-                      </div>
-                      {rankItem && (
-                        <span className="rr-agent-row-pct" style={{ color: theme.color }}>{rankItem.percent ?? 0}%</span>
-                      )}
+                    <div key={i} className="rr-quote-item" style={{ borderLeftColor: color }}>
+                      <span className="rr-quote-label" style={{ color }}>{label}</span>
+                      <span className="rr-quote-text">"{op.content}"</span>
                     </div>
                   )
                 })}
               </div>
-            </div>
-          )}
-
-          {/* 点赞 & 收藏 */}
-          <div className="rr-widget">
-            <div className="rr-widget-header">
-              <span className="rr-widget-emoji">👍</span>
-              <span>互动</span>
-            </div>
-            <div className="rr-interact-area">
-              <Button
-                block
-                icon={displayLiked ? <LikeFilled style={{ color: '#F43F5E' }} /> : <LikeOutlined />}
-                onClick={handleLike}
-                loading={likeMutation.isPending}
-                className={`rr-interact-btn ${displayLiked ? 'rr-interact-btn--like-active' : ''}`}
-              >
-                {displayLiked ? '已点赞' : '点赞'}
-                {displayLikeCount > 0 && <span className="rr-interact-count">{displayLikeCount}</span>}
-              </Button>
-              <Button
-                block
-                icon={displayFavorited ? <StarFilled style={{ color: '#F59E0B' }} /> : <StarOutlined />}
-                onClick={handleFavorite}
-                loading={favoriteMutation.isPending}
-                className={`rr-interact-btn ${displayFavorited ? 'rr-interact-btn--fav-active' : ''}`}
-              >
-                {displayFavorited ? '已收藏' : '收藏'}
-                {displayFavoriteCount > 0 && <span className="rr-interact-count">{displayFavoriteCount}</span>}
-              </Button>
-            </div>
+            )}
           </div>
+        </div>
 
-          {/* 分享 */}
-          <div className="rr-widget">
-            <div className="rr-widget-header">
-              <span className="rr-widget-emoji">🔗</span>
-              <span>分享报告</span>
+        {/* ── 关键论点速览 ── */}
+        {keyPoints.length > 0 && (
+          <section className="rr-section">
+            <div className="rr-section-hd">
+              <BulbOutlined className="rr-section-icon" />
+              <h2 className="rr-section-title">关键论点速览</h2>
+              <Tag className="rr-tag">{keyPoints.length} 轮</Tag>
             </div>
-            <div className="rr-share-area">
-              <Button block icon={<CopyOutlined />} onClick={handleCopyLink} className="rr-share-copy-btn">复制链接</Button>
-              <Button block type="primary" icon={<DownloadOutlined />} onClick={handleDownloadPdf} loading={downloading} className="rr-share-btn">下载报告</Button>
+            <div className="rr-keypoints" style={{ gridTemplateColumns: `repeat(${Math.min(keyPoints.length, 3)}, 1fr)` }}>
+              {keyPoints.map(kp => (
+                <div key={kp.round} className="rr-kp-col">
+                  <div className="rr-kp-hd">
+                    <span className="rr-kp-badge">Round {kp.round}</span>
+                    <span className="rr-kp-label">{kp.label}</span>
+                  </div>
+                  {kp.items.map((item: any, i: number) => {
+                    const theme = item.agent._theme || AGENT_COLORS[0]
+                    return (
+                      <div key={i} className="rr-kp-item" style={{ borderLeftColor: theme.color }}>
+                        <div className="rr-kp-agent" style={{ color: theme.color }}>
+                          <Avatar size={13} src={item.agent.avatar} style={{ background: theme.gradient, flexShrink: 0 }} />
+                          {item.agent.name}
+                        </div>
+                        <div className="rr-kp-text">{item.excerpt}</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ))}
             </div>
-          </div>
+          </section>
+        )}
 
-          {/* 跳转辩论室 */}
-          <div className="rr-widget rr-widget-goto">
-            <Button block type="text" onClick={() => navigate(`/debate/${room.id}`)} className="rr-goto-debate-btn">
-              进入辩论室查看实时 <RightOutlined />
-            </Button>
+        {/* ── 完整辩论回顾 ── */}
+        <section className="rr-section">
+          <div className="rr-section-hd">
+            <ThunderboltOutlined className="rr-section-icon" />
+            <h2 className="rr-section-title">完整辩论回顾</h2>
           </div>
-        </aside>
+          <Collapse
+            className="rr-rounds-collapse"
+            {...(roundsActiveKey !== undefined
+              ? { activeKey: roundsActiveKey }
+              : { defaultActiveKey: rounds.length > 0 ? [String(rounds[0].round)] : [] }
+            )}
+            onChange={k => setRoundsActiveKey(Array.isArray(k) ? k : [k])}
+            items={rounds.map(r => ({
+              key: String(r.round),
+              label: (
+                <div className="rr-round-label">
+                  {r.round ? <><span className="rr-round-badge">Round {r.round}</span><span className="rr-round-name">{getRoundLabel(r.round)}</span></> : <span className="rr-round-name">辩论回顾</span>}
+                  <span className="rr-round-count">{r.items.length} 条</span>
+                </div>
+              ),
+              children: (
+                <div className="rr-timeline">
+                  {r.items.map((m: any, mIdx: number) => {
+                    const agent = agentMap[m.agentId]
+                    const theme = agent?._theme || AGENT_COLORS[0]
+                    return (
+                      <div key={m.id || mIdx} className="rr-tl-item">
+                        <div className="rr-tl-axis">
+                          <div className="rr-tl-dot" style={{ background: theme.gradient }} />
+                          {mIdx < r.items.length - 1 && <div className="rr-tl-line" />}
+                        </div>
+                        <div className="rr-msg">
+                          <div className="rr-msg-hd" style={{ borderLeftColor: theme.color }}>
+                            <Avatar size={28} src={agent?.avatar} style={{ background: theme.gradient, flexShrink: 0 }} />
+                            <div>
+                              <div className="rr-msg-name" style={{ color: theme.color }}>{agent?.name || m.agentId}</div>
+                              {m.createdAt && <div className="rr-msg-time">{new Date(m.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</div>}
+                            </div>
+                          </div>
+                          {m.reasoning?.trim() && (
+                            <Collapse className="rr-collapse" size="small"
+                              {...(reasoningActiveKeys !== undefined ? { activeKey: reasoningActiveKeys[String(m.id || `${m.agentId}-${m.roundNumber}`)] || [] } : {})}
+                              items={[{ key: 'r', label: '思考过程', children: <div className="rr-reasoning">{m.reasoning}</div> }]}
+                            />
+                          )}
+                          <div className="rr-msg-body">{m.content}</div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ),
+            }))}
+          />
+        </section>
       </div>
     </div>
   )
