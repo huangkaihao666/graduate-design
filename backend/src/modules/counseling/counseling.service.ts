@@ -13,7 +13,7 @@ import { RagService } from '@/modules/rag/rag.service';
 import { Cron } from '@nestjs/schedule';
 
 const DEFAULT_COUNSELOR_BOT_ID = '7632299425355792393';
-const DEFAULT_COUNSELOR_NAME = '默认共情师';
+const DEFAULT_COUNSELOR_NAME = '默认情绪伙伴';
 
 @Injectable()
 export class CounselingService {

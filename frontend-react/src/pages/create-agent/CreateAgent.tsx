@@ -756,8 +756,8 @@ export const CreateAgent: React.FC = () => {
                 </div>
                 <Text type="secondary" style={{ fontSize: 12 }}>
                   {isPublic
-                    ? '提交审核后，审核通过的智能体会出现在 AI 图鉴，所有用户均可在 AI 共情师中选择使用'
-                    : '仅自己可在 AI 共情师中选择此智能体作为辅导师'}
+                    ? '提交审核后，审核通过的智能体会出现在 AI 图鉴，所有用户均可在 AI 情绪伙伴中选择使用'
+                    : '仅自己可在 AI 情绪伙伴中选择此智能体作为情绪伙伴'}
                 </Text>
               </div>
               <Switch checked={isPublic} onChange={setIsPublic} />

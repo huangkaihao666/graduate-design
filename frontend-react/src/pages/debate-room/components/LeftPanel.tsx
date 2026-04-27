@@ -126,7 +126,7 @@ export const LeftPanel: React.FC<LeftPanelProps> = ({
 
       </div>
 
-      {/* AI 共情师入口 — 固定在面板底部 */}
+      {/* AI 情绪伙伴入口 — 固定在面板底部 */}
       <div className="lp-counseling-entry">
         <div className="lp-counseling-card">
           <div className="lp-counseling-card-left">

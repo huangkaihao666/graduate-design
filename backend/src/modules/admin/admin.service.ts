@@ -249,7 +249,7 @@ export class AdminService {
         where,
         skip,
         take: pageSize,
-        orderBy: { createdAt: 'asc' },
+        orderBy: { createdAt: 'desc' },
         include: {
           sender: {
             select: {

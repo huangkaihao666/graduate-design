@@ -68,9 +68,9 @@ export const Counseling: React.FC = () => {
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
-  // 辅导师选择
+  // 情绪伙伴选择
   const [availableAgents, setAvailableAgents] = useState<AvailableAgent[]>([])
-  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null) // null = 默认共情师
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null) // null = 默认情绪伙伴
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -87,7 +87,7 @@ export const Counseling: React.FC = () => {
     loadAvailableAgents()
   }, [])
 
-  // 携带案件参数跳转过来时，自动用默认共情师创建会话（不弹选择器）
+  // 携带案件参数跳转过来时，自动用默认情绪伙伴创建会话（不弹选择器）
   useEffect(() => {
     if (!roomIdFromReport || !roomTitleFromReport) return
     if (autoCreatedRef.current) return
@@ -118,7 +118,7 @@ export const Counseling: React.FC = () => {
       const data = await counselingApi.getAvailableAgents()
       setAvailableAgents(data)
     } catch {
-      // 静默失败，降级为只显示默认共情师
+      // 静默失败，降级为只显示默认情绪伙伴
     }
   }
 
@@ -382,7 +382,7 @@ export const Counseling: React.FC = () => {
       <div className="sidebar-header">
         <div className="sidebar-title">
           <HeartOutlined className="sidebar-title-icon" />
-          <span>AI 共情师</span>
+          <span>AI 情绪伙伴</span>
         </div>
         <Button
           type="primary"
@@ -424,7 +424,7 @@ export const Counseling: React.FC = () => {
                 )}
                 <div className="session-item-meta">
                   <span className="session-item-time">{formatTime(session.updatedAt)}</span>
-                  {session.counselorName && session.counselorName !== '默认共情师' && (
+                  {session.counselorName && session.counselorName !== '默认情绪伙伴' && (
                     <span className="session-item-agent-tag">
                       <RobotOutlined style={{ fontSize: 10, marginRight: 2 }} />
                       {session.counselorName}
@@ -460,7 +460,7 @@ export const Counseling: React.FC = () => {
           <div className="welcome-avatar-ring" />
           <div className="welcome-avatar-inner">💚</div>
         </div>
-        <h2 className="welcome-title">你好，我是你的专属辅导师</h2>
+        <h2 className="welcome-title">你好，我是你的 AI 情绪伙伴</h2>
         <p className="welcome-desc">
           无论学业压力、感情困惑还是日常烦恼，
           <br />
@@ -538,14 +538,14 @@ export const Counseling: React.FC = () => {
                   doCreateSession(id)
                 }}
                 options={availableAgents.map((a) => ({
-                  label: a.isSystem ? 'AI 共情师' : a.name,
+                  label: a.isSystem ? 'AI 情绪伙伴' : a.name,
                   value: a.id ?? '__default__',
                 }))}
                 variant="borderless"
               />
             ) : (
               <div className="chat-topbar-name">
-                {activeSession?.counselorName || 'AI 共情师'}
+                {activeSession?.counselorName || 'AI 情绪伙伴'}
               </div>
             )}
             <div className="chat-topbar-status">
