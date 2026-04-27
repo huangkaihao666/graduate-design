@@ -70,7 +70,7 @@ const OpinionBar: React.FC<{
   agentAName: string; agentBName: string; agentAColor: string; agentBColor: string
 }> = ({ supportA, supportB, neutral, agentAName, agentBName, agentAColor, agentBColor }) => {
   const total = supportA + supportB + neutral
-  if (total === 0) return <div className="rr-empty-chart"><span>💬</span><p>暂无弹幕观点</p></div>
+  if (total === 0) return <div className="rr-empty-chart"><span>💬</span><p>暂无观众意见</p></div>
   const pA = Math.round((supportA / total) * 100)
   const pB = Math.round((supportB / total) * 100)
   const pN = 100 - pA - pB
@@ -284,7 +284,7 @@ export const RoomReport: React.FC = () => {
               )}
               <span className="rr-hero-meta-item"><LikeOutlined />{voteStats?.totalVotes ?? 0} 票</span>
               <span className="rr-hero-meta-item"><MessageOutlined />{debateMessages.length} 条发言</span>
-              {opinionStats.total > 0 && <span className="rr-hero-meta-item"><TeamOutlined />{opinionStats.total} 条弹幕</span>}
+              {opinionStats.total > 0 && <span className="rr-hero-meta-item"><TeamOutlined />{opinionStats.total} 条观众意见</span>}
             </div>
             {/* 情绪伙伴入口 */}
             <button
@@ -371,11 +371,11 @@ export const RoomReport: React.FC = () => {
             )}
           </div>
 
-          {/* 弹幕民意 */}
+          {/* 观众意见 */}
           <div className="rr-data-card">
             <div className="rr-data-card-header">
               <span className="rr-data-card-dot" style={{ background: 'linear-gradient(135deg,#10B981,#34D399)' }} />
-              <span className="rr-data-card-title"><TeamOutlined /> 弹幕民意</span>
+              <span className="rr-data-card-title"><TeamOutlined /> 观众意见</span>
               {opinionStats.total > 0 && <span className="rr-data-card-badge">{opinionStats.total} 条</span>}
             </div>
             <OpinionBar

@@ -122,13 +122,6 @@ export const CaseCard: React.FC<CaseCardProps> = ({ room, agents }) => {
   const voteStats: Record<string, number> = room.votes || {}
   const totalVotes = Object.values(voteStats).reduce((s, v) => s + v, 0)
 
-  // 双方票数（前半 vs 后半）
-  const halfLen = Math.ceil(agentIds.length / 2)
-  const firstVotes = agentIds.slice(0, halfLen).reduce((s, id) => s + (voteStats[id] || 0), 0)
-  const secondVotes = agentIds.slice(halfLen).reduce((s, id) => s + (voteStats[id] || 0), 0)
-  const firstPct = totalVotes > 0 ? (firstVotes / totalVotes) * 100 : 50
-  const secondPct = totalVotes > 0 ? (secondVotes / totalVotes) * 100 : 50
-
   const statusCfg = STATUS_CONFIG[room.status] || { label: room.status, cls: 'status-closed' }
   const colorIdx = (room.id || 0) % PLACEHOLDER_COLORS.length
 
@@ -222,23 +215,36 @@ export const CaseCard: React.FC<CaseCardProps> = ({ room, agents }) => {
           </div>
         )}
 
-        {/* 投票进度条 */}
-        <div className="card-vote-bar">
-          <div className="vote-bar-track">
-            <div
-              className="vote-bar-left"
-              style={{ width: `${firstPct}%` }}
-            />
-            <div
-              className="vote-bar-right"
-              style={{ width: `${secondPct}%` }}
-            />
-          </div>
-          <div className="vote-bar-labels">
-            <span className="vote-label-left">{firstVotes} 票</span>
-            <span className="vote-total">{totalVotes} 总票</span>
-            <span className="vote-label-right">{secondVotes} 票</span>
-          </div>
+        {/* 投票结果 */}
+        <div className="card-vote-list">
+          {totalVotes === 0 ? (
+            <div className="vote-empty">暂无投票</div>
+          ) : (
+            agentIds.map((agentId, idx) => {
+              const count = voteStats[agentId] || 0
+              const pct = Math.round((count / totalVotes) * 100)
+              const style = AGENT_STYLES[idx] || AGENT_STYLES[0]
+              const name = agents?.[agentId]?.name || `智能体${idx + 1}`
+              return (
+                <div key={agentId} className="vote-agent-row">
+                  <span className="vote-agent-name" style={{ color: style.color }}>
+                    {name.length > 7 ? name.slice(0, 7) + '…' : name}
+                  </span>
+                  <div className="vote-agent-bar-wrap">
+                    <div className="vote-agent-bar-track">
+                      <div
+                        className="vote-agent-bar-fill"
+                        style={{ width: `${pct}%`, background: style.color }}
+                      />
+                    </div>
+                  </div>
+                  <span className="vote-agent-count" style={{ color: style.color }}>
+                    {count}票 · {pct}%
+                  </span>
+                </div>
+              )
+            })
+          )}
         </div>
       </div>
 

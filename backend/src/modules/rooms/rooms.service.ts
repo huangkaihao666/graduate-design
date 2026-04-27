@@ -144,12 +144,28 @@ export class RoomsService {
       }
     }
 
+    // 批量查各房间的投票分布（供卡片显示票数进度条）
+    const votesByRoom: Record<number, Record<string, number>> = {};
+    if (rooms.length > 0) {
+      const roomIds = rooms.map((r) => r.id);
+      const voteRows = await this.prisma.vote.groupBy({
+        by: ['roomId', 'agentId'],
+        where: { roomId: { in: roomIds } },
+        _count: { id: true },
+      });
+      for (const row of voteRows) {
+        if (!votesByRoom[row.roomId]) votesByRoom[row.roomId] = {};
+        votesByRoom[row.roomId][row.agentId] = row._count.id;
+      }
+    }
+
     const formattedRooms = rooms.map((room) => ({
       ...room,
       agents: JSON.parse(room.agents),
       tags: room.tags.map((rt) => rt.tag),
       liked: likedSet.has(room.id),
       favorited: favoritedSet.has(room.id),
+      votes: votesByRoom[room.id] || {},
     }));
 
     return {
@@ -961,12 +977,13 @@ export class RoomsService {
               topPercent: top.percent,
             };
 
-    // 民意统计：从 UserOpinion 表聚合弹幕立场分布
-    const opinions = await (this.prisma as any).userOpinion.findMany({
-      where: { roomId },
-      select: { content: true, stance: true, isRelevant: true },
+    // 民意统计：只统计经过 RAG 处理、明确有立场的有效观点
+    // 排除默认值（isRelevant=true + stance=NEUTRAL 可能是未处理的），
+    // 只取 SUPPORT_A / SUPPORT_B（明确立场）和经 RAG 确认的 NEUTRAL
+    const relevantOpinions = await (this.prisma as any).userOpinion.findMany({
+      where: { roomId, isRelevant: true },
+      select: { content: true, stance: true },
     });
-    const relevantOpinions = opinions.filter((o: any) => o.isRelevant);
     const opinionTotal = relevantOpinions.length;
     const supportA = relevantOpinions.filter(
       (o: any) => o.stance === 'SUPPORT_A',

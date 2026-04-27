@@ -243,45 +243,60 @@
 }
 
 // 投票进度条
-.card-vote-bar {
+.card-vote-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-bottom: 0;
+  gap: 5px;
 }
 
-.vote-bar-track {
-  height: 4px;
-  border-radius: 2px;
-  background: rgba(15, 45, 90, 0.07);
+.vote-empty {
+  font-size: 11px;
+  color: #b0b8c4;
+  text-align: center;
+  padding: 2px 0;
+}
+
+.vote-agent-row {
   display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.vote-agent-name {
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+  width: 68px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vote-agent-bar-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.vote-agent-bar-track {
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(15, 45, 90, 0.07);
   overflow: hidden;
 }
 
-.vote-bar-left {
-  background: linear-gradient(90deg, #1a4a8a, #2563eb);
+.vote-agent-bar-fill {
+  height: 100%;
+  border-radius: 3px;
   transition: width 0.5s ease;
-  min-width: 0;
-  border-radius: 2px 0 0 2px;
+  min-width: 2px;
 }
 
-.vote-bar-right {
-  background: linear-gradient(90deg, #b45309, #d97706);
-  transition: width 0.5s ease;
-  min-width: 0;
-  border-radius: 0 2px 2px 0;
+.vote-agent-count {
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
-
-.vote-bar-labels {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 10.5px;
-}
-
-.vote-label-left  { color: #1a4a8a; font-weight: 600; }
-.vote-label-right { color: #b45309; font-weight: 600; }
-.vote-total       { color: #7a90a4; }
 
 // ── 底部区 ────────────────────────────────────────────────────────
 .card-footer {
