@@ -191,9 +191,17 @@ export const RoomReport: React.FC = () => {
       const agent = agentMap[m.agentId]
       if (!agent) return null
       const excerpt = (m.content || '').split(/[。！？\n]/)[0].trim().slice(0, 60)
-      return { agent, excerpt: excerpt + (excerpt.length >= 60 ? '…' : '') }
+      return {
+        agent,
+        excerpt: excerpt + (excerpt.length >= 60 ? '…' : ''),
+        fullContent: m.content || '',   // 保留完整内容供弹窗展示
+        roundLabel: getRoundLabel(r.round),
+      }
     }).filter(Boolean),
   })).filter(r => r.items.length > 0), [rounds, agentMap])
+
+  // 关键论点弹窗状态
+  const [kpModal, setKpModal] = useState<{ agent: any; content: string; roundLabel: string } | null>(null)
 
   // ── Loading ──────────────────────────────────────────────────
   if (isLoading) return (
@@ -441,12 +449,16 @@ export const RoomReport: React.FC = () => {
                   {kp.items.map((item: any, i: number) => {
                     const theme = item.agent._theme || AGENT_COLORS[0]
                     return (
-                      <div key={i} className="rr-kp-item" style={{ borderLeftColor: theme.color }}>
+                      <div key={i} className="rr-kp-item rr-kp-item--clickable"
+                        style={{ borderLeftColor: theme.color }}
+                        onClick={() => setKpModal({ agent: item.agent, content: item.fullContent, roundLabel: item.roundLabel })}
+                      >
                         <div className="rr-kp-agent" style={{ color: theme.color }}>
                           <Avatar size={13} src={item.agent.avatar} style={{ background: theme.gradient, flexShrink: 0 }} />
                           {item.agent.name}
                         </div>
                         <div className="rr-kp-text">{item.excerpt}</div>
+                        <div className="rr-kp-hint">点击查看完整论点</div>
                       </div>
                     )
                   })}
@@ -513,6 +525,25 @@ export const RoomReport: React.FC = () => {
           />
         </section>
       </div>
+
+      {/* ── 关键论点完整内容弹窗 ── */}
+      {kpModal && (
+        <div className="rr-kp-modal-overlay" onClick={() => setKpModal(null)}>
+          <div className="rr-kp-modal" onClick={e => e.stopPropagation()}>
+            <div className="rr-kp-modal-hd" style={{ borderLeftColor: kpModal.agent._theme?.color }}>
+              <div className="rr-kp-modal-agent">
+                <Avatar size={28} src={kpModal.agent.avatar} style={{ background: kpModal.agent._theme?.gradient, flexShrink: 0 }} />
+                <div>
+                  <div className="rr-kp-modal-name" style={{ color: kpModal.agent._theme?.color }}>{kpModal.agent.name}</div>
+                  <div className="rr-kp-modal-round">{kpModal.roundLabel}</div>
+                </div>
+              </div>
+              <button className="rr-kp-modal-close" onClick={() => setKpModal(null)}>✕</button>
+            </div>
+            <div className="rr-kp-modal-body">{kpModal.content}</div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
