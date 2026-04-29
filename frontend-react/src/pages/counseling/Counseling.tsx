@@ -574,21 +574,12 @@ export const Counseling: React.FC = () => {
             ))}
           </div>
         ) : messages.length === 0 ? (
-          activeSession?.roomId ? (
-            // 关联案件时等后端开场白，不显示占位避免闪烁
-            <div className="messages-loading">
-              <div className="message-skeleton">
-                <Skeleton avatar active paragraph={{ rows: 2 }} />
-              </div>
+          // 等后端开场白生成，统一用骨架屏，避免硬编码占位文案和 RAG 开场白切换造成割裂
+          <div className="messages-loading">
+            <div className="message-skeleton">
+              <Skeleton avatar active paragraph={{ rows: 2 }} />
             </div>
-          ) : (
-            <div className="messages-empty">
-              <div className="messages-empty-avatar">💚</div>
-              <div className="messages-empty-bubble">
-                你好！很高兴见到你。今天有什么想聊的吗？无论什么都可以说说。
-              </div>
-            </div>
-          )
+          </div>
         ) : (
           messages.map((msg) => (
             <div

@@ -158,6 +158,7 @@ export class CozeService {
     history: Array<{ role: 'user' | 'assistant'; content: string }>,
     systemPromptExtra: string,
     onChunk: (chunk: { kind: 'thinking' | 'answer'; text: string }) => void,
+    sessionId?: number,
   ): Promise<void> {
     this.logger.log(
       `💚 Counselor chat: bot=${botId}, history=${history.length} msgs`,
@@ -180,7 +181,9 @@ export class CozeService {
         '/chat',
         {
           bot_id: botId,
-          user_id: 'counselor_user',
+          user_id: sessionId
+            ? `session_${sessionId}`
+            : `counselor_${Date.now()}`,
           stream: true,
           auto_save_history: false,
           additional_messages: messages,
@@ -192,50 +195,81 @@ export class CozeService {
       let buffer = '';
       const hasAnswerDeltaByMsgId = new Map<string, boolean>();
 
+      const processLines = (lines: string[]) => {
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith('data:')) continue;
+          const jsonStr = trimmed.slice(5).trim();
+          try {
+            const payload = JSON.parse(jsonStr);
+            const msgType = String(payload?.type || '');
+            if (msgType && msgType !== 'answer') continue;
+
+            const msgId = String(payload?.id || '');
+            // 思考过程（reasoning_content）
+            if (
+              typeof payload?.reasoning_content === 'string' &&
+              payload.reasoning_content
+            ) {
+              onChunk({ kind: 'thinking', text: payload.reasoning_content });
+            }
+
+            // 正式回答（content）
+            if (typeof payload?.content === 'string' && payload.content) {
+              const isCompleted = !!payload?.created_at || !!payload?.time_cost;
+              const hasDelta = msgId
+                ? (hasAnswerDeltaByMsgId.get(msgId) ?? false)
+                : false;
+              if (!isCompleted) {
+                onChunk({ kind: 'answer', text: payload.content });
+                if (msgId) hasAnswerDeltaByMsgId.set(msgId, true);
+              } else if (!hasDelta) {
+                onChunk({ kind: 'answer', text: payload.content });
+              }
+            }
+          } catch {
+            /* ignore */
+          }
+        }
+      };
+
       await new Promise<void>((resolve, reject) => {
         stream.on('data', (chunk: Buffer) => {
           buffer += chunk.toString('utf8');
           const lines = buffer.split('\n');
           buffer = lines.pop() || '';
 
+          // 检查 chat.failed 事件，提取错误信息并 reject
           for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed || !trimmed.startsWith('data:')) continue;
-            const jsonStr = trimmed.slice(5).trim();
-            try {
-              const payload = JSON.parse(jsonStr);
-              const msgType = String(payload?.type || '');
-              if (msgType && msgType !== 'answer') continue;
-
-              const msgId = String(payload?.id || '');
-              // 思考过程（reasoning_content）
-              if (
-                typeof payload?.reasoning_content === 'string' &&
-                payload.reasoning_content
-              ) {
-                onChunk({ kind: 'thinking', text: payload.reasoning_content });
-              }
-
-              // 正式回答（content）
-              if (typeof payload?.content === 'string' && payload.content) {
-                const isCompleted =
-                  !!payload?.created_at || !!payload?.time_cost;
-                const hasDelta = msgId
-                  ? (hasAnswerDeltaByMsgId.get(msgId) ?? false)
-                  : false;
-                if (!isCompleted) {
-                  onChunk({ kind: 'answer', text: payload.content });
-                  if (msgId) hasAnswerDeltaByMsgId.set(msgId, true);
-                } else if (!hasDelta) {
-                  onChunk({ kind: 'answer', text: payload.content });
+            if (line.trim().startsWith('data:')) {
+              try {
+                const payload = JSON.parse(line.trim().slice(5).trim());
+                if (payload?.status === 'failed') {
+                  const errMsg = payload?.last_error?.msg || 'Coze 对话失败';
+                  const errCode = payload?.last_error?.code;
+                  reject(
+                    new Error(
+                      errCode === 4013 ? '请求过于频繁，请稍后再试' : errMsg,
+                    ),
+                  );
+                  return;
                 }
+              } catch {
+                /* ignore */
               }
-            } catch {
-              /* ignore */
             }
           }
+
+          processLines(lines);
         });
-        stream.on('end', () => resolve());
+        stream.on('end', () => {
+          // 处理流结束时 buffer 中可能残留的最后一行
+          if (buffer.trim()) {
+            processLines([buffer]);
+            buffer = '';
+          }
+          resolve();
+        });
         stream.on('error', reject);
       });
     } catch (error: any) {
@@ -570,7 +604,19 @@ export class CozeService {
    * 失败时返回 null，调用方降级为默认文案。
    */
   async generateOpening(lastMemory: string): Promise<string | null> {
-    const prompt = `你是一位温暖的心理辅导师，用户刚开启了新的对话。根据你对这位用户的了解，生成一句温暖自然的开场关心语（不超过30字），让用户感到被记得、被关心。\n\n关于这位用户你了解到：${lastMemory}\n\n只返回这一句开场语，不要解释，不要加引号。`;
+    const prompt = `你是一位专注于大学生群体的 AI 情绪伙伴，用户刚开启了一段新的对话。根据你对这位用户的了解，写一段温暖自然的开场白，让用户感到被记得、被关心。
+
+关于这位用户，你了解到以下内容（含时间和摘要）：
+${lastMemory}
+
+开场白要求：
+1. 主动提及上次聊过的具体事情（如"上次你提到因为xxx感到xxx"），而不是含糊说"上次的事"，让用户清楚地知道你记得
+2. 简短共情或认可当时的感受（一句话即可）
+3. 用一个温和的开放式问题结尾，询问现在的状态，例如"这两天有没有好一点？"或"最近有没有什么新的变化？"
+4. 语气像熟悉用户的学长/学姐，亲切自然，不生硬，不说教
+5. 总长度 60-100 字，不要加引号，不要任何解释，直接输出开场白正文
+
+只返回开场白正文，不要任何前缀或说明。`;
     try {
       const result = await this.callChatOnce(prompt);
       return result?.trim() || null;

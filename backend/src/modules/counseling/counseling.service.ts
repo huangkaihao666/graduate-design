@@ -301,6 +301,7 @@ export class CounselingService {
             res.write(`data: ${JSON.stringify({ type: 'thinking' })}\n\n`);
           }
         },
+        sessionId,
       );
     } catch (err: any) {
       res.write(
