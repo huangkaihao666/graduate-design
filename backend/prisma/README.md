@@ -11,7 +11,8 @@
 ```
 prisma/
 ├── schema.prisma        # 数据模型定义（核心文件）
-├── seed.ts              # 初始化种子数据
+├── seed.ts              # 基础种子数据（系统智能体 + 标签）
+├── seed.demo.ts         # 演示数据（完整案件列表 + 演示账号）★ 协作者首次部署时运行
 ├── migrations/          # 自动生成的迁移 SQL 历史
 │   └── 20260424000000_init/   # 全量初始化（2026-04-24 合并重建）
 └── README.md            # 本文件
@@ -42,7 +43,17 @@ npx prisma migrate deploy
 
 # 4. 生成 TypeScript 类型
 npx prisma generate
+
+# 5. 写入演示数据（案件、智能体、标签、演示账号）
+npm run seed:demo
 ```
+
+**演示账号：**
+
+| 角色     | 邮箱               | 密码        |
+| -------- | ------------------ | ----------- |
+| 普通用户 | demo@debate.local  | demo123456  |
+| 管理员   | admin@debate.local | admin123456 |
 
 ---
 
