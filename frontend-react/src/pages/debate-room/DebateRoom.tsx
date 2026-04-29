@@ -317,13 +317,11 @@ export const DebateRoom: React.FC = () => {
         voteCountdownRef.current = null
       }
       setRoomStatus('CLOSED')
-      notification.open({
-        key: 'debate-finished',
-        message: '辩论已结束',
-        description: '结案报告正在生成，稍后可点击右上角「📊 结案报告」查看。',
-        duration: 0,
-        placement: 'topRight',
-        style: { borderLeft: '4px solid #10b981' },
+      // 关掉投票后的 loading toast，换成成功提示
+      message.success({
+        content: '结案报告已生成！点击右上角「📊 结案报告」查看',
+        key: 'report-generating',
+        duration: 5,
       })
     })
 
@@ -655,7 +653,13 @@ export const DebateRoom: React.FC = () => {
           setTotalVotes(resp.totalVotes)
         }
         setMyVotedAgentId(agentId)
-        message.success('投票成功')
+        message.success('投票成功！')
+        // 投票后显示 loading 提示，等 debateFinished 时自动关闭
+        message.loading({
+          content: '正在生成结案报告，请稍候…',
+          key: 'report-generating',
+          duration: 0,
+        })
         resolve(true)
       }
       )

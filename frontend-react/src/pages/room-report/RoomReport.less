@@ -111,6 +111,22 @@
   &--active-like { color: #e11d48 !important; &:hover { background: rgba(225,29,72,0.07) !important; } }
   &--active-fav  { color: var(--gold) !important; &:hover { background: var(--gold-light) !important; } }
 
+  &--redebate {
+    color: var(--indigo) !important;
+    border-color: rgba(79,70,229,0.25) !important;
+    background: rgba(79,70,229,0.07) !important;
+    padding: 5px 13px !important;
+
+    &:hover:not(:disabled) {
+      background: rgba(79,70,229,0.13) !important;
+      border-color: rgba(79,70,229,0.4) !important;
+      transform: translateY(-1px);
+      box-shadow: 0 3px 10px rgba(79,70,229,0.18);
+    }
+
+    &:disabled { opacity: 0.6; cursor: not-allowed; }
+  }
+
   span { font-size: 12px; font-weight: 700; }
 }
 

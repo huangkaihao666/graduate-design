@@ -305,4 +305,14 @@ export class RoomsController {
   async getRoomReport(@Param('id') id: string) {
     return await this.roomsService.getRoomReport(parseInt(id, 10));
   }
+
+  /**
+   * 基于已结案的辩论室发起续辩（复制设置创建新辩论室）
+   */
+  @Post(':id/re-debate')
+  @UseGuards(JwtGuard)
+  @ApiOkResponse({ description: '续辩辩论室创建成功' })
+  async reDebate(@Param('id') id: string, @Request() req: any) {
+    return await this.roomsService.reDebate(parseInt(id, 10), req.user.id);
+  }
 }

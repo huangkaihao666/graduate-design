@@ -140,3 +140,10 @@ export const getMyFavorites = (page = 1, pageSize = 12) => {
 export const getMyLikes = (page = 1, pageSize = 12) => {
   return httpClient.get('/rooms/my/likes', { params: { page, pageSize } })
 }
+
+/**
+ * 基于已结案的辩论室发起续辩（复制设置创建新辩论室）
+ */
+export const reDebateRoom = (roomId: number) => {
+  return httpClient.post(`/rooms/${roomId}/re-debate`)
+}

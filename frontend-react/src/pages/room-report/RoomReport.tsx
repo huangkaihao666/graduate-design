@@ -7,7 +7,7 @@ import {
   ArrowLeftOutlined, UserOutlined,
   CalendarOutlined, LikeOutlined, LikeFilled, MessageOutlined,
   StarOutlined, StarFilled, HeartOutlined, BulbOutlined,
-  TeamOutlined, ThunderboltOutlined, ShareAltOutlined,
+  TeamOutlined, ThunderboltOutlined, ShareAltOutlined, RetweetOutlined,
 } from '@ant-design/icons'
 import * as roomApi from '@/api/rooms'
 import './RoomReport.less'
@@ -150,6 +150,16 @@ export const RoomReport: React.FC = () => {
   const handleFavorite = () => { const s = displayFavorited; setFavorited(!s); setFavoriteCount(c => (c ?? interaction.favoriteCount ?? 0) + (s ? -1 : 1)); favoriteMutation.mutate(s) }
   const handleCopyLink = async () => { try { await navigator.clipboard.writeText(window.location.href); message.success('链接已复制') } catch { message.error('复制失败') } }
 
+  const reDebateMutation = useMutation({
+    mutationFn: () => roomApi.reDebateRoom(roomId),
+    onSuccess: (d: any) => {
+      const newId = d?.id || d?.data?.id
+      message.success('已创建续辩辩论室，快去开始吧！')
+      if (newId) navigate(`/debate/${newId}`)
+    },
+    onError: () => message.error('创建续辩失败，请重试'),
+  })
+
   const report = (data as any) || null
   const room = report?.room
   const voteStats = report?.voteStats
@@ -259,6 +269,18 @@ export const RoomReport: React.FC = () => {
           <Tooltip title="复制链接">
             <button className="rr-nav-btn" onClick={handleCopyLink}><ShareAltOutlined /></button>
           </Tooltip>
+          {room?.status === 'CLOSED' && (
+            <Tooltip title="对结论不满意？以相同设置重新发起一场辩论">
+              <button
+                className="rr-nav-btn rr-nav-btn--redebate"
+                onClick={() => reDebateMutation.mutate()}
+                disabled={reDebateMutation.isPending}
+              >
+                <RetweetOutlined />
+                <span>{reDebateMutation.isPending ? '创建中…' : '发起续辩'}</span>
+              </button>
+            </Tooltip>
+          )}
         </div>
       </nav>
 

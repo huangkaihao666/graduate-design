@@ -62,6 +62,8 @@ model Room {
   // 存储选中的Agent列表，如 ["bot_A", "bot_B", "bot_C"]
   agents    String  @db.Text
 
+  sourceRoomId Int?   @db.UnsignedInt  // 续辩时指向原案件，普通辩论为 null
+
   viewCount     Int     @default(0)
   commentCount  Int     @default(0)
   likeCount     Int     @default(0)

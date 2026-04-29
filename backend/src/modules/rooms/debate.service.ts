@@ -12,6 +12,7 @@ interface DebateContext {
   collectEndAt?: number; // 征集窗口截止时间戳（ms），供新加入用户计算剩余时间
   agentAName: string; // A 方智能体显示名，供立场识别使用
   agentBName: string; // B 方智能体显示名，供立场识别使用
+  previousSummary?: string; // 续辩时：上一场 Bot C 综合总结，注入 Round1 prompt
   messages: Array<{
     roundNumber: number;
     agentId: string;
@@ -44,7 +45,7 @@ export class DebateService {
   async startDebate(roomId: number): Promise<void> {
     this.logger.log(`Starting debate for room ${roomId}`);
 
-    // 获取房间信息
+    // 获取房间信息（含续辩来源字段）
     const room = await this.prisma.room.findUnique({
       where: { id: roomId },
     });
@@ -53,7 +54,33 @@ export class DebateService {
       throw new Error('Room not found');
     }
 
-    // 初始化辩论上下文（agentAName/agentBName 在 executeRound1 查到后写入）
+    // 续辩时：从原案件取 Bot C 的综合总结作为上一场结论
+    let previousSummary: string | null = null;
+    const sourceRoomId = (room as any).sourceRoomId;
+    if (sourceRoomId) {
+      const sourceAgents = JSON.parse(room.agents || '[]') as string[];
+      const botCId = sourceAgents[2];
+      if (botCId) {
+        const botCMsg = await this.prisma.message.findFirst({
+          where: {
+            roomId: sourceRoomId,
+            senderType: 'AI',
+            botId: botCId,
+            roundNumber: 3,
+          },
+          orderBy: { createdAt: 'desc' },
+          select: { content: true },
+        });
+        if (botCMsg?.content) {
+          previousSummary = botCMsg.content;
+          this.logger.log(
+            `[续辩] room ${roomId} 载入上一场综合总结（${previousSummary.length} 字）`,
+          );
+        }
+      }
+    }
+
+    // 初始化辩论上下文
     const context: DebateContext = {
       roomId,
       currentRound: 1,
@@ -62,6 +89,7 @@ export class DebateService {
       agentAName: '',
       agentBName: '',
       messages: [],
+      previousSummary: previousSummary ?? undefined,
     };
     this.debateContexts.set(roomId, context);
 
@@ -407,6 +435,12 @@ export class DebateService {
           : 'Round3：律师 C 汇总裁决（只发一次）';
 
     // 调用 Coze API（Prompt 里带轮次与阶段约束）
+    // Round1 时若是续辩，注入上一场综合总结
+    const previousSummary =
+      roundNumber === 1
+        ? (debateContext.previousSummary ?? undefined)
+        : undefined;
+
     const prompt = this.cozeService.buildPrompt(
       caseInfo,
       context,
@@ -418,6 +452,7 @@ export class DebateService {
         maxChars: phase === 'verdict' ? 1200 : 900,
       },
       audienceOpinions,
+      previousSummary,
     );
     this.logger.log(
       `📨 [room ${roomId}] round ${roundNumber} calling agent ${agentId} (botId=${botId}). Case title: ${caseInfo.title}`,

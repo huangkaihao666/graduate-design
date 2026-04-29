@@ -859,6 +859,42 @@ export class RoomsService {
   }
 
   /**
+   * 基于已结案的辩论室发起续辩：复制原案件设置创建新辩论室
+   */
+  async reDebate(roomId: number, userId: number) {
+    const source = await this.prisma.room.findUnique({
+      where: { id: roomId },
+      include: { tags: { select: { tagId: true } } },
+    });
+    if (!source) throw new NotFoundException('案件不存在');
+
+    const suffix = '（发起续辩）';
+    const baseTitle = source.title.endsWith(suffix)
+      ? source.title.slice(0, -suffix.length)
+      : source.title;
+    const newTitle = `${baseTitle}${suffix}`;
+
+    const newRoom = await this.createRoom(
+      {
+        title: newTitle,
+        content: source.content,
+        agents: JSON.parse(source.agents),
+        image: source.image ?? undefined,
+        tagIds: source.tags.map((t) => t.tagId),
+      },
+      userId,
+    );
+
+    // 记录续辩来源，供辩论开始时注入上一场摘要
+    await this.prisma.room.update({
+      where: { id: newRoom.id },
+      data: { sourceRoomId: roomId } as any,
+    });
+
+    return { ...newRoom, sourceRoomId: roomId };
+  }
+
+  /**
    * 获取结案报告
    */
   async getRoomReport(roomId: number) {

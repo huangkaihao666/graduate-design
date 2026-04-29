@@ -516,14 +516,26 @@ export class CozeService {
       maxChars?: number;
     },
     audienceOpinions?: string[],
+    previousSummary?: string,
   ): string {
     const maxChars = meta.maxChars ?? 900;
 
     // ── 角色与任务定义 ──────────────────────────────────────────────────
+    const isReDabete = !!previousSummary;
     let prompt = `你是多智能体辩论系统中的「${agentRole}」，正在参与一场真实的辩论。\n`;
+    if (isReDabete) {
+      prompt += `⚠️ 本场是「续辩」：用户对上一轮辩论的结论不满意，希望在已有基础上深入讨论。请在发言时明确意识到这是续辩，不要从零开始重复上一场已经讲过的基本立场，而应在上一场结论的基础上推进、补充或提出新角度。\n\n`;
+    }
     prompt += `本次辩论围绕以下案件展开：\n`;
     prompt += `- 标题：${caseInfo.title}\n`;
     prompt += `- 背景：${caseInfo.content}\n\n`;
+
+    // 续辩时注入上一场综合总结（仅 Round1）
+    if (isReDabete && meta.phase === 'statement') {
+      prompt += `【上一场辩论的综合总结】（这是上一轮辩论中立观察者给出的结论，本场是对这个结论的续辩）：\n`;
+      prompt += `${previousSummary}\n\n`;
+      prompt += `请在此基础上，从你的角色视角出发，针对上述总结中你认为不够充分、或需要补充的观点，提出新的论据或更深入的分析。不要重复上一场已有的内容，聚焦于"上一场没说透"的部分。\n\n`;
+    }
 
     // ── 当前阶段说明 ────────────────────────────────────────────────────
     if (meta.phase === 'statement') {
