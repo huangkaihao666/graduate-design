@@ -122,7 +122,14 @@ export class CustomAgentsService {
   async createAgent(userId: number, dto: CreateCustomAgentDto) {
     const spaceId = await this.resolveSpaceId();
 
-    // 1. 在 Coze 创建 Bot（草稿态）
+    // 默认挂载平台情绪伙伴的知识库（本科生手册、心理健康、就业政策等），
+    // 让用户自建智能体开箱即用，无需自己找知识库
+    const defaultDatasetIds = (process.env.COZE_DEFAULT_DATASET_IDS || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    // 1. 在 Coze 创建 Bot（草稿态），同时挂载默认知识库
     let cozeBotId: string;
     try {
       cozeBotId = await this.cozeService.createBot({
@@ -131,6 +138,9 @@ export class CustomAgentsService {
         description: dto.description,
         prompt: dto.prompt,
         onboardingPrologue: `你好，我是 ${dto.name}，很高兴为你服务！`,
+        knowledgeDatasetIds: defaultDatasetIds.length
+          ? defaultDatasetIds
+          : undefined,
       });
     } catch (err: any) {
       this.logger.error(`Coze createBot failed: ${err?.message}`);
