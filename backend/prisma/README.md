@@ -48,12 +48,16 @@ npx prisma generate
 npm run seed:demo
 ```
 
-**演示账号：**
+**演示账号（所有账号密码均为 `HKHhkh618618`）：**
 
-| 角色     | 邮箱               | 密码        |
-| -------- | ------------------ | ----------- |
-| 普通用户 | demo@debate.local  | demo123456  |
-| 管理员   | admin@debate.local | admin123456 |
+| 角色     | 邮箱               |
+| -------- | ------------------ |
+| 普通用户 | demo@debate.local  |
+| 管理员   | admin@debate.local |
+| 成员     | 123456@qq.com      |
+| 成员     | 2134084703@qq.com  |
+| 成员     | 13321312@qq.com    |
+| 成员     | 43412@qq.com       |
 
 ---
 

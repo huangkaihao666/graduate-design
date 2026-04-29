@@ -98,9 +98,8 @@ async function main() {
   console.log('✅ 系统智能体: 毒舌现实主义者 / 温柔共情者 / 中立观察者');
 
   // ── 3. 演示用户 ──────────────────────────────────────────────
-  // 密码均为 demo123456（已 bcrypt 加密）
-  const demoPassword = await bcrypt.hash('demo123456', 10);
-  const adminPassword = await bcrypt.hash('admin123456', 10);
+  // 所有账号密码均为 HKHhkh618618
+  const sharedPassword = await bcrypt.hash('HKHhkh618618', 10);
 
   const demoUser = await prisma.user.upsert({
     where: { email: 'demo@debate.local' },
@@ -108,7 +107,7 @@ async function main() {
     create: {
       email: 'demo@debate.local',
       name: '演示用户',
-      password: demoPassword,
+      password: sharedPassword,
       bio: '这是演示账号，可以体验平台全部功能',
       role: 'USER',
       level: 2,
@@ -122,15 +121,69 @@ async function main() {
     create: {
       email: 'admin@debate.local',
       name: '管理员',
-      password: adminPassword,
+      password: sharedPassword,
       role: 'ADMIN',
       level: 5,
       exp: 9999,
     },
   });
 
-  console.log(`✅ 演示用户: ${demoUser.email} (密码: demo123456)`);
-  console.log(`✅ 管理员:   ${adminUser.email} (密码: admin123456)`);
+  // 项目成员账号（含真实 level/exp/bio）
+  const memberAccounts = [
+    {
+      email: '123456@qq.com',
+      name: '黄开浩',
+      bio: '不想上班，想一夜暴富',
+      role: 'USER' as const,
+      level: 2,
+      exp: 480,
+    },
+    {
+      email: '2134084703@qq.com',
+      name: 'huangkaihao',
+      bio: '',
+      role: 'USER' as const,
+      level: 1,
+      exp: 80,
+    },
+    {
+      email: '13321312@qq.com',
+      name: 'hhh',
+      bio: '',
+      role: 'USER' as const,
+      level: 1,
+      exp: 0,
+    },
+    {
+      email: '43412@qq.com',
+      name: 'hkhkh',
+      bio: '',
+      role: 'USER' as const,
+      level: 1,
+      exp: 0,
+    },
+  ];
+
+  const memberUsers: Record<string, any> = {};
+  for (const m of memberAccounts) {
+    const u = await prisma.user.upsert({
+      where: { email: m.email },
+      update: {
+        password: sharedPassword,
+        name: m.name,
+        bio: m.bio,
+        level: m.level,
+        exp: m.exp,
+      },
+      create: { ...m, password: sharedPassword },
+    });
+    memberUsers[m.email] = u;
+  }
+
+  console.log(`✅ 演示用户: ${demoUser.email}`);
+  console.log(`✅ 管理员:   ${adminUser.email}`);
+  console.log(`✅ 成员账号: ${memberAccounts.map((m) => m.email).join(' / ')}`);
+  console.log(`   所有账号密码: HKHhkh618618`);
 
   // ── 4. 演示案件 ──────────────────────────────────────────────
   const roomDefs = [
@@ -282,10 +335,232 @@ async function main() {
     console.log(`  ✅ 案件: ${room.title.slice(0, 30)}`);
   }
 
+  // ── 5. 投票数据 ──────────────────────────────────────────────
+  // 按 title 查找案件，再创建投票（upsert 避免重复）
+  const roomByTitle = async (title: string) =>
+    prisma.room.findFirst({ where: { title } });
+
+  const u3 = memberUsers['123456@qq.com']; // 黄开浩
+  const u2 = memberUsers['2134084703@qq.com']; // huangkaihao
+
+  const voteData = [
+    {
+      userEmail: '123456@qq.com',
+      roomTitle: '考研值不值得全力以赴',
+      agentId: 'bot_A',
+    },
+    {
+      userEmail: '123456@qq.com',
+      roomTitle: '大三要不要休学创业',
+      agentId: 'bot_C',
+    },
+    {
+      userEmail: '2134084703@qq.com',
+      roomTitle: '父母催婚压力大，要不要妥协相亲',
+      agentId: 'bot_A',
+    },
+    {
+      userEmail: '123456@qq.com',
+      roomTitle: '考研值不值得全力以赴',
+      agentId: 'bot_A',
+    }, // room 6
+    {
+      userEmail: '123456@qq.com',
+      roomTitle: '考研值不值得全力以赴（发起续辩）',
+      agentId: 'bot_C',
+    },
+  ];
+
+  for (const v of voteData) {
+    const room = await roomByTitle(v.roomTitle);
+    if (!room) continue;
+    const userId = memberUsers[v.userEmail]?.id;
+    if (!userId) continue;
+    await prisma.vote
+      .upsert({
+        where: { userId_roomId: { userId, roomId: room.id } },
+        update: { agentId: v.agentId },
+        create: { userId, roomId: room.id, agentId: v.agentId },
+      })
+      .catch(() => {});
+  }
+  console.log('✅ 投票数据');
+
+  // ── 6. 用户关注 / 点赞 / 收藏关系 ────────────────────────────
+  const relationData = [
+    { userId: u2?.id, targetId: u3?.id, type: 'FOLLOW_USER' },
+    { userId: u3?.id, targetId: u2?.id, type: 'FOLLOW_USER' },
+    // 点赞案件（用 title 查 room）
+    {
+      userEmail: '2134084703@qq.com',
+      roomTitle: '考研值不值得全力以赴',
+      type: 'LIKE_ROOM',
+    },
+    {
+      userEmail: '2134084703@qq.com',
+      roomTitle: '考研值不值得全力以赴',
+      type: 'FAVORITE_ROOM',
+    },
+    {
+      userEmail: '2134084703@qq.com',
+      roomTitle: '大三要不要休学创业',
+      type: 'LIKE_ROOM',
+    },
+    {
+      userEmail: '2134084703@qq.com',
+      roomTitle: '大三要不要休学创业',
+      type: 'FAVORITE_ROOM',
+    },
+    {
+      userEmail: '123456@qq.com',
+      roomTitle: '我要不要和异地恋的他/她分手',
+      type: 'LIKE_ROOM',
+    },
+    {
+      userEmail: '123456@qq.com',
+      roomTitle: '我要不要和异地恋的他/她分手',
+      type: 'FAVORITE_ROOM',
+    },
+    {
+      userEmail: '123456@qq.com',
+      roomTitle: '大三要不要休学创业',
+      type: 'LIKE_ROOM',
+    },
+    {
+      userEmail: '123456@qq.com',
+      roomTitle: '大三要不要休学创业',
+      type: 'FAVORITE_ROOM',
+    },
+  ];
+
+  for (const r of relationData) {
+    let userId = (r as any).userId;
+    let targetId = (r as any).targetId;
+
+    if (!userId && (r as any).userEmail) {
+      userId = memberUsers[(r as any).userEmail]?.id;
+    }
+    if (!targetId && (r as any).roomTitle) {
+      const room = await roomByTitle((r as any).roomTitle);
+      targetId = room?.id;
+    }
+    if (!userId || !targetId) continue;
+
+    await (prisma as any).userRelation
+      .upsert({
+        where: { userId_targetId_type: { userId, targetId, type: r.type } },
+        update: {},
+        create: { userId, targetId, type: r.type },
+      })
+      .catch(() => {});
+  }
+  console.log('✅ 用户关系（关注/点赞/收藏）');
+
+  // ── 7. 成就记录（全局解锁记录，不绑定用户） ─────────────────
+  const achievementDefs = [
+    {
+      name: '初出茅庐',
+      description: '发布第一个辩论案件',
+      icon: '📝',
+      condition: '发布 1 个案件',
+      expReward: 50,
+    },
+    {
+      name: '辩论达人',
+      description: '发布 5 个辩论案件',
+      icon: '🎤',
+      condition: '发布 5 个案件',
+      expReward: 100,
+    },
+    {
+      name: '人气辩手',
+      description: '获得 100 次围观',
+      icon: '👁',
+      condition: '累计 100 围观',
+      expReward: 80,
+    },
+    {
+      name: '观点领袖',
+      description: '获得 10 次投票支持',
+      icon: '🏆',
+      condition: '获得 10 票',
+      expReward: 120,
+    },
+    {
+      name: '第一票',
+      description: '参与第一次投票',
+      icon: '🗳️',
+      condition: '投票 1 次',
+      expReward: 30,
+    },
+    {
+      name: '积极参与者',
+      description: '参与 10 次投票',
+      icon: '⚡',
+      condition: '投票 10 次',
+      expReward: 60,
+    },
+    {
+      name: '知心朋友',
+      description: '关注第一位用户',
+      icon: '👥',
+      condition: '关注 1 人',
+      expReward: 20,
+    },
+    {
+      name: '社交达人',
+      description: '拥有 10 位粉丝',
+      icon: '🌟',
+      condition: '粉丝 10 人',
+      expReward: 150,
+    },
+    {
+      name: '收藏家',
+      description: '收藏 5 个案件',
+      icon: '⭐',
+      condition: '收藏 5 个案件',
+      expReward: 40,
+    },
+    {
+      name: '热心评论员',
+      description: '发表 10 条评论',
+      icon: '💬',
+      condition: '评论 10 次',
+      expReward: 50,
+    },
+    {
+      name: '情绪探索者',
+      description: '完成第一次情绪辅导',
+      icon: '💚',
+      condition: '完成 1 次辅导',
+      expReward: 60,
+    },
+    {
+      name: '智能体创造者',
+      description: '创建第一个智能体',
+      icon: '🤖',
+      condition: '创建 1 个智能体',
+      expReward: 100,
+    },
+  ];
+
+  for (const a of achievementDefs) {
+    await prisma.achievement
+      .upsert({
+        where: { name: a.name },
+        update: {},
+        create: a,
+      })
+      .catch(() => {});
+  }
+  console.log('✅ 成就列表');
+
   console.log('\n✨ 演示数据写入完成！');
-  console.log('\n📋 登录账号：');
-  console.log('  普通用户: demo@debate.local  / demo123456');
-  console.log('  管理员:   admin@debate.local / admin123456');
+  console.log('\n📋 所有账号密码: HKHhkh618618');
+  console.log('  demo@debate.local / admin@debate.local');
+  console.log(
+    '  123456@qq.com / 2134084703@qq.com / 13321312@qq.com / 43412@qq.com',
+  );
 }
 
 main()
