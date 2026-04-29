@@ -24,7 +24,7 @@ const { Dragger } = Upload
 const AGENTS_PREVIEW = [
   { emoji: '⚡', name: '直言现实者', desc: '博弈论 · 谬误识别', cls: 'agent-a' },
   { emoji: '💚', name: '共情辅导师', desc: '心理学 · NVC', cls: 'agent-b' },
-  { emoji: '⚖️', name: '理性律师', desc: '民法 · 劳动法', cls: 'agent-c' },
+  { emoji: '⚖️', name: '中立观察者', desc: '综合总结 · 多角度建议', cls: 'agent-c' },
 ]
 
 const TIPS = [

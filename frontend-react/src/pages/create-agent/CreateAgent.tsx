@@ -239,15 +239,15 @@ export const CreateAgent: React.FC = () => {
 
   const handleSubmit = async () => {
     const values = await form.validateFields()
-    const payload = {
+    const base = {
       ...values,
       domains: Array.isArray(values.domains) ? values.domains.join(',') : '',
-      isPublic,
     }
     if (editingAgent) {
-      updateMutation.mutate({ id: editingAgent.id, data: payload })
+      // 编辑时不传 isPublic，修改公开状态用单独的「申请公开」流程
+      updateMutation.mutate({ id: editingAgent.id, data: base })
     } else {
-      createMutation.mutate(payload)
+      createMutation.mutate({ ...base, isPublic })
     }
   }
 
