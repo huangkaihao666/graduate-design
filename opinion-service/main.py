@@ -7,6 +7,15 @@ opinion-service FastAPI 入口
 
 启动：uvicorn main:app --reload --port 8001
 """
+
+# ─── 绕开系统级代理（Clash/V2Ray 等会拦截 127.0.0.1 流量）──────────────────
+# httpx 默认 trust_env=True，会读 Windows 注册表里的 ProxyServer，
+# 但它不识别 Windows 的 ProxyOverride 通配符，导致本地 Ollama 请求被代理转走拿到 502。
+# 必须在 import ollama 之前把 NO_PROXY 写进 env。
+import os
+os.environ.setdefault("NO_PROXY", "127.0.0.1,localhost,::1")
+os.environ.setdefault("no_proxy", "127.0.0.1,localhost,::1")
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel

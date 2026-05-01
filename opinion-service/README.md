@@ -79,26 +79,27 @@ ollama list
 
 > 以下步骤只需在**第一次**运行时执行。
 
+**macOS / Linux**
+
 ```bash
-# 进入目录
 cd opinion-service
-
-# 创建 Python 虚拟环境（隔离依赖，避免污染全局 Python）
-python3 -m venv .venv          # macOS
-python -m venv .venv           # Windows
-
-# 激活虚拟环境
-source .venv/bin/activate      # macOS
-.venv\Scripts\activate         # Windows（PowerShell 用 .venv\Scripts\Activate.ps1）
-
-# 激活成功后，终端提示符前会出现 (.venv) 字样
-
-# 安装依赖
+python3 -m venv .venv
+source .venv/bin/activate         # 激活成功后终端提示符前会出现 (.venv)
 pip install -r requirements.txt
-
-# 启动服务
 uvicorn main:app --reload --port 8001
 ```
+
+**Windows（PowerShell，推荐）**
+
+```powershell
+cd E:\graduate-design\opinion-service
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1      # 激活成功后终端提示符前会出现 (.venv)
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8001
+```
+
+> Windows 如果用 cmd 不是 PowerShell：激活脚本是 `.venv\Scripts\activate.bat`。
 
 看到以下输出说明启动成功：
 
@@ -106,13 +107,25 @@ uvicorn main:app --reload --port 8001
 [startup] 预热 Ollama 嵌入模型...
 [embedder] Ollama warmup 完成
 [startup] 加载知识库到 ChromaDB...
-[knowledge_loader] irrelevant 集合加载完成，共 30 条示例
-[knowledge_loader] relevant 集合加载完成，共 20 条示例
+[knowledge_loader] irrelevant 集合加载完成，共 82 条示例
+[knowledge_loader] relevant 集合加载完成，共 56 条示例
+[knowledge_loader] support_a 集合加载完成，共 44 条示例
+[knowledge_loader] support_b 集合加载完成，共 42 条示例
 [startup] opinion-service 就绪
 INFO:     Application startup complete.
 ```
 
 > `Failed to send telemetry event ...` 这类警告是 ChromaDB 内部遥测上报失败，不影响任何功能，忽略即可。
+> 若想彻底关掉这类提示，启动前在同一个终端先执行：
+>
+> - **macOS / Linux**：`export ANONYMIZED_TELEMETRY=False`
+> - **Windows PowerShell**：`$env:ANONYMIZED_TELEMETRY = "False"`
+
+启动后可访问 [http://localhost:8001/docs](http://localhost:8001/docs) 查看交互式接口文档；或快速健康检查：
+
+```bash
+curl http://127.0.0.1:8001/health    # 应返回 {"status":"ok"}
+```
 
 ---
 
@@ -120,18 +133,41 @@ INFO:     Application startup complete.
 
 虚拟环境和依赖已经装好，每次只需三步：
 
+**macOS / Linux**
+
 ```bash
 cd opinion-service
-
-# 激活虚拟环境
-source .venv/bin/activate      # macOS
-.venv\Scripts\activate         # Windows
-
-# 启动
+source .venv/bin/activate
 uvicorn main:app --reload --port 8001
 ```
 
-> **提示**：如果关闭了终端窗口，下次需要重新激活虚拟环境（`.venv` 目录还在，不需要重新安装依赖）。
+**Windows PowerShell**
+
+```powershell
+cd E:\graduate-design\opinion-service
+.\.venv\Scripts\Activate.ps1
+uvicorn main:app --reload --port 8001
+```
+
+> **提示**：关闭终端后，下次只要重新激活虚拟环境（`.venv` 目录还在，不必重装依赖）。
+
+---
+
+### Windows 特别说明：系统代理拦截
+
+如果你本机开着 Clash / V2Ray / 其它系统代理（典型监听 `127.0.0.1:7890`），Python 的 `httpx` 默认会读 Windows 注册表里的 `ProxyServer` 而忽略 `ProxyOverride`，把发往 `127.0.0.1:11434` 的 Ollama 请求也代理走，结果拿到 **HTTP 502**。
+
+`main.py` 顶部已经预先把 `NO_PROXY=127.0.0.1,localhost,::1` 写进了进程环境，**不需要你手动配置**，只要运行 `uvicorn main:app ...` 即可正常工作。
+
+如果你不是用 `uvicorn main:app` 入口，而是直接 `import` 了 `embedder`、`memory_store` 等模块，请在你的入口最早的位置加上：
+
+```python
+import os
+os.environ.setdefault("NO_PROXY", "127.0.0.1,localhost,::1")
+os.environ.setdefault("no_proxy", "127.0.0.1,localhost,::1")
+```
+
+> 必须在 `import ollama` 之前设置。
 
 ---
 
@@ -139,8 +175,9 @@ uvicorn main:app --reload --port 8001
 
 每次启动服务时，会自动执行：
 
-1. **Ollama 预热**：发一次 dummy 请求让模型加载进内存，消除第一条真实请求的冷启动延迟（约 2-5 秒）
-2. **加载知识库**：将 `knowledge/irrelevant.txt` 和 `knowledge/relevant.txt` 写入 ChromaDB（幂等操作，重复启动不会重复写入）
+1. **设置 `NO_PROXY`**：`main.py` 顶部预先把 `127.0.0.1,localhost,::1` 写入进程环境，防止系统级代理（Clash/V2Ray 等）拦截本地 Ollama 请求
+2. **Ollama 预热**：发一次 dummy 请求让模型加载进内存，消除第一条真实请求的冷启动延迟（约 2-5 秒）
+3. **加载知识库**：将 `knowledge/` 下 4 个文件（`irrelevant` / `relevant` / `support_a` / `support_b`）写入 ChromaDB（幂等操作，重复启动不会重复写入）
 
 接口文档（服务启动后可访问）：`http://localhost:8001/docs`
 
@@ -164,7 +201,9 @@ opinion-service/
 ├── knowledge_loader.py      # 服务启动时将 knowledge/ 写入 ChromaDB
 ├── knowledge/
 │   ├── irrelevant.txt       # 灌水示例（哈哈/666/第一/纯表情等）
-│   └── relevant.txt         # 有效观点示例（各类风格均可）
+│   ├── relevant.txt         # 有效观点示例（各类风格均可）
+│   ├── support_a.txt        # 支持 A 方的示例
+│   └── support_b.txt        # 支持 B 方的示例
 │
 ├── ── 第四层：情绪记忆 ──
 ├── memory_store.py          # 用户情绪记忆存取（每用户独立 ChromaDB 集合）
