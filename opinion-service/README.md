@@ -13,6 +13,8 @@
 
 ## 快速启动
 
+**使用前必读：** opinion-service 启动时会立刻连本机 **Ollama**（默认 `127.0.0.1:11434`）做嵌入预热并加载知识库。**只重启了本服务、或电脑刚重启**，Ollama 若没跟着起来，会出现 **`[WinError 10061] 由于目标计算机积极拒绝，无法连接`** / `httpx.ConnectError`，应用启动直接失败。请先打开 Ollama（Windows：开始菜单启动 Ollama，看托盘是否有图标），再启动 uvicorn。详见下文 **「Ollama 与 opinion-service 的启动顺序」**。
+
 ### 第一步：安装 Python
 
 opinion-service 是 Python 项目，需要 Python 3.10 及以上版本。Node.js / pnpm 不能替代，两者是独立的运行环境。
@@ -58,6 +60,27 @@ Ollama 是本地运行 AI 模型的工具，用于将文本转换为向量。
 ollama --version
 ```
 
+### Ollama 与 opinion-service 的启动顺序（重要）
+
+1. **先 Ollama，后 opinion-service**  
+   嵌入与知识库向量化都依赖 Ollama API。请**先**保证 Ollama 已在后台运行，**再**在同一台电脑上执行 `uvicorn main:app --port 8001`。
+
+2. **重启电脑 / 只重启了终端或 uvicorn**  
+   Ollama **不会**随你重启 opinion-service 而自动启动。电脑关机再开机后，一般需要**重新打开一次 Ollama 应用**（除非你在系统里为它设置了开机自启）。
+
+3. **启动前自检（推荐）**  
+   在启动 uvicorn 之前执行：
+
+   ```bash
+   ollama list
+   ```
+
+   能正常打印模型列表（含 `nomic-embed-text`）即表示本机 Ollama 已就绪。也可在浏览器访问 `http://127.0.0.1:11434` 做连通性检查。
+
+4. **若仍报错连接被拒绝**
+   - 确认没有其它程序占用或篡改 Ollama 端口；若使用自定义地址，请配置环境变量 `OLLAMA_HOST`（与官方文档一致），并保证 Python 客户端能访问同一地址。
+   - 本仓库 `main.py` 已设置 `NO_PROXY`，避免 Clash 等代理把本地 Ollama 流量拐走；若 Nest/其它 Node 程序访问异常，也可在运行前设置 `NO_PROXY=127.0.0.1,localhost`。
+
 ---
 
 ### 第三步：拉取嵌入模型（只需一次，约 274MB）
@@ -77,7 +100,7 @@ ollama list
 
 ### 第四步：首次启动服务
 
-> 以下步骤只需在**第一次**运行时执行。
+> 以下 **venv 与 pip** 步骤只需在**第一次**运行时执行；之后每次开发只要：**先开 Ollama → 激活 venv → 再 `uvicorn`**。
 
 **macOS / Linux**
 
