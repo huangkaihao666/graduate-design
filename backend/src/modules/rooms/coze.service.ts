@@ -356,6 +356,24 @@ export class CozeService {
 
   // ─── Coze v1 管理 API ────────────────────────────────────────
 
+  /**
+   * Coze v1 管理接口常返回 HTTP 200 + `{ code !== 0, msg }` 业务错误；
+   * 若不校验会直接误以为 update/publish/create 已成功。
+   */
+  private assertCozeV1Success(
+    res: { data?: { code?: number; msg?: string; message?: string } },
+    ctx: string,
+  ): void {
+    const d = res?.data;
+    const code = d?.code;
+    if (typeof code !== 'number' || code === 0) return;
+    const msg =
+      (typeof d?.msg === 'string' && d.msg) ||
+      (typeof d?.message === 'string' && d.message) ||
+      'unknown error';
+    throw new Error(`${ctx}: ${msg} (Coze code=${code})`);
+  }
+
   /** 构建 v1 axios 客户端（每次按需创建，避免 getter 开销） */
   private makeV1Client(): AxiosInstance {
     return axios.create({
@@ -428,6 +446,7 @@ export class CozeService {
       };
     }
     const res = await this.makeV1Client().post('/bot/create', body);
+    this.assertCozeV1Success(res, 'Coze POST /bot/create');
     const botId = res.data?.data?.bot_id || res.data?.bot_id;
     if (!botId) throw new Error('Coze createBot: no bot_id returned');
     return String(botId);
@@ -441,6 +460,7 @@ export class CozeService {
       bot_id: botId,
       connector_ids: ['1024'],
     });
+    this.assertCozeV1Success(res, 'Coze POST /bot/publish');
     const publishedBotId = res.data?.data?.bot_id || botId;
     this.logger.log(`✅ Bot ${botId} published to API channel`);
     return String(publishedBotId);
@@ -468,9 +488,14 @@ export class CozeService {
             auto_call: true,
             search_strategy: 1,
           }
-        : { dataset_ids: [] };
+        : {
+            dataset_ids: [],
+            auto_call: true,
+            search_strategy: 1,
+          };
     }
-    await this.makeV1Client().post('/bot/update', body);
+    const res = await this.makeV1Client().post('/bot/update', body);
+    this.assertCozeV1Success(res, 'Coze POST /bot/update');
   }
 
   /**
@@ -488,6 +513,7 @@ export class CozeService {
       description: params.description || '',
       format_type: 0,
     });
+    this.assertCozeV1Success(res, 'Coze POST /datasets');
     const datasetId = res.data?.data?.dataset_id || res.data?.dataset_id;
     if (!datasetId)
       throw new Error('Coze createKnowledgeBase: no dataset_id returned');

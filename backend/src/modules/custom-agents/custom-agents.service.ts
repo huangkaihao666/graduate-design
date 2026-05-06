@@ -75,48 +75,165 @@ export class CustomAgentsService {
     return base;
   }
 
+  /** 从 Coze 报错文案中解析无效的 dataset_id（如 code 4200） */
+  private extractInvalidDatasetIdFromCozeMessage(
+    message: string,
+  ): string | null {
+    const m = message.match(/dataset_id[=](\d+)/i);
+    return m?.[1] ?? null;
+  }
+
+  /**
+   * 写入 Bot 挂载的知识库列表；若遇「dataset 不存在」(4200) 则剔除报错 ID 后重试（多为 COZE_DEFAULT_DATASET_IDS 过期）。
+   */
+  private async pushKnowledgeDatasetsToCozeWithStaleFallback(params: {
+    botId: string;
+    mergedDatasetIds: string[];
+    /** 用户自建库对应的 Coze dataset_id，若为报错 ID 则说明用户这条库失效，不重试兜底 */
+    userCozeDatasetId?: string;
+  }): Promise<void> {
+    const { botId, userCozeDatasetId } = params;
+    let ids = [...params.mergedDatasetIds];
+    const maxStrips = Math.max(ids.length + 3, 8);
+    let stripCount = 0;
+
+    for (;;) {
+      try {
+        await this.cozeService.updateBot({
+          botId,
+          knowledgeDatasetIds: ids,
+        });
+        await this.cozeService.publishBot(botId);
+        if (stripCount > 0) {
+          this.logger.warn(
+            `[syncCozeKnowledge] Bot ${botId} 在剔除无效 dataset 后已发布，剩余 dataset_ids=${ids.join(',') || '(无挂载)'}`,
+          );
+        }
+        return;
+      } catch (err: unknown) {
+        const raw = err instanceof Error ? err.message : String(err);
+        const badId = this.extractInvalidDatasetIdFromCozeMessage(raw);
+        const looksLikeStaleDataset =
+          raw.includes('4200') ||
+          /\bdoes\s+not\s+exist\b/i.test(raw) ||
+          (raw.includes('dataset_id') && raw.includes('resource'));
+
+        if (
+          userCozeDatasetId &&
+          badId &&
+          badId === userCozeDatasetId.trim() &&
+          ids.includes(badId)
+        ) {
+          throw new BadRequestException(
+            `当前绑定的自建知识库在 Coze 上不存在或无权限（dataset_id=${badId}）。请确认 COZE_SPACE_ID、COZE_API_KEY 与创建该知识库时一致；或删除本地该知识库后重新「新建知识库」再绑定。`,
+          );
+        }
+
+        if (
+          !badId ||
+          !ids.includes(badId) ||
+          !looksLikeStaleDataset ||
+          stripCount >= maxStrips
+        ) {
+          throw err;
+        }
+
+        this.logger.warn(
+          `[syncCozeKnowledge] Bot ${botId}: Coze 拒绝 dataset_id=${badId}，将从挂载列表移除并重试（请检查 .env 中 COZE_DEFAULT_DATASET_IDS 是否仍有效）`,
+        );
+        ids = ids.filter((x) => x !== badId);
+        stripCount += 1;
+
+        if (ids.length === 0) {
+          await this.cozeService.updateBot({
+            botId,
+            knowledgeDatasetIds: [],
+          });
+          await this.cozeService.publishBot(botId);
+          this.logger.warn(
+            `[syncCozeKnowledge] Bot ${botId}: 全部 dataset 均无效已清空挂载`,
+          );
+          return;
+        }
+      }
+    }
+  }
+
   /**
    * 按本地 Agent 记录的 knowledgeBaseId（含 null）合并平台默认 dataset，写入 Coze 并 publish。
    * 入库后应立即调用一次；管理员通过「智能体 / 文档」审核后也需调用（与是否在 counseling 中选它无关）。
+   *
+   * @param opts.throwOnError 为 true 时（绑定/解绑等用户操作）将 Coze API 报错抛回接口，避免出现「控制台无知识库但该接口仍 200」的假象。
    */
-  async syncCozeBotKnowledgeFromDb(botId: string): Promise<void> {
-    const agent = await this.prisma.agent.findUnique({
-      where: { id: botId },
-      select: { knowledgeBaseId: true },
-    });
-    if (!agent) {
-      this.logger.warn(`[syncCozeKnowledge] Agent ${botId} 不存在，跳过`);
-      return;
-    }
+  async syncCozeBotKnowledgeFromDb(
+    botId: string,
+    opts?: { throwOnError?: boolean },
+  ): Promise<void> {
+    const throwOnError = opts?.throwOnError ?? false;
 
-    let userCozeKb: string | undefined;
-    if (agent.knowledgeBaseId != null) {
-      const kb = await this.prisma.knowledgeBase.findUnique({
-        where: { id: agent.knowledgeBaseId },
-        select: { cozeKbId: true },
-      });
-      userCozeKb = kb?.cozeKbId;
-    }
-
-    const merged = this.mergeBotDatasetIds(userCozeKb ?? null);
     try {
-      if (merged.length > 0) {
-        await this.cozeService.updateBot({
-          botId,
-          knowledgeDatasetIds: merged,
+      const agent = await this.prisma.agent.findUnique({
+        where: { id: botId },
+        select: { knowledgeBaseId: true },
+      });
+      if (!agent) {
+        this.logger.warn(`[syncCozeKnowledge] Agent ${botId} 不存在，跳过`);
+        if (throwOnError) {
+          throw new BadRequestException('智能体不存在');
+        }
+        return;
+      }
+
+      let userCozeKb: string | undefined;
+      if (agent.knowledgeBaseId != null) {
+        const kb = await this.prisma.knowledgeBase.findUnique({
+          where: { id: agent.knowledgeBaseId },
+          select: { cozeKbId: true },
         });
-      } else {
-        this.logger.warn(
-          `[syncCozeKnowledge] Bot ${botId} 无任何 dataset（请配置 COZE_DEFAULT_DATASET_IDS 或在绑定中包含知识库）；仍尝试发布 Bot`,
+        const kid = kb?.cozeKbId?.trim();
+        if (!kid) {
+          const msg = `绑定知识库 #${agent.knowledgeBaseId} 缺少有效的 Coze 知识库标识（cozeKbId）`;
+          this.logger.warn(`[syncCozeKnowledge] Bot ${botId}: ${msg}`);
+          if (throwOnError) {
+            throw new BadRequestException(
+              `${msg}。请先在「私有知识库」列表确认已在 Coze 创建成功后再绑定；必要时删除并重建知识库。`,
+            );
+          }
+        } else {
+          userCozeKb = kid;
+        }
+      }
+
+      const merged = this.mergeBotDatasetIds(userCozeKb ?? null);
+
+      await this.pushKnowledgeDatasetsToCozeWithStaleFallback({
+        botId,
+        mergedDatasetIds: merged,
+        userCozeDatasetId: userCozeKb,
+      });
+      this.logger.log(
+        `[syncCozeKnowledge] Bot ${botId} 已完成发布（请求 datasets=${merged.length}）`,
+      );
+    } catch (err: unknown) {
+      const msgPart =
+        err instanceof Error ? err.message : typeof err === 'string' ? err : '';
+      if (throwOnError) {
+        if (err instanceof BadRequestException) {
+          throw err;
+        }
+        this.logger.error(`[syncCozeKnowledge] Bot ${botId} 抛出: ${msgPart}`);
+        throw new BadRequestException(
+          msgPart
+            ? `同步知识库到 Coze 失败：${msgPart}`
+            : '同步知识库到 Coze 失败：未知错误',
         );
       }
-      await this.cozeService.publishBot(botId);
-      this.logger.log(
-        `[syncCozeKnowledge] Bot ${botId} 已完成发布（datasets=${merged.length}）`,
-      );
-    } catch (err: any) {
+      if (err instanceof BadRequestException) {
+        this.logger.warn(`[syncCozeKnowledge] Bot ${botId}: ${err.message}`);
+        return;
+      }
       this.logger.warn(
-        `[syncCozeKnowledge] Bot ${botId}: ${err?.message ?? err}`,
+        `[syncCozeKnowledge] Bot ${botId}: ${msgPart || 'unknown error'}`,
       );
     }
   }
@@ -254,7 +371,9 @@ export class CustomAgentsService {
       },
     });
 
-    await this.syncCozeBotKnowledgeFromDb(cozeBotId);
+    await this.syncCozeBotKnowledgeFromDb(cozeBotId, {
+      throwOnError: knowledgeBaseId != null,
+    });
 
     this.achievementsService?.checkAgentAchievements(userId).catch(() => {});
     return agent;
@@ -482,7 +601,7 @@ export class CustomAgentsService {
       where: { id: agentId },
       data: { knowledgeBaseId: kbId },
     });
-    await this.syncCozeBotKnowledgeFromDb(agentId);
+    await this.syncCozeBotKnowledgeFromDb(agentId, { throwOnError: true });
     return updated;
   }
 
@@ -494,7 +613,7 @@ export class CustomAgentsService {
       where: { id: agentId },
       data: { knowledgeBaseId: null },
     });
-    await this.syncCozeBotKnowledgeFromDb(agentId);
+    await this.syncCozeBotKnowledgeFromDb(agentId, { throwOnError: true });
     return updated;
   }
 
