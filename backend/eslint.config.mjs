@@ -28,10 +28,14 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-floating-promises': 'warn',
-      '@typescript-eslint/no-unsafe-argument': 'warn',
-      '@typescript-eslint/no-unsafe-assignment': 'warn',
-      '@typescript-eslint/no-unsafe-member-access': 'warn',
-      '@typescript-eslint/no-unsafe-return': 'warn',
+      '@typescript-eslint/no-misused-promises': 'off',
+      // Prisma any、宽泛 HTTP 类型等会触发大量 unsafe-*；仅想少红点时可关掉（不碰业务代码）
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/no-unnecessary-type-assertion': 'off',
       '@typescript-eslint/require-await': 'warn',
       '@typescript-eslint/no-unused-vars': [
         'warn',

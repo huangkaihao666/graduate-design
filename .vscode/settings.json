@@ -16,6 +16,11 @@
 
   // ============ ESLint 设置 ============
   "eslint.enable": true,
+  "eslint.workingDirectories": [
+    { "pattern": "./backend" },
+    { "pattern": "./frontend-react" },
+    { "pattern": "./frontend" }
+  ],
   "eslint.run": "onSave",
   "eslint.validate": [
     "javascript",
@@ -105,15 +110,9 @@
 
   // ============ Stylelint 设置 ============
   "stylelint.enable": true,
-  "stylelint.validate": [
-    "css",
-    "scss",
-    "less",
-    "vue"
-  ],
+  "stylelint.validate": ["css", "scss", "less", "vue"],
   "stylelint.format.enable": true,
   "css.lint.compatible": false,
   "scss.lint.compatible": false,
   "less.lint.compatible": false
 }
-
