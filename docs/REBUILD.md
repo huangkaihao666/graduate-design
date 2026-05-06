@@ -338,7 +338,7 @@ uvicorn main:app --reload --port 8001               # 启动，端口 8001
 - 携带案件上下文：从结案报告跳转时自动注入案件标题 + 内容到 prompt
 - 历史消息管理：每次对话携带最近 20 条历史，保持上下文连贯
 - 会话标题自动生成（取第一条用户消息前 20 字）
-- Coze Bot 接入：bot_id `7632299425355792393`
+- Coze Bot 接入：默认情绪伙伴 `DEFAULT_COUNSELOR_BOT_ID`（见 `counseling.service.ts`，可换账号后改代码或走库中 `counselorBotId`）
 
 **前端**
 

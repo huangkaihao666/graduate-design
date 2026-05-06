@@ -11,6 +11,21 @@ import { QueryRoomDto } from './dto/query-room.dto';
 import { DebateService } from './debate.service';
 import { AchievementsService } from '@/modules/achievements/achievements.service';
 
+/** 系统默认三人：辩论编排固定为 [0][1] 前两轮辩手、[2] 仅第三轮总结；与点选顺序无关 */
+const SYSTEM_DEBATE_TRIO = ['bot_A', 'bot_B', 'bot_C'] as const;
+
+function normalizeDebateAgentsOrder(agents: string[]): string[] {
+  if (agents.length !== 3) return agents;
+  const set = new Set(agents);
+  if (
+    set.size === 3 &&
+    SYSTEM_DEBATE_TRIO.every((id) => set.has(id as string))
+  ) {
+    return [...SYSTEM_DEBATE_TRIO];
+  }
+  return agents;
+}
+
 @Injectable()
 export class RoomsService {
   constructor(
@@ -29,12 +44,14 @@ export class RoomsService {
         throw new BadRequestException('必须选择 3 个 AI Agent');
       }
 
+      const agentsOrdered = normalizeDebateAgentsOrder(data.agents);
+
       const room = await this.prisma.room.create({
         data: {
           title: data.title,
           content: data.content,
           image: data.image || null,
-          agents: JSON.stringify(data.agents),
+          agents: JSON.stringify(agentsOrdered),
           ownerId: userId,
           status: 'WAITING',
           ...(data.tagIds?.length
@@ -256,13 +273,20 @@ export class RoomsService {
     }
 
     try {
+      const agentsPayload = data.agents
+        ? normalizeDebateAgentsOrder(data.agents)
+        : undefined;
+
       const updatedRoom = await this.prisma.room.update({
         where: { id: roomId },
         data: {
           title: data.title,
           content: data.content,
           image: data.image,
-          agents: data.agents ? JSON.stringify(data.agents) : undefined,
+          agents:
+            agentsPayload !== undefined
+              ? JSON.stringify(agentsPayload)
+              : undefined,
         },
         include: {
           owner: {

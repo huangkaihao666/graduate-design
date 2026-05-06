@@ -4,6 +4,32 @@ import { CozeService } from './coze.service';
 import { RoomsGateway } from './rooms.gateway';
 import { RagService } from '@/modules/rag/rag.service';
 
+/** 内置三人：不论 rooms.agents 存储顺序，前两轮固定毒舌/温柔，第三轮固定中立 */
+const SYSTEM_DEBATE_TRIO = ['bot_A', 'bot_B', 'bot_C'] as const;
+
+function resolveRoomDebateRoles(agentIds: string[]): {
+  debaterA: string;
+  debaterB: string;
+  arbiter: string;
+} {
+  if (agentIds.length !== 3) {
+    throw new Error('辩论需要恰好 3 个智能体');
+  }
+  const set = new Set(agentIds);
+  if (set.size === 3 && SYSTEM_DEBATE_TRIO.every((id) => set.has(id))) {
+    return {
+      debaterA: 'bot_A',
+      debaterB: 'bot_B',
+      arbiter: 'bot_C',
+    };
+  }
+  return {
+    debaterA: agentIds[0],
+    debaterB: agentIds[1],
+    arbiter: agentIds[2],
+  };
+}
+
 interface DebateContext {
   roomId: number;
   currentRound: number;
@@ -59,7 +85,7 @@ export class DebateService {
     const sourceRoomId = (room as any).sourceRoomId;
     if (sourceRoomId) {
       const sourceAgents = JSON.parse(room.agents || '[]') as string[];
-      const botCId = sourceAgents[2];
+      const { arbiter: botCId } = resolveRoomDebateRoles(sourceAgents);
       if (botCId) {
         const botCMsg = await this.prisma.message.findFirst({
           where: {
@@ -115,9 +141,8 @@ export class DebateService {
   private async executeRound1(roomId: number, room: any): Promise<void> {
     this.logger.log(`🟦 Executing Round 1 for room ${roomId}`);
 
-    const agents = JSON.parse(room.agents);
-    const botA = agents[0];
-    const botB = agents[1];
+    const agents = JSON.parse(room.agents) as string[];
+    const { debaterA: botA, debaterB: botB } = resolveRoomDebateRoles(agents);
 
     // 查出双方智能体的显示名，用于立场识别和前端提示
     const [agentARecord, agentBRecord] = await Promise.all([
@@ -284,9 +309,8 @@ export class DebateService {
 
     context.currentRound = 2;
 
-    const agents = JSON.parse(room.agents);
-    const botA = agents[0];
-    const botB = agents[1];
+    const agents = JSON.parse(room.agents) as string[];
+    const { debaterA: botA, debaterB: botB } = resolveRoomDebateRoles(agents);
 
     const caseInfo = {
       title: room.title,
@@ -329,6 +353,54 @@ export class DebateService {
   }
 
   /**
+   * 第三轮裁决用的前两轮 AI 正文：优先内存（热路径），不足时从 DB 拉回（服务端重启或内存丢失时）。
+   */
+  private async resolvePriorRoundsTranscript(
+    roomId: number,
+    memoryMessages: DebateContext['messages'],
+  ): Promise<Array<{ agentId: string; content: string; roundNumber: number }>> {
+    const fromMem = memoryMessages.filter(
+      (m) =>
+        m.agentId !== 'audience' &&
+        m.roundNumber <= 2 &&
+        (m.content?.trim() ?? '').length > 0,
+    );
+
+    if (fromMem.length >= 2) {
+      return fromMem.map((m) => ({
+        agentId: m.agentId,
+        content: m.content.trim(),
+        roundNumber: m.roundNumber,
+      }));
+    }
+
+    this.logger.warn(
+      `[Round3] room ${roomId} 内存中前两轮发言不足（${fromMem.length} 条），从数据库回填`,
+    );
+    const rows = await this.prisma.message.findMany({
+      where: {
+        roomId,
+        senderType: 'AI',
+        roundNumber: { in: [1, 2] },
+      },
+      orderBy: { createdAt: 'asc' },
+      select: { botId: true, content: true, roundNumber: true },
+    });
+    return rows
+      .filter(
+        (r) =>
+          r.botId != null &&
+          String(r.botId).length > 0 &&
+          (r.content?.trim() ?? '').length > 0,
+      )
+      .map((r) => ({
+        agentId: String(r.botId),
+        content: r.content!.trim(),
+        roundNumber: Number(r.roundNumber ?? 0),
+      }));
+  }
+
+  /**
    * Round 3: Bot C 综合裁决（引用全量有效用户观点）
    */
   private async executeRound3(
@@ -343,18 +415,31 @@ export class DebateService {
 
     context.currentRound = 3;
 
-    const agents = JSON.parse(room.agents);
-    const botC = agents[2];
+    const agents = JSON.parse(room.agents) as string[];
+    const { arbiter: botC } = resolveRoomDebateRoles(agents);
 
     const caseInfo = {
       title: room.title,
       content: room.content,
     };
 
-    // Bot C 看到前两轮所有智能体发言（不含 audience 混入的旧数据）
-    const allAgentMessages = context.messages.filter(
-      (m) => m.agentId !== 'audience',
+    const allAgentMessages = await this.resolvePriorRoundsTranscript(
+      roomId,
+      context.messages,
     );
+    if (allAgentMessages.length === 0) {
+      this.logger.error(
+        `[Round3] room ${roomId} 无法取得前两轮 AI 发言（内存与数据库均为空），裁决质量可能异常`,
+      );
+    } else {
+      const transcriptChars = allAgentMessages.reduce(
+        (n, m) => n + (m.content?.length ?? 0),
+        0,
+      );
+      this.logger.log(
+        `[Round3] room ${roomId} 已拼装辩词: ${allAgentMessages.length} 条, 约 ${transcriptChars} 字`,
+      );
+    }
 
     // 全量有效观点整理为文字行传给 buildPrompt，Bot C 自行分析民意分布
     const verdictAudienceLines: string[] = [];
@@ -414,16 +499,16 @@ export class DebateService {
 
     // 将逻辑 Agent 标识映射到具体的 Coze bot_id
     const cozeBotIdMap: Record<string, string> = {
-      bot_A: '7613771804259581971', // 毒舌现实主义者
-      bot_B: '7616710739609075752', // 温柔共情者
-      bot_C: '7616712140996902922', // 理智律师
+      bot_A: '7636659414686089222', // 毒舌现实主义者
+      bot_B: '7636658687012274195', // 温柔共情者
+      bot_C: '7636659828286668835', // 中立观察者
     };
     const botId = cozeBotIdMap[agentId] || agentId;
 
     const roleDisplayMap: Record<string, string> = {
       bot_A: '毒舌现实主义者（A）',
       bot_B: '温柔共情者（B）',
-      bot_C: '理智律师（C）',
+      bot_C: '中立观察者（C）',
     };
     const roleName = roleDisplayMap[agentId] || agentId;
 
@@ -432,7 +517,7 @@ export class DebateService {
         ? 'Round1：A 先发言，B 后发言（交替）'
         : phase === 'rebuttal'
           ? 'Round2：先由 B 反驳 A，再由 A 反驳 B（交替）'
-          : 'Round3：律师 C 汇总裁决（只发一次）';
+          : 'Round3：中立观察者（C）汇总裁决（只发一次）';
 
     // 调用 Coze API（Prompt 里带轮次与阶段约束）
     // Round1 时若是续辩，注入上一场综合总结
@@ -458,22 +543,30 @@ export class DebateService {
       `📨 [room ${roomId}] round ${roundNumber} calling agent ${agentId} (botId=${botId}). Case title: ${caseInfo.title}`,
     );
 
-    await this.cozeService.streamChat(botId, prompt, (chunk) => {
-      if (chunk.kind === 'reasoning') {
-        fullReasoning += chunk.text;
-      } else {
-        fullAnswer += chunk.text;
-      }
+    await this.cozeService.streamChat(
+      botId,
+      prompt,
+      (chunk) => {
+        if (chunk.kind === 'reasoning') {
+          fullReasoning += chunk.text;
+        } else {
+          fullAnswer += chunk.text;
+        }
 
-      // 实时广播 chunk（区分 reasoning / answer）
-      this.roomsGateway.broadcastToRoom(roomId, 'messageChunk', {
-        agentId,
-        kind: chunk.kind,
-        chunk: chunk.text,
-        roomId,
-        roundNumber,
-      });
-    });
+        // 实时广播 chunk（区分 reasoning / answer）
+        this.roomsGateway.broadcastToRoom(roomId, 'messageChunk', {
+          agentId,
+          kind: chunk.kind,
+          chunk: chunk.text,
+          roomId,
+          roundNumber,
+        });
+      },
+      {
+        userId: `debate_r${roomId}_agent_${agentId}`,
+        autoSaveHistory: false,
+      },
+    );
 
     // 保存完整消息到上下文
     debateContext.messages.push({

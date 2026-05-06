@@ -39,11 +39,25 @@ export class CozeService {
     botId: string,
     prompt: string,
     onChunk: (chunk: { kind: 'reasoning' | 'answer'; text: string }) => void,
+    options?: {
+      /** 与 Coze 侧会话绑定；辩论场景必须按房间隔离，避免多房间共用同一上下文 */
+      userId?: string;
+      /**
+       * 辩论每轮 prompt 已含完整案件与发言，切勿与历史合并，否则易串线或触发错误工作流。
+       * 默认 false：无状态单次任务。
+       */
+      autoSaveHistory?: boolean;
+    },
   ): Promise<void> {
+    const userId =
+      options?.userId ??
+      `coze_once_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    const autoSaveHistory = options?.autoSaveHistory ?? false;
+
     // 打印本次调用概要和 Prompt 片段，方便调试
     const preview = prompt.length > 200 ? `${prompt.slice(0, 200)}...` : prompt;
     this.logger.log(
-      `🛰️ Calling Coze API for bot ${botId}. Prompt preview: ${preview}`,
+      `🛰️ Calling Coze API for bot ${botId} (user_id=${userId}, auto_save_history=${autoSaveHistory}). Prompt preview: ${preview}`,
     );
 
     try {
@@ -51,9 +65,9 @@ export class CozeService {
         '/chat',
         {
           bot_id: botId,
-          user_id: 'debate_room_user',
+          user_id: userId,
           stream: true,
-          auto_save_history: true,
+          auto_save_history: autoSaveHistory,
           additional_messages: [
             {
               role: 'user',
@@ -79,15 +93,35 @@ export class CozeService {
           buffer = lines.pop() || '';
 
           for (const line of lines) {
+            if (line.trim().startsWith('data:')) {
+              try {
+                const payload = JSON.parse(line.trim().slice(5).trim());
+                if (payload?.status === 'failed') {
+                  const errMsg = payload?.last_error?.msg || 'Coze 对话失败';
+                  const errCode = payload?.last_error?.code;
+                  reject(
+                    new Error(
+                      errCode === 4013 ? '请求过于频繁，请稍后再试' : errMsg,
+                    ),
+                  );
+                  return;
+                }
+              } catch {
+                /* ignore */
+              }
+            }
+          }
+
+          for (const line of lines) {
             const trimmed = line.trim();
             if (!trimmed || !trimmed.startsWith('data:')) continue;
 
             const jsonStr = trimmed.slice(5).trim();
             try {
               const payload = JSON.parse(jsonStr);
-              // 过滤掉 verbose / follow_up 等非答案内容
               const msgType = String(payload?.type || '');
-              if (msgType && msgType !== 'answer') {
+              // 跳过典型噪声；follow_up 多为追问引导，混入会污染辩论正文入库
+              if (msgType === 'verbose' || msgType === 'follow_up') {
                 continue;
               }
 
@@ -128,6 +162,48 @@ export class CozeService {
         });
 
         stream.on('end', () => {
+          if (buffer.trim()) {
+            const tail = buffer;
+            buffer = '';
+            for (const line of tail.split('\n')) {
+              const trimmed = line.trim();
+              if (!trimmed || !trimmed.startsWith('data:')) continue;
+              const jsonStr = trimmed.slice(5).trim();
+              try {
+                const payload = JSON.parse(jsonStr);
+                const msgType = String(payload?.type || '');
+                if (msgType === 'verbose' || msgType === 'follow_up') continue;
+                const msgId = String(payload?.id || '');
+                if (
+                  typeof payload?.reasoning_content === 'string' &&
+                  payload.reasoning_content
+                ) {
+                  onChunk({
+                    kind: 'reasoning',
+                    text: payload.reasoning_content,
+                  });
+                  chunkCount += 1;
+                }
+                if (typeof payload?.content === 'string' && payload.content) {
+                  const isCompletedPayload =
+                    !!payload?.created_at || !!payload?.time_cost;
+                  const hasDelta = msgId
+                    ? (hasAnswerDeltaByMsgId.get(msgId) ?? false)
+                    : false;
+                  if (!isCompletedPayload) {
+                    onChunk({ kind: 'answer', text: payload.content });
+                    if (msgId) hasAnswerDeltaByMsgId.set(msgId, true);
+                    chunkCount += 1;
+                  } else if (!hasDelta) {
+                    onChunk({ kind: 'answer', text: payload.content });
+                    chunkCount += 1;
+                  }
+                }
+              } catch {
+                /* ignore */
+              }
+            }
+          }
           this.logger.log(
             `✅ Finished streaming for bot ${botId}. Total chunks: ${chunkCount}`,
           );
@@ -520,6 +596,18 @@ export class CozeService {
   ): string {
     const maxChars = meta.maxChars ?? 900;
 
+    // ── 综合总结：辩词必须排在案情之前，避免 Coze 侧知识库/工作流把长篇「背景」当成主输入而忽略后续辩词 ──
+    if (meta.phase === 'verdict') {
+      return this.buildVerdictPrompt(
+        caseInfo,
+        context,
+        agentRole,
+        meta.roundNumber,
+        maxChars,
+        audienceOpinions,
+      );
+    }
+
     // ── 角色与任务定义 ──────────────────────────────────────────────────
     const isReDabete = !!previousSummary;
     let prompt = `你是多智能体辩论系统中的「${agentRole}」，正在参与一场真实的辩论。\n`;
@@ -573,40 +661,71 @@ export class CozeService {
         });
         prompt += `\n`;
       }
-    } else if (meta.phase === 'verdict') {
-      const hasAudience = audienceOpinions && audienceOpinions.length > 0;
-
-      prompt += `【当前阶段：Round ${meta.roundNumber} · 综合总结】\n`;
-      prompt += `你是本场辩论的中立观察者，需要综合以下所有信息给出客观的综合总结：\n`;
-      prompt += `  ① 用各自的名字称呼前两位 AI，归纳他们在前两轮的核心观点与局限，不要用"A方""B方"代替；\n`;
-      if (hasAudience) {
-        prompt += `  ② 结合下方观众的真实民意分布（支持哪方人数更多、代表性观点是什么）；\n`;
-        prompt += `  ③ 给出你的综合建议，帮助用户看清问题全貌，语言贴近大学生。\n`;
-      } else {
-        prompt += `  ② 本场没有观众民意数据，请只基于双方辩论内容给出综合总结，不要自行编造观众声音或假设民意倾向。\n`;
-      }
-      prompt += `字数控制在 ${maxChars} 字以内，语言平和客观，说人话，避免官话套话。\n\n`;
-
-      // 前两轮所有智能体发言
-      const agentContext = context.filter((m) => m.agentId !== 'audience');
-      if (agentContext.length > 0) {
-        prompt += `【前两轮辩论记录】：\n`;
-        agentContext.forEach((msg, index) => {
-          prompt += `${index + 1}. Round${msg.roundNumber ?? '?'} 「${msg.agentId}」：${msg.content}\n`;
-        });
-        prompt += `\n`;
-      }
-
-      // 全量有效观众观点（有才渲染，没有绝不提）
-      if (hasAudience) {
-        prompt += `【观众真实声音】（系统已过滤灌水，立场未预先标注；请你自行判断各观点的倾向，在裁决中引用并说明民意分布）：\n`;
-        audienceOpinions!.forEach((line, index) => {
-          prompt += `${index + 1}. ${line}\n`;
-        });
-        prompt += `\n`;
-      }
     }
 
+    return prompt;
+  }
+
+  /** Round3：材料顺序对工作流/KB 展示敏感；辩词与观众优先，案情后置并可截断。 */
+  private buildVerdictPrompt(
+    caseInfo: { title: string; content: string },
+    context: Array<{ agentId: string; content: string; roundNumber?: number }>,
+    agentRole: string,
+    roundNumber: number,
+    maxChars: number,
+    audienceOpinions?: string[],
+  ): string {
+    const hasAudience = !!audienceOpinions?.length;
+    const caseMaxChars = 12_000;
+    const rawCase = caseInfo.content ?? '';
+    const caseBody =
+      rawCase.length > caseMaxChars
+        ? `${rawCase.slice(0, caseMaxChars)}\n\n（案情背景过长已截断；写总结时以前面【前两轮辩论记录】编号发言为主。）`
+        : rawCase;
+
+    const agentContext = context.filter(
+      (m) => m.agentId !== 'audience' && (m.roundNumber ?? 99) <= 2,
+    );
+
+    let prompt = `你是多智能体辩论系统中的「${agentRole}」。\n\n`;
+    prompt +=
+      `【平台说明】本条为辩论系统单次下发的完整任务单。若客户端还展示了「引用知识库/引用资料」等块，那是检索 UI，不能替代下方【前两轮辩论记录】。` +
+      `案情里的法条是「辩题材料」，不是「辩词」；只要【前两轮辩论记录】下列出了带编号的发言正文，就必须基于其写满综合总结，禁止以「只有法条、没有辩论记录」「输入不完整」为由拒答。\n\n`;
+
+    prompt += `【当前阶段：Round ${roundNumber} · 综合总结】\n`;
+    prompt += `你是本场辩论的中立观察者，需要综合以下信息给出客观的综合总结：\n`;
+    prompt += `  ① 用各自的名字称呼前两位 AI，归纳他们在前两轮的核心观点与局限，不要用"A方""B方"代替；\n`;
+    if (hasAudience) {
+      prompt += `  ② 结合下方观众的真实民意分布（支持哪方人数更多、代表性观点是什么）；\n`;
+      prompt += `  ③ 给出你的综合建议，帮助用户看清问题全貌，语言贴近大学生。\n`;
+    } else {
+      prompt += `  ② 本场没有观众民意数据，请只基于双方辩论内容给出综合总结，不要自行编造观众声音或假设民意倾向。\n`;
+    }
+    prompt += `字数控制在 ${maxChars} 字以内，语言平和客观，说人话，避免官话套话。\n\n`;
+
+    if (agentContext.length > 0) {
+      prompt += `【前两轮辩论记录】（以下编号内容即双方辩手正式发言全文，请逐条消化后再总结）：\n`;
+      agentContext.forEach((msg, index) => {
+        prompt += `${index + 1}. Round${msg.roundNumber ?? '?'} 「${msg.agentId}」：${msg.content}\n`;
+      });
+      prompt += `\n`;
+    } else {
+      prompt += `【前两轮辩论记录】：（空）系统未附带任何可读辩词。请仅简短说明无法裁决，不要编造辩论内容。\n\n`;
+    }
+
+    if (hasAudience) {
+      prompt += `【观众真实声音】（系统已过滤灌水，立场未预先标注；请你自行判断各观点的倾向，在裁决中引用并说明民意分布）：\n`;
+      audienceOpinions!.forEach((line, index) => {
+        prompt += `${index + 1}. ${line}\n`;
+      });
+      prompt += `\n`;
+    }
+
+    prompt += `【辩题与案情材料】（供对照，不是单独的法律咨询提问）\n`;
+    prompt += `- 标题：${caseInfo.title}\n`;
+    prompt += `- 背景：${caseBody}\n\n`;
+
+    prompt += `请根据以上【前两轮辩论记录】、案情与观众意见（若有）直接输出综合总结正文，不要输出自我怀疑、不要复述本任务单的元讨论。\n`;
     return prompt;
   }
 
@@ -725,7 +844,7 @@ ${lastMemory}
   }
 
   private async callChatOnce(userMessage: string): Promise<string> {
-    const botId = process.env.COZE_SUMMARY_BOT_ID || '7632299425355792393';
+    const botId = process.env.COZE_SUMMARY_BOT_ID || '7636661027257942035';
     return this.callChatOnceWithBot(botId, userMessage);
   }
 
