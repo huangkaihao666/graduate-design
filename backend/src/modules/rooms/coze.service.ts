@@ -694,7 +694,7 @@ export class CozeService {
 
     prompt += `【当前阶段：Round ${roundNumber} · 综合总结】\n`;
     prompt += `你是本场辩论的中立观察者，需要综合以下信息给出客观的综合总结：\n`;
-    prompt += `  ① 用各自的名字称呼前两位 AI，归纳他们在前两轮的核心观点与局限，不要用"A方""B方"代替；\n`;
+    prompt += `  ① 用辩手展示名称呼前两位 AI（见下方记录每行前的「」内名称），归纳其核心观点与局限；正文中禁止出现 bot_A、bot_B、bot_C 等技术编号，也禁止写「支持 bot_A 的观众」这类表述，须写「支持毒舌现实主义者的观众」「支持温柔共情者的观众」等；不要用"A方""B方"代替。\n`;
     if (hasAudience) {
       prompt += `  ② 结合下方观众的真实民意分布（支持哪方人数更多、代表性观点是什么）；\n`;
       prompt += `  ③ 给出你的综合建议，帮助用户看清问题全貌，语言贴近大学生。\n`;
@@ -706,7 +706,8 @@ export class CozeService {
     if (agentContext.length > 0) {
       prompt += `【前两轮辩论记录】（以下编号内容即双方辩手正式发言全文，请逐条消化后再总结）：\n`;
       agentContext.forEach((msg, index) => {
-        prompt += `${index + 1}. Round${msg.roundNumber ?? '?'} 「${msg.agentId}」：${msg.content}\n`;
+        const who = this.formatVerdictSpeakerDisplayName(msg.agentId);
+        prompt += `${index + 1}. Round${msg.roundNumber ?? '?'} 「${who}」：${msg.content}\n`;
       });
       prompt += `\n`;
     } else {
@@ -727,6 +728,16 @@ export class CozeService {
 
     prompt += `请根据以上【前两轮辩论记录】、案情与观众意见（若有）直接输出综合总结正文，不要输出自我怀疑、不要复述本任务单的元讨论。\n`;
     return prompt;
+  }
+
+  /** 第三轮总结里统一使用人类可读辩手名（与系统内置 Bot 一致）；自建智能体保持原 id 由 Coze 人设理解 */
+  private formatVerdictSpeakerDisplayName(agentId: string): string {
+    const m: Record<string, string> = {
+      bot_A: '毒舌现实主义者',
+      bot_B: '温柔共情者',
+      bot_C: '中立观察者',
+    };
+    return m[agentId] ?? agentId;
   }
 
   /**

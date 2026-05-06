@@ -53,6 +53,85 @@ export class CustomAgentsService {
     return this.cachedSpaceId;
   }
 
+  /**
+   * 与 `/counseling` 默认情绪伙伴一致的平台兜底知识库（Coze dataset_id 列表）。
+   * 对应环境变量 `COZE_DEFAULT_DATASET_IDS`（逗号分隔）；自建智能体创建/解绑后会始终尝试保留。
+   */
+  private getCounselingFallbackDatasetIds(): string[] {
+    const raw = (process.env.COZE_DEFAULT_DATASET_IDS || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    return raw;
+  }
+
+  /** 默认情绪伙伴 dataset + 用户自建知识库 dataset（去重）；用于 Coze Bot 挂载 */
+  private mergeBotDatasetIds(userCozeDatasetId?: string | null): string[] {
+    const base = [...this.getCounselingFallbackDatasetIds()];
+    const extra = userCozeDatasetId?.trim();
+    if (!extra) return base;
+    const seen = new Set(base);
+    if (!seen.has(extra)) base.push(extra);
+    return base;
+  }
+
+  /**
+   * 按本地 Agent 记录的 knowledgeBaseId（含 null）合并平台默认 dataset，写入 Coze 并 publish。
+   * 入库后应立即调用一次；管理员通过「智能体 / 文档」审核后也需调用（与是否在 counseling 中选它无关）。
+   */
+  async syncCozeBotKnowledgeFromDb(botId: string): Promise<void> {
+    const agent = await this.prisma.agent.findUnique({
+      where: { id: botId },
+      select: { knowledgeBaseId: true },
+    });
+    if (!agent) {
+      this.logger.warn(`[syncCozeKnowledge] Agent ${botId} 不存在，跳过`);
+      return;
+    }
+
+    let userCozeKb: string | undefined;
+    if (agent.knowledgeBaseId != null) {
+      const kb = await this.prisma.knowledgeBase.findUnique({
+        where: { id: agent.knowledgeBaseId },
+        select: { cozeKbId: true },
+      });
+      userCozeKb = kb?.cozeKbId;
+    }
+
+    const merged = this.mergeBotDatasetIds(userCozeKb ?? null);
+    try {
+      if (merged.length > 0) {
+        await this.cozeService.updateBot({
+          botId,
+          knowledgeDatasetIds: merged,
+        });
+      } else {
+        this.logger.warn(
+          `[syncCozeKnowledge] Bot ${botId} 无任何 dataset（请配置 COZE_DEFAULT_DATASET_IDS 或在绑定中包含知识库）；仍尝试发布 Bot`,
+        );
+      }
+      await this.cozeService.publishBot(botId);
+      this.logger.log(
+        `[syncCozeKnowledge] Bot ${botId} 已完成发布（datasets=${merged.length}）`,
+      );
+    } catch (err: any) {
+      this.logger.warn(
+        `[syncCozeKnowledge] Bot ${botId}: ${err?.message ?? err}`,
+      );
+    }
+  }
+
+  /** 知识文档审核通过后，刷新绑定该知识库的自建 Agent，使 Coze 侧可见新入库文档 */
+  async syncCozeBotKnowledgeForAgentsBoundToKb(kbId: number): Promise<void> {
+    const agents = await this.prisma.agent.findMany({
+      where: { knowledgeBaseId: kbId, isSystem: false },
+      select: { id: true },
+    });
+    for (const { id } of agents) {
+      await this.syncCozeBotKnowledgeFromDb(id);
+    }
+  }
+
   // ─── 我的智能体列表 ──────────────────────────────────────────
 
   async getMyAgents(userId: number) {
@@ -122,14 +201,21 @@ export class CustomAgentsService {
   async createAgent(userId: number, dto: CreateCustomAgentDto) {
     const spaceId = await this.resolveSpaceId();
 
-    // 默认挂载平台情绪伙伴的知识库（本科生手册、心理健康、就业政策等），
-    // 让用户自建智能体开箱即用，无需自己找知识库
-    const defaultDatasetIds = (process.env.COZE_DEFAULT_DATASET_IDS || '')
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
+    let knowledgeBaseId: number | undefined;
+    if (
+      dto.knowledgeBaseId != null &&
+      Number.isFinite(Number(dto.knowledgeBaseId))
+    ) {
+      const kb = await this.prisma.knowledgeBase.findUnique({
+        where: { id: dto.knowledgeBaseId },
+      });
+      if (!kb || kb.userId !== userId) {
+        throw new ForbiddenException('无权使用该知识库');
+      }
+      knowledgeBaseId = kb.id;
+    }
 
-    // 1. 在 Coze 创建 Bot（草稿态），同时挂载默认知识库
+    // 1. 在 Coze 创建草稿 Bot（不在此步挂 knowledge，避免与「入库后 snapshot」不一致）
     let cozeBotId: string;
     try {
       cozeBotId = await this.cozeService.createBot({
@@ -138,9 +224,6 @@ export class CustomAgentsService {
         description: dto.description,
         prompt: dto.prompt,
         onboardingPrologue: `你好，我是 ${dto.name}，很高兴为你服务！`,
-        knowledgeDatasetIds: defaultDatasetIds.length
-          ? defaultDatasetIds
-          : undefined,
       });
     } catch (err: any) {
       this.logger.error(`Coze createBot failed: ${err?.message}`);
@@ -149,15 +232,7 @@ export class CustomAgentsService {
       );
     }
 
-    // 2. 发布到 API 渠道（connector_id=1024），让 bot 可通过 /v3/chat 调用
-    try {
-      await this.cozeService.publishBot(cozeBotId);
-    } catch (err: any) {
-      // 发布失败不阻断创建流程，只记录警告
-      this.logger.warn(`Coze publishBot failed (non-fatal): ${err?.message}`);
-    }
-
-    // 3. 写入本地数据库
+    // 2. 写入本地数据库
     const status = dto.isPublic ? 'PENDING' : 'PRIVATE';
     const agent = await this.prisma.agent.create({
       data: {
@@ -172,11 +247,14 @@ export class CustomAgentsService {
         isPublic: dto.isPublic ?? false,
         status,
         creatorId: userId,
+        knowledgeBaseId: knowledgeBaseId ?? null,
         winRate: 0.5,
         participateCount: 0,
         fans: 0,
       },
     });
+
+    await this.syncCozeBotKnowledgeFromDb(cozeBotId);
 
     this.achievementsService?.checkAgentAchievements(userId).catch(() => {});
     return agent;
@@ -295,28 +373,18 @@ export class CustomAgentsService {
     if (!kb) throw new NotFoundException('知识库不存在');
     if (kb.userId !== userId) throw new ForbiddenException('无权操作此知识库');
 
-    // 1. 解绑所有绑定了该知识库的智能体，并同步更新 Coze Bot
+    // 1. 解绑本地绑定关系，再按 DB 快照重新同步 Coze（仅剩平台默认 dataset）
     const boundAgents = await this.prisma.agent.findMany({
       where: { knowledgeBaseId: kbId },
       select: { id: true },
     });
-    for (const agent of boundAgents) {
-      try {
-        await this.cozeService.updateBot({
-          botId: agent.id,
-          knowledgeDatasetIds: [],
-        });
-        await this.cozeService.publishBot(agent.id);
-      } catch (err: any) {
-        this.logger.warn(
-          `Coze unbind KB on delete failed (non-fatal): ${err?.message}`,
-        );
-      }
-    }
     await this.prisma.agent.updateMany({
       where: { knowledgeBaseId: kbId },
       data: { knowledgeBaseId: null },
     });
+    for (const { id } of boundAgents) {
+      await this.syncCozeBotKnowledgeFromDb(id);
+    }
 
     // 2. 删除 Coze 上的知识库（非阻塞）
     this.cozeService.deleteKnowledgeBase(kb.cozeKbId).catch(() => {});
@@ -410,44 +478,24 @@ export class CustomAgentsService {
     if (!kb || kb.userId !== userId)
       throw new ForbiddenException('无权操作此知识库');
 
-    // 同步绑定到 Coze Bot，并重新发布
-    try {
-      await this.cozeService.updateBot({
-        botId: agentId,
-        knowledgeDatasetIds: [kb.cozeKbId],
-      });
-      await this.cozeService.publishBot(agentId);
-      this.logger.log(
-        `Bot ${agentId} bound to KB ${kb.cozeKbId} and republished`,
-      );
-    } catch (err: any) {
-      this.logger.warn(`Coze bind KB failed (non-fatal): ${err?.message}`);
-    }
-
-    return this.prisma.agent.update({
+    const updated = await this.prisma.agent.update({
       where: { id: agentId },
       data: { knowledgeBaseId: kbId },
     });
+    await this.syncCozeBotKnowledgeFromDb(agentId);
+    return updated;
   }
 
-  /** 解绑知识库 */
+  /** 解绑用户自建知识库；保留平台默认「AI 情绪伙伴」知识库 dataset */
   async unbindKnowledgeBase(agentId: string, userId: number) {
     await this.ensureOwner(agentId, userId);
 
-    try {
-      await this.cozeService.updateBot({
-        botId: agentId,
-        knowledgeDatasetIds: [],
-      });
-      await this.cozeService.publishBot(agentId);
-    } catch (err: any) {
-      this.logger.warn(`Coze unbind KB failed (non-fatal): ${err?.message}`);
-    }
-
-    return this.prisma.agent.update({
+    const updated = await this.prisma.agent.update({
       where: { id: agentId },
       data: { knowledgeBaseId: null },
     });
+    await this.syncCozeBotKnowledgeFromDb(agentId);
+    return updated;
   }
 
   // ─── 内部辅助 ────────────────────────────────────────────────

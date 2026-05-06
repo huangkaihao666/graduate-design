@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { RoomsGateway } from '@/modules/rooms/rooms.gateway';
 import { CozeService } from '@/modules/rooms/coze.service';
+import { CustomAgentsService } from '@/modules/custom-agents/custom-agents.service';
 
 @Injectable()
 export class AdminService {
@@ -9,6 +10,7 @@ export class AdminService {
     private readonly prisma: PrismaService,
     private readonly roomsGateway: RoomsGateway,
     private readonly cozeService: CozeService,
+    private readonly customAgentsService: CustomAgentsService,
   ) {}
 
   async getRooms(params: {
@@ -564,6 +566,11 @@ export class AdminService {
         .catch(() => {});
     }
 
+    // 智能体公开通过后：与创建时一致再次合并默认知识库 + 已绑自建库并发布（不依赖「先有 counseling 选用」）
+    await this.customAgentsService
+      .syncCozeBotKnowledgeFromDb(agentId)
+      .catch(() => {});
+
     return { success: true };
   }
 
@@ -863,6 +870,11 @@ export class AdminService {
           roomId: null,
         },
       })
+      .catch(() => {});
+
+    // 文档进入 Coze dataset 后：刷新所有绑定了该库的自建 Bot（含平台默认 dataset 合并）
+    await this.customAgentsService
+      .syncCozeBotKnowledgeForAgentsBoundToKb(kb.id)
       .catch(() => {});
 
     return { success: true };

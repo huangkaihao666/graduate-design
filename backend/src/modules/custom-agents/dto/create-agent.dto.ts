@@ -1,4 +1,10 @@
-import { IsString, IsOptional, IsBoolean, MaxLength } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsBoolean,
+  MaxLength,
+  IsInt,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateCustomAgentDto {
@@ -33,6 +39,14 @@ export class CreateCustomAgentDto {
   @IsOptional()
   @IsString()
   domains?: string;
+
+  @ApiPropertyOptional({
+    description:
+      '可选：绑定当前用户自建知识库（Coze dataset）；创建后会与平台默认「AI 情绪伙伴」知识库合并挂载',
+  })
+  @IsOptional()
+  @IsInt()
+  knowledgeBaseId?: number;
 
   @ApiPropertyOptional({ description: '是否公开（申请审核）', default: false })
   @IsOptional()
