@@ -126,11 +126,51 @@ export class CounselingService {
       ?.checkCounselingAchievements(userId)
       .catch(() => {});
 
-    // 立即异步生成开场白，基于已有的历史记忆（不等当前归档完成）
-    // 归档是异步的，开场白检索的是之前已归档的会话，两者互不阻塞
-    this.generateOpeningMessage(session.id, userId, data).catch(() => {});
+    // 同步写入首条开场白，避免前端长时间空消息 + 骨架屏；RAG/Coze 个性化在后台再更新同一条
+    const immediateOpening =
+      data.roomId && data.roomTitle
+        ? `我看到你刚经历了一场关于「${data.roomTitle}」的辩论，现在感觉怎么样？有什么想聊的吗？`
+        : '你好！很高兴见到你。今天有什么想聊的吗？无论什么都可以说说。';
 
-    return session;
+    const openingRow = await (this.prisma as any).counselingMessage.create({
+      data: {
+        sessionId: session.id,
+        role: 'ASSISTANT',
+        content: immediateOpening,
+      },
+    });
+
+    if (!data.roomId || !data.roomTitle) {
+      this.maybePersonalizeOpeningFromMemory(
+        session.id,
+        userId,
+        openingRow.id,
+      ).catch(() => {});
+    }
+
+    return {
+      id: session.id,
+      title: session.title || '新的对话',
+      summary: session.summary ?? undefined,
+      status: session.status,
+      createdAt: session.createdAt,
+      updatedAt: session.updatedAt,
+      roomId: session.roomId ?? undefined,
+      roomTitle: session.roomTitle ?? undefined,
+      sentimentRecordId: session.sentimentRecordId ?? undefined,
+      counselorBotId: session.counselorBotId,
+      counselorName: session.counselorName || DEFAULT_COUNSELOR_NAME,
+      messageCount: 1,
+      messages: [
+        {
+          id: openingRow.id,
+          sessionId: session.id,
+          role: openingRow.role,
+          content: openingRow.content,
+          createdAt: openingRow.createdAt,
+        },
+      ],
+    };
   }
 
   /**
@@ -152,53 +192,51 @@ export class CounselingService {
   }
 
   /**
-   * 冷启动开场白：新建会话后立即生成，前端加载消息列表时直接看到共情师已开口。
-   *
-   * 策略：
-   *   - 有历史记忆（>0 条摘要）→ 检索最近相关记忆，生成关心语句
-   *   - 关联案件上下文      → 结合案件内容开场
-   *   - 第一次使用          → 固定欢迎语
+   * 老用户：在已有默认开场白之后，用 RAG + Coze 覆盖首条消息（较慢，走后台）。
+   * 关联案件会话不会调用本方法。
    */
-  private async generateOpeningMessage(
+  private async maybePersonalizeOpeningFromMemory(
     sessionId: number,
     userId: number,
-    data: { roomId?: number; roomTitle?: string },
+    openingMessageId: number,
   ) {
-    let opening =
-      '你好！很高兴见到你。今天有什么想聊的吗？无论什么都可以说说。';
-
     try {
-      if (data.roomId && data.roomTitle) {
-        // 关联案件：结合案件内容开场
-        opening = `我看到你刚经历了一场关于「${data.roomTitle}」的辩论，现在感觉怎么样？有什么想聊的吗？`;
-      } else {
-        // 检索历史记忆，判断是否是老用户
-        const memories = await this.ragService.searchMemories(
-          userId,
-          '最近的状态',
-          1,
-        );
-        if (memories.length > 0) {
-          // 有历史记忆：生成关心语句
-          const lastMemory = memories[0];
-          opening =
-            (await this.cozeService.generateOpening(lastMemory)) ??
-            `上次我们聊了一些事情，最近怎么样了？`;
-        }
+      const memories = await this.ragService.searchMemories(
+        userId,
+        '最近的状态',
+        1,
+      );
+      if (memories.length === 0) return;
+
+      const lastMemory = memories[0];
+      const opening =
+        (await this.cozeService.generateOpening(lastMemory)) ??
+        `上次我们聊了一些事情，最近怎么样了？`;
+
+      const count = await (this.prisma as any).counselingMessage.count({
+        where: { sessionId },
+      });
+      if (count !== 1) return;
+
+      const first = await (this.prisma as any).counselingMessage.findFirst({
+        where: { sessionId },
+        orderBy: { createdAt: 'asc' },
+      });
+      if (
+        !first ||
+        first.id !== openingMessageId ||
+        first.role !== 'ASSISTANT'
+      ) {
+        return;
       }
+
+      await (this.prisma as any).counselingMessage.update({
+        where: { id: openingMessageId },
+        data: { content: opening },
+      });
     } catch {
-      // 生成失败静默降级为默认欢迎语
+      // 保留默认欢迎语
     }
-
-    // 写入前检查：若用户已经先发消息了（比开场白生成更快），则不写入开场白
-    const existingCount = await (this.prisma as any).counselingMessage.count({
-      where: { sessionId },
-    });
-    if (existingCount > 0) return;
-
-    await (this.prisma as any).counselingMessage.create({
-      data: { sessionId, role: 'ASSISTANT', content: opening },
-    });
   }
 
   async getMessages(sessionId: number, userId: number) {

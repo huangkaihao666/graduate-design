@@ -77,6 +77,7 @@ export const Counseling: React.FC = () => {
   const inputRef = useRef<any>(null)
   const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const autoCreatedRef = useRef(false)
+  const openingRefreshCleanupRef = useRef<(() => void) | null>(null)
 
   // 从结案报告跳转携带的 roomId
   const roomIdFromReport = searchParams.get('roomId')
@@ -85,6 +86,12 @@ export const Counseling: React.FC = () => {
   useEffect(() => {
     loadSessions()
     loadAvailableAgents()
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      openingRefreshCleanupRef.current?.()
+    }
   }, [])
 
   // 携带案件参数跳转过来时，自动用默认情绪伙伴创建会话（不弹选择器）
@@ -102,8 +109,9 @@ export const Counseling: React.FC = () => {
         })
         setSessions((prev) => [newSession, ...prev])
         setActiveSession(newSession)
-        setMessages([])
-        pollForOpening(newSession.id)
+        const initial = newSession.messages
+        setMessages(initial ?? [])
+        pollForOpening(newSession.id, { skipImmediate: !!initial?.length })
         setTimeout(() => inputRef.current?.focus(), 100)
       } catch {
         // 静默失败，用户仍可手动创建
@@ -151,36 +159,32 @@ export const Counseling: React.FC = () => {
     }
   }
 
-  // 新建会话后轮询等待开场白，每 1 秒检查一次，最多等 10 秒
-  // 用 ref 追踪"用户是否已主动发消息"，发过消息后立即停止轮询，避免覆盖流式状态
+  // 开场白后台个性化（RAG+Coze）可能晚于首屏：在不大块骨架的前提下做少量延迟刷新
   const userHasSentRef = useRef(false)
-  const pollForOpening = useCallback((sessionId: number) => {
-    userHasSentRef.current = false
-    let attempts = 0
-    const maxAttempts = 6
-    const timer = setInterval(async () => {
-      // 用户已发消息，停止轮询，不再覆盖 messages
-      if (userHasSentRef.current) {
-        clearInterval(timer)
-        return
+  const pollForOpening = useCallback(
+    (sessionId: number, options?: { skipImmediate?: boolean }) => {
+      openingRefreshCleanupRef.current?.()
+      userHasSentRef.current = false
+      const timers: ReturnType<typeof setTimeout>[] = []
+      const run = async () => {
+        if (userHasSentRef.current) return
+        try {
+          const data = await counselingApi.getMessages(sessionId)
+          if (data.some((m) => m.role === 'USER')) return
+          if (data.length > 0) setMessages(data)
+        } catch {
+          /* ignore */
+        }
       }
-      attempts++
-      try {
-        const data = await counselingApi.getMessages(sessionId)
-        // 只有纯 ASSISTANT 消息（开场白）才更新，有 USER 消息说明用户已开始聊，停止
-        if (data.length > 0 && data.every(m => m.role === 'ASSISTANT')) {
-          setMessages(data)
-          clearInterval(timer)
-          return
-        }
-        if (data.some(m => m.role === 'USER')) {
-          clearInterval(timer)
-          return
-        }
-      } catch { /* ignore */ }
-      if (attempts >= maxAttempts) clearInterval(timer)
-    }, 1000)
-  }, [])
+      if (!options?.skipImmediate) {
+        void run()
+      }
+      timers.push(setTimeout(run, 2300))
+      timers.push(setTimeout(run, 4800))
+      openingRefreshCleanupRef.current = () => timers.forEach(clearTimeout)
+    },
+    []
+  )
 
   const handleSelectSession = (session: Session) => {
     setActiveSession(session)
@@ -201,8 +205,9 @@ export const Counseling: React.FC = () => {
       })
       setSessions((prev) => [newSession, ...prev])
       setActiveSession(newSession)
-      setMessages([])
-      pollForOpening(newSession.id)
+      const initial = newSession.messages
+      setMessages(initial ?? [])
+      pollForOpening(newSession.id, { skipImmediate: !!initial?.length })
       if (quickTopic) {
         setInputValue(quickTopic + '，')
         setTimeout(() => inputRef.current?.focus(), 100)
@@ -574,11 +579,12 @@ export const Counseling: React.FC = () => {
             ))}
           </div>
         ) : messages.length === 0 ? (
-          // 等后端开场白生成，统一用骨架屏，避免硬编码占位文案和 RAG 开场白切换造成割裂
-          <div className="messages-loading">
-            <div className="message-skeleton">
-              <Skeleton avatar active paragraph={{ rows: 2 }} />
+          // 极少情况：未带 messages 的旧接口或异常，轻量提示（避免长时间大块骨架屏）
+          <div className="messages-loading messages-loading-placeholder">
+            <div className="message-skeleton message-skeleton-lite">
+              <Skeleton avatar active paragraph={{ rows: 1 }} />
             </div>
+            <p className="opening-wait-hint">正在准备开场白…</p>
           </div>
         ) : (
           messages.map((msg) => (

@@ -13,6 +13,8 @@ export interface Session {
   counselorBotId?: string | null
   counselorName?: string
   messageCount?: number
+  /** 创建会话时由后端一并返回首条开场白，避免前端空消息轮询 */
+  messages?: CounselingMessage[]
 }
 
 export interface CounselingMessage {
