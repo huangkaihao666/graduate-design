@@ -76,6 +76,8 @@ export const Counseling: React.FC = () => {
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<any>(null)
   const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /** 与最近一次预检索返回对齐：发送内容与 query 一致时可随包带上 memories，发送路径不再触发 RAG */
+  const lastPrefetchRef = useRef<{ query: string; memories: string[] } | null>(null)
   const autoCreatedRef = useRef(false)
   const openingRefreshCleanupRef = useRef<(() => void) | null>(null)
 
@@ -108,6 +110,7 @@ export const Counseling: React.FC = () => {
           counselorBotId: null,
         })
         setSessions((prev) => [newSession, ...prev])
+        lastPrefetchRef.current = null
         setActiveSession(newSession)
         const initial = newSession.messages
         setMessages(initial ?? [])
@@ -187,6 +190,7 @@ export const Counseling: React.FC = () => {
   )
 
   const handleSelectSession = (session: Session) => {
+    lastPrefetchRef.current = null
     setActiveSession(session)
     loadMessages(session.id)
     if (window.innerWidth < 768) setSidebarOpen(false)
@@ -204,6 +208,7 @@ export const Counseling: React.FC = () => {
         counselorBotId,
       })
       setSessions((prev) => [newSession, ...prev])
+      lastPrefetchRef.current = null
       setActiveSession(newSession)
       const initial = newSession.messages
       setMessages(initial ?? [])
@@ -243,8 +248,16 @@ export const Counseling: React.FC = () => {
 
     if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current)
     prefetchTimerRef.current = setTimeout(() => {
-      counselingApi.prefetchMemories(activeSession.id, val.trim()).catch(() => {})
-    }, 300)
+      counselingApi
+        .prefetchMemories(activeSession.id, val.trim())
+        .then((r) => {
+          lastPrefetchRef.current = {
+            query: val.trim(),
+            memories: r.memories ?? [],
+          }
+        })
+        .catch(() => {})
+    }, 180)
   }, [activeSession, sending])
 
   const handleSend = async () => {
@@ -262,6 +275,19 @@ export const Counseling: React.FC = () => {
     const content = inputValue.trim()
     setInputValue('')
     setSending(true)
+
+    let ragMemories: string[]
+    if (lastPrefetchRef.current?.query === content) {
+      ragMemories = lastPrefetchRef.current.memories
+    } else {
+      try {
+        const r = await counselingApi.prefetchMemories(activeSession.id, content)
+        ragMemories = r.memories ?? []
+      } catch {
+        ragMemories = []
+      }
+      lastPrefetchRef.current = { query: content, memories: ragMemories }
+    }
 
     // 乐观插入用户消息
     const userMsg: Message = {
@@ -305,7 +331,7 @@ export const Counseling: React.FC = () => {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ content }),
+          body: JSON.stringify({ content, ragMemories }),
         }
       )
 

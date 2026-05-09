@@ -61,11 +61,17 @@ export class CounselingController {
   @ApiOkResponse({ description: '发送消息（SSE 流式）' })
   async sendMessage(
     @Param('id', ParseIntPipe) id: number,
-    @Body('content') content: string,
+    @Body() body: { content: string; ragMemories?: string[] },
     @Request() req: any,
     @Res() res: Response,
   ) {
-    await this.counselingService.sendMessage(id, req.user.id, content, res);
+    await this.counselingService.sendMessage(
+      id,
+      req.user.id,
+      body?.content ?? '',
+      res,
+      body?.ragMemories,
+    );
   }
 
   @Post('sessions/:id/prefetch')

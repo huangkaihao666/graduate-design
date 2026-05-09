@@ -18,9 +18,11 @@ const DEFAULT_COUNSELOR_NAME = '默认情绪伙伴';
 @Injectable()
 export class CounselingService {
   private readonly logger = new Logger(CounselingService.name);
-  // 预检索缓存：key = sessionId，value = 摘要文本列表
-  // sessionId 是自增主键，不同用户天然隔离，无需额外区分
-  private prefetchCache = new Map<string, string[]>();
+  /** 预检索缓存：key = sessionId；value 含 query 与 memories，send 时须与正文一致才采用，避免误注入 */
+  private prefetchCache = new Map<
+    string,
+    { query: string; memories: string[] }
+  >();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -253,13 +255,17 @@ export class CounselingService {
    * 结果缓存在内存 Map，sendMessage 时直接读取，消除 Ollama 嵌入延迟。
    */
   async prefetchMemories(sessionId: number, userId: number, inputText: string) {
-    if (!inputText.trim()) return { success: true };
-    const memories = await this.ragService.searchMemories(userId, inputText, 3);
-    this.prefetchCache.set(`${sessionId}`, memories);
+    const q = inputText.trim();
+    if (!q) {
+      return { success: true as const, memories: [] as string[] };
+    }
+    await this.ensureOwner(sessionId, userId);
+    const memories = await this.ragService.searchMemories(userId, q, 3);
+    this.prefetchCache.set(`${sessionId}`, { query: q, memories });
     this.logger.log(
-      `[RAG] prefetch sessionId=${sessionId} query="${inputText.slice(0, 30)}" → ${memories.length} 条记忆: ${JSON.stringify(memories)}`,
+      `[RAG] prefetch sessionId=${sessionId} query="${q.slice(0, 30)}" → ${memories.length} 条记忆: ${JSON.stringify(memories)}`,
     );
-    return { success: true };
+    return { success: true as const, memories };
   }
 
   async sendMessage(
@@ -267,15 +273,35 @@ export class CounselingService {
     userId: number,
     content: string,
     res: Response,
+    ragMemoriesFromClient?: string[],
   ) {
     const session = await this.ensureOwner(sessionId, userId);
 
-    // 读取预检索缓存（用户打字时已提前完成），用完即清
-    const cachedMemories = this.prefetchCache.get(`${sessionId}`) ?? [];
+    const trimmed = content.trim();
+    let cachedMemories: string[] = [];
+
+    if (
+      Array.isArray(ragMemoriesFromClient) &&
+      ragMemoriesFromClient.length > 0
+    ) {
+      cachedMemories = ragMemoriesFromClient;
+      this.logger.log(
+        `[RAG] sendMessage sessionId=${sessionId} 使用前端随包携带的 ${cachedMemories.length} 条记忆（发送路径不再检索）`,
+      );
+    } else {
+      const hit = this.prefetchCache.get(`${sessionId}`);
+      if (hit && hit.query === trimmed) {
+        cachedMemories = hit.memories;
+        this.logger.log(
+          `[RAG] sendMessage sessionId=${sessionId} 服务端预取缓存命中（query 一致）${cachedMemories.length} 条`,
+        );
+      } else {
+        this.logger.log(
+          `[RAG] sendMessage sessionId=${sessionId} 无可用预取（query 不一致或未预取），不使用历史记忆`,
+        );
+      }
+    }
     this.prefetchCache.delete(`${sessionId}`);
-    this.logger.log(
-      `[RAG] sendMessage sessionId=${sessionId} 缓存命中 ${cachedMemories.length} 条: ${JSON.stringify(cachedMemories)}`,
-    );
 
     // 保存用户消息
     await (this.prisma as any).counselingMessage.create({
