@@ -13,6 +13,7 @@ import {
   ValidationPipe,
 } from './common';
 import { appConfig } from './config';
+import { getCorsOrigins } from './config/cors';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -24,9 +25,8 @@ async function bootstrap() {
   app.use(require('express').urlencoded({ extended: true, limit: '10mb' }));
 
   // Enable CORS - 支持多个开发端口
-  const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
   app.enableCors({
-    origin: corsOrigin.split(',').map((origin) => origin.trim()),
+    origin: getCorsOrigins(),
     credentials: true,
   });
 
@@ -55,7 +55,7 @@ async function bootstrap() {
     exclude: ['/socket.io/*path'],
   });
 
-  await app.listen(appConfig.port);
+  await app.listen(appConfig.port, '0.0.0.0');
 
   console.log(
     `🚀 Application is running on: http://localhost:${appConfig.port}/api/v1`,

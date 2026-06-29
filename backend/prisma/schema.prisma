@@ -83,7 +83,6 @@ model Room {
   @@index([ownerId])
   @@index([status])
   @@index([createdAt])
-  @@fulltext([title, content])
 }
 
 /// 消息模型

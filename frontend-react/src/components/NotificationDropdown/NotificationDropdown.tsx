@@ -87,7 +87,7 @@ const NotificationDropdown: React.FC = () => {
   // 通知列表（点开时才加载）
   const { data: notifData, isLoading } = useQuery({
     queryKey: ['notifications'],
-    queryFn: notifApi.getNotifications,
+    queryFn: () => notifApi.getNotifications(),
     enabled: open,
     staleTime: 0,
   })

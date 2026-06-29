@@ -13,7 +13,7 @@ const Feed: React.FC = () => {
   const { user } = useAuthStore()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const userId = user?.id!
+  const userId = user?.id ? Number(user.id) : 0
   const [feedPage, setFeedPage] = useState(1)
 
   const { data: feedData, isLoading: feedLoading } = useQuery({

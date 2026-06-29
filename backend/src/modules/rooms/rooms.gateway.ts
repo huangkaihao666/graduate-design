@@ -15,10 +15,11 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { DebateService } from './debate.service';
 import { AchievementsService } from '@/modules/achievements/achievements.service';
 import { RagService } from '@/modules/rag/rag.service';
+import { getCorsOrigins } from '@/config/cors';
 
 @WebSocketGateway({
   cors: {
-    origin: ['http://localhost:5173', 'http://localhost:5174'],
+    origin: getCorsOrigins(),
     credentials: true,
   },
 })

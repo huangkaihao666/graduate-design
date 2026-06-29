@@ -7,6 +7,7 @@ import { io } from 'socket.io-client'
 import type { Socket } from 'socket.io-client'
 import * as roomApi from '@/api/rooms'
 import * as authApi from '@/api/auth'
+import { getWebSocketUrl } from '@/api/baseUrl'
 import { useAuthStore } from '@/store'
 import { LeftPanel } from './components/LeftPanel'
 import { DebateStage } from './components/DebateStage'
@@ -113,9 +114,10 @@ export const DebateRoom: React.FC = () => {
     const roomData = (room as any).data || room
     setRoomStatus(roomData.status)
 
-    console.log('🔥 [DEBUG] Connecting to WebSocket: http://localhost:3000')
+    const wsUrl = getWebSocketUrl()
+    console.log('🔥 [DEBUG] Connecting to WebSocket:', wsUrl)
     
-    const socketInstance = io('http://localhost:3000', {
+    const socketInstance = io(wsUrl, {
       auth: {
         token: accessToken,
       },
@@ -597,12 +599,7 @@ export const DebateRoom: React.FC = () => {
 
   const handleStartDebate = async () => {
     try {
-      await fetch(`/api/v1/rooms/${id}/start`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      })
+      await roomApi.startRoom(parseInt(id || '0'))
     } catch (error) {
       message.error('开始辩论失败')
     }

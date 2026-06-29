@@ -42,7 +42,6 @@ CREATE TABLE `rooms` (
     INDEX `rooms_ownerId_idx`(`ownerId`),
     INDEX `rooms_status_idx`(`status`),
     INDEX `rooms_createdAt_idx`(`createdAt`),
-    FULLTEXT INDEX `rooms_title_content_idx`(`title`, `content`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 

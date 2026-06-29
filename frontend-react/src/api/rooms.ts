@@ -57,6 +57,10 @@ export const closeRoom = (roomId: number) => {
   return httpClient.post(`/rooms/${roomId}/close`)
 }
 
+export const startRoom = (roomId: number) => {
+  return httpClient.post(`/rooms/${roomId}/start`)
+}
+
 /**
  * 获取结案报告
  */

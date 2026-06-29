@@ -4,9 +4,10 @@ import { message } from 'antd'
 import type { ApiResponse } from '@/types/common'
 import { useAuthStore, useAdminAuthStore } from '@/store'
 import * as authApi from './auth'
+import { getApiBaseUrl } from './baseUrl'
 
 const instance: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
+  baseURL: getApiBaseUrl(),
   timeout: 10000,
   headers: { 'Content-Type': 'application/json' },
 })

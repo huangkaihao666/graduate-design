@@ -16,6 +16,7 @@ import { Select } from 'antd'
 import type { AvailableAgent } from '@/api/counseling'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '@/store'
+import { buildApiUrl } from '@/api/baseUrl'
 import * as counselingApi from '@/api/counseling'
 import type { Session, CounselingMessage } from '@/api/counseling'
 import './Counseling.less'
@@ -324,7 +325,7 @@ export const Counseling: React.FC = () => {
     try {
       const token = useAuthStore.getState().accessToken
       const response = await fetch(
-        `/api/v1/counseling/sessions/${activeSession.id}/messages`,
+        buildApiUrl(`/counseling/sessions/${activeSession.id}/messages`),
         {
           method: 'POST',
           headers: {
